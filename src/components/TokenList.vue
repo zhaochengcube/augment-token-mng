@@ -70,6 +70,8 @@
               @token-updated="$emit('token-updated')"
               />
             </div>
+
+
           </div>
         </div>
       </div>
@@ -78,7 +80,8 @@
 </template>
 
 <script setup>
-import { ref, nextTick, onMounted } from 'vue'
+import { ref, nextTick, onMounted, computed } from 'vue'
+import { invoke } from '@tauri-apps/api/core'
 import TokenCard from './TokenCard.vue'
 
 // Props
@@ -102,6 +105,8 @@ const emit = defineEmits(['close', 'delete', 'copy-success', 'add-token', 'refre
 
 // Token card refs for accessing child methods
 const tokenCardRefs = ref({})
+
+
 
 // 设置ref的函数
 const setTokenCardRef = (el, tokenId) => {
@@ -304,8 +309,10 @@ const handleRefresh = async () => {
   }
 }
 
+
+
 // 组件挂载时只在没有未保存更改时才刷新
-onMounted(() => {
+onMounted(async () => {
   // 如果有未保存的更改，不要重新加载文件数据，避免覆盖内存中的新token
   if (!props.hasUnsavedChanges) {
     emit('refresh', true) // 传递 true 表示显示成功消息
@@ -495,6 +502,14 @@ defineExpose({
     padding: 4px 8px;
     font-size: 11px;
   }
+
+  .sync-actions {
+    flex-direction: column;
+  }
+
+  .btn.sync-btn {
+    min-width: auto;
+  }
 }
 
 .list-header {
@@ -635,6 +650,18 @@ defineExpose({
 .status-text {
   font-size: 11px;
   font-weight: 500;
+}
+
+
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.btn.loading {
+  opacity: 0.7;
+  pointer-events: none;
 }
 
 

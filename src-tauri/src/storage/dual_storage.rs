@@ -69,6 +69,149 @@ impl DualStorage {
         Ok(local_deleted || db_deleted)
     }
 
+    /// 删除token及其在数据库中的重复项
+    async fn delete_token_and_duplicates(&self, token_id: &str) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
+        eprintln!("Starting delete_token_and_duplicates for token_id: {}", token_id);
+
+        // 首先获取要删除的token信息，用于查找重复项
+        let token_info = if let Some(postgres) = &self.postgres_storage {
+            if postgres.is_available().await {
+                eprintln!("Database is available, trying to get token from database");
+                match postgres.get_token(token_id).await {
+                    Ok(Some(token)) => {
+                        eprintln!("Found token in database: tenant_url={}, access_token={}", token.tenant_url, token.access_token);
+                        Some(token)
+                    },
+                    Ok(None) => {
+                        eprintln!("Token not found in database, trying local storage");
+                        // 如果数据库中没有，尝试从本地存储获取
+                        match self.local_storage.get_token(token_id).await {
+                            Ok(token) => {
+                                if let Some(token) = token {
+                                    eprintln!("Found token in local storage: tenant_url={}, access_token={}", token.tenant_url, token.access_token);
+                                    Some(token)
+                                } else {
+                                    eprintln!("Token not found in local storage either");
+                                    None
+                                }
+                            },
+                            Err(e) => {
+                                eprintln!("Error getting token from local storage: {}", e);
+                                None
+                            }
+                        }
+                    },
+                    Err(e) => {
+                        eprintln!("Error getting token from database: {}, trying local storage", e);
+                        // 数据库查询失败，尝试从本地存储获取
+                        match self.local_storage.get_token(token_id).await {
+                            Ok(token) => {
+                                if let Some(token) = token {
+                                    eprintln!("Found token in local storage: tenant_url={}, access_token={}", token.tenant_url, token.access_token);
+                                    Some(token)
+                                } else {
+                                    eprintln!("Token not found in local storage either");
+                                    None
+                                }
+                            },
+                            Err(e) => {
+                                eprintln!("Error getting token from local storage: {}", e);
+                                None
+                            }
+                        }
+                    }
+                }
+            } else {
+                eprintln!("Database not available, trying local storage");
+                // 数据库不可用，从本地存储获取
+                match self.local_storage.get_token(token_id).await {
+                    Ok(token) => {
+                        if let Some(token) = token {
+                            eprintln!("Found token in local storage: tenant_url={}, access_token={}", token.tenant_url, token.access_token);
+                            Some(token)
+                        } else {
+                            eprintln!("Token not found in local storage");
+                            None
+                        }
+                    },
+                    Err(e) => {
+                        eprintln!("Error getting token from local storage: {}", e);
+                        None
+                    }
+                }
+            }
+        } else {
+            eprintln!("No database storage configured, trying local storage");
+            // 没有数据库存储，从本地存储获取
+            match self.local_storage.get_token(token_id).await {
+                Ok(token) => {
+                    if let Some(token) = token {
+                        eprintln!("Found token in local storage: tenant_url={}, access_token={}", token.tenant_url, token.access_token);
+                        Some(token)
+                    } else {
+                        eprintln!("Token not found in local storage");
+                        None
+                    }
+                },
+                Err(e) => {
+                    eprintln!("Error getting token from local storage: {}", e);
+                    None
+                }
+            }
+        };
+
+        // 执行原有的删除逻辑
+        eprintln!("Executing main delete operation");
+        let main_deleted = self.delete_from_both_storages(token_id).await?;
+        eprintln!("Main delete result: {}", main_deleted);
+
+        // 如果是双重存储且数据库可用，查找并删除重复的token
+        if let Some(postgres) = &self.postgres_storage {
+            if postgres.is_available().await {
+                if let Some(token) = token_info {
+                    eprintln!("Looking for duplicate tokens with tenant_url={}, access_token={}", token.tenant_url, token.access_token);
+                    // 查找数据库中的重复token
+                    match postgres.find_duplicate_tokens(&token.tenant_url, &token.access_token, token_id).await {
+                        Ok(duplicate_tokens) => {
+                            eprintln!("Found {} duplicate tokens", duplicate_tokens.len());
+                            let mut duplicate_deleted_count = 0;
+                            for duplicate_token in duplicate_tokens {
+                                eprintln!("Attempting to delete duplicate token with ID: {}", duplicate_token.id);
+                                // 删除每个重复的token
+                                if let Ok(deleted) = postgres.delete_token(&duplicate_token.id).await {
+                                    if deleted {
+                                        duplicate_deleted_count += 1;
+                                        eprintln!("Successfully deleted duplicate token with ID: {}", duplicate_token.id);
+                                    } else {
+                                        eprintln!("Failed to delete duplicate token with ID: {} (not found)", duplicate_token.id);
+                                    }
+                                } else {
+                                    eprintln!("Error deleting duplicate token with ID: {}", duplicate_token.id);
+                                }
+                            }
+                            if duplicate_deleted_count > 0 {
+                                eprintln!("Deleted {} duplicate tokens", duplicate_deleted_count);
+                            } else {
+                                eprintln!("No duplicate tokens were deleted");
+                            }
+                        },
+                        Err(e) => {
+                            eprintln!("Failed to find duplicate tokens: {}", e);
+                        }
+                    }
+                } else {
+                    eprintln!("No token info available for finding duplicates");
+                }
+            } else {
+                eprintln!("Database not available for duplicate deletion");
+            }
+        } else {
+            eprintln!("No database storage for duplicate deletion");
+        }
+
+        Ok(main_deleted)
+    }
+
     async fn load_from_preferred_storage(&self) -> Result<Vec<TokenData>, Box<dyn std::error::Error + Send + Sync>> {
         if self.prefer_database {
             if let Some(postgres) = &self.postgres_storage {
@@ -105,7 +248,7 @@ impl TokenStorage for DualStorage {
     }
 
     async fn delete_token(&self, token_id: &str) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
-        self.delete_from_both_storages(token_id).await
+        self.delete_token_and_duplicates(token_id).await
     }
 
     async fn get_token(&self, token_id: &str) -> Result<Option<TokenData>, Box<dyn std::error::Error + Send + Sync>> {

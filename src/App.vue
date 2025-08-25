@@ -51,15 +51,18 @@
 
     <!-- Main Content -->
     <main class="main-content">
-      <!-- Sync Status Component -->
-      <div class="sync-status-container">
-        <SyncStatus @show-status="showStatus" />
-      </div>
-
       <div class="token-generator-main">
         <div class="generator-header">
-          <h2>生成Augment Token</h2>
-          <p>按照以下步骤获取你的Augment访问令牌</p>
+          <div class="header-content">
+            <div class="title-section">
+              <h2>生成Augment Token</h2>
+              <p>按照以下步骤获取你的Augment访问令牌</p>
+            </div>
+            <!-- Sync Status Component -->
+            <div class="sync-status-container">
+              <SyncStatus @show-status="showStatus" />
+            </div>
+          </div>
         </div>
 
         <div class="generator-body">
@@ -512,11 +515,16 @@ const confirmDelete = async () => {
   if (!tokenToDelete.value) return
 
   try {
-    // 在内存中删除 token
-    tokens.value = tokens.value.filter(token => token.id !== tokenToDelete.value)
-    hasUnsavedChanges.value = true
+    // 调用后端删除 token
+    const deleted = await invoke('delete_token', { tokenId: tokenToDelete.value })
 
-    showStatus('Token已从内存删除，请手动保存', 'success')
+    if (deleted) {
+      // 从内存中也删除 token
+      tokens.value = tokens.value.filter(token => token.id !== tokenToDelete.value)
+      showStatus('Token已删除', 'success')
+    } else {
+      showStatus('Token删除失败：未找到指定token', 'error')
+    }
   } catch (error) {
     showStatus(`删除Token失败: ${error}`, 'error')
   }
@@ -972,7 +980,48 @@ html, body {
 }
 
 .sync-status-container {
-  margin-bottom: 20px;
+  position: absolute;
+  top: 0;
+  right: -20px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+}
+
+.sync-status-container > * {
+  width: 240px;
+  max-width: 30%;
+}
+
+.generator-header {
+  margin-bottom: 32px;
+}
+
+.header-content {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.title-section {
+  text-align: center;
+}
+
+.title-section h2 {
+  margin: 0 0 8px 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: #1f2937;
+  line-height: 1.2;
+}
+
+.title-section p {
+  margin: 0;
+  font-size: 16px;
+  color: #6b7280;
+  line-height: 1.5;
 }
 
 .btn {
@@ -1518,6 +1567,29 @@ input[type="text"]:read-only {
 
   .main-content {
     padding: 20px 16px;
+  }
+
+  .header-content {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .sync-status-container {
+    position: static;
+    justify-content: center;
+  }
+
+  .sync-status-container > * {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .title-section h2 {
+    font-size: 24px;
+  }
+
+  .title-section p {
+    font-size: 14px;
   }
 
   .list-header {

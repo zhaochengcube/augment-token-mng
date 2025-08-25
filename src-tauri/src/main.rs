@@ -862,6 +862,20 @@ async fn sync_tokens_from_database(
 }
 
 #[tauri::command]
+async fn delete_token(
+    token_id: String,
+    state: State<'_, AppState>,
+) -> Result<bool, String> {
+    let storage_manager = {
+        let guard = state.storage_manager.lock().unwrap();
+        guard.clone().ok_or("Storage manager not initialized")?
+    };
+
+    storage_manager.delete_token(&token_id).await
+        .map_err(|e| format!("Delete failed: {}", e))
+}
+
+#[tauri::command]
 async fn bidirectional_sync_tokens(
     state: State<'_, AppState>,
 ) -> Result<storage::SyncStatus, String> {
@@ -876,11 +890,27 @@ async fn bidirectional_sync_tokens(
 
 #[tauri::command]
 async fn get_storage_status(
+    app: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
+    // 检查存储管理器是否已初始化，如果没有则尝试初始化
     let storage_manager = {
-        let guard = state.storage_manager.lock().unwrap();
-        guard.clone().ok_or("Storage manager not initialized")?
+        let manager_option = {
+            let guard = state.storage_manager.lock().unwrap();
+            guard.clone()
+        };
+
+        if let Some(manager) = manager_option {
+            manager
+        } else {
+            // 尝试初始化存储管理器
+            if let Err(e) = initialize_storage_manager(&app, &state).await {
+                return Err(format!("Failed to initialize storage manager: {}", e));
+            }
+            // 重新获取存储管理器
+            let guard = state.storage_manager.lock().unwrap();
+            guard.clone().ok_or("Storage manager still not initialized after initialization attempt")?
+        }
     };
 
     let is_available = storage_manager.is_available().await;
@@ -896,11 +926,27 @@ async fn get_storage_status(
 
 #[tauri::command]
 async fn get_sync_status(
+    app: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<Option<storage::SyncStatus>, String> {
+    // 检查存储管理器是否已初始化，如果没有则尝试初始化
     let storage_manager = {
-        let guard = state.storage_manager.lock().unwrap();
-        guard.clone().ok_or("Storage manager not initialized")?
+        let manager_option = {
+            let guard = state.storage_manager.lock().unwrap();
+            guard.clone()
+        };
+
+        if let Some(manager) = manager_option {
+            manager
+        } else {
+            // 尝试初始化存储管理器
+            if let Err(e) = initialize_storage_manager(&app, &state).await {
+                return Err(format!("Failed to initialize storage manager: {}", e));
+            }
+            // 重新获取存储管理器
+            let guard = state.storage_manager.lock().unwrap();
+            guard.clone().ok_or("Storage manager still not initialized after initialization attempt")?
+        }
     };
 
     storage_manager.get_sync_status().await
@@ -1079,6 +1125,8 @@ fn main() {
             // 同步命令
             sync_tokens_to_database,
             sync_tokens_from_database,
+            // 删除命令
+            delete_token,
             bidirectional_sync_tokens,
             get_storage_status,
             get_sync_status,

@@ -174,6 +174,37 @@ impl TokenStorage for PostgreSQLStorage {
     }
 }
 
+impl PostgreSQLStorage {
+    /// 查找具有相同tenant_url和access_token但不同ID的token
+    pub async fn find_duplicate_tokens(&self, tenant_url: &str, access_token: &str, exclude_token_id: &str) -> Result<Vec<TokenData>, Box<dyn std::error::Error + Send + Sync>> {
+        let pool = self.get_pool().await?;
+        let client = pool.get().await?;
+
+        let rows = client.query(
+            "SELECT id, tenant_url, access_token, created_at, updated_at, portal_url, email_note, ban_status, portal_info FROM tokens WHERE tenant_url = $1 AND access_token = $2 AND id != $3",
+            &[&tenant_url, &access_token, &exclude_token_id],
+        ).await?;
+
+        let mut tokens = Vec::new();
+        for row in rows {
+            let token = TokenData {
+                id: row.get(0),
+                tenant_url: row.get(1),
+                access_token: row.get(2),
+                created_at: row.get(3),
+                updated_at: row.get(4),
+                portal_url: row.get(5),
+                email_note: row.get(6),
+                ban_status: row.get(7),
+                portal_info: row.get(8),
+            };
+            tokens.push(token);
+        }
+
+        Ok(tokens)
+    }
+}
+
 // 辅助函数：记录同步状态
 pub async fn record_sync_status(
     pool: &DbPool,
