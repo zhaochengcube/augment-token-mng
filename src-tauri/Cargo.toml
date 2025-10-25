@@ -1,0 +1,53 @@
+[package]
+name = "ATM"
+version = "1.2.0"
+description = "Augment Token Manager - 用于生成和管理 Augment OAuth 访问令牌的桌面应用"
+authors = ["cubezhao"]
+license = "MIT"
+repository = "https://github.com/zhaochengcube/augment-token-mng"
+edition = "2024"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+tauri-build = { version = "2.0", features = [] }
+
+[dependencies]
+tauri = { version = "2.0", features = [] }
+tauri-plugin-shell = "2"
+tauri-plugin-opener = "2"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+dirs = "5.0"
+reqwest = { version = "0.11", features = ["json", "cookies"] }
+regex = "1.10"
+urlencoding = "2.1"
+tokio = { version = "1.0", features = ["full"] }
+warp = "0.3"
+open = "5.0"
+base64 = "0.21"
+sha2 = "0.10"
+rand = "0.8"
+url = "2.4"
+uuid = { version = "1.0", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+# 邮件功能依赖
+imap = "2.4"
+native-tls = "0.2"
+# 数据库功能依赖
+tokio-postgres = { version = "0.7", features = ["with-chrono-0_4", "with-serde_json-1"] }
+deadpool-postgres = "0.10"
+tokio-postgres-rustls = "0.10"
+rustls = "0.21"
+webpki-roots = "0.25"
+aes-gcm = "0.10"
+hex = "0.4"
+async-trait = "0.1"
+
+[dev-dependencies]
+tempfile = "3.0"
+
+[features]
+# this feature is used for production builds or when `devPath` points to the filesystem
+# DO NOT REMOVE!!
+custom-protocol = ["tauri/custom-protocol"]

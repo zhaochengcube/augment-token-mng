@@ -1,0 +1,238 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build (e.g., v1.0.1). Leave empty to use current branch.'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  # Generate changelog from git commits
+  generate-changelog:
+    runs-on: ubuntu-latest
+    outputs:
+      changelog: ${{ steps.changelog.outputs.changelog }}
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Determine tag
+        id: tag
+        run: |
+          if [[ -n "${{ github.event.inputs.tag }}" ]]; then
+            TAG="${{ github.event.inputs.tag }}"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+          else
+            TAG="v$(node -p "require('./package.json').version")"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Tag: $TAG"
+
+      - name: Get version
+        id: version
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          VERSION="${TAG#v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get the previous tag
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+          if [ -z "$PREVIOUS_TAG" ]; then
+            echo "No previous tag found, using all commits"
+            COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges)
+          else
+            echo "Generating changelog from $PREVIOUS_TAG to HEAD"
+            COMMITS=$(git log $PREVIOUS_TAG..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          fi
+
+          # Create changelog with categories
+          CHANGELOG="## 🎉 What's New in v${{ steps.version.outputs.version }}
+
+          ### 📝 Changes
+          $COMMITS
+
+          ### 📦 Installation
+          Download the appropriate file for your platform:
+          - **Windows**: \`.msi\` installer
+          - **macOS (Apple Silicon)**: \`.dmg\` for M1/M2/M3 Macs
+          - **macOS (Intel)**: \`.dmg\` for Intel Macs
+          - **Linux**: \`.deb\` or \`.AppImage\`
+
+          ### 🔗 Links
+          - [Full Changelog](https://github.com/${{ github.repository }}/compare/$PREVIOUS_TAG...v${{ steps.version.outputs.version }})
+          - [Documentation](https://github.com/${{ github.repository }}#readme)"
+
+          # Save to output (escape newlines)
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+  build:
+    needs: generate-changelog
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            target: aarch64-apple-darwin
+            name: macOS-Apple-Silicon
+            rust-target: aarch64-apple-darwin
+          - platform: macos-latest
+            target: x86_64-apple-darwin
+            name: macOS-Intel
+            rust-target: x86_64-apple-darwin
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            name: Windows
+            rust-target: x86_64-pc-windows-msvc
+          - platform: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            name: Linux
+            rust-target: x86_64-unknown-linux-gnu
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.generate-changelog.outputs.tag }}
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev \
+            pkg-config \
+            build-essential \
+            curl \
+            wget \
+            file
+
+      - name: Rust setup
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-target }}
+
+      - name: Install Rust target
+        run: rustup target add ${{ matrix.rust-target }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: 'npm'
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build the app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: --verbose --target ${{ matrix.target }}
+
+      - name: Upload artifacts to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.generate-changelog.outputs.tag }}
+          name: 'ATM v${{ needs.generate-changelog.outputs.version }}'
+          body: ${{ needs.generate-changelog.outputs.changelog }}
+          draft: true
+          files: |
+            src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+            src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app
+            src-tauri/target/${{ matrix.target }}/release/bundle/deb/*.deb
+            src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage
+            src-tauri/target/${{ matrix.target }}/release/ATM.exe
+
+  # Notify on Telegram when all builds complete
+  notify-telegram:
+    needs: [generate-changelog, build]
+    runs-on: ubuntu-latest
+    if: always() && needs.build.result == 'success'
+    steps:
+      - name: Send Telegram notification
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          VERSION: ${{ needs.generate-changelog.outputs.version }}
+          REPO_NAME: ${{ github.repository }}
+        run: |
+          # Escape MarkdownV2 special characters
+          escape_markdown() {
+            echo "$1" | sed -e 's/\\/\\\\/g' \
+                            -e 's/_/\\_/g' \
+                            -e 's/\*/\\*/g' \
+                            -e 's/\[/\\[/g' \
+                            -e 's/\]/\\]/g' \
+                            -e 's/(/\\(/g' \
+                            -e 's/)/\\)/g' \
+                            -e 's/~/\\~/g' \
+                            -e 's/`/\\`/g' \
+                            -e 's/>/\\>/g' \
+                            -e 's/#/\\#/g' \
+                            -e 's/+/\\+/g' \
+                            -e 's/-/\\-/g' \
+                            -e 's/=/\\=/g' \
+                            -e 's/|/\\|/g' \
+                            -e 's/{/\\{/g' \
+                            -e 's/}/\\}/g' \
+                            -e 's/\./\\./g' \
+                            -e 's/!/\\!/g'
+          }
+
+          VERSION_ESCAPED=$(escape_markdown "$VERSION")
+          REPO_ESCAPED=$(escape_markdown "$REPO_NAME")
+
+          MESSAGE="
+          🎉 *New Release Built*
+
+          📦 *ATM v${VERSION_ESCAPED}*
+          🏷️ Repository: \`${REPO_ESCAPED}\`
+
+          ✅ All platform builds completed successfully:
+          • Windows \(x64\)
+          • macOS \(Apple Silicon\)
+          • macOS \(Intel\)
+          • Linux \(x64\)
+
+          🔗 [View Draft Release](https://github.com/${REPO_NAME}/releases)
+
+          ⚠️ *Action Required:* Please review and publish the draft release\.
+          "
+
+          curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            --data-urlencode text="$MESSAGE" \
+            -d parse_mode="MarkdownV2" || echo "Failed to send Telegram notification (non-critical)"

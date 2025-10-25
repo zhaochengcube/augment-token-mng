@@ -1,0 +1,328 @@
+name: Sync Upstream and Auto Release
+
+on:
+  # 每天 UTC 时间 00:00 自动检查上游更新
+  schedule:
+    - cron: '0 0 * * *'
+  
+  # 支持手动触发
+  workflow_dispatch:
+    inputs:
+      force_sync:
+        description: '强制同步（即使没有新提交也创建 PR）'
+        required: false
+        type: boolean
+        default: false
+      auto_merge:
+        description: '自动合并 PR（如果没有冲突）'
+        required: false
+        type: boolean
+        default: false
+      auto_release:
+        description: '同步后自动发布新版本'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check-upstream:
+    runs-on: ubuntu-latest
+    outputs:
+      has_updates: ${{ steps.check.outputs.has_updates }}
+      upstream_commits: ${{ steps.check.outputs.commits }}
+      new_version: ${{ steps.version.outputs.new_version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: |
+          # 添加上游仓库
+          git remote add upstream https://github.com/zhaochengcube/augment-token-mng.git || true
+          git fetch upstream
+          echo "✅ Fetched upstream repository"
+
+      - name: Check for updates
+        id: check
+        run: |
+          # 获取上游主分支的最新提交
+          UPSTREAM_COMMIT=$(git rev-parse upstream/main)
+          CURRENT_COMMIT=$(git rev-parse HEAD)
+          
+          echo "Current commit: $CURRENT_COMMIT"
+          echo "Upstream commit: $UPSTREAM_COMMIT"
+          
+          # 检查是否有新提交
+          if [ "$UPSTREAM_COMMIT" != "$CURRENT_COMMIT" ]; then
+            # 获取新提交列表
+            COMMITS=$(git log --oneline HEAD..upstream/main --no-merges | head -20)
+            echo "has_updates=true" >> $GITHUB_OUTPUT
+            
+            # 保存提交信息（转义换行符）
+            echo "commits<<EOF" >> $GITHUB_OUTPUT
+            echo "$COMMITS" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            
+            echo "✅ Found new commits from upstream"
+            echo "$COMMITS"
+          else
+            echo "has_updates=false" >> $GITHUB_OUTPUT
+            echo "ℹ️ No new commits from upstream"
+          fi
+
+      - name: Calculate new version
+        id: version
+        if: steps.check.outputs.has_updates == 'true' || github.event.inputs.force_sync == 'true'
+        run: |
+          # 获取当前版本
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          echo "Current version: $CURRENT_VERSION"
+          
+          # 解析版本号
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+          
+          # 自动递增 patch 版本
+          PATCH=$((PATCH + 1))
+          NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+          
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "New version will be: $NEW_VERSION"
+
+  sync-and-merge:
+    needs: check-upstream
+    if: needs.check-upstream.outputs.has_updates == 'true' || github.event.inputs.force_sync == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      pr_number: ${{ steps.create-pr.outputs.pr_number }}
+      has_conflicts: ${{ steps.merge.outputs.has_conflicts }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream and create sync branch
+        run: |
+          git remote add upstream https://github.com/zhaochengcube/augment-token-mng.git || true
+          git fetch upstream
+          
+          # 创建同步分支
+          BRANCH_NAME="sync-upstream-$(date +%Y%m%d-%H%M%S)"
+          git checkout -b "$BRANCH_NAME"
+          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+
+      - name: Merge upstream changes
+        id: merge
+        run: |
+          # 尝试合并上游更改
+          if git merge upstream/main --no-edit; then
+            echo "✅ Merged upstream changes successfully"
+            echo "has_conflicts=false" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ Merge conflicts detected"
+            echo "has_conflicts=true" >> $GITHUB_OUTPUT
+            
+            # 列出冲突文件
+            echo "Conflicting files:"
+            git diff --name-only --diff-filter=U
+            
+            # 中止合并
+            git merge --abort
+            exit 1
+          fi
+
+      - name: Push sync branch
+        if: steps.merge.outputs.has_conflicts == 'false'
+        run: |
+          git push origin "$BRANCH_NAME"
+          echo "✅ Pushed sync branch: $BRANCH_NAME"
+
+      - name: Create Pull Request
+        if: steps.merge.outputs.has_conflicts == 'false'
+        id: create-pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 创建 PR 描述
+          PR_BODY="## 🔄 上游同步更新
+
+          此 PR 自动同步来自上游仓库的更新。
+
+          ### 📝 上游提交
+          \`\`\`
+          ${{ needs.check-upstream.outputs.upstream_commits }}
+          \`\`\`
+
+          ### 📦 版本信息
+          - 当前版本: $(node -p \"require('./package.json').version\")
+          - 建议新版本: ${{ needs.check-upstream.outputs.new_version }}
+
+          ### ✅ 检查项
+          - [x] 无合并冲突
+          - [ ] 代码审查通过
+          - [ ] 测试通过
+          - [ ] 准备发布
+
+          ---
+          🤖 此 PR 由 GitHub Actions 自动创建"
+
+          # 创建 PR
+          PR_URL=$(gh pr create \
+            --title "🔄 同步上游更新 - $(date +%Y-%m-%d)" \
+            --body "$PR_BODY" \
+            --base main \
+            --head "$BRANCH_NAME" \
+            --label "upstream-sync,automated")
+          
+          # 提取 PR 编号
+          PR_NUMBER=$(echo "$PR_URL" | grep -oP '\d+$')
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+          echo "✅ Created PR #$PR_NUMBER: $PR_URL"
+
+      - name: Auto-merge PR
+        if: |
+          steps.merge.outputs.has_conflicts == 'false' && 
+          (github.event.inputs.auto_merge == 'true' || github.event_name == 'schedule')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER="${{ steps.create-pr.outputs.pr_number }}"
+          
+          # 等待 PR 创建完成
+          sleep 5
+          
+          # 自动合并 PR
+          gh pr merge "$PR_NUMBER" \
+            --merge \
+            --auto \
+            --delete-branch
+          
+          echo "✅ Auto-merge enabled for PR #$PR_NUMBER"
+
+      - name: Handle merge conflicts
+        if: steps.merge.outputs.has_conflicts == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 创建 Issue 通知冲突
+          ISSUE_BODY="## ⚠️ 上游同步冲突
+
+          自动同步上游更新时检测到合并冲突。
+
+          ### 📝 冲突信息
+          请手动解决以下文件的冲突：
+          \`\`\`
+          $(git diff --name-only --diff-filter=U)
+          \`\`\`
+
+          ### 🔧 解决步骤
+          1. 本地拉取最新代码
+          2. 添加上游仓库: \`git remote add upstream https://github.com/zhaochengcube/augment-token-mng.git\`
+          3. 获取上游更新: \`git fetch upstream\`
+          4. 合并并解决冲突: \`git merge upstream/main\`
+          5. 提交并推送
+
+          ---
+          🤖 此 Issue 由 GitHub Actions 自动创建"
+
+          gh issue create \
+            --title "⚠️ 上游同步冲突 - $(date +%Y-%m-%d)" \
+            --body "$ISSUE_BODY" \
+            --label "upstream-sync,conflict,help-wanted"
+          
+          echo "❌ Created issue for merge conflicts"
+          exit 1
+
+  auto-release:
+    needs: [check-upstream, sync-and-merge]
+    if: |
+      needs.sync-and-merge.outputs.has_conflicts == 'false' &&
+      (github.event.inputs.auto_release == 'true' || github.event_name == 'schedule')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for PR merge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER="${{ needs.sync-and-merge.outputs.pr_number }}"
+          
+          # 等待 PR 合并（最多 10 分钟）
+          for i in {1..60}; do
+            STATUS=$(gh pr view "$PR_NUMBER" --json state --jq '.state')
+            if [ "$STATUS" = "MERGED" ]; then
+              echo "✅ PR #$PR_NUMBER merged successfully"
+              break
+            fi
+            echo "⏳ Waiting for PR merge... ($i/60)"
+            sleep 10
+          done
+
+      - name: Checkout merged code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+
+      - name: Bump version and create tag
+        run: |
+          NEW_VERSION="${{ needs.check-upstream.outputs.new_version }}"
+          
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # 更新版本号
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            pkg.version = '$NEW_VERSION';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+          
+          # 更新 Cargo.toml
+          sed -i "s/^version = \".*\"/version = \"$NEW_VERSION\"/" src-tauri/Cargo.toml
+          
+          # 更新 tauri.conf.json
+          node -e "
+            const fs = require('fs');
+            const config = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8'));
+            config.version = '$NEW_VERSION';
+            fs.writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(config, null, 2) + '\n');
+          "
+          
+          # 提交版本更新
+          git add package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json
+          git commit -m "chore: bump version to $NEW_VERSION (upstream sync)"
+          git push origin main
+          
+          # 创建标签
+          TAG_NAME="v$NEW_VERSION"
+          git tag -a "$TAG_NAME" -m "Release $TAG_NAME (upstream sync)"
+          git push origin "$TAG_NAME"
+          
+          echo "✅ Created tag: $TAG_NAME"
+          echo "🚀 Build workflow will be triggered automatically"
+

@@ -1,0 +1,7 @@
+# 忽略备份文件目录
+/backup/
+*.bak 
+venv/
+node_modules/
+target/
+dist/

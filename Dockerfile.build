@@ -1,0 +1,67 @@
+# Multi-stage Dockerfile for Tauri application cross-platform builds
+# This Dockerfile builds the frontend and backend separately for better caching
+
+# Stage 1: Build frontend assets
+FROM node:18-alpine AS frontend-builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY vite.config.js ./
+
+# Install frontend dependencies
+RUN npm ci --only=production
+
+# Copy frontend source
+COPY src/ ./src/
+COPY public/ ./public/
+COPY index.html ./
+
+# Build frontend
+RUN npm run build
+
+# Stage 2: Rust build environment
+FROM rust:1.75-slim AS rust-builder
+
+# Install system dependencies for Tauri
+RUN apt-get update && apt-get install -y \
+    libwebkit2gtk-4.0-dev \
+    libgtk-3-dev \
+    libappindicator3-dev \
+    librsvg2-dev \
+    patchelf \
+    build-essential \
+    curl \
+    wget \
+    file \
+    libssl-dev \
+    libgtk-3-dev \
+    libayatana-appindicator3-dev \
+    libsoup-3.0-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js for Tauri CLI
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs
+
+WORKDIR /app
+
+# Copy Rust source and configs
+COPY src-tauri/ ./src-tauri/
+COPY --from=frontend-builder /app/dist ./dist
+
+# Install Tauri CLI
+RUN npm install -g @tauri-apps/cli
+
+# Build Tauri application for Linux
+WORKDIR /app/src-tauri
+RUN cargo build --release
+
+# Final stage: Extract build artifacts
+FROM scratch AS artifacts
+
+# Copy built binaries and packages
+COPY --from=rust-builder /app/src-tauri/target/release/bundle/deb/*.deb /
+COPY --from=rust-builder /app/src-tauri/target/release/bundle/appimage/*.AppImage /
+COPY --from=rust-builder /app/src-tauri/target/release/atm /
