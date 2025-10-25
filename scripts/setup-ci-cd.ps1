@@ -115,11 +115,11 @@ function Set-Upstream {
 # 检查版本号一致性
 function Test-VersionConsistency {
     Write-Header "检查版本号一致性"
-    
+
     # 读取各文件的版本号
-    $pkgVersion = node -p "require('./package.json').version"
+    $pkgVersion = & node -p "require('./package.json').version"
     $cargoVersion = (Select-String -Path "src-tauri/Cargo.toml" -Pattern '^version = "(.+)"' | Select-Object -First 1).Matches.Groups[1].Value
-    $tauriVersion = node -p "require('./src-tauri/tauri.conf.json').version"
+    $tauriVersion = & node -p "require('./src-tauri/tauri.conf.json').version"
     
     Write-Host "package.json:        $pkgVersion"
     Write-Host "Cargo.toml:          $cargoVersion"
@@ -289,26 +289,34 @@ function Test-Workflow {
 # 生成设置报告
 function New-Report {
     Write-Header "设置报告"
-    
+
     $reportFile = "ci-cd-setup-report.txt"
-    
+
+    # 获取版本信息
+    $pkgVer = & node -p "require('./package.json').version"
+    $cargoVer = (Select-String -Path "src-tauri/Cargo.toml" -Pattern '^version = "(.+)"' | Select-Object -First 1).Matches.Groups[1].Value
+    $tauriVer = & node -p "require('./src-tauri/tauri.conf.json').version"
+    $gitRemotes = & git remote -v | Out-String
+    $workflows = Get-ChildItem .github/workflows/ | Format-Table -AutoSize | Out-String
+    $versionStrategy = if (Test-Path .ci-cd-config) { Get-Content .ci-cd-config } else { "未配置" }
+
     $report = @"
 CI/CD 自动化设置报告
 生成时间: $(Get-Date)
 
 === Git 配置 ===
-$(git remote -v)
+$gitRemotes
 
 === 版本信息 ===
-package.json:     $(node -p "require('./package.json').version")
-Cargo.toml:       $((Select-String -Path "src-tauri/Cargo.toml" -Pattern '^version = "(.+)"' | Select-Object -First 1).Matches.Groups[1].Value)
-tauri.conf.json:  $(node -p "require('./src-tauri/tauri.conf.json').version")
+package.json:     $pkgVer
+Cargo.toml:       $cargoVer
+tauri.conf.json:  $tauriVer
 
 === 版本策略 ===
-$(if (Test-Path .ci-cd-config) { Get-Content .ci-cd-config } else { "未配置" })
+$versionStrategy
 
 === 工作流文件 ===
-$(Get-ChildItem .github/workflows/ | Format-Table -AutoSize | Out-String)
+$workflows
 
 === 下一步 ===
 1. 配置 GitHub Secrets (如需要)
@@ -316,9 +324,9 @@ $(Get-ChildItem .github/workflows/ | Format-Table -AutoSize | Out-String)
 3. 等待定时任务自动运行
 4. 查看文档: docs/CI-CD-GUIDE.md
 "@
-    
+
     $report | Out-File -FilePath $reportFile -Encoding UTF8
-    
+
     Write-Success "设置报告已生成: $reportFile"
     Write-Host $report
 }
