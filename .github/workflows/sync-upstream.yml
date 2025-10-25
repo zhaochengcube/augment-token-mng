@@ -163,6 +163,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # 创建 PR 描述
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+
           PR_BODY="## 🔄 上游同步更新
 
           此 PR 自动同步来自上游仓库的更新。
@@ -173,7 +175,7 @@ jobs:
           \`\`\`
 
           ### 📦 版本信息
-          - 当前版本: $(node -p \"require('./package.json').version\")
+          - 当前版本: ${CURRENT_VERSION}
           - 建议新版本: ${{ needs.check-upstream.outputs.new_version }}
 
           ### ✅ 检查项
