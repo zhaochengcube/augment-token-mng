@@ -133,19 +133,20 @@ jobs:
         id: merge
         run: |
           # 尝试合并上游更改
-          if git merge upstream/main --no-edit; then
+          # 使用 --allow-unrelated-histories 允许合并不相关的历史（首次同步需要）
+          if git merge upstream/main --no-edit --allow-unrelated-histories; then
             echo "✅ Merged upstream changes successfully"
             echo "has_conflicts=false" >> $GITHUB_OUTPUT
           else
             echo "⚠️ Merge conflicts detected"
             echo "has_conflicts=true" >> $GITHUB_OUTPUT
-            
+
             # 列出冲突文件
             echo "Conflicting files:"
-            git diff --name-only --diff-filter=U
-            
+            git diff --name-only --diff-filter=U || true
+
             # 中止合并
-            git merge --abort
+            git merge --abort || true
             exit 1
           fi
 
