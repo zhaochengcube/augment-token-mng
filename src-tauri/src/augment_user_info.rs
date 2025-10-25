@@ -28,8 +28,6 @@ pub struct CompleteUserInfo {
     pub email_note: Option<String>,
     pub suspensions: Option<Value>,
     pub portal_url: Option<String>,
-    pub expiry_date: Option<String>,
-    pub credits_balance: Option<i32>,
     pub ban_status: String,
 }
 
@@ -187,8 +185,6 @@ pub async fn get_user_info_with_app_session(app_session: &str) -> Result<Complet
         email_note: user_info.as_ref().and_then(|u| u.email.clone()),
         suspensions: user_info.and_then(|u| u.suspensions),
         portal_url: subscription_info.as_ref().and_then(|s| s.portal_url.clone()),
-        expiry_date: subscription_info.and_then(|s| s.billing_period_end),
-        credits_balance: credits_info.and_then(|c| c.usage_units_available),
         ban_status,
     })
 }

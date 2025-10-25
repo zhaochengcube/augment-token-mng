@@ -11,7 +11,6 @@ mod storage;
 mod http_client;
 mod proxy_config;
 mod proxy_helper;
-mod key_redeem;
 
 use augment_oauth::{create_augment_oauth_state, generate_augment_authorize_url, complete_augment_oauth_flow, check_account_ban_status, batch_check_account_status, extract_token_from_session, get_batch_credit_consumption_with_app_session, AugmentOAuthState, AugmentTokenResponse, AccountStatus, TokenInfo, TokenStatusResult, BatchCreditConsumptionResponse};
 use augment_user_info::{get_user_info, get_user_info_with_app_session, CompleteUserInfo, exchange_auth_session_for_app_session};
@@ -125,9 +124,8 @@ async fn check_account_status(token: String, tenant_url: String) -> Result<Accou
 #[tauri::command]
 async fn batch_check_tokens_status(
     tokens: Vec<TokenInfo>,
-    state: State<'_, AppState>,
 ) -> Result<Vec<TokenStatusResult>, String> {
-    batch_check_account_status(tokens, state.app_session_cache.clone())
+    batch_check_account_status(tokens)
         .await
         .map_err(|e| format!("Failed to batch check tokens status: {}", e))
 }
@@ -248,7 +246,6 @@ struct TokenFromSessionResponse {
     access_token: String,
     tenant_url: String,
     user_info: CompleteUserInfo,
-    auth_session: String,
 }
 
 // 内部函数,不发送进度事件,使用缓存的 app_session
@@ -313,7 +310,6 @@ async fn add_token_from_session_internal_with_cache(
         access_token: token_response.access_token,
         tenant_url: token_response.tenant_url,
         user_info,
-        auth_session: session.to_string(),
     })
 }
 
@@ -329,7 +325,6 @@ async fn add_token_from_session_internal(session: &str) -> Result<TokenFromSessi
         access_token: token_response.access_token,
         tenant_url: token_response.tenant_url,
         user_info,
-        auth_session: session.to_string(),
     })
 }
 
@@ -401,50 +396,7 @@ async fn add_token_from_session(
         access_token: token_response.access_token,
         tenant_url: token_response.tenant_url,
         user_info,
-        auth_session: session,
     })
-}
-
-/// 通过卡密批量兑换 auth_session 并导入 tokens
-#[tauri::command]
-async fn redeem_and_import_keys_batch(
-    server_url: String,
-    key_code: String,
-    count: u32,
-    app: tauri::AppHandle,
-    state: State<'_, AppState>,
-) -> Result<BatchRedeemImportResult, String> {
-    // 1. 批量兑换卡密获取多个 auth_session
-    let _ = app.emit("session-import-progress", format!("正在兑换 {} 个卡密...", count));
-    let batch_result = key_redeem::redeem_activation_keys_batch(&server_url.as_str(), &key_code.as_str(), count).await?;
-
-    // 2. 批量导入所有 sessions
-    let _ = app.emit("session-import-progress", format!("卡密兑换成功，正在导入 {} 个 Session...", batch_result.sessions.len()));
-
-    let mut imported_sessions = Vec::new();
-
-    for auth_session in &batch_result.sessions {
-        match add_token_from_session_internal_with_cache(auth_session, &state).await {
-            Ok(token_response) => {
-                imported_sessions.push(token_response);
-            }
-            Err(e) => {
-                eprintln!("导入 session 失败: {}", e);
-                // 继续导入其他 session，不中断
-            }
-        }
-    }
-
-    Ok(BatchRedeemImportResult {
-        sessions: imported_sessions,
-        remaining_uses: batch_result.remaining_uses,
-    })
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct BatchRedeemImportResult {
-    sessions: Vec<TokenFromSessionResponse>,
-    remaining_uses: u32,
 }
 
 #[tauri::command]
@@ -763,6 +715,8 @@ async fn open_internal_browser(
             // 检查当前页面状态
             const isLoginPage = window.location.hostname.includes('login.augmentcode.com') ||
                                 window.location.href.includes('/login');
+            const isAppPage = window.location.hostname.includes('app.augmentcode.com');
+            const isAuthPage = window.location.hostname.includes('auth.augmentcode.com');
 
             // 根据状态设置按钮
             if (isLoginPage) {
@@ -770,16 +724,31 @@ async fn open_internal_browser(
                 button.textContent = '🔒 登录后自动导入';
                 button.disabled = true;
                 button.style.cssText = 'background: #fef3c7; color: #92400e; border: 1px solid #fbbf24; padding: 12px 24px; border-radius: 8px; cursor: not-allowed; font-size: 14px; font-weight: 500; opacity: 0.9; box-shadow: 0 4px 12px rgba(0,0,0,0.15); white-space: nowrap;';
-            } else {
-                // 其他页面(主页/auth页面),显示正在导入
+                navbar.appendChild(button);
+            } else if (isAuthPage) {
+                // Auth页面,显示正在导入
                 button.textContent = '⏳ 正在导入...';
                 button.disabled = true;
                 button.style.cssText = 'background: #f3f4f6; color: #6b7280; border: 1px solid #d1d5db; padding: 12px 24px; border-radius: 8px; cursor: not-allowed; font-size: 14px; font-weight: 500; opacity: 0.7; box-shadow: 0 4px 12px rgba(0,0,0,0.15); white-space: nowrap;';
+                navbar.appendChild(button);
+            } else if (isAppPage) {
+                // App页面,显示可点击按钮
+                button.textContent = '📥 点击导入';
+                button.disabled = false;
+                button.style.cssText = 'background: #3b82f6; color: white; border: 1px solid #2563eb; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; box-shadow: 0 4px 12px rgba(0,0,0,0.15); white-space: nowrap; transition: all 0.2s;';
+                button.onmouseover = function() {
+                    this.style.background = '#2563eb';
+                };
+                button.onmouseout = function() {
+                    this.style.background = '#3b82f6';
+                };
+                button.onclick = function() {
+                    // 跳转到 auth 页面触发自动导入
+                    window.location.href = 'https://auth.augmentcode.com';
+                };
+                navbar.appendChild(button);
             }
-
-            // 按钮仅用于显示状态,不需要交互事件
-
-            navbar.appendChild(button);
+            // 其他页面不显示按钮
 
             // 插入到页面
             if (document.body) {
@@ -1772,7 +1741,6 @@ fn main() {
             batch_check_tokens_status,
             fetch_batch_credit_consumption,
             add_token_from_session,
-            redeem_and_import_keys_batch,
             open_url,
             // 新的简化命令
             save_tokens_json,

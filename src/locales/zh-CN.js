@@ -230,6 +230,7 @@ export default {
     canUse: '还能使用',
     exhausted: '使用次数耗尽',
     tokenInvalid: 'Token失效',
+    networkError: '网络错误',
     clickToViewDetails: '点击查看详情',
     suspensionDetails: '封禁详情',
     suspensionType: '封禁类型',
@@ -349,6 +350,8 @@ export default {
     back: '返回'
   },
   messages: {
+    autoSaveSuccess: '自动保存成功',
+    autoSaveFailed: '自动保存失败',
     tokenSaved: 'Token保存成功',
     tokenUpdated: 'Token更新成功',
     tokenLoadSuccess: 'Token加载成功',

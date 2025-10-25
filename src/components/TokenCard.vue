@@ -44,13 +44,16 @@
             <div class="meta-row portal-row">
               <template v-if="portalInfo.data">
                 <span v-if="portalInfo.data.expiry_date" class="portal-meta expiry">{{ $t('tokenCard.expiry') }}: {{ formatExpiryDate(portalInfo.data.expiry_date) }}</span>
-                <span
-                  :class="balanceClasses"
-                  @click="toggleBalanceColor"
-                  :style="{ cursor: isBalanceClickable ? 'pointer' : 'default' }"
-                >
-                  {{ balanceDisplay }}
-                </span>
+              </template>
+              <!-- 余额显示：无论是否有数据都显示 -->
+              <span
+                :class="balanceClasses"
+                @click="toggleBalanceColor"
+                :style="{ cursor: isBalanceClickable ? 'pointer' : 'default' }"
+              >
+                {{ balanceDisplay }}
+              </span>
+              <template v-if="portalInfo.data">
                 <!-- Credit 统计按钮 -->
                 <button
                   v-if="token.auth_session"
@@ -487,7 +490,6 @@ const isCheckingStatus = ref(false)
 const isEmailHovered = ref(false)
 const showEditorModal = ref(false)
 const isModalClosing = ref(false)
-const canStillUse = ref(false)
 const showPortalDialog = ref(false)
 const showCheckMenu = ref(false)
 const showSuspensionsModal = ref(false)
@@ -588,18 +590,21 @@ const maskedEmail = computed(() => {
 
 // Portal余额显示相关计算属性
 const balanceClasses = computed(() => {
-  if (!portalInfo.value || !portalInfo.value.data) {
-    return ['portal-meta', 'balance']
-  }
+  // 网络错误或账号异常状态显示红色
+  const hasError = portalInfo.value?.error
   const exhausted = (
     props.token.ban_status === 'EXPIRED' ||
-    props.token.ban_status === 'SUSPENDED' ||
-    (portalInfo.value.data.credits_balance === 0 && !canStillUse.value)
+    props.token.ban_status === 'SUSPENDED'
   )
 
-  // 如果是异常状态（红色），不应用颜色模式
-  if (exhausted) {
+  // 如果是异常状态或网络错误（红色），不应用颜色模式
+  if (hasError || exhausted) {
     return ['portal-meta', 'balance', 'exhausted']
+  }
+
+  // 没有数据时返回默认样式
+  if (!portalInfo.value || !portalInfo.value.data) {
+    return ['portal-meta', 'balance']
   }
 
   // 正常状态下应用颜色模式
@@ -609,26 +614,31 @@ const balanceClasses = computed(() => {
 
 // 判断余额是否可点击（非异常状态才可点击）
 const isBalanceClickable = computed(() => {
-  if (!portalInfo.value || !portalInfo.value.data) {
+  // 网络错误或没有数据时不可点击
+  if (!portalInfo.value || !portalInfo.value.data || portalInfo.value.error) {
     return false
   }
   const exhausted = (
     props.token.ban_status === 'EXPIRED' ||
-    props.token.ban_status === 'SUSPENDED' ||
-    (portalInfo.value.data.credits_balance === 0 && !canStillUse.value)
+    props.token.ban_status === 'SUSPENDED'
   )
   return !exhausted
 })
 
 const balanceDisplay = computed(() => {
-  if (!portalInfo.value || !portalInfo.value.data) return ''
+  if (!portalInfo.value) return ''
+
+  // 显示错误信息
+  if (portalInfo.value.error) {
+    return t('tokenCard.networkError')
+  }
+
+  if (!portalInfo.value.data) return ''
+
   const status = props.token.ban_status
   if (status === 'EXPIRED') return t('tokenCard.expired')
   if (status === 'SUSPENDED') return t('tokenCard.banned')
   const credits = portalInfo.value.data.credits_balance
-  if (credits === 0) {
-    return canStillUse.value ? t('tokenCard.canUse') : t('tokenCard.exhausted')
-  }
   return `${t('tokenCard.balance')}: ${credits}`
 })
 
@@ -1122,8 +1132,7 @@ const checkAccountStatus = async (showNotification = true) => {
       if (result.portal_info) {
         props.token.portal_info = {
           credits_balance: result.portal_info.credits_balance,
-          expiry_date: result.portal_info.expiry_date,
-          can_still_use: result.portal_info.can_still_use
+          expiry_date: result.portal_info.expiry_date
         }
 
         // 更新UI显示
@@ -1131,10 +1140,10 @@ const checkAccountStatus = async (showNotification = true) => {
           data: props.token.portal_info,
           error: null
         }
-
-        // 直接使用后端返回的can_still_use字段
-        canStillUse.value = result.portal_info.can_still_use
       } else if (result.portal_error) {
+        // 保存错误信息到 token
+        props.token.portal_info = null
+
         portalInfo.value = {
           data: null,
           error: result.portal_error
@@ -1175,7 +1184,6 @@ const checkAccountStatus = async (showNotification = true) => {
       statusType = 'error'
     }
 
-    // Portal信息现在已经包含在批量API结果中，无需单独处理
 
     // 发送账号状态消息（不包含次数信息）
     if (showNotification) {
@@ -1184,6 +1192,12 @@ const checkAccountStatus = async (showNotification = true) => {
     }
 
   } catch (error) {
+    // 设置错误状态，让UI显示网络错误
+    portalInfo.value = {
+      data: null,
+      error: String(error)
+    }
+
     if (showNotification) {
       window.$notify.error(`${t('messages.checkFailed')}: ${error}`)
     }
@@ -1202,14 +1216,9 @@ watch(() => props.token.portal_info, (newPortalInfo) => {
     portalInfo.value = {
       data: {
         credits_balance: newPortalInfo.credits_balance,
-        expiry_date: newPortalInfo.expiry_date,
-        can_still_use: newPortalInfo.can_still_use
+        expiry_date: newPortalInfo.expiry_date
       },
       error: null
-    }
-    // 同步can_still_use状态
-    if (newPortalInfo.can_still_use !== undefined) {
-      canStillUse.value = newPortalInfo.can_still_use
     }
   }
 }, { deep: true })
@@ -1222,14 +1231,9 @@ onMounted(async () => {
       portalInfo.value = {
         data: {
           credits_balance: props.token.portal_info.credits_balance,
-          expiry_date: props.token.portal_info.expiry_date,
-          can_still_use: props.token.portal_info.can_still_use
+          expiry_date: props.token.portal_info.expiry_date
         },
         error: null
-      }
-      // 设置本地的can_still_use状态
-      if (props.token.portal_info.can_still_use !== undefined) {
-        canStillUse.value = props.token.portal_info.can_still_use
       }
     }
     // 然后在后台刷新数据（静默模式，不显示通知）

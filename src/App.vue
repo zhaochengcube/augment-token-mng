@@ -479,7 +479,6 @@
 import { ref, onMounted, computed, inject, onBeforeUnmount, nextTick } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
-import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useI18n } from 'vue-i18n'
 import TokenList from './components/TokenList.vue'
 import BookmarkManager from './components/BookmarkManager.vue'
@@ -996,41 +995,6 @@ onMounted(async () => {
 
   // 添加点击外部区域关闭设置菜单的事件监听器
   document.addEventListener('click', handleClickOutside)
-
-  // 监听窗口关闭请求,在关闭前保存数据
-  const appWindow = getCurrentWindow()
-  let isClosing = false // 防止重复触发关闭
-
-  const unlistenCloseRequested = await appWindow.onCloseRequested(async (event) => {
-    // 如果已经在关闭流程中,直接允许关闭
-    if (isClosing) {
-      return
-    }
-
-    console.log('App: Window close requested, saving data...')
-
-    // 阻止默认关闭行为
-    event.preventDefault()
-    isClosing = true
-
-    try {
-      // 如果 TokenList 组件已挂载,触发静默保存
-      if (tokenListRef.value) {
-        console.log('App: Triggering TokenList save before close')
-        await tokenListRef.value.handleSave() // 使用 handleSave 支持双向同步
-      }
-
-      console.log('App: Data saved successfully, destroying window')
-    } catch (error) {
-      console.error('App: Failed to save data before close:', error)
-    } finally {
-      // 使用 destroy 而不是 close,避免再次触发 onCloseRequested
-      await appWindow.destroy()
-    }
-  })
-
-  // 保存清理函数
-  window._unlistenCloseRequested = unlistenCloseRequested
 })
 
 onBeforeUnmount(() => {
@@ -1039,11 +1003,6 @@ onBeforeUnmount(() => {
   }
   // 移除事件监听器
   document.removeEventListener('click', handleClickOutside)
-
-  // 清理窗口关闭监听器
-  if (window._unlistenCloseRequested) {
-    window._unlistenCloseRequested()
-  }
 })
 
 

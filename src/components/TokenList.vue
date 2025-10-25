@@ -18,12 +18,6 @@
               </svg>
               {{ $t('tokenList.databaseConfig') }}
             </button>
-            <button @click="showRedeemKeyModal = true" class="btn success small">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/>
-              </svg>
-              卡密兑换
-            </button>
             <button @click="handleAddToken" class="btn primary small">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
@@ -92,6 +86,15 @@
                     :class="['arrow-icon', sortOrder === 'desc' ? 'arrow-down' : 'arrow-up']"
                   >
                     <path d="M7 14l5-5 5 5z"/>
+                  </svg>
+                </button>
+                <button
+                  class="open-folder-btn"
+                  @click="openDataFolder"
+                  :title="$t('bookmarkManager.openDataFolder')"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"/>
                   </svg>
                 </button>
                 <button
@@ -317,96 +320,6 @@
       </div>
     </Teleport>
 
-    <!-- Redeem Key Modal -->
-    <Teleport to="body">
-      <Transition name="modal" appear>
-        <div v-if="showRedeemKeyModal" class="batch-import-overlay" @click="showRedeemKeyModal = false">
-          <div class="batch-import-dialog" @click.stop style="max-width: 500px;">
-            <div class="dialog-header">
-              <h3>卡密兑换</h3>
-              <button @click="showRedeemKeyModal = false" class="dialog-close">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-                </svg>
-              </button>
-            </div>
-            <div class="dialog-body">
-              <div class="redeem-form">
-                <div class="form-group">
-                  <label>服务器地址</label>
-                  <input
-                    v-model="redeemServerUrl"
-                    type="text"
-                    class="form-input"
-                    placeholder="http://localhost:3000"
-                  />
-                </div>
-                <div class="form-group">
-                  <label>卡密代码</label>
-                  <input
-                    v-model="redeemKeyCode"
-                    type="text"
-                    class="form-input"
-                    placeholder="请输入卡密代码"
-                    @keyup.enter="handleRedeemKey"
-                  />
-                </div>
-                <div class="form-group">
-                  <label>兑换数量</label>
-                  <input
-                    v-model.number="redeemCount"
-                    type="number"
-                    class="form-input"
-                    placeholder="1"
-                    min="1"
-                    max="100"
-                    @keyup.enter="handleRedeemKey"
-                  />
-                  <small style="color: #666; font-size: 12px; margin-top: 4px; display: block;">
-                    一次性兑换多个 Session（1-100）
-                  </small>
-                </div>
-
-                <!-- Progress Message -->
-                <div v-if="redeemProgress" class="redeem-progress">
-                  <div class="spinner-small"></div>
-                  <span>{{ redeemProgress }}</span>
-                </div>
-
-                <!-- Error Message -->
-                <div v-if="redeemError" class="redeem-error">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
-                  </svg>
-                  <span>{{ redeemError }}</span>
-                </div>
-
-                <!-- Success Message -->
-                <div v-if="redeemSuccess" class="redeem-success">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
-                  </svg>
-                  <span>{{ redeemSuccess }}</span>
-                </div>
-              </div>
-            </div>
-            <div class="dialog-footer">
-              <button @click="showRedeemKeyModal = false" class="btn-cancel">
-                取消
-              </button>
-              <button
-                @click="handleRedeemKey"
-                class="btn-confirm"
-                :disabled="isRedeeming || !redeemKeyCode.trim()"
-              >
-                {{ isRedeeming ? '兑换中...' : '兑换' }}
-              </button>
-            </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
-
     <!-- Batch Delete Confirmation Dialog -->
     <Teleport to="body">
       <Transition name="modal" appear>
@@ -452,6 +365,7 @@
 
 <script setup>
 import { ref, nextTick, onMounted, computed, readonly, watch } from 'vue'
+import { watchDebounced } from '@vueuse/core'
 import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from 'vue-i18n'
 import TokenCard from './TokenCard.vue'
@@ -499,16 +413,6 @@ const showContextMenu = ref(false)
 const contextMenuPosition = ref({ x: 0, y: 0 })
 const contextMenuType = ref('') // 'session' 或 'token'
 const customFillCount = ref(1)
-
-// 卡密兑换状态
-const showRedeemKeyModal = ref(false)
-const redeemServerUrl = ref('http://localhost:3000')
-const redeemKeyCode = ref('')
-const redeemCount = ref(1)  // 兑换数量
-const isRedeeming = ref(false)
-const redeemProgress = ref('')
-const redeemError = ref('')
-const redeemSuccess = ref('')
 
 // 填充 Session 模板
 const fillSessionTemplate = (count = 1) => {
@@ -1035,10 +939,6 @@ const checkAllAccountStatus = async () => {
     // 批量更新tokens状态
     updateTokensFromResults(results)
 
-    // 等待DOM更新后保存tokens
-    await nextTick()
-    await saveTokens(false)
-
   } catch (error) {
     console.error('Batch check error:', error)
     return {
@@ -1328,99 +1228,20 @@ const highlightAndScrollTo = (tokenId) => {
   })
 }
 
-// 卡密兑换处理函数
-const handleRedeemKey = async () => {
-  if (!redeemKeyCode.value.trim()) {
-    redeemError.value = '请输入卡密代码'
-    return
-  }
-
-  const count = parseInt(redeemCount.value) || 1
-  if (count < 1 || count > 100) {
-    redeemError.value = '兑换数量必须在 1-100 之间'
-    return
-  }
-
-  isRedeeming.value = true
-  redeemProgress.value = `正在兑换 ${count} 个 Session...`
-  redeemError.value = ''
-  redeemSuccess.value = ''
-
+// 打开数据文件夹
+const openDataFolder = async () => {
   try {
-    // 检查 invoke 是否可用
-    if (typeof invoke !== 'function') {
-      throw new Error('Tauri API 未加载，请确保在 Tauri 环境中运行')
-    }
-
-    // 调用 Tauri 命令批量兑换卡密
-    const result = await invoke('redeem_and_import_keys_batch', {
-      serverUrl: redeemServerUrl.value,
-      keyCode: redeemKeyCode.value.trim(),
-      count: count
-    })
-
-    console.log('Redeem result:', result)
-
-    // 批量导入返回的 sessions
-    let successCount = 0
-    let duplicateCount = 0
-
-    for (const sessionData of result.sessions) {
-      const tokenData = {
-        tenantUrl: sessionData.tenant_url,
-        accessToken: sessionData.access_token,
-        portalUrl: sessionData.user_info?.portal_url || null,
-        emailNote: sessionData.user_info?.email_note || null,
-        authSession: sessionData.auth_session || null,
-        suspensions: sessionData.user_info?.suspensions || null
-      }
-
-      const addResult = addToken(tokenData)
-      if (addResult.success) {
-        successCount++
-      } else if (addResult.duplicateId) {
-        duplicateCount++
-      }
-    }
-
-    // 保存到本地存储
-    await saveTokens()
-
-    // 显示兑换结果
-    const totalReceived = result.sessions.length
-    const remainingUses = result.remaining_uses
-
-    redeemSuccess.value = `共获取 ${totalReceived} 个 Session，成功导入 ${successCount} 个${duplicateCount > 0 ? `，跳过 ${duplicateCount} 个重复` : ''}。卡密剩余次数：${remainingUses}`
-    redeemProgress.value = ''
-
-    // 3秒后关闭对话框
-    setTimeout(() => {
-      showRedeemKeyModal.value = false
-      redeemKeyCode.value = ''
-      redeemCount.value = 1
-      redeemSuccess.value = ''
-    }, 3000)
-
+    await invoke('open_data_folder')
+    // 静默执行，不显示状态提示
   } catch (error) {
-    console.error('Redeem key failed:', error)
-    redeemError.value = String(error) || '兑换失败，请检查卡密是否正确'
-    redeemProgress.value = ''
-  } finally {
-    isRedeeming.value = false
+    window.$notify.error(`${t('bookmarkManager.messages.openFolderFailed')}: ${error}`)
   }
 }
 
-// 处理关闭事件 - 关闭前自动保存
-const handleClose = async () => {
-  try {
-    // 关闭前自动保存
-    await handleSave()
-    // 保存成功后关闭
-    emit('close')
-  } catch (error) {
-    // 保存失败时阻止关闭
-    window.$notify.error(t('messages.autoSaveFailedCannotClose'))
-  }
+// 处理关闭事件
+const handleClose = () => {
+  // 防抖自动保存会处理保存,直接关闭即可
+  emit('close')
 }
 
 // 处理刷新事件 - 智能刷新逻辑
@@ -1429,9 +1250,6 @@ const handleRefresh = async () => {
   isRefreshing.value = true
 
   try {
-    // 刷新前先保存当前数据
-    await handleSave()
-
     // 统一开始通知
     window.$notify.info(t('messages.refreshingTokenStatus'))
 
@@ -1512,13 +1330,38 @@ onMounted(async () => {
   isReady.value = true
 })
 
+// 防抖自动保存 - 监听 tokens 变化
+watchDebounced(
+  tokens,
+  async (newTokens, oldTokens) => {
+    // 只有在组件就绪后才自动保存
+    if (!isReady.value) return
+
+    // 如果正在保存,跳过
+    if (isSaving.value) return
+
+    // 如果tokens为空且之前也为空,跳过
+    if (newTokens.length === 0 && (!oldTokens || oldTokens.length === 0)) return
+
+    try {
+      await handleSave()
+      window.$notify.success(t('messages.autoSaveSuccess'))
+    } catch (error) {
+      window.$notify.error(t('messages.autoSaveFailed') + ': ' + error)
+    }
+  },
+  {
+    debounce: 2000,  // 2秒防抖
+    deep: true       // 深度监听
+  }
+)
+
 // 暴露方法给父组件
 defineExpose({
   addToken,    // 允许App.vue添加token
   deleteToken, // 允许App.vue删除token
   tokens: readonly(tokens), // 只读访问tokens
   saveTokens,   // 允许App.vue保存tokens
-  handleSave,   // 暴露自动保存方法(用于窗口关闭前保存,支持双向同步)
   waitUntilReady, // 暴露就绪等待方法
   highlightAndScrollTo // 暴露高亮和滚动方法
 })
@@ -1736,6 +1579,31 @@ defineExpose({
     width: 10px;
     height: 10px;
   }
+}
+
+/* 打开文件夹按钮 - 与排序按钮样式一致 */
+.open-folder-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 6px;
+  color: var(--color-text-secondary, #6b7280);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0;
+}
+
+.open-folder-btn:hover {
+  background: var(--color-surface-hover, #e9ecef);
+  color: var(--color-primary, #667eea);
+  border-color: var(--color-primary, #667eea);
+}
+
+.open-folder-btn svg {
+  flex-shrink: 0;
 }
 
 /* 批量删除按钮 - 与排序按钮样式一致 */
@@ -2709,92 +2577,6 @@ defineExpose({
 
 [data-theme='dark'] .clear-search-btn:hover {
   background: var(--color-hover, #374151);
-}
-
-/* 卡密兑换样式 */
-.redeem-form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.form-group label {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--color-text-primary, #374151);
-}
-
-.form-input {
-  padding: 10px 12px;
-  border: 1px solid var(--color-divider, #e1e5e9);
-  border-radius: 6px;
-  font-size: 14px;
-  transition: all 0.2s ease;
-  background: var(--color-surface, #ffffff);
-  color: var(--color-text-primary, #374151);
-}
-
-.form-input:focus {
-  outline: none;
-  border-color: var(--color-primary, #3b82f6);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.redeem-progress {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px;
-  background: rgba(59, 130, 246, 0.1);
-  border-radius: 6px;
-  color: var(--color-primary, #3b82f6);
-  font-size: 14px;
-}
-
-.spinner-small {
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(59, 130, 246, 0.3);
-  border-top-color: var(--color-primary, #3b82f6);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-.redeem-error {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px;
-  background: rgba(239, 68, 68, 0.1);
-  border-radius: 6px;
-  color: #dc2626;
-  font-size: 14px;
-}
-
-.redeem-success {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px;
-  background: rgba(34, 197, 94, 0.1);
-  border-radius: 6px;
-  color: #16a34a;
-  font-size: 14px;
-}
-
-.btn.success {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: white;
-}
-
-.btn.success:hover {
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
 }
 
 </style>
