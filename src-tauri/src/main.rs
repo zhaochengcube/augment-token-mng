@@ -673,10 +673,13 @@ async fn open_internal_browser(
     use tauri::webview::PageLoadEvent;
     use std::time::Duration;
 
+    // 加载代理配置
+    let proxy_config = proxy_config::load_proxy_config(&app).ok();
+
     let window_label = format!("browser_{}", chrono::Utc::now().timestamp());
     let app_handle = app.clone();
 
-    let window = WebviewWindowBuilder::new(
+    let mut builder = WebviewWindowBuilder::new(
         &app,
         &window_label,
         WebviewUrl::External(url.parse().map_err(|e| format!("Invalid URL: {}", e))?)
@@ -685,7 +688,41 @@ async fn open_internal_browser(
     .inner_size(1000.0, 700.0)
     .center()
     .resizable(true)
-    .incognito(true)  // 无痕模式,关闭后自动清除所有数据
+    .incognito(true);  // 无痕模式,关闭后自动清除所有数据
+
+    // 如果有代理配置，应用代理
+    if let Some(config) = proxy_config {
+        if config.enabled {
+            if let Some(proxy_url_str) = config.build_proxy_url() {
+                // Tauri WebView 只支持 http:// 和 socks5:// 代理
+                // 将 https:// 转换为 http://（HTTPS 代理实际上也是通过 HTTP CONNECT 工作的）
+                let normalized_proxy_url = if proxy_url_str.starts_with("https://") {
+                    proxy_url_str.replace("https://", "http://")
+                } else {
+                    proxy_url_str.clone()
+                };
+
+                if normalized_proxy_url.starts_with("http://") ||
+                   normalized_proxy_url.starts_with("socks5://") {
+                    match normalized_proxy_url.parse::<url::Url>() {
+                        Ok(proxy_url) => {
+                            builder = builder.proxy_url(proxy_url);
+                            eprintln!("WebView proxy configured: {}", normalized_proxy_url);
+                        }
+                        Err(e) => {
+                            eprintln!("Failed to parse proxy URL: {}", e);
+                        }
+                    }
+                } else {
+                    eprintln!("WebView only supports http:// and socks5:// proxies, got: {}", normalized_proxy_url);
+                }
+            } else {
+                eprintln!("Proxy enabled but no proxy URL configured (System proxy or CustomUrl)");
+            }
+        }
+    }
+
+    let window = builder
     .initialization_script(r#"
         console.log('[Tauri] Initialization script loaded');
 
@@ -716,26 +753,28 @@ async fn open_internal_browser(
             const isLoginPage = window.location.hostname.includes('login.augmentcode.com') ||
                                 window.location.href.includes('/login');
             const isAppPage = window.location.hostname.includes('app.augmentcode.com');
-            const isAuthPage = window.location.hostname.includes('auth.augmentcode.com');
+            // 只有带 auto_import=true 参数的 auth 页面才显示"正在导入..."
+            const isAuthPage = window.location.hostname.includes('auth.augmentcode.com') &&
+                               window.location.href.includes('auto_import=true');
 
             // 根据状态设置按钮
             if (isLoginPage) {
                 // 在登录页面,提示登录后会自动导入
-                button.textContent = '🔒 登录后自动导入';
+                button.innerHTML = '<div style="text-align: center;">🔒 登录后点击导入<br><span style="font-size: 12px; opacity: 0.8;">Login then Click to Import</span></div>';
                 button.disabled = true;
-                button.style.cssText = 'background: #fef3c7; color: #92400e; border: 1px solid #fbbf24; padding: 12px 24px; border-radius: 8px; cursor: not-allowed; font-size: 14px; font-weight: 500; opacity: 0.9; box-shadow: 0 4px 12px rgba(0,0,0,0.15); white-space: nowrap;';
+                button.style.cssText = 'background: #fef3c7; color: #92400e; border: 1px solid #fbbf24; padding: 12px 20px; border-radius: 8px; cursor: not-allowed; font-size: 14px; font-weight: 500; opacity: 0.9; box-shadow: 0 4px 12px rgba(0,0,0,0.15); line-height: 1.4;';
                 navbar.appendChild(button);
             } else if (isAuthPage) {
                 // Auth页面,显示正在导入
-                button.textContent = '⏳ 正在导入...';
+                button.innerHTML = '<div style="text-align: center;">⏳ 正在导入...<br><span style="font-size: 12px; opacity: 0.8;">Importing...</span></div>';
                 button.disabled = true;
-                button.style.cssText = 'background: #f3f4f6; color: #6b7280; border: 1px solid #d1d5db; padding: 12px 24px; border-radius: 8px; cursor: not-allowed; font-size: 14px; font-weight: 500; opacity: 0.7; box-shadow: 0 4px 12px rgba(0,0,0,0.15); white-space: nowrap;';
+                button.style.cssText = 'background: #f3f4f6; color: #6b7280; border: 1px solid #d1d5db; padding: 12px 20px; border-radius: 8px; cursor: not-allowed; font-size: 14px; font-weight: 500; opacity: 0.7; box-shadow: 0 4px 12px rgba(0,0,0,0.15); line-height: 1.4;';
                 navbar.appendChild(button);
             } else if (isAppPage) {
                 // App页面,显示可点击按钮
-                button.textContent = '📥 点击导入';
+                button.innerHTML = '<div style="text-align: center;">📥 点击导入<br><span style="font-size: 12px; opacity: 0.9;">Click to Import</span></div>';
                 button.disabled = false;
-                button.style.cssText = 'background: #3b82f6; color: white; border: 1px solid #2563eb; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; box-shadow: 0 4px 12px rgba(0,0,0,0.15); white-space: nowrap; transition: all 0.2s;';
+                button.style.cssText = 'background: #3b82f6; color: white; border: 1px solid #2563eb; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; box-shadow: 0 4px 12px rgba(0,0,0,0.15); line-height: 1.4; transition: all 0.2s;';
                 button.onmouseover = function() {
                     this.style.background = '#2563eb';
                 };
@@ -743,8 +782,8 @@ async fn open_internal_browser(
                     this.style.background = '#3b82f6';
                 };
                 button.onclick = function() {
-                    // 跳转到 auth 页面触发自动导入
-                    window.location.href = 'https://auth.augmentcode.com';
+                    // 跳转到 auth 页面触发自动导入,添加参数标记这是手动导入
+                    window.location.href = 'https://auth.augmentcode.com?auto_import=true';
                 };
                 navbar.appendChild(button);
             }
@@ -778,8 +817,9 @@ async fn open_internal_browser(
         if payload.event() == PageLoadEvent::Finished {
             let url_str = payload.url().to_string();
 
-            // 检查是否是 auth.augmentcode.com
-            if url_str.contains("auth.augmentcode.com") {
+            // 检查是否是 auth.augmentcode.com 且带有 auto_import=true 参数
+            // 只有手动点击"点击导入"按钮才会带这个参数,避免注册流程触发自动导入
+            if url_str.contains("auth.augmentcode.com") && url_str.contains("auto_import=true") {
                 let window_clone = window.clone();
                 let app_handle_clone = app_handle.clone();
 
