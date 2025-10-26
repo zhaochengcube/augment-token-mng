@@ -10,4 +10,4 @@ NoDisplay=false
 Categories=Development;Utility;
 Keywords=oauth;token;augment;development;
 Terminal=false
-MimeType=x-scheme-handler/cursor;x-scheme-handler/vscode;x-scheme-handler/kiro;x-scheme-handler/trae;x-scheme-handler/trae-cn;x-scheme-handler/windsurf;x-scheme-handler/qoder;x-scheme-handler/codebuddy;x-scheme-handler/vscodium;
+MimeType=x-scheme-handler/cursor;x-scheme-handler/vscode;x-scheme-handler/kiro;x-scheme-handler/trae;x-scheme-handler/trae-cn;x-scheme-handler/windsurf;x-scheme-handler/qoder;x-scheme-handler/codebuddy;x-scheme-handler/vscodium;x-scheme-handler/atm;

@@ -26,6 +26,7 @@ use std::time::SystemTime;
 use tauri::{State, Manager, Emitter, WebviewWindowBuilder, WebviewUrl};
 use chrono;
 use serde::{Serialize, Deserialize};
+use tauri_plugin_deep_link::DeepLinkExt;
 
 // Update check structures
 #[derive(Debug, Serialize, Deserialize)]
@@ -1666,6 +1667,7 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_deep_link::init())
         .setup(|app| {
             let app_state = AppState {
                 augment_oauth_state: Mutex::new(None),
@@ -1769,6 +1771,93 @@ fn main() {
                     }
                 }
             });
+
+            // 设置 deep-link 处理器
+            let app_handle_for_deep_link = app.app_handle().clone();
+            app.deep_link().on_open_url(move |event| {
+                let urls = event.urls();
+                eprintln!("Deep link received: {:?}", urls);
+
+                for parsed_url in urls {
+                    let url_str = parsed_url.as_str();
+
+                    // 检查是否是 atm://import 协议
+                    if url_str.starts_with("atm://import") {
+                        eprintln!("Processing ATM import deep link: {}", url_str);
+
+                        // 查找 session 参数
+                        if let Some(session) = parsed_url
+                            .query_pairs()
+                            .find(|(key, _)| key == "session")
+                            .map(|(_, value)| value.to_string())
+                        {
+                            eprintln!("Found session parameter in deep link");
+
+                            // 克隆需要的变量
+                            let app_handle = app_handle_for_deep_link.clone();
+
+                            // 在异步任务中处理导入
+                            tauri::async_runtime::spawn(async move {
+                                eprintln!("Starting session import from deep link...");
+
+                                // 获取 AppState
+                                let state = app_handle.state::<AppState>();
+
+                                // 调用内部函数导入 token
+                                match add_token_from_session_internal_with_cache(&session, &state).await {
+                                    Ok(token_data) => {
+                                        eprintln!("Successfully imported token from deep link");
+
+                                        // 发送成功事件到前端
+                                        let _ = app_handle.emit(
+                                            "session-auto-imported",
+                                            serde_json::json!({
+                                                "success": true,
+                                                "token": token_data,
+                                                "session": session
+                                            })
+                                        );
+
+                                        // 聚焦主窗口
+                                        if let Some(main_window) = app_handle.get_webview_window("main") {
+                                            let _ = main_window.set_focus();
+                                            let _ = main_window.unminimize();
+                                        }
+                                    }
+                                    Err(e) => {
+                                        eprintln!("Failed to import token from deep link: {}", e);
+
+                                        // 发送失败事件到前端
+                                        let _ = app_handle.emit(
+                                            "session-auto-import-failed",
+                                            serde_json::json!({
+                                                "success": false,
+                                                "error": e
+                                            })
+                                        );
+
+                                        // 聚焦主窗口以显示错误
+                                        if let Some(main_window) = app_handle.get_webview_window("main") {
+                                            let _ = main_window.set_focus();
+                                            let _ = main_window.unminimize();
+                                        }
+                                    }
+                                }
+                            });
+                        } else {
+                            eprintln!("No session parameter found in deep link URL");
+                        }
+                    }
+                }
+            });
+
+            // 在 Linux 和 Windows 上运行时注册协议（用于开发和测试）
+            #[cfg(any(target_os = "linux", all(debug_assertions, windows)))]
+            {
+                if let Err(e) = app.deep_link().register_all() {
+                    eprintln!("Failed to register deep link protocols: {}", e);
+                }
+            }
 
             Ok(())
         })

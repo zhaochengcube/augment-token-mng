@@ -53,5 +53,12 @@
         "bundleMediaFramework": true
       }
     }
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["atm"]
+      }
+    }
   }
 }
