@@ -1,6 +1,6 @@
 {
   "productName": "ATM",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "identifier": "com.cubezhao.atm",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -57,7 +57,9 @@
   "plugins": {
     "deep-link": {
       "desktop": {
-        "schemes": ["atm"]
+        "schemes": [
+          "atm"
+        ]
       }
     }
   }
