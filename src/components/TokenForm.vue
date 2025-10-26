@@ -192,7 +192,7 @@ const errors = ref({
 const isLoading = ref(false)
 
 // Tab state
-const activeTab = ref('manual')
+const activeTab = ref('session')
 
 // Session import data
 const sessionInput = ref('')

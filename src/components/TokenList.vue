@@ -201,29 +201,80 @@
                 </svg>
               </button>
             </div>
-            <div class="dialog-body">
-              <p class="dialog-message">{{ $t('tokenList.batchImportMessage') }}</p>
 
-              <!-- 格式说明和填充按钮 -->
-              <div class="format-options">
-                <div class="format-option">
-                  <div class="format-header">
-                    <span class="format-title">{{ $t('tokenList.format1Title') }}</span>
-                  </div>
-                  <p class="format-desc">{{ $t('tokenList.format1Desc') }}</p>
-                  <button
-                    @click="fillSessionTemplate()"
-                    @contextmenu="handleContextMenu($event, 'session')"
-                    class="btn-fill-template"
+            <!-- Tab Navigation -->
+            <div class="batch-import-tabs">
+              <button
+                :class="['batch-import-tab', { active: batchImportTab === 'session' }]"
+                @click="batchImportTab = 'session'"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm0 4c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm6 12H6v-1.4c0-2 4-3.1 6-3.1s6 1.1 6 3.1V19z"/>
+                </svg>
+                {{ $t('tokenList.sessionImportTab') }}
+              </button>
+              <button
+                :class="['batch-import-tab', { active: batchImportTab === 'token' }]"
+                @click="batchImportTab = 'token'"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+                </svg>
+                {{ $t('tokenList.tokenImportTab') }}
+              </button>
+            </div>
+
+            <div class="dialog-body">
+              <!-- Session Tab Content -->
+              <div v-if="batchImportTab === 'session'" class="tab-content">
+                <p class="dialog-message">{{ $t('tokenList.sessionImportMessage') }}</p>
+
+                <!-- Session 动态输入框列表 -->
+                <div class="session-inputs-container">
+                  <div
+                    v-for="(input, index) in sessionInputs"
+                    :key="input.id"
+                    class="session-input-item"
                   >
-                    {{ $t('tokenList.fillTemplate') }}
-                  </button>
-                </div>
-                <div class="format-option">
-                  <div class="format-header">
-                    <span class="format-title">{{ $t('tokenList.format2Title') }}</span>
+                    <span class="session-input-number">{{ index + 1 }}.</span>
+                    <input
+                      v-model="input.value"
+                      type="text"
+                      :placeholder="$t('tokenList.sessionInputPlaceholder')"
+                      class="session-input-field"
+                    />
+                    <button
+                      @click="removeSessionInput(input.id)"
+                      class="session-input-delete"
+                      :title="$t('tokenList.deleteInput')"
+                      :disabled="sessionInputs.length <= 1"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                      </svg>
+                    </button>
                   </div>
-                  <p class="format-desc">{{ $t('tokenList.format2Desc') }}</p>
+                </div>
+
+                <!-- 添加更多按钮 -->
+                <button @click="addSessionInput" class="add-more-btn">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                  </svg>
+                  {{ $t('tokenList.addMore') }}
+                </button>
+              </div>
+
+              <!-- Token Tab Content -->
+              <div v-else-if="batchImportTab === 'token'" class="tab-content">
+                <p class="dialog-message">{{ $t('tokenList.tokenImportMessage') }}</p>
+
+                <!-- 格式说明和填充按钮 -->
+                <div class="format-option-single">
+                  <div class="format-header">
+                    <span class="format-title">{{ $t('tokenList.tokenFormatTitle') }}</span>
+                  </div>
+                  <p class="format-desc">{{ $t('tokenList.tokenFormatDesc') }}</p>
                   <button
                     @click="fillTokenTemplate()"
                     @contextmenu="handleContextMenu($event, 'token')"
@@ -232,40 +283,41 @@
                     {{ $t('tokenList.fillTemplate') }}
                   </button>
                 </div>
-              </div>
 
-              <div class="import-input-section">
-                <textarea
-                  v-model="importJsonText"
-                  rows="10"
-                  class="import-textarea"
-                  @input="validateImportJson"
-                ></textarea>
-              </div>
-
-              <!-- 错误信息 -->
-              <div v-if="importErrors.length > 0" class="import-errors">
-                <div class="error-header">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
-                  </svg>
-                  <span>{{ $t('tokenList.importErrorsFound', { count: importErrors.length }) }}</span>
+                <div class="import-input-section">
+                  <textarea
+                    v-model="importJsonText"
+                    rows="10"
+                    class="import-textarea"
+                    @input="validateImportJson"
+                  ></textarea>
                 </div>
-                <ul class="error-list">
-                  <li v-for="(error, index) in importErrors" :key="index">{{ error }}</li>
-                </ul>
-              </div>
 
-              <!-- 预览信息 -->
-              <div v-if="importPreview.length > 0" class="import-preview">
-                <div class="preview-header">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
-                  </svg>
-                  <span>{{ $t('tokenList.importPreviewReady', { count: importPreview.length }) }}</span>
+                <!-- 错误信息 -->
+                <div v-if="importErrors.length > 0" class="import-errors">
+                  <div class="error-header">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                    </svg>
+                    <span>{{ $t('tokenList.importErrorsFound', { count: importErrors.length }) }}</span>
+                  </div>
+                  <ul class="error-list">
+                    <li v-for="(error, index) in importErrors" :key="index">{{ error }}</li>
+                  </ul>
+                </div>
+
+                <!-- 预览信息 -->
+                <div v-if="importPreview.length > 0" class="import-preview">
+                  <div class="preview-header">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                    </svg>
+                    <span>{{ $t('tokenList.importPreviewReady', { count: importPreview.length }) }}</span>
+                  </div>
                 </div>
               </div>
             </div>
+
             <div class="dialog-footer">
               <button @click="showBatchImportDialog = false" class="btn-cancel">
                 {{ $t('tokenList.cancel') }}
@@ -273,9 +325,17 @@
               <button
                 @click="executeBatchImport"
                 class="btn-confirm"
-                :disabled="isImporting || importPreview.length === 0"
+                :disabled="isImporting || (batchImportTab === 'session' ? validSessionCount === 0 : importPreview.length === 0)"
               >
-                {{ isImporting ? $t('tokenList.importing') : $t('tokenList.confirmImport') }}
+                <template v-if="isImporting">
+                  {{ $t('tokenList.importing') }}
+                </template>
+                <template v-else>
+                  {{ batchImportTab === 'session'
+                    ? $t('tokenList.batchAdd', { count: validSessionCount })
+                    : $t('tokenList.confirmImport')
+                  }}
+                </template>
               </button>
             </div>
           </div>
@@ -403,10 +463,19 @@ const isDeleting = ref(false)
 
 // 批量导入状态
 const showBatchImportDialog = ref(false)
+const batchImportTab = ref('session') // 'session' 或 'token'
 const importJsonText = ref('')
 const isImporting = ref(false)
 const importPreview = ref([])
 const importErrors = ref([])
+
+// Session 动态输入框状态
+const sessionInputs = ref([
+  { id: 1, value: '' },
+  { id: 2, value: '' },
+  { id: 3, value: '' }
+])
+let nextSessionInputId = 4
 
 // 右键菜单状态
 const showContextMenu = ref(false)
@@ -548,10 +617,146 @@ const showBatchDeleteConfirm = () => {
 
 // 显示批量导入对话框
 const showBatchImportConfirm = () => {
+  // 重置 Session 输入框
+  sessionInputs.value = [
+    { id: 1, value: '' },
+    { id: 2, value: '' },
+    { id: 3, value: '' }
+  ]
+  nextSessionInputId = 4
+
+  // 重置 Token JSON 输入
   importJsonText.value = '[\n  \n]'
   importPreview.value = []
   importErrors.value = []
+
+  // 默认显示 Session Tab
+  batchImportTab.value = 'session'
+
   showBatchImportDialog.value = true
+}
+
+// Session 动态输入框方法
+const addSessionInput = () => {
+  sessionInputs.value.push({
+    id: nextSessionInputId++,
+    value: ''
+  })
+}
+
+const removeSessionInput = (id) => {
+  if (sessionInputs.value.length <= 1) {
+    window.$notify.warning(t('tokenList.atLeastOneInput'))
+    return
+  }
+  sessionInputs.value = sessionInputs.value.filter(input => input.id !== id)
+}
+
+// 获取有效的 Session 输入数量
+const validSessionCount = computed(() => {
+  return sessionInputs.value.filter(input => input.value.trim()).length
+})
+
+// 从 Session 动态输入框执行批量导入
+const executeBatchImportFromSessionInputs = async () => {
+  // 获取所有非空的 session
+  const validSessions = sessionInputs.value
+    .map(input => input.value.trim())
+    .filter(value => value.length > 0)
+
+  if (validSessions.length === 0) {
+    window.$notify.warning(t('tokenList.noValidSessions'))
+    return
+  }
+
+  isImporting.value = true
+
+  try {
+    let successCount = 0
+    let skippedCount = 0
+    let sessionExtractionErrors = []
+    let duplicateIds = []
+
+    // 遍历所有 session,调用后端提取
+    for (let i = 0; i < validSessions.length; i++) {
+      const session = validSessions[i]
+
+      try {
+        // 调用后端 API 从 session 提取 token
+        const result = await invoke('add_token_from_session', {
+          session: session
+        })
+
+        // 提取成功,添加 token
+        const tokenData = {
+          tenantUrl: result.tenant_url,
+          accessToken: result.access_token,
+          portalUrl: result.user_info?.portal_url || null,
+          emailNote: result.user_info?.email_note || null,
+          authSession: session,
+          suspensions: result.user_info?.suspensions || null
+        }
+
+        const addResult = addToken(tokenData)
+        if (addResult.success) {
+          successCount++
+        } else if (addResult.duplicateId) {
+          duplicateIds.push(addResult.duplicateId)
+          skippedCount++
+        } else {
+          skippedCount++
+        }
+      } catch (error) {
+        console.error('Failed to extract token from session:', error)
+        sessionExtractionErrors.push({
+          index: i + 1,
+          error: error.toString()
+        })
+        skippedCount++
+      }
+    }
+
+    // 关闭对话框
+    showBatchImportDialog.value = false
+
+    // 显示结果
+    if (sessionExtractionErrors.length > 0) {
+      const errorDetails = sessionExtractionErrors
+        .map(e => `[${e.index}] ${e.error}`)
+        .join('\n')
+
+      window.$notify.warning(
+        t('messages.batchImportSuccessWithSkipped', {
+          success: successCount,
+          skipped: skippedCount
+        }) + `\n\n${t('tokenList.sessionExtractionFailed')}:\n${errorDetails}`
+      )
+    } else if (duplicateIds.length > 0) {
+      if (duplicateIds.length === 1 && successCount === 0) {
+        highlightAndScrollTo(duplicateIds[0])
+      } else {
+        window.$notify.success(
+          t('messages.batchImportSuccessWithSkipped', {
+            success: successCount,
+            skipped: skippedCount
+          })
+        )
+      }
+    } else if (skippedCount > 0) {
+      window.$notify.success(
+        t('messages.batchImportSuccessWithSkipped', {
+          success: successCount,
+          skipped: skippedCount
+        })
+      )
+    } else {
+      window.$notify.success(t('messages.batchImportSuccess', { count: successCount }))
+    }
+  } catch (error) {
+    window.$notify.error(`${t('messages.batchImportFailed')}: ${error}`)
+  } finally {
+    isImporting.value = false
+  }
 }
 
 // 验证并解析导入的 JSON
@@ -661,6 +866,13 @@ const validateImportJson = () => {
 
 // 执行批量导入
 const executeBatchImport = async () => {
+  // 如果是 Session Tab,从动态输入框导入
+  if (batchImportTab.value === 'session') {
+    await executeBatchImportFromSessionInputs()
+    return
+  }
+
+  // Token Tab: 使用原有的 JSON 导入逻辑
   if (!validateImportJson()) {
     return
   }
@@ -1680,7 +1892,7 @@ defineExpose({
   background: var(--color-surface, #ffffff);
   border-radius: 12px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
-  max-width: 700px;
+  max-width: 896px; /* 2xl: 56rem = 896px */
   width: 100%;
   max-height: 85vh;
   display: flex;
@@ -1721,10 +1933,64 @@ defineExpose({
   color: var(--color-text-primary, #374151);
 }
 
+/* Tab Navigation */
+.batch-import-tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--color-divider, #e1e5e9);
+  background: var(--color-surface-alt, #f9fafb);
+}
+
+.batch-import-tab {
+  padding: 12px 20px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary, #6b7280);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 2px solid transparent;
+  position: relative;
+}
+
+.batch-import-tab:hover {
+  color: var(--color-text-primary, #374151);
+  background: var(--color-surface-hover, #f3f4f6);
+}
+
+.batch-import-tab.active {
+  color: var(--color-primary, #2563eb);
+  border-bottom-color: var(--color-primary, #2563eb);
+}
+
+.batch-import-tab svg {
+  flex-shrink: 0;
+}
+
 .batch-import-dialog .dialog-body {
   padding: 24px;
   overflow-y: auto;
   flex: 1;
+}
+
+.tab-content {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .batch-import-dialog .dialog-footer {
@@ -1804,11 +2070,19 @@ defineExpose({
   margin-bottom: 20px;
 }
 
-.format-option {
+.format-option-single {
   padding: 16px;
   border: 1px solid var(--color-divider, #e1e5e9);
   border-radius: 8px;
   background: var(--color-surface-secondary, #f9fafb);
+  margin-bottom: 16px;
+}
+
+.format-option {
+  padding: 16px;
+  border: 1px solid var(--color-divider, #e1e5e9);
+  border-radius: 8px;
+  background: var(--color-surface-alt, #f9fafb);
 }
 
 .format-header {
@@ -1892,6 +2166,104 @@ defineExpose({
   gap: 8px;
   color: var(--color-success, #10b981);
   font-weight: 600;
+}
+
+/* Session 动态输入框样式 */
+.session-inputs-container {
+  margin-bottom: 16px;
+}
+
+.session-input-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.session-input-number {
+  flex-shrink: 0;
+  width: 24px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary, #6b7280);
+  text-align: right;
+}
+
+.session-input-field {
+  flex: 1;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--color-divider, #e1e5e9);
+  border-radius: 6px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+  background: var(--color-surface, #ffffff);
+  color: var(--color-text-primary, #374151);
+  transition: all 0.2s;
+}
+
+.session-input-field:focus {
+  outline: none;
+  border-color: var(--color-primary, #2563eb);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.session-input-field::placeholder {
+  color: var(--color-text-muted, #9ca3af);
+}
+
+.session-input-delete {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--color-divider, #e1e5e9);
+  border-radius: 6px;
+  background: var(--color-surface, #ffffff);
+  color: var(--color-text-muted, #6b7280);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.session-input-delete:hover:not(:disabled) {
+  background: var(--color-danger-light, #fee2e2);
+  border-color: var(--color-danger, #dc2626);
+  color: var(--color-danger, #dc2626);
+}
+
+.session-input-delete:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.add-more-btn {
+  width: 100%;
+  padding: 10px 16px;
+  border: 2px dashed var(--color-divider, #e1e5e9);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-secondary, #6b7280);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.add-more-btn:hover {
+  border-color: var(--color-primary, #2563eb);
+  color: var(--color-primary, #2563eb);
+  background: rgba(37, 99, 235, 0.05);
+}
+
+.add-more-btn svg {
+  flex-shrink: 0;
 }
 
 /* 右键菜单 */
@@ -2150,7 +2522,8 @@ defineExpose({
   color: #fbbf24;
 }
 
-[data-theme='dark'] .format-option {
+[data-theme='dark'] .format-option,
+[data-theme='dark'] .format-option-single {
   background: rgba(55, 65, 81, 0.3);
   border-color: rgba(75, 85, 99, 0.6);
 }
