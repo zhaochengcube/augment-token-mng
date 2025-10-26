@@ -49,15 +49,51 @@
 
             <div class="form-group">
               <label for="accessToken">{{ $t('tokenForm.accessToken') }} *</label>
-              <textarea
+              <input
                 id="accessToken"
                 v-model="formData.accessToken"
+                type="text"
                 :placeholder="$t('tokenForm.accessTokenPlaceholder')"
-                rows="3"
                 required
                 :disabled="isLoading"
-              ></textarea>
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="none"
+                spellcheck="false"
+              >
               <div v-if="errors.accessToken" class="error-message">{{ errors.accessToken }}</div>
+            </div>
+
+            <div class="form-group tag-group">
+              <label for="tagName">{{ $t('tokenForm.tagLabel') }} ({{ $t('tokenForm.optional') }})</label>
+              <div class="tag-input-row">
+                <input
+                  id="tagName"
+                  v-model="formData.tagName"
+                  type="text"
+                  class="tag-name-input"
+                  :placeholder="$t('tokenForm.tagPlaceholder')"
+                  :disabled="isLoading"
+                >
+                <button
+                  type="button"
+                  class="tag-color-display"
+                  :style="{ backgroundColor: formData.tagColor }"
+                  :title="$t('tokenForm.tagColorPicker')"
+                  :aria-label="$t('tokenForm.tagColorPicker')"
+                  @click="openTagColorPicker"
+                  :disabled="isLoading"
+                ></button>
+                <input
+                  ref="tagColorInput"
+                  type="color"
+                  v-model="formData.tagColor"
+                  class="hidden-color-input"
+                  tabindex="-1"
+                  aria-hidden="true"
+                  @input="handleTagColorInput"
+                >
+              </div>
             </div>
 
             <div class="form-group">
@@ -175,11 +211,17 @@ const props = defineProps({
 const emit = defineEmits(['close', 'success', 'update-token', 'add-token', 'manual-import-completed'])
 
 // Reactive data
+const defaultTagColor = '#f97316'
+
+const tagColorInput = ref(null)
+
 const formData = ref({
   tenantUrl: '',
   accessToken: '',
   portalUrl: '',
-  emailNote: ''
+  emailNote: '',
+  tagName: '',
+  tagColor: defaultTagColor
 })
 
 const errors = ref({
@@ -192,7 +234,7 @@ const errors = ref({
 const isLoading = ref(false)
 
 // Tab state
-const activeTab = ref('session')
+const activeTab = ref(props.token ? 'manual' : 'session')
 
 // Session import data
 const sessionInput = ref('')
@@ -215,19 +257,25 @@ const isFormValid = computed(() => {
 // Watch for token prop changes (for editing)
 watch(() => props.token, (newToken) => {
   if (newToken) {
+    activeTab.value = 'manual'
     formData.value = {
       tenantUrl: newToken.tenant_url || '',
       accessToken: newToken.access_token || '',
       portalUrl: newToken.portal_url || '',
-      emailNote: newToken.email_note || ''
+      emailNote: newToken.email_note || '',
+      tagName: newToken.tag_name || '',
+      tagColor: newToken.tag_color || defaultTagColor
     }
   } else {
+    activeTab.value = 'session'
     // Reset form for adding new token
     formData.value = {
       tenantUrl: '',
       accessToken: '',
       portalUrl: '',
-      emailNote: ''
+      emailNote: '',
+      tagName: '',
+      tagColor: defaultTagColor
     }
   }
   // Clear errors when token changes
@@ -288,11 +336,14 @@ const handleSubmit = async () => {
   isLoading.value = true
 
   try {
+    const tagName = formData.value.tagName ? formData.value.tagName.trim() : ''
     const tokenData = {
       tenantUrl: formData.value.tenantUrl.trim(),
       accessToken: formData.value.accessToken.trim(),
       portalUrl: formData.value.portalUrl ? formData.value.portalUrl.trim() || null : null,
-      emailNote: formData.value.emailNote ? formData.value.emailNote.trim() || null : null
+      emailNote: formData.value.emailNote ? formData.value.emailNote.trim() || null : null,
+      tagName: tagName || null,
+      tagColor: tagName ? (formData.value.tagColor || defaultTagColor) : null
     }
 
     if (isEditing.value) {
@@ -317,6 +368,23 @@ const handleSubmit = async () => {
 
 const handleCancel = () => {
   emit('close')
+}
+
+const openTagColorPicker = () => {
+  if (isLoading.value) {
+    return
+  }
+
+  if (tagColorInput.value) {
+    tagColorInput.value.click()
+  }
+}
+
+const handleTagColorInput = (event) => {
+  const value = event?.target?.value
+  if (typeof value === 'string' && value) {
+    formData.value.tagColor = value
+  }
 }
 
 // Session import method
@@ -578,6 +646,46 @@ onUnmounted(() => {
 .form-group textarea {
   resize: vertical;
   min-height: 80px;
+}
+
+.tag-input-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tag-name-input {
+  flex: 1;
+}
+
+.tag-color-display {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border-strong, #d1d5db);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  padding: 0;
+}
+
+.tag-color-display:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.tag-color-display:not(:disabled):hover,
+.tag-color-display:not(:disabled):focus {
+  transform: scale(1.05);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  outline: none;
+}
+
+.hidden-color-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
 }
 
 .help-text {

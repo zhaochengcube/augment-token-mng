@@ -457,6 +457,8 @@ const searchQuery = ref('')
 const highlightedTokenId = ref(null)
 let highlightTimer = null
 
+const DEFAULT_TAG_COLOR = '#f97316'
+
 // 批量删除状态
 const showBatchDeleteDialog = ref(false)
 const isDeleting = ref(false)
@@ -944,6 +946,8 @@ const executeBatchImport = async () => {
           accessToken: item.access_token,
           portalUrl: item.portal_url || null,
           emailNote: item.email_note || null,
+          tagName: item.tag_name || null,
+          tagColor: item.tag_color || null,
           authSession: null,
           suspensions: item.suspensions || null
         }
@@ -1303,6 +1307,9 @@ const handleTokenFormSuccess = () => {
 const handleUpdateToken = (updatedTokenData) => {
   const index = tokens.value.findIndex(token => token.id === updatedTokenData.id)
   if (index !== -1) {
+    const tagName = updatedTokenData.tagName ? updatedTokenData.tagName.trim() : ''
+    const tagColor = updatedTokenData.tagColor || DEFAULT_TAG_COLOR
+
     // Update the token in the list
     tokens.value[index] = {
       ...tokens.value[index],
@@ -1310,6 +1317,8 @@ const handleUpdateToken = (updatedTokenData) => {
       access_token: updatedTokenData.accessToken,
       portal_url: updatedTokenData.portalUrl || null,
       email_note: updatedTokenData.emailNote || null,
+      tag_name: tagName || null,
+      tag_color: tagName ? tagColor : null,
       updated_at: new Date().toISOString()  // 更新 updated_at 时间戳
     }
   }
@@ -1365,6 +1374,9 @@ const addToken = (tokenData) => {
   }
 
   const now = new Date().toISOString()
+  const tagName = tokenData.tagName ? tokenData.tagName.trim() : ''
+  const tagColor = tokenData.tagColor || DEFAULT_TAG_COLOR
+
   const newToken = {
     id: crypto.randomUUID(),
     tenant_url: tokenData.tenantUrl,
@@ -1375,6 +1387,8 @@ const addToken = (tokenData) => {
     ban_status: null,
     portal_info: null,
     email_note: tokenData.emailNote || null,
+    tag_name: tagName || null,
+    tag_color: tagName ? tagColor : null,
     auth_session: tokenData.authSession || null,  // 添加 auth_session 字段
     suspensions: tokenData.suspensions || null,  // 添加 suspensions 字段
     skip_check: false,  // 默认不跳过检测

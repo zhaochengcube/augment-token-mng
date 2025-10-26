@@ -1,8 +1,17 @@
 <template>
   <div :class="['token-card', { 'menu-open': showCopyMenu || showCheckMenu, 'highlighted': isHighlighted }]" @click="handleClickOutside">
     <!-- 状态指示器 -->
-    <div v-if="(token.portal_url && portalInfo.data) || token.ban_status" class="status-indicator">
+    <div v-if="showStatusIndicator" class="status-indicator">
       <span
+        v-if="hasTag"
+        class="status-badge tag-badge"
+        :style="tagBadgeStyle"
+        :title="tagDisplayName"
+      >
+        {{ tagDisplayName }}
+      </span>
+      <span
+        v-if="hasStatusBadge"
         :class="['status-badge', getStatusClass(token.ban_status), { clickable: isBannedWithSuspensions }]"
         @click="handleStatusClick"
         :title="isBannedWithSuspensions ? $t('tokenCard.clickToViewDetails') : ''"
@@ -497,6 +506,49 @@ const showTraeVersionDialog = ref(false)
 const showCopyMenu = ref(false)
 const showCreditUsageModal = ref(false)
 
+const DEFAULT_TAG_COLOR = '#f97316'
+
+const tagDisplayName = computed(() => (props.token.tag_name ?? '').trim())
+const hasTag = computed(() => tagDisplayName.value.length > 0)
+
+const normalizeHexColor = (color) => {
+  if (typeof color !== 'string') {
+    return DEFAULT_TAG_COLOR
+  }
+  const value = color.trim()
+  return /^#[0-9a-fA-F]{6}$/.test(value) ? value.toLowerCase() : DEFAULT_TAG_COLOR
+}
+
+const getContrastingTextColor = (hex) => {
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) {
+    return '#ffffff'
+  }
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  return luminance > 0.6 ? '#1f2937' : '#ffffff'
+}
+
+const tagBadgeStyle = computed(() => {
+  if (!hasTag.value) {
+    return {}
+  }
+  const color = normalizeHexColor(props.token.tag_color || DEFAULT_TAG_COLOR)
+  return {
+    backgroundColor: color,
+    borderColor: color,
+    color: getContrastingTextColor(color)
+  }
+})
+
+const hasStatusBadge = computed(() => {
+  const hasPortalStatus = props.token.portal_url && portalInfo.value.data
+  return Boolean(hasPortalStatus || props.token.ban_status)
+})
+
+const showStatusIndicator = computed(() => hasTag.value || hasStatusBadge.value)
+
 // 图标映射
 const editorIcons = {
   vscode: '/icons/vscode.svg',
@@ -791,6 +843,13 @@ const exportTokenAsJson = () => {
 
   if (props.token.email_note) {
     exportData.email_note = props.token.email_note
+  }
+
+  if (props.token.tag_name) {
+    exportData.tag_name = props.token.tag_name
+    if (props.token.tag_color) {
+      exportData.tag_color = props.token.tag_color
+    }
   }
 
   if (props.token.auth_session) {
@@ -1305,6 +1364,10 @@ defineExpose({
   top: 8px;
   right: 8px;
   z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
 }
 
 .status-badge {
@@ -1348,6 +1411,13 @@ defineExpose({
   background: var(--color-warning-surface, #fff3cd);
   color: var(--color-warning-text, #856404);
   border: 1px solid var(--color-warning-border, #ffeaa7);
+}
+
+.tag-badge {
+  max-width: 160px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .token-card:hover {

@@ -10,6 +10,8 @@ pub struct TokenData {
     pub updated_at: DateTime<Utc>,
     pub portal_url: Option<String>,
     pub email_note: Option<String>,
+    pub tag_name: Option<String>,
+    pub tag_color: Option<String>,
     pub ban_status: Option<serde_json::Value>,
     pub portal_info: Option<serde_json::Value>,
     pub auth_session: Option<String>,
@@ -35,6 +37,8 @@ impl TokenData {
             updated_at: now,
             portal_url,
             email_note,
+            tag_name: None,
+            tag_color: None,
             ban_status: None,
             portal_info: None,
             auth_session: None,
@@ -129,6 +133,14 @@ pub fn convert_legacy_token(legacy: &serde_json::Value) -> Result<TokenData, Box
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
 
+    let tag_name = legacy.get("tag_name")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    let tag_color = legacy.get("tag_color")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
     let ban_status = legacy.get("ban_status").cloned();
     let portal_info = legacy.get("portal_info").cloned();
     let auth_session = legacy.get("auth_session")
@@ -149,6 +161,8 @@ pub fn convert_legacy_token(legacy: &serde_json::Value) -> Result<TokenData, Box
         updated_at,
         portal_url,
         email_note,
+        tag_name,
+        tag_color,
         ban_status,
         portal_info,
         auth_session,
@@ -174,6 +188,14 @@ pub fn convert_to_legacy_format(token: &TokenData) -> serde_json::Value {
     
     if let Some(email_note) = &token.email_note {
         map.insert("email_note".to_string(), serde_json::Value::String(email_note.clone()));
+    }
+    
+    if let Some(tag_name) = &token.tag_name {
+        map.insert("tag_name".to_string(), serde_json::Value::String(tag_name.clone()));
+    }
+
+    if let Some(tag_color) = &token.tag_color {
+        map.insert("tag_color".to_string(), serde_json::Value::String(tag_color.clone()));
     }
     
     if let Some(ban_status) = &token.ban_status {
@@ -222,6 +244,8 @@ mod tests {
         assert_eq!(token.access_token, "test_token");
         assert_eq!(token.portal_url, Some("https://portal.example.com".to_string()));
         assert_eq!(token.email_note, Some("test note".to_string()));
+        assert!(token.tag_name.is_none());
+        assert!(token.tag_color.is_none());
         assert!(token.created_at <= Utc::now());
         assert!(token.updated_at <= Utc::now());
     }
@@ -241,6 +265,8 @@ mod tests {
         assert_eq!(token.id, "test_id");
         assert_eq!(token.tenant_url, "https://example.com");
         assert_eq!(token.access_token, "test_token");
+        assert!(token.tag_name.is_none());
+        assert!(token.tag_color.is_none());
         
         let converted_back = convert_to_legacy_format(&token);
         assert_eq!(converted_back["id"], "test_id");

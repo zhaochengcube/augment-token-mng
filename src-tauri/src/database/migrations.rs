@@ -33,6 +33,8 @@ pub async fn create_tables(client: &Client) -> Result<(), Box<dyn std::error::Er
             updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
             portal_url TEXT,
             email_note TEXT,
+            tag_name TEXT,
+            tag_color TEXT,
             ban_status JSONB,
             portal_info JSONB,
             auth_session TEXT,
@@ -157,6 +159,54 @@ pub async fn add_new_fields_if_not_exist(client: &Client) -> Result<(), Box<dyn 
                 &[],
             ).await?;
             println!("Added suspensions column to tokens table");
+        }
+    }
+
+    // 检查 tag_name 字段是否存在
+    let tag_name_exists = client.query(
+        r#"
+        SELECT EXISTS (
+            SELECT FROM information_schema.columns
+            WHERE table_schema = 'public'
+            AND table_name = 'tokens'
+            AND column_name = 'tag_name'
+        )
+        "#,
+        &[],
+    ).await?;
+
+    if let Some(row) = tag_name_exists.first() {
+        let exists: bool = row.get(0);
+        if !exists {
+            client.execute(
+                "ALTER TABLE tokens ADD COLUMN tag_name TEXT",
+                &[],
+            ).await?;
+            println!("Added tag_name column to tokens table");
+        }
+    }
+
+    // 检查 tag_color 字段是否存在
+    let tag_color_exists = client.query(
+        r#"
+        SELECT EXISTS (
+            SELECT FROM information_schema.columns
+            WHERE table_schema = 'public'
+            AND table_name = 'tokens'
+            AND column_name = 'tag_color'
+        )
+        "#,
+        &[],
+    ).await?;
+
+    if let Some(row) = tag_color_exists.first() {
+        let exists: bool = row.get(0);
+        if !exists {
+            client.execute(
+                "ALTER TABLE tokens ADD COLUMN tag_color TEXT",
+                &[],
+            ).await?;
+            println!("Added tag_color column to tokens table");
         }
     }
 

@@ -27,14 +27,16 @@ impl TokenStorage for PostgreSQLStorage {
         // 使用UPSERT (INSERT ... ON CONFLICT)
         client.execute(
             r#"
-            INSERT INTO tokens (id, tenant_url, access_token, created_at, updated_at, portal_url, email_note, ban_status, portal_info, auth_session, suspensions, balance_color_mode, skip_check)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            INSERT INTO tokens (id, tenant_url, access_token, created_at, updated_at, portal_url, email_note, tag_name, tag_color, ban_status, portal_info, auth_session, suspensions, balance_color_mode, skip_check)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
             ON CONFLICT (id) DO UPDATE SET
                 tenant_url = EXCLUDED.tenant_url,
                 access_token = EXCLUDED.access_token,
                 updated_at = EXCLUDED.updated_at,
                 portal_url = EXCLUDED.portal_url,
                 email_note = EXCLUDED.email_note,
+                tag_name = EXCLUDED.tag_name,
+                tag_color = EXCLUDED.tag_color,
                 ban_status = EXCLUDED.ban_status,
                 portal_info = EXCLUDED.portal_info,
                 auth_session = EXCLUDED.auth_session,
@@ -50,6 +52,8 @@ impl TokenStorage for PostgreSQLStorage {
                 &token.updated_at,
                 &token.portal_url,
                 &token.email_note,
+                &token.tag_name,
+                &token.tag_color,
                 &token.ban_status,
                 &token.portal_info,
                 &token.auth_session,
@@ -67,7 +71,7 @@ impl TokenStorage for PostgreSQLStorage {
         let client = pool.get().await?;
 
         let rows = client.query(
-            "SELECT id, tenant_url, access_token, created_at, updated_at, portal_url, email_note, ban_status, portal_info, auth_session, suspensions, balance_color_mode, skip_check FROM tokens ORDER BY created_at DESC",
+            "SELECT id, tenant_url, access_token, created_at, updated_at, portal_url, email_note, tag_name, tag_color, ban_status, portal_info, auth_session, suspensions, balance_color_mode, skip_check FROM tokens ORDER BY created_at DESC",
             &[],
         ).await?;
 
@@ -81,12 +85,14 @@ impl TokenStorage for PostgreSQLStorage {
                 updated_at: row.get(4),
                 portal_url: row.get(5),
                 email_note: row.get(6),
-                ban_status: row.get(7),
-                portal_info: row.get(8),
-                auth_session: row.get(9),
-                suspensions: row.get(10),
-                balance_color_mode: row.get(11),
-                skip_check: row.get(12),
+                tag_name: row.get(7),
+                tag_color: row.get(8),
+                ban_status: row.get(9),
+                portal_info: row.get(10),
+                auth_session: row.get(11),
+                suspensions: row.get(12),
+                balance_color_mode: row.get(13),
+                skip_check: row.get(14),
             };
             tokens.push(token);
         }
@@ -107,12 +113,14 @@ impl TokenStorage for PostgreSQLStorage {
                 updated_at = $4,
                 portal_url = $5,
                 email_note = $6,
-                ban_status = $7,
-                portal_info = $8,
-                auth_session = $9,
-                suspensions = $10,
-                balance_color_mode = $11,
-                skip_check = $12
+                tag_name = $7,
+                tag_color = $8,
+                ban_status = $9,
+                portal_info = $10,
+                auth_session = $11,
+                suspensions = $12,
+                balance_color_mode = $13,
+                skip_check = $14
             WHERE id = $1
             "#,
             &[
@@ -122,6 +130,8 @@ impl TokenStorage for PostgreSQLStorage {
                 &updated_at,
                 &token.portal_url,
                 &token.email_note,
+                &token.tag_name,
+                &token.tag_color,
                 &token.ban_status,
                 &token.portal_info,
                 &token.auth_session,
@@ -155,7 +165,7 @@ impl TokenStorage for PostgreSQLStorage {
         let client = pool.get().await?;
 
         let rows = client.query(
-            "SELECT id, tenant_url, access_token, created_at, updated_at, portal_url, email_note, ban_status, portal_info, auth_session, suspensions, balance_color_mode, skip_check FROM tokens WHERE id = $1",
+            "SELECT id, tenant_url, access_token, created_at, updated_at, portal_url, email_note, tag_name, tag_color, ban_status, portal_info, auth_session, suspensions, balance_color_mode, skip_check FROM tokens WHERE id = $1",
             &[&token_id],
         ).await?;
 
@@ -168,12 +178,14 @@ impl TokenStorage for PostgreSQLStorage {
                 updated_at: row.get(4),
                 portal_url: row.get(5),
                 email_note: row.get(6),
-                ban_status: row.get(7),
-                portal_info: row.get(8),
-                auth_session: row.get(9),
-                suspensions: row.get(10),
-                balance_color_mode: row.get(11),
-                skip_check: row.get(12),
+                tag_name: row.get(7),
+                tag_color: row.get(8),
+                ban_status: row.get(9),
+                portal_info: row.get(10),
+                auth_session: row.get(11),
+                suspensions: row.get(12),
+                balance_color_mode: row.get(13),
+                skip_check: row.get(14),
             };
             Ok(Some(token))
         } else {
@@ -205,7 +217,7 @@ impl PostgreSQLStorage {
         let client = pool.get().await?;
 
         let rows = client.query(
-            "SELECT id, tenant_url, access_token, created_at, updated_at, portal_url, email_note, ban_status, portal_info, auth_session, suspensions, balance_color_mode, skip_check FROM tokens WHERE tenant_url = $1 AND access_token = $2 AND id != $3",
+            "SELECT id, tenant_url, access_token, created_at, updated_at, portal_url, email_note, tag_name, tag_color, ban_status, portal_info, auth_session, suspensions, balance_color_mode, skip_check FROM tokens WHERE tenant_url = $1 AND access_token = $2 AND id != $3",
             &[&tenant_url, &access_token, &exclude_token_id],
         ).await?;
 
@@ -219,12 +231,14 @@ impl PostgreSQLStorage {
                 updated_at: row.get(4),
                 portal_url: row.get(5),
                 email_note: row.get(6),
-                ban_status: row.get(7),
-                portal_info: row.get(8),
-                auth_session: row.get(9),
-                suspensions: row.get(10),
-                balance_color_mode: row.get(11),
-                skip_check: row.get(12),
+                tag_name: row.get(7),
+                tag_color: row.get(8),
+                ban_status: row.get(9),
+                portal_info: row.get(10),
+                auth_session: row.get(11),
+                suspensions: row.get(12),
+                balance_color_mode: row.get(13),
+                skip_check: row.get(14),
             };
             tokens.push(token);
         }
