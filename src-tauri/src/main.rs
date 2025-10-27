@@ -1668,7 +1668,24 @@ async fn initialize_storage_manager(
 
 
 fn main() {
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default();
+
+    // 在桌面平台上，single-instance 插件必须是第一个注册的插件
+    #[cfg(desktop)]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            eprintln!("A new app instance was opened with argv: {:?}", argv);
+            eprintln!("Deep link event was already triggered by the plugin");
+
+            // 聚焦主窗口
+            if let Some(main_window) = app.get_webview_window("main") {
+                let _ = main_window.set_focus();
+                let _ = main_window.unminimize();
+            }
+        }));
+    }
+
+    builder
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_deep_link::init())
@@ -1800,52 +1817,32 @@ fn main() {
                             // 克隆需要的变量
                             let app_handle = app_handle_for_deep_link.clone();
 
-                            // 在异步任务中处理导入
+                            // 在异步任务中等待窗口就绪并发送 session 到前端
                             tauri::async_runtime::spawn(async move {
-                                eprintln!("Starting session import from deep link...");
+                                // 等待主窗口加载完成（最多等待 10 秒）
+                                let mut attempts = 0;
+                                let max_attempts = 100; // 100 * 100ms = 10 秒
+                                while attempts < max_attempts {
+                                    if let Some(main_window) = app_handle.get_webview_window("main") {
+                                        // 窗口存在，再等待一小段时间确保前端事件监听器已注册
+                                        tokio::time::sleep(tokio::time::Duration::from_millis(800)).await;
 
-                                // 获取 AppState
-                                let state = app_handle.state::<AppState>();
+                                        // 聚焦主窗口
+                                        let _ = main_window.set_focus();
+                                        let _ = main_window.unminimize();
 
-                                // 调用内部函数导入 token
-                                match add_token_from_session_internal_with_cache(&session, &state).await {
-                                    Ok(token_data) => {
-                                        eprintln!("Successfully imported token from deep link");
-
-                                        // 发送成功事件到前端
+                                        // 发送 session 到前端，由前端调用导入方法
                                         let _ = app_handle.emit(
-                                            "session-auto-imported",
+                                            "deep-link-session-received",
                                             serde_json::json!({
-                                                "success": true,
-                                                "token": token_data,
                                                 "session": session
                                             })
                                         );
 
-                                        // 聚焦主窗口
-                                        if let Some(main_window) = app_handle.get_webview_window("main") {
-                                            let _ = main_window.set_focus();
-                                            let _ = main_window.unminimize();
-                                        }
+                                        break;
                                     }
-                                    Err(e) => {
-                                        eprintln!("Failed to import token from deep link: {}", e);
-
-                                        // 发送失败事件到前端
-                                        let _ = app_handle.emit(
-                                            "session-auto-import-failed",
-                                            serde_json::json!({
-                                                "success": false,
-                                                "error": e
-                                            })
-                                        );
-
-                                        // 聚焦主窗口以显示错误
-                                        if let Some(main_window) = app_handle.get_webview_window("main") {
-                                            let _ = main_window.set_focus();
-                                            let _ = main_window.unminimize();
-                                        }
-                                    }
+                                    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                                    attempts += 1;
                                 }
                             });
                         } else {
@@ -1855,11 +1852,16 @@ fn main() {
                 }
             });
 
-            // 在 Linux 和 Windows 上运行时注册协议（用于开发和测试）
-            #[cfg(any(target_os = "linux", all(debug_assertions, windows)))]
+            // 在 Linux 和 Windows 上注册协议
+            // Linux: 总是注册（AppImage 需要运行时注册）
+            // Windows: 总是注册（确保协议在所有模式下都可用）
+            // macOS: 不支持运行时注册，必须通过 bundle 配置
+            #[cfg(any(target_os = "linux", windows))]
             {
                 if let Err(e) = app.deep_link().register_all() {
                     eprintln!("Failed to register deep link protocols: {}", e);
+                } else {
+                    eprintln!("Successfully registered deep link protocols");
                 }
             }
 

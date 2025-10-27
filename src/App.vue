@@ -993,6 +993,24 @@ onMounted(async () => {
     showStatus(t('messages.sessionAutoImportFailed') + ': ' + errorMessage, 'error')
   })
 
+  // 监听 Deep Link Session 接收事件（由前端处理导入）
+  await listen('deep-link-session-received', async (event) => {
+    // 打开 TokenList
+    showTokenList.value = true
+
+    // 等待 TokenList 准备好
+    await nextTick()
+    if (tokenListRef.value?.waitUntilReady) {
+      await tokenListRef.value.waitUntilReady()
+    }
+
+    // 调用前端的导入方法（会显示进度和结果提示）
+    if (event.payload.session) {
+      sessionInput.value = event.payload.session
+      await importFromSession()
+    }
+  })
+
   // 添加点击外部区域关闭设置菜单的事件监听器
   document.addEventListener('click', handleClickOutside)
 })
