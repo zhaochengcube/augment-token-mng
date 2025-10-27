@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "ATM"
-version = "1.2.1"
+version = "1.2.2"
 dependencies = [
  "aes-gcm",
  "async-trait",
@@ -4722,9 +4722,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-deep-link"
-version = "2.4.3"
+version = "2.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd67112fb1131834c2a7398ffcba520dbbf62c17de3b10329acd1a3554b1a9bb"
+checksum = "bd913b8b96627ec87a847ee4fe101427d95100f6c565768c2361c47b70d02bff"
 dependencies = [
  "dunce",
  "plist",
@@ -4743,9 +4743,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-opener"
-version = "2.5.0"
+version = "2.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "786156aa8e89e03d271fbd3fe642207da8e65f3c961baa9e2930f332bf80a1f5"
+checksum = "dd354191c4b4606fe4d82332937bc63736e2a261ea39dcdcce4be17064cd8766"
 dependencies = [
  "dunce",
  "glob",
@@ -4765,9 +4765,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-shell"
-version = "2.3.1"
+version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54777d0c0d8add34eea3ced84378619ef5b97996bd967d3038c668feefd21071"
+checksum = "63110fea291eb6d9eb953fcb0455178257774161317ce3b87c082e81ef6776c6"
 dependencies = [
  "encoding_rs",
  "log",
@@ -4786,9 +4786,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-single-instance"
-version = "2.3.4"
+version = "2.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb9cac815bf11c4a80fb498666bcdad66d65b89e3ae24669e47806febb76389c"
+checksum = "d09255a1cd942cdff57c7a1ce5e6022cd68ce1b8714b98ad2f1ff0a8a747a4fa"
 dependencies = [
  "serde",
  "serde_json",
