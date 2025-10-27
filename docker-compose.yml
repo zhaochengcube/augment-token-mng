@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  # Standard Linux build
+  tauri-build-linux:
+    build:
+      context: .
+      dockerfile: Dockerfile.build
+      target: artifacts
+    volumes:
+      - ./dist/docker-artifacts:/artifacts
+    environment:
+      - RUST_LOG=info
+    profiles:
+      - build
+      - linux
+
+  # Cross-platform build
+  tauri-build-cross:
+    build:
+      context: .
+      dockerfile: Dockerfile.cross
+    volumes:
+      - ./dist/docker-artifacts:/app/dist/artifacts
+    environment:
+      - BUILD_ARM64=true
+      - RUST_LOG=info
+    profiles:
+      - build
+      - cross
+
+  # Development environment with volume mounts
+  tauri-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/src-tauri/target
+    environment:
+      - DISPLAY=${DISPLAY:-:0}
+      - RUST_LOG=debug
+    network_mode: host
+    stdin_open: true
+    tty: true
+    profiles:
+      - dev
+
+  # Build artifacts extractor
+  artifacts-extractor:
+    image: alpine:latest
+    volumes:
+      - ./dist/docker-artifacts:/artifacts
+    command: |
+      sh -c "
+        echo '📦 Available artifacts:' &&
+        find /artifacts -type f -exec ls -lh {} \; | awk '{print \"   \" \$$9 \" (\" \$$5 \")\"}' &&
+        echo '✅ Artifacts ready for use!'
+      "
+    profiles:
+      - extract
+
+# Named volumes for caching
+volumes:
+  cargo-cache:
+    driver: local
+  npm-cache:
+    driver: local

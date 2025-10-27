@@ -1,0 +1,61 @@
+# Cross-platform build Dockerfile using cross-compilation
+# Supports building for multiple targets from a single container
+
+FROM ubuntu:22.04 AS cross-builder
+
+# Prevent interactive prompts during installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    build-essential \
+    pkg-config \
+    libssl-dev \
+    libgtk-3-dev \
+    libwebkit2gtk-4.0-dev \
+    libappindicator3-dev \
+    librsvg2-dev \
+    patchelf \
+    file \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs
+
+# Install Rust with multiple targets
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Add cross-compilation targets
+RUN rustup target add x86_64-unknown-linux-gnu
+RUN rustup target add aarch64-unknown-linux-gnu
+RUN rustup target add x86_64-pc-windows-gnu
+RUN rustup target add aarch64-apple-darwin
+
+# Install cross-compilation tools
+RUN apt-get update && apt-get install -y \
+    gcc-aarch64-linux-gnu \
+    gcc-mingw-w64-x86-64 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Tauri CLI
+RUN npm install -g @tauri-apps/cli
+
+WORKDIR /app
+
+# Copy source code
+COPY . .
+
+# Build frontend
+RUN npm install && npm run build
+
+# Build script for multiple targets
+COPY docker/build-all.sh /usr/local/bin/build-all.sh
+RUN chmod +x /usr/local/bin/build-all.sh
+
+# Set default command
+CMD ["/usr/local/bin/build-all.sh"]

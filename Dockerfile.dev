@@ -1,0 +1,59 @@
+# Development Dockerfile for Tauri application
+# Provides a complete development environment with hot reloading
+
+FROM ubuntu:22.04
+
+# Prevent interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install system dependencies including GUI support
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    build-essential \
+    pkg-config \
+    libssl-dev \
+    libgtk-3-dev \
+    libwebkit2gtk-4.0-dev \
+    libappindicator3-dev \
+    librsvg2-dev \
+    patchelf \
+    file \
+    git \
+    # X11 and display dependencies for development
+    xvfb \
+    x11-apps \
+    x11-xserver-utils \
+    dbus-x11 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs
+
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Install Tauri CLI
+RUN npm install -g @tauri-apps/cli
+
+# Create workspace
+WORKDIR /app
+
+# Install cargo-watch for hot reloading
+RUN cargo install cargo-watch
+
+# Set up display for GUI applications (development)
+ENV DISPLAY=:99
+
+# Copy package files for dependency installation
+COPY package*.json ./
+RUN npm install
+
+# Copy Cargo.toml for Rust dependencies
+COPY src-tauri/Cargo.toml src-tauri/Cargo.lock ./src-tauri/
+RUN cd src-tauri && cargo fetch
+
+# Default command for development
+CMD ["bash", "-c", "Xvfb :99 -screen 0 1024x768x24 & npm run tauri dev"]
