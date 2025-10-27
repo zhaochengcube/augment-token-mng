@@ -71,19 +71,9 @@ pub async fn create_tables(client: &Client) -> Result<(), Box<dyn std::error::Er
         &[],
     ).await?;
 
-    // 创建updated_at触发器函数
-    client.execute(
-        r#"
-        CREATE OR REPLACE FUNCTION update_updated_at_column()
-        RETURNS TRIGGER AS $$
-        BEGIN
-            NEW.updated_at = NOW();
-            RETURN NEW;
-        END;
-        $$ language 'plpgsql'
-        "#,
-        &[],
-    ).await?;
+    // 注释掉自动更新 updated_at 的触发器
+    // 因为我们需要在双向同步时保留原始的 updated_at 时间戳
+    // 应用层会负责更新 updated_at
 
     // 删除现有触发器（如果存在）
     client.execute(
@@ -91,14 +81,9 @@ pub async fn create_tables(client: &Client) -> Result<(), Box<dyn std::error::Er
         &[],
     ).await?;
 
-    // 为tokens表创建触发器
+    // 删除触发器函数（如果存在）
     client.execute(
-        r#"
-        CREATE TRIGGER update_tokens_updated_at
-            BEFORE UPDATE ON tokens
-            FOR EACH ROW
-            EXECUTE FUNCTION update_updated_at_column()
-        "#,
+        "DROP FUNCTION IF EXISTS update_updated_at_column() CASCADE",
         &[],
     ).await?;
 
@@ -258,6 +243,24 @@ pub async fn add_new_fields_if_not_exist(client: &Client) -> Result<(), Box<dyn 
         }
     }
 
+    Ok(())
+}
+
+// 删除 updated_at 自动更新触发器的迁移函数
+pub async fn remove_updated_at_trigger(client: &Client) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    // 删除触发器（如果存在）
+    client.execute(
+        "DROP TRIGGER IF EXISTS update_tokens_updated_at ON tokens",
+        &[],
+    ).await?;
+
+    // 删除触发器函数（如果存在）
+    client.execute(
+        "DROP FUNCTION IF EXISTS update_updated_at_column() CASCADE",
+        &[],
+    ).await?;
+
+    println!("Removed updated_at trigger and function");
     Ok(())
 }
 

@@ -18,6 +18,19 @@
               </svg>
               {{ $t('tokenList.databaseConfig') }}
             </button>
+            <!-- 同步按钮 - 仅双向存储模式显示 -->
+            <button
+              v-if="isDatabaseAvailable"
+              @click="handleBidirectionalSync"
+              class="btn info small"
+              :disabled="isSyncing"
+              :title="$t('tokenList.syncTooltip')"
+            >
+              <svg v-if="!isSyncing" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/>
+              </svg>
+              {{ isSyncing ? $t('tokenList.syncing') : $t('tokenList.sync') }}
+            </button>
             <button @click="handleAddToken" class="btn primary small">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
@@ -446,6 +459,13 @@ const isDatabaseAvailable = ref(false)
 
 // 初始化就绪标记
 const isReady = ref(false)
+
+// 同步状态标记 - 用于防止同步时触发自动保存
+const isSyncing = ref(false)
+const isLoadingFromSync = ref(false)
+
+// 同步需求标记 - 标识本地有未同步到数据库的更改
+const isSyncNeeded = ref(false)
 
 // 排序状态管理
 const sortOrder = ref('desc') // 'desc' = 最新优先, 'asc' = 最旧优先
@@ -1080,10 +1100,19 @@ const tokenCardRefs = ref({})
 
 // Computed properties for storage status display
 const storageStatusText = computed(() => {
-  return isDatabaseAvailable.value ? t('storage.dualStorage') : t('storage.localStorage')
+  if (isDatabaseAvailable.value) {
+    return isSyncNeeded.value
+      ? `${t('storage.dualStorage')}-${t('storage.notSynced')}`
+      : t('storage.dualStorage')
+  }
+  return t('storage.localStorage')
 })
 
 const storageStatusClass = computed(() => {
+  // 如果是双向存储且未同步，显示警告样式
+  if (isDatabaseAvailable.value && isSyncNeeded.value) {
+    return 'unsaved'
+  }
   return 'saved'
 })
 
@@ -1128,10 +1157,29 @@ const handleTokenUpdated = () => {
   // Token 更新时不再设置未保存状态，关闭时会自动保存
 }
 
+// 深度比对两个对象是否相等
+const isEqual = (obj1, obj2) => {
+  if (obj1 === obj2) return true
+  if (obj1 == null || obj2 == null) return false
+  if (typeof obj1 !== 'object' || typeof obj2 !== 'object') return obj1 === obj2
+
+  const keys1 = Object.keys(obj1)
+  const keys2 = Object.keys(obj2)
+
+  if (keys1.length !== keys2.length) return false
+
+  for (const key of keys1) {
+    if (!keys2.includes(key)) return false
+    if (!isEqual(obj1[key], obj2[key])) return false
+  }
+
+  return true
+}
+
 // 检查所有Token的账号状态
 const checkAllAccountStatus = async () => {
   if (tokens.value.length === 0) {
-    return { success: true, message: t('messages.noTokensToCheck') }
+    return { success: true, hasChanges: false, message: t('messages.noTokensToCheck') }
   }
 
   try {
@@ -1152,13 +1200,16 @@ const checkAllAccountStatus = async () => {
     })
 
 
-    // 批量更新tokens状态
-    updateTokensFromResults(results)
+    // 批量更新tokens状态，返回是否有变化
+    const hasChanges = updateTokensFromResults(results)
+
+    return { success: true, hasChanges }
 
   } catch (error) {
     console.error('Batch check error:', error)
     return {
       success: false,
+      hasChanges: false,
       message: `${t('messages.accountStatusCheckError')}: ${error}`
     }
   }
@@ -1166,21 +1217,36 @@ const checkAllAccountStatus = async () => {
 
 // 根据批量检测结果更新tokens状态
 const updateTokensFromResults = (results) => {
+  let anyChanges = false
+
   results.forEach(result => {
     const token = tokens.value.find(t => t.id === result.token_id)
     if (token) {
       const statusResult = result.status_result
+      let hasChanges = false
 
-      // 始终更新 access_token 和 tenant_url (如果 token 被刷新,这里会是新值)
-      token.access_token = result.access_token
-      token.tenant_url = result.tenant_url
+      // 比对并更新 access_token
+      if (token.access_token !== result.access_token) {
+        token.access_token = result.access_token
+        hasChanges = true
+      }
 
-      // 更新ban_status
-      token.ban_status = statusResult.status
+      // 比对并更新 tenant_url
+      if (token.tenant_url !== result.tenant_url) {
+        token.tenant_url = result.tenant_url
+        hasChanges = true
+      }
+
+      // 比对并更新 ban_status
+      if (token.ban_status !== statusResult.status) {
+        token.ban_status = statusResult.status
+        hasChanges = true
+      }
 
       // 自动禁用封禁或过期的账号检测
       if ((statusResult.status === 'SUSPENDED' || statusResult.status === 'EXPIRED') && !token.skip_check) {
         token.skip_check = true
+        hasChanges = true
         // 显示通知
         const autoDisableMsg = statusResult.status === 'SUSPENDED'
           ? t('messages.autoDisabledBanned')
@@ -1188,29 +1254,44 @@ const updateTokensFromResults = (results) => {
         window.$notify.info(autoDisableMsg)
       }
 
-      // 更新 suspensions 信息（如果有）
+      // 比对并更新 suspensions 信息（如果有）
       if (result.suspensions) {
-        token.suspensions = result.suspensions
-        console.log(`Updated suspensions for token ${token.id}:`, result.suspensions)
+        if (!isEqual(token.suspensions, result.suspensions)) {
+          token.suspensions = result.suspensions
+          hasChanges = true
+          console.log(`Updated suspensions for token ${token.id}:`, result.suspensions)
+        }
       }
 
-      // 更新Portal信息（如果有）
+      // 比对并更新 Portal 信息（如果有）
       if (result.portal_info) {
-        token.portal_info = {
+        const newPortalInfo = {
           credits_balance: result.portal_info.credits_balance,
           expiry_date: result.portal_info.expiry_date,
           can_still_use: result.portal_info.can_still_use
         }
-        console.log(`Updated token ${token.id} portal info:`, token.portal_info)
+
+        if (!isEqual(token.portal_info, newPortalInfo)) {
+          token.portal_info = newPortalInfo
+          hasChanges = true
+          console.log(`Updated token ${token.id} portal info:`, token.portal_info)
+        }
       } else if (result.portal_error) {
         console.warn(`Failed to get portal info for token ${token.id}:`, result.portal_error)
       }
 
-      // 更新时间戳
-      token.updated_at = new Date().toISOString()
-      console.log(`Updated token ${token.id} status to: ${statusResult.status}`)
+      // 只有在有实际变化时才更新时间戳
+      if (hasChanges) {
+        token.updated_at = new Date().toISOString()
+        console.log(`Updated token ${token.id} status to: ${statusResult.status}`)
+        anyChanges = true
+      } else {
+        console.log(`No changes for token ${token.id}, skipping update`)
+      }
     }
   })
+
+  return anyChanges
 }
 
 const loadTokens = async (showSuccessMessage = false) => {
@@ -1470,38 +1551,43 @@ const handleClose = () => {
   emit('close')
 }
 
-// 处理刷新事件 - 智能刷新逻辑
+// 处理刷新事件 - 刷新账号状态
 const handleRefresh = async () => {
   if (isRefreshing.value) return
   isRefreshing.value = true
 
   try {
-    // 统一开始通知
     window.$notify.info(t('messages.refreshingTokenStatus'))
 
-    if (isDatabaseAvailable.value) {
-      // 双向存储模式：执行双向同步
-      await invoke('bidirectional_sync_tokens')
-      await loadTokens(false)
-      await nextTick()
-      await checkAllAccountStatus()
-    } else {
-      // 本地存储模式：直接刷新和保存
-      await loadTokens()
-      await nextTick()
+    // 加载最新的 tokens
+    await loadTokens(false)
+    await nextTick()
 
-      if (tokens.value.length > 0) {
-        await checkAllAccountStatus()
-      } else {
-        throw new Error(t('messages.refreshFailedNoTokens'))
+    // 检查账号状态
+    if (tokens.value.length > 0) {
+      const result = await checkAllAccountStatus()
+
+      // 只有在有实际变化时才保存和标记未同步
+      if (result.hasChanges) {
+        // 刷新完成后手动保存更新的状态
+        await handleSave()
+
+        // 如果是双向存储模式，标记需要同步
+        if (isDatabaseAvailable.value) {
+          isSyncNeeded.value = true
+        }
       }
-    }
 
-    // 统一成功通知
-    window.$notify.success(t('messages.refreshComplete'))
+      window.$notify.success(t('messages.refreshComplete'))
+    } else {
+      window.$notify.warning(t('messages.noTokensToCheck'))
+    }
   } catch (error) {
     window.$notify.error(`${t('messages.refreshFailed')}: ${error.message || error}`)
   } finally {
+    // 延迟重置 isRefreshing，确保 watchDebounced 的 debounce timer 已经被清除
+    // watchDebounced 的 debounce 时间是 2000ms，这里等待 2100ms 确保安全
+    await new Promise(resolve => setTimeout(resolve, 2100))
     isRefreshing.value = false
   }
 }
@@ -1525,21 +1611,13 @@ const handleDatabaseConfigDeleted = async () => {
 
 
 // 自动保存方法（静默保存，不显示提示）
+// 只做本地保存，不触发同步
 const handleSave = async () => {
   if (isSaving.value) return
 
   isSaving.value = true
   try {
-    if (isDatabaseAvailable.value) {
-      // 双向存储模式：执行双向同步
-      const tokensJson = JSON.stringify(tokens.value)
-      await invoke('bidirectional_sync_tokens_with_data', { tokensJson })
-      // 双向同步完成后刷新本地显示
-      await loadTokens(false)
-    } else {
-      // 本地存储模式：直接保存
-      await saveTokens(false)
-    }
+    await saveTokens(false)
   } catch (error) {
     // 保存失败时抛出错误，由调用方处理
     throw error
@@ -1548,11 +1626,59 @@ const handleSave = async () => {
   }
 }
 
+// 双向同步方法（手动触发）
+const handleBidirectionalSync = async () => {
+  if (isSyncing.value) return
+  if (!isDatabaseAvailable.value) {
+    window.$notify.warning(t('messages.databaseNotAvailable'))
+    return
+  }
+
+  isSyncing.value = true
+  try {
+    window.$notify.info(t('messages.syncingData'))
+
+    // 执行双向同步
+    const tokensJson = JSON.stringify(tokens.value)
+    await invoke('bidirectional_sync_tokens_with_data', { tokensJson })
+
+    // 同步后需要刷新，但要避免触发 watch
+    isLoadingFromSync.value = true
+    await loadTokens(false)
+
+    // 延迟重置 isLoadingFromSync，确保 watchDebounced 的 debounce timer 已经被清除
+    // watchDebounced 的 debounce 时间是 2000ms，这里等待 2100ms 确保安全
+    await new Promise(resolve => setTimeout(resolve, 2100))
+    isLoadingFromSync.value = false
+
+    // 同步完成，清除同步需求标记
+    isSyncNeeded.value = false
+
+    window.$notify.success(t('messages.syncComplete'))
+  } catch (error) {
+    window.$notify.error(`${t('messages.syncFailed')}: ${error}`)
+  } finally {
+    isSyncing.value = false
+  }
+}
+
 // 组件挂载时自动加载tokens和存储状态
 onMounted(async () => {
   // 首先获取存储状态
   await getStorageStatus()
+
+  // 使用 isLoadingFromSync 标记初始加载，避免触发自动保存
+  isLoadingFromSync.value = true
   await loadTokens(false) // 显示成功消息
+
+  // 延迟重置标记，确保 watchDebounced 的 debounce timer 已经被清除
+  await new Promise(resolve => setTimeout(resolve, 2100))
+  isLoadingFromSync.value = false
+
+  // 初始化时，如果是双向存储模式，默认不标记需要同步
+  // 只有在用户修改后才标记
+  isSyncNeeded.value = false
+
   isReady.value = true
 })
 
@@ -1566,12 +1692,23 @@ watchDebounced(
     // 如果正在保存,跳过
     if (isSaving.value) return
 
+    // 如果正在同步导致的加载,跳过（避免循环触发）
+    if (isLoadingFromSync.value) return
+
+    // 如果正在批量刷新,跳过（刷新完成后会手动保存）
+    if (isRefreshing.value) return
+
     // 如果tokens为空且之前也为空,跳过
     if (newTokens.length === 0 && (!oldTokens || oldTokens.length === 0)) return
 
     try {
       await handleSave()
       window.$notify.success(t('messages.autoSaveSuccess'))
+
+      // 如果是双向存储模式，标记需要同步
+      if (isDatabaseAvailable.value) {
+        isSyncNeeded.value = true
+      }
     } catch (error) {
       window.$notify.error(t('messages.autoSaveFailed') + ': ' + error)
     }

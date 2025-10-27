@@ -1,7 +1,6 @@
 use super::traits::{TokenStorage, TokenData};
 use crate::database::{DatabaseManager, DbPool};
 use std::sync::Arc;
-use chrono::Utc;
 
 pub struct PostgreSQLStorage {
     pub db_manager: Arc<DatabaseManager>,
@@ -25,6 +24,8 @@ impl TokenStorage for PostgreSQLStorage {
         let client = pool.get().await?;
 
         // 使用UPSERT (INSERT ... ON CONFLICT)
+        // 注意：我们需要保留传入的 updated_at，而不是让触发器自动更新
+        // 因此在 UPDATE 时显式设置 updated_at，触发器会被这个值覆盖
         client.execute(
             r#"
             INSERT INTO tokens (id, tenant_url, access_token, created_at, updated_at, portal_url, email_note, tag_name, tag_color, ban_status, portal_info, auth_session, suspensions, balance_color_mode, skip_check)
@@ -104,7 +105,8 @@ impl TokenStorage for PostgreSQLStorage {
         let pool = self.get_pool().await?;
         let client = pool.get().await?;
 
-        let updated_at = Utc::now();
+        // 使用 token 中的 updated_at，而不是自动生成新的时间戳
+        // 这样可以保持双向同步时的时间戳一致性
         let rows_affected = client.execute(
             r#"
             UPDATE tokens SET
@@ -127,7 +129,7 @@ impl TokenStorage for PostgreSQLStorage {
                 &token.id,
                 &token.tenant_url,
                 &token.access_token,
-                &updated_at,
+                &token.updated_at,
                 &token.portal_url,
                 &token.email_note,
                 &token.tag_name,

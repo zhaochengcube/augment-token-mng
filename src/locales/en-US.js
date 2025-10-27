@@ -160,6 +160,9 @@ export default {
     addToken: 'Add Token',
     save: 'Save',
     databaseConfig: 'Database Config',
+    sync: 'Sync',
+    syncing: 'Syncing...',
+    syncTooltip: 'Perform bidirectional sync (Local ↔ Database)',
     sortByTime: 'Sort by creation time',
     batchDelete: 'Batch Delete',
     batchDeleteConfirm: 'Batch Delete Confirmation',
@@ -345,7 +348,8 @@ export default {
     local: 'Local Storage',
     dual: 'Dual Storage',
     database: 'Database Storage',
-    unknown: 'Unknown'
+    unknown: 'Unknown',
+    notSynced: 'Not Synced'
   },
   buttons: {
     save: 'Save',
@@ -417,8 +421,12 @@ export default {
     refreshingTokenStatus: 'Refreshing token status and portal information...',
     refreshComplete: 'Refresh complete',
     refreshFailed: 'Refresh failed',
+    refreshFailedNoTokens: 'No tokens to refresh',
     databaseConfigSaved: 'Database configuration saved, storage functionality updated',
     databaseConfigDeleted: 'Database configuration deleted, switched to local storage only',
+    syncingData: 'Syncing data...',
+    syncComplete: 'Sync complete',
+    databaseNotAvailable: 'Database not available',
     bidirectionalSyncSaveComplete: 'Bidirectional sync save complete',
     saveFailed: 'Save failed',
     updatingToken: 'Updating token...',

@@ -1105,6 +1105,9 @@ const toggleBalanceColor = () => {
   const currentMode = props.token.balance_color_mode || 'green'
   props.token.balance_color_mode = currentMode === 'green' ? 'blue' : 'green'
 
+  // 更新时间戳，确保双向同步时使用最新版本
+  props.token.updated_at = new Date().toISOString()
+
   // 通知父组件有更新，触发保存
   emit('token-updated')
 }
@@ -1113,6 +1116,9 @@ const toggleBalanceColor = () => {
 const toggleSkipCheck = () => {
   // 切换 skip_check 状态
   props.token.skip_check = !props.token.skip_check
+
+  // 更新时间戳，确保双向同步时使用最新版本
+  props.token.updated_at = new Date().toISOString()
 
   // 关闭菜单
   showCheckMenu.value = false
@@ -1125,6 +1131,25 @@ const toggleSkipCheck = () => {
     ? t('messages.checkDisabled')
     : t('messages.checkEnabled')
   window.$notify.info(message)
+}
+
+// 深度比对两个对象是否相等
+const isEqual = (obj1, obj2) => {
+  if (obj1 === obj2) return true
+  if (obj1 == null || obj2 == null) return false
+  if (typeof obj1 !== 'object' || typeof obj2 !== 'object') return obj1 === obj2
+
+  const keys1 = Object.keys(obj1)
+  const keys2 = Object.keys(obj2)
+
+  if (keys1.length !== keys2.length) return false
+
+  for (const key of keys1) {
+    if (!keys2.includes(key)) return false
+    if (!isEqual(obj1[key], obj2[key])) return false
+  }
+
+  return true
 }
 
 // 检测账号状态
@@ -1154,6 +1179,7 @@ const checkAccountStatus = async (showNotification = true) => {
     // 处理结果
     let statusMessage = ''
     let statusType = 'info'
+    let hasChanges = false
 
     if (batchResults && batchResults.length > 0) {
       const result = batchResults[0] // 取第一个结果对象
@@ -1162,16 +1188,28 @@ const checkAccountStatus = async (showNotification = true) => {
       // 使用后端返回的具体状态
       const banStatus = statusResult.status
 
-      // 始终更新 access_token 和 tenant_url (如果 token 被刷新,这里会是新值)
-      props.token.access_token = result.access_token
-      props.token.tenant_url = result.tenant_url
+      // 比对并更新 access_token
+      if (props.token.access_token !== result.access_token) {
+        props.token.access_token = result.access_token
+        hasChanges = true
+      }
 
-      // 更新本地token对象 - 账号状态
-      props.token.ban_status = banStatus
+      // 比对并更新 tenant_url
+      if (props.token.tenant_url !== result.tenant_url) {
+        props.token.tenant_url = result.tenant_url
+        hasChanges = true
+      }
+
+      // 比对并更新 ban_status
+      if (props.token.ban_status !== banStatus) {
+        props.token.ban_status = banStatus
+        hasChanges = true
+      }
 
       // 自动禁用封禁或过期的账号检测
       if ((banStatus === 'SUSPENDED' || banStatus === 'EXPIRED') && !props.token.skip_check) {
         props.token.skip_check = true
+        hasChanges = true
         // 通知父组件有更新，触发保存
         emit('token-updated')
         // 显示通知
@@ -1181,27 +1219,38 @@ const checkAccountStatus = async (showNotification = true) => {
         window.$notify.info(autoDisableMsg)
       }
 
-      // 更新 suspensions 信息（如果有）
+      // 比对并更新 suspensions 信息（如果有）
       if (result.suspensions) {
-        props.token.suspensions = result.suspensions
-        console.log(`Updated suspensions for token ${props.token.id}:`, result.suspensions)
+        if (!isEqual(props.token.suspensions, result.suspensions)) {
+          props.token.suspensions = result.suspensions
+          hasChanges = true
+          console.log(`Updated suspensions for token ${props.token.id}:`, result.suspensions)
+        }
       }
 
-      // 更新Portal信息（如果有）
+      // 比对并更新 Portal 信息（如果有）
       if (result.portal_info) {
-        props.token.portal_info = {
+        const newPortalInfo = {
           credits_balance: result.portal_info.credits_balance,
           expiry_date: result.portal_info.expiry_date
         }
 
-        // 更新UI显示
-        portalInfo.value = {
-          data: props.token.portal_info,
-          error: null
+        if (!isEqual(props.token.portal_info, newPortalInfo)) {
+          props.token.portal_info = newPortalInfo
+          hasChanges = true
+
+          // 更新UI显示
+          portalInfo.value = {
+            data: props.token.portal_info,
+            error: null
+          }
         }
       } else if (result.portal_error) {
         // 保存错误信息到 token
-        props.token.portal_info = null
+        if (props.token.portal_info !== null) {
+          props.token.portal_info = null
+          hasChanges = true
+        }
 
         portalInfo.value = {
           data: null,
@@ -1209,8 +1258,13 @@ const checkAccountStatus = async (showNotification = true) => {
         }
       }
 
-      // 更新时间戳以确保双向同步时选择正确版本
-      props.token.updated_at = new Date().toISOString()
+      // 只有在有实际变化时才更新时间戳
+      if (hasChanges) {
+        props.token.updated_at = new Date().toISOString()
+        console.log(`Updated token ${props.token.id} with changes`)
+      } else {
+        console.log(`No changes for token ${props.token.id}, skipping update`)
+      }
 
       // 根据具体状态设置消息
       switch (banStatus) {

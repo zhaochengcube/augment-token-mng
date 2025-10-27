@@ -1279,6 +1279,10 @@ async fn save_database_config(
                     println!("Database tables already exist, checking for new fields");
                     database::add_new_fields_if_not_exist(&client).await
                         .map_err(|e| format!("Failed to add new fields: {}", e))?;
+
+                    // 删除 updated_at 自动更新触发器（如果存在）
+                    database::remove_updated_at_trigger(&client).await
+                        .map_err(|e| format!("Failed to remove trigger: {}", e))?;
                 }
             }
 

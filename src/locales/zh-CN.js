@@ -160,6 +160,9 @@ export default {
     addToken: '添加Token',
     save: '保存',
     databaseConfig: '数据库配置',
+    sync: '同步',
+    syncing: '同步中...',
+    syncTooltip: '执行双向同步（本地 ↔ 数据库）',
     sortByTime: '按创建时间排序',
     batchDelete: '批量删除',
     batchDeleteConfirm: '批量删除确认',
@@ -345,7 +348,8 @@ export default {
     local: '本地存储',
     dual: '双重存储',
     database: '数据库存储',
-    unknown: '未知'
+    unknown: '未知',
+    notSynced: '未同步'
   },
   buttons: {
     save: '保存',
@@ -419,8 +423,12 @@ export default {
     refreshingTokenStatus: '正在刷新 Token 状态和 Portal 信息...',
     refreshComplete: '刷新完成',
     refreshFailed: '刷新失败',
+    refreshFailedNoTokens: '没有可刷新的 Token',
     databaseConfigSaved: '数据库配置已保存，存储功能已更新',
     databaseConfigDeleted: '数据库配置已删除，已切换到仅本地存储',
+    syncingData: '正在同步数据...',
+    syncComplete: '同步完成',
+    databaseNotAvailable: '数据库不可用',
     bidirectionalSyncSaveComplete: '双向同步保存完成',
     saveFailed: '保存失败',
     updatingToken: '正在更新Token...',
