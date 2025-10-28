@@ -165,39 +165,45 @@ impl DualStorage {
         let main_deleted = self.delete_from_both_storages(token_id).await?;
         eprintln!("Main delete result: {}", main_deleted);
 
-        // 如果是双重存储且数据库可用，查找并删除重复的token
+        // 如果是双重存储且数据库可用，查找并删除重复的token（基于邮箱）
         if let Some(postgres) = &self.postgres_storage {
             if postgres.is_available().await {
                 if let Some(token) = token_info {
-                    eprintln!("Looking for duplicate tokens with tenant_url={}, access_token={}", token.tenant_url, token.access_token);
-                    // 查找数据库中的重复token
-                    match postgres.find_duplicate_tokens(&token.tenant_url, &token.access_token, token_id).await {
-                        Ok(duplicate_tokens) => {
-                            eprintln!("Found {} duplicate tokens", duplicate_tokens.len());
-                            let mut duplicate_deleted_count = 0;
-                            for duplicate_token in duplicate_tokens {
-                                eprintln!("Attempting to delete duplicate token with ID: {}", duplicate_token.id);
-                                // 删除每个重复的token
-                                if let Ok(deleted) = postgres.delete_token(&duplicate_token.id).await {
-                                    if deleted {
-                                        duplicate_deleted_count += 1;
-                                        eprintln!("Successfully deleted duplicate token with ID: {}", duplicate_token.id);
+                    // 只有当token有邮箱时才查找重复项
+                    let email_note = token.email_note.as_deref();
+                    if email_note.is_some() && !email_note.unwrap().trim().is_empty() {
+                        eprintln!("Looking for duplicate tokens with email_note={:?}", email_note);
+                        // 查找数据库中的重复token（基于邮箱）
+                        match postgres.find_duplicate_tokens(email_note, token_id).await {
+                            Ok(duplicate_tokens) => {
+                                eprintln!("Found {} duplicate tokens", duplicate_tokens.len());
+                                let mut duplicate_deleted_count = 0;
+                                for duplicate_token in duplicate_tokens {
+                                    eprintln!("Attempting to delete duplicate token with ID: {}", duplicate_token.id);
+                                    // 删除每个重复的token
+                                    if let Ok(deleted) = postgres.delete_token(&duplicate_token.id).await {
+                                        if deleted {
+                                            duplicate_deleted_count += 1;
+                                            eprintln!("Successfully deleted duplicate token with ID: {}", duplicate_token.id);
+                                        } else {
+                                            eprintln!("Failed to delete duplicate token with ID: {} (not found)", duplicate_token.id);
+                                        }
                                     } else {
-                                        eprintln!("Failed to delete duplicate token with ID: {} (not found)", duplicate_token.id);
+                                        eprintln!("Error deleting duplicate token with ID: {}", duplicate_token.id);
                                     }
-                                } else {
-                                    eprintln!("Error deleting duplicate token with ID: {}", duplicate_token.id);
                                 }
+                                if duplicate_deleted_count > 0 {
+                                    eprintln!("Deleted {} duplicate tokens", duplicate_deleted_count);
+                                } else {
+                                    eprintln!("No duplicate tokens were deleted");
+                                }
+                            },
+                            Err(e) => {
+                                eprintln!("Failed to find duplicate tokens: {}", e);
                             }
-                            if duplicate_deleted_count > 0 {
-                                eprintln!("Deleted {} duplicate tokens", duplicate_deleted_count);
-                            } else {
-                                eprintln!("No duplicate tokens were deleted");
-                            }
-                        },
-                        Err(e) => {
-                            eprintln!("Failed to find duplicate tokens: {}", e);
                         }
+                    } else {
+                        eprintln!("Token has no email_note, skipping duplicate check");
                     }
                 } else {
                     eprintln!("No token info available for finding duplicates");
@@ -579,7 +585,43 @@ impl SyncManager for DualStorage {
             }
         }
 
-        Ok(resolved.into_values().collect())
+        // 邮箱去重：如果多个token有相同邮箱，只保留最新的一个
+        let mut email_map: HashMap<String, TokenData> = HashMap::new();
+        let mut tokens_without_email = Vec::new();
+
+        for token in resolved.into_values() {
+            if let Some(email) = &token.email_note {
+                let email_key = email.trim().to_lowercase();
+                if !email_key.is_empty() {
+                    // 有邮箱的token，按邮箱去重
+                    if let Some(existing) = email_map.get(&email_key) {
+                        // 比较更新时间，保留更新的
+                        if token.updated_at > existing.updated_at {
+                            eprintln!("Email conflict: keeping newer token {} (updated_at={:?}) over {} (updated_at={:?}) for email {}",
+                                token.id, token.updated_at, existing.id, existing.updated_at, email_key);
+                            email_map.insert(email_key, token);
+                        } else {
+                            eprintln!("Email conflict: keeping existing token {} (updated_at={:?}) over {} (updated_at={:?}) for email {}",
+                                existing.id, existing.updated_at, token.id, token.updated_at, email_key);
+                        }
+                    } else {
+                        email_map.insert(email_key, token);
+                    }
+                } else {
+                    // 邮箱为空字符串，不去重
+                    tokens_without_email.push(token);
+                }
+            } else {
+                // 没有邮箱的token，不去重
+                tokens_without_email.push(token);
+            }
+        }
+
+        // 合并有邮箱的token和没有邮箱的token
+        let mut final_tokens: Vec<TokenData> = email_map.into_values().collect();
+        final_tokens.extend(tokens_without_email);
+
+        Ok(final_tokens)
     }
 }
 

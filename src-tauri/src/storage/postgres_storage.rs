@@ -213,14 +213,22 @@ impl TokenStorage for PostgreSQLStorage {
 }
 
 impl PostgreSQLStorage {
-    /// 查找具有相同tenant_url和access_token但不同ID的token
-    pub async fn find_duplicate_tokens(&self, tenant_url: &str, access_token: &str, exclude_token_id: &str) -> Result<Vec<TokenData>, Box<dyn std::error::Error + Send + Sync>> {
+    /// 查找具有相同邮箱但不同ID的token
+    /// 如果邮箱为空，则不查找重复项
+    pub async fn find_duplicate_tokens(&self, email_note: Option<&str>, exclude_token_id: &str) -> Result<Vec<TokenData>, Box<dyn std::error::Error + Send + Sync>> {
+        // 如果邮箱为空，直接返回空列表
+        let email = match email_note {
+            Some(e) if !e.trim().is_empty() => e.trim(),
+            _ => return Ok(Vec::new()),
+        };
+
         let pool = self.get_pool().await?;
         let client = pool.get().await?;
 
+        // 使用 LOWER() 进行不区分大小写的比较
         let rows = client.query(
-            "SELECT id, tenant_url, access_token, created_at, updated_at, portal_url, email_note, tag_name, tag_color, ban_status, portal_info, auth_session, suspensions, balance_color_mode, skip_check FROM tokens WHERE tenant_url = $1 AND access_token = $2 AND id != $3",
-            &[&tenant_url, &access_token, &exclude_token_id],
+            "SELECT id, tenant_url, access_token, created_at, updated_at, portal_url, email_note, tag_name, tag_color, ban_status, portal_info, auth_session, suspensions, balance_color_mode, skip_check FROM tokens WHERE LOWER(TRIM(email_note)) = LOWER($1) AND id != $2",
+            &[&email, &exclude_token_id],
         ).await?;
 
         let mut tokens = Vec::new();

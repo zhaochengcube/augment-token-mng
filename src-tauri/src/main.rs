@@ -1460,57 +1460,12 @@ async fn bidirectional_sync_tokens_with_data(
 
 #[tauri::command]
 async fn get_storage_status(
-    app: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
-    // 首先尝试重新加载数据库配置（如果还没有的话）
-    let db_manager_exists = {
-        let guard = state.database_manager.lock().unwrap();
-        guard.is_some()
-    };
-
-    if !db_manager_exists {
-        // 尝试加载数据库配置
-        match database::DatabaseConfigManager::new(&app) {
-            Ok(config_manager) => {
-                match config_manager.load_config() {
-                    Ok(config) => {
-                        if config.enabled {
-                            let mut db_manager = database::DatabaseManager::new(config);
-                            if db_manager.initialize().await.is_ok() {
-                                *state.database_manager.lock().unwrap() = Some(Arc::new(db_manager));
-                            }
-                        }
-                    }
-                    Err(_) => {
-                        // 配置加载失败，继续使用本地存储
-                    }
-                }
-            }
-            Err(_) => {
-                // 配置管理器创建失败，继续使用本地存储
-            }
-        }
-    }
-
-    // 检查存储管理器是否已初始化，如果没有则尝试初始化
+    // 获取存储管理器（应该已在应用启动时初始化）
     let storage_manager = {
-        let manager_option = {
-            let guard = state.storage_manager.lock().unwrap();
-            guard.clone()
-        };
-
-        if let Some(manager) = manager_option {
-            manager
-        } else {
-            // 尝试初始化存储管理器
-            if let Err(e) = initialize_storage_manager(&app, &state).await {
-                return Err(format!("Failed to initialize storage manager: {}", e));
-            }
-            // 重新获取存储管理器
-            let guard = state.storage_manager.lock().unwrap();
-            guard.clone().ok_or("Storage manager still not initialized after initialization attempt")?
-        }
+        let guard = state.storage_manager.lock().unwrap();
+        guard.clone().ok_or("Storage manager not initialized")?
     };
 
     let is_available = storage_manager.is_available().await;
