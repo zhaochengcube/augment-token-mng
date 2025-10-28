@@ -1390,40 +1390,6 @@ async fn save_database_config(
             initialize_storage_manager(&app, &state).await
                 .map_err(|e| format!("Failed to initialize storage: {}", e))?;
 
-            // 如果表已存在，执行初始同步
-            let pool_option = {
-                let db_guard = state.database_manager.lock().unwrap();
-                db_guard.as_ref().and_then(|db| db.get_pool())
-            };
-
-            if let Some(pool) = pool_option {
-                let client = pool.get().await
-                    .map_err(|e| format!("Failed to get database client for sync check: {}", e))?;
-
-                let tables_exist = database::check_tables_exist(&client).await
-                    .map_err(|e| format!("Failed to check tables for sync: {}", e))?;
-
-                if tables_exist {
-                    // 执行初始双向同步
-                    let storage_manager = {
-                        let storage_guard = state.storage_manager.lock().unwrap();
-                        storage_guard.as_ref().cloned()
-                    };
-
-                    if let Some(storage_manager) = storage_manager {
-                        match storage_manager.bidirectional_sync().await {
-                            Ok(sync_result) => {
-                                println!("Initial sync completed: {} tokens synced", sync_result.tokens_synced);
-                            }
-                            Err(e) => {
-                                eprintln!("Initial sync failed: {}", e);
-                                // 同步失败不影响配置保存
-                            }
-                        }
-                    }
-                }
-            }
-
             Ok(())
         }
         Err(e) => Err(format!("Failed to connect to database: {}", e))
@@ -1559,12 +1525,23 @@ async fn bidirectional_sync_tokens_with_data(
 async fn get_storage_status(
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
-    // 获取存储管理器（应该已在应用启动时初始化）
+    // 获取存储管理器
     let storage_manager = {
         let guard = state.storage_manager.lock().unwrap();
-        guard.clone().ok_or("Storage manager not initialized")?
+        guard.clone()
     };
 
+    // 检查是否正在初始化
+    if storage_manager.is_none() {
+        return Ok(serde_json::json!({
+            "is_available": false,
+            "storage_type": "initializing",
+            "is_database_available": false,
+            "is_initializing": true
+        }));
+    }
+
+    let storage_manager = storage_manager.unwrap();
     let is_available = storage_manager.is_available().await;
     let storage_type = storage_manager.storage_type();
     let is_database_available = storage_manager.is_database_available();
@@ -1572,7 +1549,8 @@ async fn get_storage_status(
     Ok(serde_json::json!({
         "is_available": is_available,
         "storage_type": storage_type,
-        "is_database_available": is_database_available
+        "is_database_available": is_database_available,
+        "is_initializing": false
     }))
 }
 
@@ -1759,7 +1737,6 @@ fn main() {
                 let state = app_handle.state::<AppState>();
 
                 // 尝试加载数据库配置
-                let mut should_sync = false;
                 match DatabaseConfigManager::new(&app_handle) {
                     Ok(config_manager) => {
                         match config_manager.load_config() {
@@ -1768,7 +1745,7 @@ fn main() {
                                     let mut db_manager = DatabaseManager::new(config);
                                     if db_manager.initialize().await.is_ok() {
                                         // 检查表是否存在
-                                        should_sync = if let Some(pool) = db_manager.get_pool() {
+                                        if let Some(pool) = db_manager.get_pool() {
                                             match pool.get().await {
                                                 Ok(client) => {
                                                     match database::check_tables_exist(&client).await {
@@ -1778,56 +1755,25 @@ fn main() {
                                                                 if let Err(e) = database::create_tables(&client).await {
                                                                     eprintln!("Failed to create tables on startup: {}", e);
                                                                 }
-                                                                false // 新创建的表不需要同步
                                                             } else {
                                                                 // 表已存在，检查并添加新字段
                                                                 if let Err(e) = database::add_new_fields_if_not_exist(&client).await {
                                                                     eprintln!("Failed to add new fields on startup: {}", e);
                                                                 }
-                                                                true // 表已存在，需要同步
                                                             }
                                                         }
                                                         Err(e) => {
                                                             eprintln!("Failed to check tables on startup: {}", e);
-                                                            false
                                                         }
                                                     }
                                                 }
                                                 Err(e) => {
                                                     eprintln!("Failed to get database client on startup: {}", e);
-                                                    false
-                                                }
-                                            }
-                                        } else {
-                                            false
-                                        };
-
-                                        *state.database_manager.lock().unwrap() = Some(Arc::new(db_manager));
-
-                                        // 如果需要同步，在存储管理器初始化后执行
-                                        if should_sync {
-                                            // 初始化存储管理器
-                                            if let Err(e) = initialize_storage_manager(&app_handle, &state).await {
-                                                eprintln!("Failed to initialize storage manager on startup: {}", e);
-                                            } else {
-                                                // 执行初始同步
-                                                let storage_manager = {
-                                                    let storage_guard = state.storage_manager.lock().unwrap();
-                                                    storage_guard.as_ref().cloned()
-                                                };
-
-                                                if let Some(storage_manager) = storage_manager {
-                                                    match storage_manager.bidirectional_sync().await {
-                                                        Ok(sync_result) => {
-                                                            println!("Startup sync completed: {} tokens synced", sync_result.tokens_synced);
-                                                        }
-                                                        Err(e) => {
-                                                            eprintln!("Startup sync failed: {}", e);
-                                                        }
-                                                    }
                                                 }
                                             }
                                         }
+
+                                        *state.database_manager.lock().unwrap() = Some(Arc::new(db_manager));
                                     }
                                 }
                             }
@@ -1837,11 +1783,9 @@ fn main() {
                     Err(e) => eprintln!("Failed to create config manager: {}", e),
                 }
 
-                // 如果没有执行同步（表不存在或数据库不可用），则初始化存储管理器
-                if !should_sync {
-                    if let Err(e) = initialize_storage_manager(&app_handle, &state).await {
-                        eprintln!("Failed to initialize storage manager: {}", e);
-                    }
+                // 初始化存储管理器
+                if let Err(e) = initialize_storage_manager(&app_handle, &state).await {
+                    eprintln!("Failed to initialize storage manager: {}", e);
                 }
             });
 

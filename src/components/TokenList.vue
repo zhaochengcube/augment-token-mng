@@ -437,7 +437,7 @@
 </template>
 
 <script setup>
-import { ref, nextTick, onMounted, computed, readonly, watch } from 'vue'
+import { ref, nextTick, onMounted, onUnmounted, computed, readonly, watch } from 'vue'
 import { watchDebounced } from '@vueuse/core'
 import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from 'vue-i18n'
@@ -456,6 +456,7 @@ const props = defineProps({
 const tokens = ref([])
 const isLoading = ref(false)
 const isDatabaseAvailable = ref(false)
+const isStorageInitializing = ref(false)
 
 // 初始化就绪标记
 const isReady = ref(false)
@@ -466,6 +467,9 @@ const isLoadingFromSync = ref(false)
 
 // 同步需求标记 - 标识本地有未同步到数据库的更改
 const isSyncNeeded = ref(false)
+
+// 存储状态检查定时器
+let storageCheckTimer = null
 
 // 排序状态管理
 const sortOrder = ref('desc') // 'desc' = 最新优先, 'asc' = 最旧优先
@@ -1100,6 +1104,9 @@ const tokenCardRefs = ref({})
 
 // Computed properties for storage status display
 const storageStatusText = computed(() => {
+  if (isStorageInitializing.value) {
+    return t('storage.initializing')
+  }
   if (isDatabaseAvailable.value) {
     return isSyncNeeded.value
       ? `${t('storage.dualStorage')}-${t('storage.notSynced')}`
@@ -1109,6 +1116,10 @@ const storageStatusText = computed(() => {
 })
 
 const storageStatusClass = computed(() => {
+  // 如果正在初始化，显示加载样式
+  if (isStorageInitializing.value) {
+    return 'initializing'
+  }
   // 如果是双向存储且未同步，显示警告样式
   if (isDatabaseAvailable.value && isSyncNeeded.value) {
     return 'unsaved'
@@ -1122,10 +1133,39 @@ const storageStatusClass = computed(() => {
 const getStorageStatus = async () => {
   try {
     const status = await invoke('get_storage_status')
-    isDatabaseAvailable.value = status?.is_database_available || false
+
+    // 检查是否正在初始化
+    if (status?.is_initializing) {
+      isStorageInitializing.value = true
+      isDatabaseAvailable.value = false
+
+      // 启动定时器，每 500ms 检查一次
+      if (!storageCheckTimer) {
+        storageCheckTimer = setInterval(async () => {
+          await getStorageStatus()
+        }, 500)
+      }
+    } else {
+      // 初始化完成
+      isStorageInitializing.value = false
+      isDatabaseAvailable.value = status?.is_database_available || false
+
+      // 停止定时器
+      if (storageCheckTimer) {
+        clearInterval(storageCheckTimer)
+        storageCheckTimer = null
+      }
+    }
   } catch (error) {
     console.error('Failed to get storage status:', error)
     isDatabaseAvailable.value = false
+    isStorageInitializing.value = false
+
+    // 停止定时器
+    if (storageCheckTimer) {
+      clearInterval(storageCheckTimer)
+      storageCheckTimer = null
+    }
   }
 }
 
@@ -1680,6 +1720,14 @@ onMounted(async () => {
   isSyncNeeded.value = false
 
   isReady.value = true
+})
+
+// 组件卸载时清理定时器
+onUnmounted(() => {
+  if (storageCheckTimer) {
+    clearInterval(storageCheckTimer)
+    storageCheckTimer = null
+  }
 })
 
 // 防抖自动保存 - 监听 tokens 变化
@@ -2982,6 +3030,11 @@ defineExpose({
   color: var(--color-warning-text, #92400e);
 }
 
+.status-badge.initializing {
+  background-color: var(--color-info-surface, #dbeafe);
+  color: var(--color-info-text, #1e40af);
+}
+
 .status-dot {
   width: 6px;
   height: 6px;
@@ -2995,6 +3048,20 @@ defineExpose({
 
 .status-dot.unsaved {
   background-color: var(--color-warning-bg, #f59e0b);
+}
+
+.status-dot.initializing {
+  background-color: var(--color-info-bg, #3b82f6);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 .status-text {

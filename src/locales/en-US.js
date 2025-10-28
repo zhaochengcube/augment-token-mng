@@ -349,7 +349,8 @@ export default {
     dual: 'Dual Storage',
     database: 'Database Storage',
     unknown: 'Unknown',
-    notSynced: 'Not Synced'
+    notSynced: 'Not Synced',
+    initializing: 'Initializing'
   },
   buttons: {
     save: 'Save',

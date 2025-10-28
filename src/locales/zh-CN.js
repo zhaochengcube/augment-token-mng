@@ -349,7 +349,8 @@ export default {
     dual: '双重存储',
     database: '数据库存储',
     unknown: '未知',
-    notSynced: '未同步'
+    notSynced: '未同步',
+    initializing: '正在初始化'
   },
   buttons: {
     save: '保存',

@@ -423,6 +423,30 @@ impl SyncManager for DualStorage {
         let mut synced_count = 0;
         let mut errors = Vec::new();
 
+        // 找出被去重淘汰的 token IDs
+        use std::collections::HashSet;
+        let resolved_ids: HashSet<String> = resolved_tokens.iter()
+            .map(|t| t.id.clone())
+            .collect();
+
+        let all_ids: HashSet<String> = local_tokens.iter()
+            .chain(remote_tokens.iter())
+            .map(|t| t.id.clone())
+            .collect();
+
+        let removed_ids: Vec<String> = all_ids.difference(&resolved_ids)
+            .cloned()
+            .collect();
+
+        // 从数据库中删除被淘汰的 tokens
+        for removed_id in &removed_ids {
+            eprintln!("Removing duplicate token from database: {}", removed_id);
+            if let Err(e) = postgres.delete_token(removed_id).await {
+                eprintln!("Failed to remove duplicate token {}: {}", removed_id, e);
+                errors.push(format!("Failed to remove duplicate token {}: {}", removed_id, e));
+            }
+        }
+
         // 先清空本地存储，然后重新写入解决后的tokens
         if let Err(e) = self.local_storage.clear_all_tokens().await {
             errors.push(format!("Failed to clear local storage: {}", e));
@@ -492,6 +516,30 @@ impl SyncManager for DualStorage {
 
         let mut synced_count = 0;
         let mut errors = Vec::new();
+
+        // 找出被去重淘汰的 token IDs
+        use std::collections::HashSet;
+        let resolved_ids: HashSet<String> = resolved_tokens.iter()
+            .map(|t| t.id.clone())
+            .collect();
+
+        let all_ids: HashSet<String> = local_tokens.iter()
+            .chain(remote_tokens.iter())
+            .map(|t| t.id.clone())
+            .collect();
+
+        let removed_ids: Vec<String> = all_ids.difference(&resolved_ids)
+            .cloned()
+            .collect();
+
+        // 从数据库中删除被淘汰的 tokens
+        for removed_id in &removed_ids {
+            eprintln!("Removing duplicate token from database: {}", removed_id);
+            if let Err(e) = postgres.delete_token(removed_id).await {
+                eprintln!("Failed to remove duplicate token {}: {}", removed_id, e);
+                errors.push(format!("Failed to remove duplicate token {}: {}", removed_id, e));
+            }
+        }
 
         // 先清空本地存储，然后重新写入解决后的tokens
         if let Err(e) = self.local_storage.clear_all_tokens().await {
