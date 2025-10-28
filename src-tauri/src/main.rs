@@ -823,15 +823,241 @@ async fn open_internal_browser(
 
         console.log('[Tauri] Keyboard shortcut registered: Ctrl+Shift+C (Windows/Linux) or Cmd+Shift+C (Mac)');
 
-        // 创建导航栏的函数（仅在 augmentcode.com 域名下显示导入按钮）
+        // 随机地址数据生成函数
+        function generateRandomAddress() {
+            // 美国免税州数据
+            const taxFreeStates = [
+                {
+                    state: 'DE',
+                    cities: [
+                        { city: 'Wilmington', zip: '19801' },
+                        { city: 'Dover', zip: '19901' },
+                        { city: 'Newark', zip: '19711' },
+                        { city: 'Middletown', zip: '19709' },
+                        { city: 'Bear', zip: '19701' }
+                    ]
+                },
+                {
+                    state: 'MT',
+                    cities: [
+                        { city: 'Billings', zip: '59101' },
+                        { city: 'Missoula', zip: '59801' },
+                        { city: 'Great Falls', zip: '59401' },
+                        { city: 'Bozeman', zip: '59715' },
+                        { city: 'Helena', zip: '59601' }
+                    ]
+                },
+                {
+                    state: 'NH',
+                    cities: [
+                        { city: 'Manchester', zip: '03101' },
+                        { city: 'Nashua', zip: '03060' },
+                        { city: 'Concord', zip: '03301' },
+                        { city: 'Derry', zip: '03038' },
+                        { city: 'Dover', zip: '03820' }
+                    ]
+                },
+                {
+                    state: 'OR',
+                    cities: [
+                        { city: 'Portland', zip: '97201' },
+                        { city: 'Eugene', zip: '97401' },
+                        { city: 'Salem', zip: '97301' },
+                        { city: 'Gresham', zip: '97030' },
+                        { city: 'Hillsboro', zip: '97123' }
+                    ]
+                },
+                {
+                    state: 'AK',
+                    cities: [
+                        { city: 'Anchorage', zip: '99501' },
+                        { city: 'Fairbanks', zip: '99701' },
+                        { city: 'Juneau', zip: '99801' },
+                        { city: 'Sitka', zip: '99835' },
+                        { city: 'Ketchikan', zip: '99901' }
+                    ]
+                }
+            ];
+
+            const firstNames = [
+                'James', 'John', 'Robert', 'Michael', 'William',
+                'David', 'Richard', 'Joseph', 'Thomas', 'Charles',
+                'Mary', 'Patricia', 'Jennifer', 'Linda', 'Barbara',
+                'Elizabeth', 'Susan', 'Jessica', 'Sarah', 'Karen',
+                'Daniel', 'Matthew', 'Anthony', 'Mark', 'Donald',
+                'Steven', 'Paul', 'Andrew', 'Joshua', 'Kenneth'
+            ];
+
+            const lastNames = [
+                'Smith', 'Johnson', 'Williams', 'Brown', 'Jones',
+                'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez',
+                'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson',
+                'Thomas', 'Taylor', 'Moore', 'Jackson', 'Martin',
+                'Lee', 'Perez', 'Thompson', 'White', 'Harris',
+                'Sanchez', 'Clark', 'Ramirez', 'Lewis', 'Robinson'
+            ];
+
+            const streetNames = [
+                'Main St', 'Oak Ave', 'Maple Dr', 'Cedar Ln', 'Pine St',
+                'Elm St', 'Washington Ave', 'Park Ave', 'Lake Dr', 'Hill Rd',
+                'Forest Ave', 'River Rd', 'Sunset Blvd', 'Broadway', 'Market St',
+                'Church St', 'Spring St', 'Center St', 'High St', 'School St'
+            ];
+
+            // 随机选择
+            const randomInt = (max) => Math.floor(Math.random() * max);
+
+            const firstName = firstNames[randomInt(firstNames.length)];
+            const lastName = lastNames[randomInt(lastNames.length)];
+
+            const stateData = taxFreeStates[randomInt(taxFreeStates.length)];
+            const cityData = stateData.cities[randomInt(stateData.cities.length)];
+
+            const streetNumber = 100 + randomInt(9899);
+            const streetName = streetNames[randomInt(streetNames.length)];
+            const street = streetNumber + ' ' + streetName;
+
+            return {
+                firstName: firstName,
+                lastName: lastName,
+                fullName: firstName + ' ' + lastName,
+                street: street,
+                city: cityData.city,
+                state: stateData.state,
+                zipCode: cityData.zip
+            };
+        }
+
+        // 自动填充地址函数
+        function autoFillAddress() {
+            console.log('[Tauri] Auto-filling address...');
+
+            const addressData = generateRandomAddress();
+            console.log('[Tauri] Generated address:', addressData);
+
+            let filledCount = 0;
+
+            // 辅助函数：填充输入框
+            function fillInput(selector, value) {
+                const element = document.querySelector(selector);
+                if (element) {
+                    try {
+                        // 使用原生 value setter，兼容 React/受控输入
+                        const tag = (element.tagName || '').toUpperCase();
+                        const inputSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+                        const textareaSetter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+                        if (tag === 'INPUT' && inputSetter) {
+                            inputSetter.call(element, value);
+                        } else if (tag === 'TEXTAREA' && textareaSetter) {
+                            textareaSetter.call(element, value);
+                        } else {
+                            element.value = value;
+                        }
+                        // 同步属性值以兼容少量非受控场景
+                        element.setAttribute('value', value);
+
+                        // 触发事件以驱动框架更新内部状态
+                        element.dispatchEvent(new Event('input', { bubbles: true }));
+                        element.dispatchEvent(new Event('change', { bubbles: true }));
+
+                        filledCount++;
+                        console.log('[Tauri] Filled input (native setter):', selector, '=', value);
+                        return true;
+                    } catch (e) {
+                        console.warn('[Tauri] Failed native set, fallback:', e);
+                        element.value = value;
+                        element.dispatchEvent(new Event('input', { bubbles: true }));
+                        element.dispatchEvent(new Event('change', { bubbles: true }));
+                        filledCount++;
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            // 辅助函数：填充下拉框
+            function fillSelect(selector, value) {
+                const element = document.querySelector(selector);
+                if (element) {
+                    const options = Array.from(element.options);
+                    const matchingOption = options.find(opt =>
+                        opt.value === value ||
+                        opt.text === value ||
+                        opt.value.toUpperCase() === value.toUpperCase()
+                    );
+                    if (matchingOption) {
+                        element.value = matchingOption.value;
+                        element.dispatchEvent(new Event('change', { bubbles: true }));
+                        filledCount++;
+                        console.log('[Tauri] Filled select:', selector, '=', value);
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            // 读取卡号输入框的值
+            const cardInputElement = document.getElementById('tauri-card-input');
+            let cardData = null;
+            if (cardInputElement && cardInputElement.value.trim()) {
+                const parts = cardInputElement.value.trim().split('|');
+                if (parts.length === 4) {
+                    cardData = {
+                        number: parts[0].trim(),
+                        month: parts[1].trim(),
+                        year: parts[2].trim(),
+                        cvv: parts[3].trim()
+                    };
+                    console.log('[Tauri] Parsed card data:', cardData);
+                } else {
+                    console.warn('[Tauri] Card input format invalid, expected 4 parts separated by |, got:', parts.length);
+                }
+            }
+
+            // 1. 先填充国家（必须先设置为 US，否则其他字段可能不可用）
+            fillSelect('select[name="billingCountry"]', 'US') || fillSelect('select[id="billingCountry"]', 'US');
+
+            // 等待一小段时间让表单响应国家变更
+            setTimeout(function() {
+                // 2. 先填充州（下拉框），避免后续导致输入框被重置
+                fillSelect('select[name="billingAdministrativeArea"]', addressData.state) || fillSelect('select[id="billingAdministrativeArea"]', addressData.state);
+
+                // 3. 填充姓名
+                fillInput('input[name="billingName"]', addressData.fullName) || fillInput('input[id="billingName"]', addressData.fullName);
+
+                // 4. 填充地址第一行
+                fillInput('input[name="billingAddressLine1"]', addressData.street) || fillInput('input[id="billingAddressLine1"]', addressData.street);
+
+                // 5. 填充城市
+                fillInput('input[name="billingLocality"]', addressData.city) || fillInput('input[id="billingLocality"]', addressData.city);
+
+                // 6. 填充邮编
+                fillInput('input[name="billingPostalCode"]', addressData.zipCode) || fillInput('input[id="billingPostalCode"]', addressData.zipCode);
+
+                // 7. 填充卡号信息（如果有）
+                if (cardData) {
+                    // 填充卡号
+                    fillInput('input[name="cardNumber"]', cardData.number) || fillInput('input[id="cardNumber"]', cardData.number);
+
+                    // 填充有效期（MM/YY 格式）
+                    const expiry = cardData.month.padStart(2, '0') + '/' + cardData.year.slice(-2);
+                    fillInput('input[name="cardExpiry"]', expiry) || fillInput('input[id="cardExpiry"]', expiry);
+
+                    // 填充 CVV
+                    fillInput('input[name="cardCvc"]', cardData.cvv) || fillInput('input[id="cardCvc"]', cardData.cvv);
+                }
+
+                if (filledCount > 0) {
+                    showCopyNotification('✅ 已填充 ' + filledCount + ' 个字段', '#10b981');
+                } else {
+                    showCopyNotification('⚠️ 未找到可填充的字段', '#f59e0b');
+                }
+            }, 300);
+        }
+
+        // 创建导航栏的函数
         function createNavbar() {
             console.log('[Tauri] Creating navbar...');
-
-            // 只在 augmentcode.com 域名下显示
-            if (!window.location.hostname.includes('augmentcode.com')) {
-                console.log('[Tauri] Not on augmentcode.com, skipping navbar');
-                return;
-            }
 
             // 检查是否已存在
             if (document.getElementById('tauri-navbar')) {
@@ -841,51 +1067,92 @@ async fn open_internal_browser(
 
             const navbar = document.createElement('div');
             navbar.id = 'tauri-navbar';
-            navbar.style.cssText = 'position: fixed; top: 50%; right: 20px; transform: translateY(-50%); z-index: 2147483647; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;';
+            navbar.style.cssText = 'position: fixed; top: 50%; right: 20px; transform: translateY(-50%); z-index: 2147483647; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; flex-direction: column; gap: 10px;';
 
-            // 创建导入按钮（仅在特定页面显示）
-            const button = document.createElement('button');
-            button.id = 'tauri-import-button';
+            // 检查是否在 augmentcode.com 或 billing.augmentcode.com 域名下
+            const isAugmentDomain = window.location.hostname.includes('augmentcode.com');
+            const isBillingPage = window.location.hostname.includes('billing.augmentcode.com');
 
-            // 检查当前页面状态
-            const isLoginPage = window.location.hostname.includes('login.augmentcode.com') ||
-                                window.location.href.includes('/login');
-            const isAppPage = window.location.hostname.includes('app.augmentcode.com');
-            // 只有带 auto_import=true 参数的 auth 页面才显示"正在导入..."
-            const isAuthPage = window.location.hostname.includes('auth.augmentcode.com') &&
-                               window.location.href.includes('auto_import=true');
+            // 只在 augmentcode.com 域名下显示导入按钮
+            if (isAugmentDomain && !isBillingPage) {
+                // 创建导入按钮（仅在特定页面显示）
+                const button = document.createElement('button');
+                button.id = 'tauri-import-button';
 
-            // 根据状态设置按钮
-            if (isLoginPage) {
-                // 在登录页面,提示登录后会自动导入
-                button.innerHTML = '<div style="text-align: center;">🔒 登录后点击导入<br><span style="font-size: 12px; opacity: 0.8;">Login then Click to Import</span></div>';
-                button.disabled = true;
-                button.style.cssText = 'background: #fef3c7; color: #92400e; border: 1px solid #fbbf24; padding: 12px 20px; border-radius: 8px; cursor: not-allowed; font-size: 14px; font-weight: 500; opacity: 0.9; box-shadow: 0 4px 12px rgba(0,0,0,0.15); line-height: 1.4;';
-                navbar.appendChild(button);
-            } else if (isAuthPage) {
-                // Auth页面,显示正在导入
-                button.innerHTML = '<div style="text-align: center;">⏳ 正在导入...<br><span style="font-size: 12px; opacity: 0.8;">Importing...</span></div>';
-                button.disabled = true;
-                button.style.cssText = 'background: #f3f4f6; color: #6b7280; border: 1px solid #d1d5db; padding: 12px 20px; border-radius: 8px; cursor: not-allowed; font-size: 14px; font-weight: 500; opacity: 0.7; box-shadow: 0 4px 12px rgba(0,0,0,0.15); line-height: 1.4;';
-                navbar.appendChild(button);
-            } else if (isAppPage) {
-                // App页面,显示可点击按钮
-                button.innerHTML = '<div style="text-align: center;">📥 点击导入<br><span style="font-size: 12px; opacity: 0.9;">Click to Import</span></div>';
-                button.disabled = false;
-                button.style.cssText = 'background: #3b82f6; color: white; border: 1px solid #2563eb; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; box-shadow: 0 4px 12px rgba(0,0,0,0.15); line-height: 1.4; transition: all 0.2s;';
-                button.onmouseover = function() {
-                    this.style.background = '#2563eb';
-                };
-                button.onmouseout = function() {
-                    this.style.background = '#3b82f6';
-                };
-                button.onclick = function() {
-                    // 跳转到 auth 页面触发自动导入,添加参数标记这是手动导入
-                    window.location.href = 'https://auth.augmentcode.com?auto_import=true';
-                };
-                navbar.appendChild(button);
+                // 检查当前页面状态
+                const isLoginPage = window.location.hostname.includes('login.augmentcode.com') ||
+                                    window.location.href.includes('/login');
+                const isAppPage = window.location.hostname.includes('app.augmentcode.com');
+                // 只有带 auto_import=true 参数的 auth 页面才显示"正在导入..."
+                const isAuthPage = window.location.hostname.includes('auth.augmentcode.com') &&
+                                   window.location.href.includes('auto_import=true');
+
+                // 根据状态设置按钮
+                if (isLoginPage) {
+                    // 在登录页面,提示登录后会自动导入
+                    button.innerHTML = '<div style="text-align: center;">🔒 登录后点击导入<br><span style="font-size: 12px; opacity: 0.8;">Login then Click to Import</span></div>';
+                    button.disabled = true;
+                    button.style.cssText = 'background: #fef3c7; color: #92400e; border: 1px solid #fbbf24; padding: 12px 20px; border-radius: 8px; cursor: not-allowed; font-size: 14px; font-weight: 500; opacity: 0.9; box-shadow: 0 4px 12px rgba(0,0,0,0.15); line-height: 1.4;';
+                    navbar.appendChild(button);
+                } else if (isAuthPage) {
+                    // Auth页面,显示正在导入
+                    button.innerHTML = '<div style="text-align: center;">⏳ 正在导入...<br><span style="font-size: 12px; opacity: 0.8;">Importing...</span></div>';
+                    button.disabled = true;
+                    button.style.cssText = 'background: #f3f4f6; color: #6b7280; border: 1px solid #d1d5db; padding: 12px 20px; border-radius: 8px; cursor: not-allowed; font-size: 14px; font-weight: 500; opacity: 0.7; box-shadow: 0 4px 12px rgba(0,0,0,0.15); line-height: 1.4;';
+                    navbar.appendChild(button);
+                } else if (isAppPage) {
+                    // App页面,显示可点击按钮
+                    button.innerHTML = '<div style="text-align: center;">📥 点击导入<br><span style="font-size: 12px; opacity: 0.9;">Click to Import</span></div>';
+                    button.disabled = false;
+                    button.style.cssText = 'background: #3b82f6; color: white; border: 1px solid #2563eb; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; box-shadow: 0 4px 12px rgba(0,0,0,0.15); line-height: 1.4; transition: all 0.2s;';
+                    button.onmouseover = function() {
+                        this.style.background = '#2563eb';
+                    };
+                    button.onmouseout = function() {
+                        this.style.background = '#3b82f6';
+                    };
+                    button.onclick = function() {
+                        // 跳转到 auth 页面触发自动导入,添加参数标记这是手动导入
+                        window.location.href = 'https://auth.augmentcode.com?auto_import=true';
+                    };
+                    navbar.appendChild(button);
+                }
             }
-            // 其他页面不显示按钮
+
+            // 创建自动填充地址按钮和卡号输入框（仅在 billing.augmentcode.com 显示）
+            if (isBillingPage) {
+                // 创建容器
+                const fillContainer = document.createElement('div');
+                fillContainer.id = 'tauri-autofill-container';
+                fillContainer.style.cssText = 'background: rgba(255, 255, 255, 0.95); border: 1px solid #d1d5db; border-radius: 8px; padding: 8px; margin-bottom: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; flex-direction: column;';
+
+                // 创建卡号输入框
+                const cardInput = document.createElement('input');
+                cardInput.id = 'tauri-card-input';
+                cardInput.type = 'text';
+                cardInput.placeholder = 'XXXX|XX|XXXX|XXX';
+                cardInput.style.cssText = 'width: 220px; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 12px; margin-bottom: 6px; box-sizing: border-box; font-family: monospace;';
+
+                // 创建自动填充按钮
+                const fillButton = document.createElement('button');
+                fillButton.id = 'tauri-autofill-button';
+                fillButton.innerHTML = '<div style="text-align: center;">📝 自动填充地址<br><span style="font-size: 11px; opacity: 0.9;">Auto Fill Address</span></div>';
+                fillButton.style.cssText = 'width: 220px; background: #10b981; color: white; border: 1px solid #059669; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; box-shadow: 0 2px 6px rgba(0,0,0,0.1); line-height: 1.3; transition: all 0.2s;';
+                fillButton.onmouseover = function() {
+                    this.style.background = '#059669';
+                };
+                fillButton.onmouseout = function() {
+                    this.style.background = '#10b981';
+                };
+                fillButton.onclick = function() {
+                    autoFillAddress();
+                };
+
+                // 组装容器
+                fillContainer.appendChild(cardInput);
+                fillContainer.appendChild(fillButton);
+                navbar.appendChild(fillContainer);
+            }
 
             // 插入到页面
             if (document.body) {
