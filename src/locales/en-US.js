@@ -213,7 +213,11 @@ export default {
     importing: 'Importing...',
     extractingFromSession: 'Extracting tokens from sessions ({current}/{total})...',
     sessionExtractionFailed: 'Session extraction failed',
-    cancel: 'Cancel'
+    cancel: 'Cancel',
+    setAsDefault: 'Set as Default Count',
+    defaultCountSaved: 'Default input count set to {count}',
+    saveDefaultFailed: 'Failed to save default count',
+    invalidDefaultCount: 'Default count must be between 1 and 20'
   },
   tokenCard: {
     banned: 'Banned',

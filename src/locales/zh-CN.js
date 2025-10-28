@@ -213,7 +213,11 @@ export default {
     importing: '导入中...',
     extractingFromSession: '正在从 Session 提取 Token ({current}/{total})...',
     sessionExtractionFailed: 'Session 提取失败',
-    cancel: '取消'
+    cancel: '取消',
+    setAsDefault: '设为默认数量',
+    defaultCountSaved: '已将默认输入框数量设置为 {count}',
+    saveDefaultFailed: '保存默认数量失败',
+    invalidDefaultCount: '默认数量必须在 1-20 之间'
   },
   tokenCard: {
     banned: '已封禁',

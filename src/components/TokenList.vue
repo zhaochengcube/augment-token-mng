@@ -270,7 +270,11 @@
                 </div>
 
                 <!-- 添加更多按钮 -->
-                <button @click="addSessionInput" class="add-more-btn">
+                <button
+                  @click="addSessionInput"
+                  @contextmenu="handleContextMenu($event, 'session')"
+                  class="add-more-btn"
+                >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
                   </svg>
@@ -369,26 +373,48 @@
           @click.stop
         >
           <div class="context-menu-header">{{ $t('tokenList.selectFillCount') }}</div>
-          <div class="context-menu-custom">
-            <input
-              v-model.number="customFillCount"
-              type="number"
-              min="1"
-              max="100"
-              :placeholder="$t('tokenList.customCount')"
-              class="custom-count-input"
-              @click.stop
-            />
-            <button @click="fillWithCustomCount" class="btn-custom-fill">
-              {{ $t('common.confirm') }}
-            </button>
-          </div>
-          <div class="context-menu-divider"></div>
-          <div class="context-menu-item" @click="selectFillCount(1)">1</div>
-          <div class="context-menu-item" @click="selectFillCount(3)">3</div>
-          <div class="context-menu-item" @click="selectFillCount(5)">5</div>
-          <div class="context-menu-item" @click="selectFillCount(10)">10</div>
-          <div class="context-menu-item" @click="selectFillCount(20)">20</div>
+
+          <!-- Session Tab: 简化菜单 -->
+          <template v-if="contextMenuType === 'session'">
+            <div class="context-menu-custom">
+              <input
+                v-model.number="customFillCount"
+                type="number"
+                min="1"
+                max="20"
+                :placeholder="$t('tokenList.customCount')"
+                class="custom-count-input"
+                @click.stop
+              />
+              <button @click="setDefaultCountFromInput" class="btn-custom-fill">
+                {{ $t('tokenList.setAsDefault') }}
+              </button>
+            </div>
+          </template>
+
+          <!-- Token Tab: 完整菜单 -->
+          <template v-else>
+            <div class="context-menu-custom">
+              <input
+                v-model.number="customFillCount"
+                type="number"
+                min="1"
+                max="100"
+                :placeholder="$t('tokenList.customCount')"
+                class="custom-count-input"
+                @click.stop
+              />
+              <button @click="fillWithCustomCount" class="btn-custom-fill">
+                {{ $t('common.confirm') }}
+              </button>
+            </div>
+            <div class="context-menu-divider"></div>
+            <div class="context-menu-item" @click="selectFillCount(1)">1</div>
+            <div class="context-menu-item" @click="selectFillCount(3)">3</div>
+            <div class="context-menu-item" @click="selectFillCount(5)">5</div>
+            <div class="context-menu-item" @click="selectFillCount(10)">10</div>
+            <div class="context-menu-item" @click="selectFillCount(20)">20</div>
+          </template>
         </div>
       </div>
     </Teleport>
@@ -496,18 +522,57 @@ const importPreview = ref([])
 const importErrors = ref([])
 
 // Session 动态输入框状态
-const sessionInputs = ref([
-  { id: 1, value: '' },
-  { id: 2, value: '' },
-  { id: 3, value: '' }
-])
-let nextSessionInputId = 4
+const sessionInputs = ref([])
+let nextSessionInputId = 1
 
 // 右键菜单状态
 const showContextMenu = ref(false)
 const contextMenuPosition = ref({ x: 0, y: 0 })
 const contextMenuType = ref('') // 'session' 或 'token'
 const customFillCount = ref(1)
+
+// localStorage 配置键名
+const STORAGE_KEY_DEFAULT_INPUT_COUNT = 'atm-default-session-input-count'
+
+// UI 配置
+const defaultInputCount = ref(3)
+
+// 从 localStorage 加载配置
+const loadDefaultInputCount = () => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY_DEFAULT_INPUT_COUNT)
+    if (stored) {
+      const count = parseInt(stored, 10)
+      if (!isNaN(count) && count >= 1 && count <= 20) {
+        return count
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to load default input count from localStorage:', error)
+  }
+  return 3 // 默认值
+}
+
+// 保存配置到 localStorage
+const saveDefaultInputCount = (count) => {
+  try {
+    localStorage.setItem(STORAGE_KEY_DEFAULT_INPUT_COUNT, count.toString())
+    return true
+  } catch (error) {
+    console.error('Failed to save default input count to localStorage:', error)
+    return false
+  }
+}
+
+// 初始化 Session 输入框
+const initializeSessionInputs = (count) => {
+  const inputs = []
+  for (let i = 1; i <= count; i++) {
+    inputs.push({ id: i, value: '' })
+  }
+  sessionInputs.value = inputs
+  nextSessionInputId = count + 1
+}
 
 // 填充 Session 模板
 const fillSessionTemplate = (count = 1) => {
@@ -620,7 +685,30 @@ const selectFillCount = (count) => {
   closeContextMenu()
 }
 
-// 使用自定义数量填充
+// 从输入框设置默认数量
+const setDefaultCountFromInput = () => {
+  const count = parseInt(customFillCount.value)
+
+  // 验证范围
+  if (isNaN(count) || count < 1 || count > 20) {
+    window.$notify.warning(t('tokenList.invalidDefaultCount'))
+    return
+  }
+
+  // 保存到 localStorage
+  if (saveDefaultInputCount(count)) {
+    defaultInputCount.value = count
+    // 立即重新初始化输入框
+    initializeSessionInputs(count)
+    window.$notify.success(t('tokenList.defaultCountSaved', { count: count }))
+  } else {
+    window.$notify.error(t('tokenList.saveDefaultFailed'))
+  }
+
+  closeContextMenu()
+}
+
+// 使用自定义数量填充（Token Tab）
 const fillWithCustomCount = () => {
   const count = parseInt(customFillCount.value)
   if (isNaN(count) || count < 1) {
@@ -643,13 +731,8 @@ const showBatchDeleteConfirm = () => {
 
 // 显示批量导入对话框
 const showBatchImportConfirm = () => {
-  // 重置 Session 输入框
-  sessionInputs.value = [
-    { id: 1, value: '' },
-    { id: 2, value: '' },
-    { id: 3, value: '' }
-  ]
-  nextSessionInputId = 4
+  // 使用配置的默认数量重置 Session 输入框
+  initializeSessionInputs(defaultInputCount.value)
 
   // 重置 Token JSON 输入
   importJsonText.value = '[\n  \n]'
@@ -1704,6 +1787,12 @@ const handleBidirectionalSync = async () => {
 
 // 组件挂载时自动加载tokens和存储状态
 onMounted(async () => {
+  // 加载默认输入框数量配置
+  defaultInputCount.value = loadDefaultInputCount()
+
+  // 初始化输入框
+  initializeSessionInputs(defaultInputCount.value)
+
   // 首先获取存储状态
   await getStorageStatus()
 
@@ -2506,6 +2595,23 @@ defineExpose({
 .context-menu-item:hover {
   background: var(--color-primary-light, #e0f2fe);
   color: var(--color-primary, #0ea5e9);
+}
+
+/* 右键菜单操作项样式 */
+.context-menu-action {
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+  color: var(--color-primary, #0ea5e9);
+}
+
+.context-menu-action:hover {
+  background: var(--color-primary-light, #e0f2fe);
+  color: var(--color-primary-dark, #0284c7);
+}
+
+.context-menu-action svg {
+  flex-shrink: 0;
 }
 
 .context-menu-divider {
