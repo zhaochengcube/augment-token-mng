@@ -727,7 +727,103 @@ async fn open_internal_browser(
     .initialization_script(r#"
         console.log('[Tauri] Initialization script loaded');
 
-        // 创建导航栏的函数
+        // 复制 URL 的函数
+        async function copyCurrentUrl() {
+            try {
+                const currentUrl = window.location.href;
+                await navigator.clipboard.writeText(currentUrl);
+
+                // 显示复制成功提示
+                showCopyNotification('✅ URL 已复制!', '#10b981');
+                console.log('[Tauri] URL copied:', currentUrl);
+            } catch (error) {
+                console.error('[Tauri] Failed to copy URL:', error);
+                showCopyNotification('❌ 复制失败', '#ef4444');
+            }
+        }
+
+        // 显示复制通知的函数
+        function showCopyNotification(message, bgColor) {
+            // 移除已存在的通知
+            const existingNotification = document.getElementById('tauri-copy-notification');
+            if (existingNotification) {
+                existingNotification.remove();
+            }
+
+            // 创建新通知
+            const notification = document.createElement('div');
+            notification.id = 'tauri-copy-notification';
+            notification.textContent = message;
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${bgColor};
+                color: white;
+                padding: 12px 24px;
+                border-radius: 8px;
+                font-size: 14px;
+                font-weight: 500;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                z-index: 2147483647;
+                animation: slideIn 0.3s ease-out;
+            `;
+
+            // 添加动画样式
+            if (!document.getElementById('tauri-notification-style')) {
+                const style = document.createElement('style');
+                style.id = 'tauri-notification-style';
+                style.textContent = `
+                    @keyframes slideIn {
+                        from {
+                            transform: translateX(400px);
+                            opacity: 0;
+                        }
+                        to {
+                            transform: translateX(0);
+                            opacity: 1;
+                        }
+                    }
+                    @keyframes slideOut {
+                        from {
+                            transform: translateX(0);
+                            opacity: 1;
+                        }
+                        to {
+                            transform: translateX(400px);
+                            opacity: 0;
+                        }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+
+            document.body.appendChild(notification);
+
+            // 2秒后移除通知
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease-out';
+                setTimeout(() => notification.remove(), 300);
+            }, 2000);
+        }
+
+        // 注册快捷键监听器
+        document.addEventListener('keydown', function(event) {
+            // 检测 Ctrl+Shift+C (Windows/Linux) 或 Cmd+Shift+C (Mac)
+            const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+            const modifierKey = isMac ? event.metaKey : event.ctrlKey;
+
+            if (modifierKey && event.shiftKey && event.key.toLowerCase() === 'c') {
+                event.preventDefault(); // 阻止默认行为
+                copyCurrentUrl();
+                console.log('[Tauri] Keyboard shortcut triggered: ' + (isMac ? 'Cmd' : 'Ctrl') + '+Shift+C');
+            }
+        });
+
+        console.log('[Tauri] Keyboard shortcut registered: Ctrl+Shift+C (Windows/Linux) or Cmd+Shift+C (Mac)');
+
+        // 创建导航栏的函数（仅在 augmentcode.com 域名下显示导入按钮）
         function createNavbar() {
             console.log('[Tauri] Creating navbar...');
 
@@ -747,6 +843,7 @@ async fn open_internal_browser(
             navbar.id = 'tauri-navbar';
             navbar.style.cssText = 'position: fixed; top: 50%; right: 20px; transform: translateY(-50%); z-index: 2147483647; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;';
 
+            // 创建导入按钮（仅在特定页面显示）
             const button = document.createElement('button');
             button.id = 'tauri-import-button';
 
