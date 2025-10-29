@@ -164,6 +164,7 @@ export default {
     syncing: '同步中...',
     syncTooltip: '执行双向同步（本地 ↔ 数据库）',
     sortByTime: '按创建时间排序',
+    sortByBalance: '按剩余额度排序',
     batchDelete: '批量删除',
     batchDeleteConfirm: '批量删除确认',
     batchDeleteMessage: '即将删除以下 token:',

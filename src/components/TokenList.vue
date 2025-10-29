@@ -58,17 +58,15 @@
           <div v-else-if="tokens.length === 0" class="empty-state">
             <div class="empty-icon">
               <svg width="64" height="64" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                <path
+                  d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
               </svg>
             </div>
             <h3>{{ $t('tokenList.empty') }}</h3>
-            <button
-              class="batch-import-btn-empty"
-              @click="showBatchImportConfirm"
-              :title="$t('tokenList.batchImport')"
-            >
+            <button class="batch-import-btn-empty" @click="showBatchImportConfirm" :title="$t('tokenList.batchImport')">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z"/>
+                <path
+                  d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z" />
               </svg>
               {{ $t('tokenList.batchImport') }}
             </button>
@@ -83,70 +81,57 @@
                     ? $t('tokenList.searchResults', { count: filteredTokens.length })
                     : $t('tokenList.listTitle', { count: tokens.length })
                 }}</h3>
-                <button
-                  class="sort-btn"
-                  @click="toggleSort"
-                  :title="$t('tokenList.sortByTime')"
-                >
+                <button :class="['sort-btn', { active: sortType === 'time' }]" @click="toggleSort('time')"
+                  :title="$t('tokenList.sortByTime')">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="sort-icon">
-                    <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
+                    <path
+                      d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z" />
                   </svg>
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    :class="['arrow-icon', sortOrder === 'desc' ? 'arrow-down' : 'arrow-up']"
-                  >
-                    <path d="M7 14l5-5 5 5z"/>
+                  <svg v-if="sortType === 'time'" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"
+                    :class="['arrow-icon', sortOrder === 'desc' ? 'arrow-down' : 'arrow-up']">
+                    <path d="M7 14l5-5 5 5z" />
                   </svg>
                 </button>
-                <button
-                  class="open-folder-btn"
-                  @click="openDataFolder"
-                  :title="$t('bookmarkManager.openDataFolder')"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"/>
+                <button :class="['sort-btn', { active: sortType === 'balance' }]" @click="toggleSort('balance')"
+                  :title="$t('tokenList.sortByBalance')">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="sort-icon">
+                    <path
+                      d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z" />
+                  </svg>
+                  <svg v-if="sortType === 'balance'" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"
+                    :class="['arrow-icon', sortOrder === 'desc' ? 'arrow-down' : 'arrow-up']">
+                    <path d="M7 14l5-5 5 5z" />
                   </svg>
                 </button>
-                <button
-                  class="batch-delete-btn"
-                  @click="showBatchDeleteConfirm"
-                  :disabled="deletableTokensCount === 0"
-                  :title="deletableTokensCount === 0 ? $t('tokenList.noDeletableTokens') : $t('tokenList.batchDelete')"
-                >
+                <button class="open-folder-btn" @click="openDataFolder" :title="$t('bookmarkManager.openDataFolder')">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                    <path
+                      d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z" />
                   </svg>
                 </button>
-                <button
-                  class="batch-import-btn"
-                  @click="showBatchImportConfirm"
-                  :title="$t('tokenList.batchImport')"
-                >
+                <button class="batch-delete-btn" @click="showBatchDeleteConfirm" :disabled="deletableTokensCount === 0"
+                  :title="deletableTokensCount === 0 ? $t('tokenList.noDeletableTokens') : $t('tokenList.batchDelete')">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z"/>
+                    <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+                  </svg>
+                </button>
+                <button class="batch-import-btn" @click="showBatchImportConfirm" :title="$t('tokenList.batchImport')">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path
+                      d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z" />
                   </svg>
                 </button>
                 <div class="search-box">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="search-icon">
-                    <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                    <path
+                      d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
                   </svg>
-                  <input
-                    type="text"
-                    v-model="searchQuery"
-                    :placeholder="$t('tokenList.searchPlaceholder')"
-                    class="search-input"
-                  />
-                  <button
-                    v-if="searchQuery.trim()"
-                    @click="searchQuery = ''"
-                    class="clear-search-btn"
-                    title="清空搜索"
-                  >
+                  <input type="text" v-model="searchQuery" :placeholder="$t('tokenList.searchPlaceholder')"
+                    class="search-input" />
+                  <button v-if="searchQuery.trim()" @click="searchQuery = ''" class="clear-search-btn" title="清空搜索">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                      <path
+                        d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
                     </svg>
                   </button>
                 </div>
@@ -156,23 +141,16 @@
             <!-- 无搜索结果提示 -->
             <div v-if="searchQuery.trim() && filteredTokens.length === 0" class="no-search-results">
               <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor" opacity="0.3">
-                <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                <path
+                  d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
               </svg>
               <p>{{ $t('tokenList.noSearchResults') }}</p>
             </div>
 
             <div v-else class="token-grid">
-              <TokenCard
-                v-for="token in filteredTokens"
-                :key="token.id"
-                :ref="el => setTokenCardRef(el, token.id)"
-                :token="token"
-                :is-batch-checking="isRefreshing"
-                :is-highlighted="highlightedTokenId === token.id"
-                @delete="deleteToken"
-                @edit="handleEditToken"
-                @token-updated="handleTokenUpdated"
-              />
+              <TokenCard v-for="token in filteredTokens" :key="token.id" :ref="el => setTokenCardRef(el, token.id)"
+                :token="token" :is-batch-checking="isRefreshing" :is-highlighted="highlightedTokenId === token.id"
+                @delete="deleteToken" @edit="handleEditToken" @token-updated="handleTokenUpdated" />
             </div>
 
 
@@ -182,24 +160,13 @@
     </div>
 
     <!-- Database Config Modal -->
-    <DatabaseConfig
-      v-if="showDatabaseConfig"
-      @close="showDatabaseConfig = false"
-      @config-saved="handleDatabaseConfigSaved"
-      @config-deleted="handleDatabaseConfigDeleted"
-    />
+    <DatabaseConfig v-if="showDatabaseConfig" @close="showDatabaseConfig = false"
+      @config-saved="handleDatabaseConfigSaved" @config-deleted="handleDatabaseConfigDeleted" />
 
     <!-- Token Form Modal -->
-    <TokenForm
-      v-if="showTokenFormModal"
-      :token="editingToken"
-      @close="closeTokenForm"
-      @success="handleTokenFormSuccess"
-      @update-token="handleUpdateToken"
-      @add-token="handleAddTokenFromForm"
-      @auto-import-completed="handleAutoImportCompleted"
-      @manual-import-completed="handleManualImportCompleted"
-    />
+    <TokenForm v-if="showTokenFormModal" :token="editingToken" @close="closeTokenForm" @success="handleTokenFormSuccess"
+      @update-token="handleUpdateToken" @add-token="handleAddTokenFromForm"
+      @auto-import-completed="handleAutoImportCompleted" @manual-import-completed="handleManualImportCompleted" />
 
     <!-- Batch Import Dialog -->
     <Teleport to="body">
@@ -210,28 +177,26 @@
               <h3>{{ $t('tokenList.batchImportTitle') }}</h3>
               <button @click="showBatchImportDialog = false" class="dialog-close">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                  <path
+                    d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
                 </svg>
               </button>
             </div>
 
             <!-- Tab Navigation -->
             <div class="batch-import-tabs">
-              <button
-                :class="['batch-import-tab', { active: batchImportTab === 'session' }]"
-                @click="batchImportTab = 'session'"
-              >
+              <button :class="['batch-import-tab', { active: batchImportTab === 'session' }]"
+                @click="batchImportTab = 'session'">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm0 4c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm6 12H6v-1.4c0-2 4-3.1 6-3.1s6 1.1 6 3.1V19z"/>
+                  <path
+                    d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm0 4c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm6 12H6v-1.4c0-2 4-3.1 6-3.1s6 1.1 6 3.1V19z" />
                 </svg>
                 {{ $t('tokenList.sessionImportTab') }}
               </button>
-              <button
-                :class="['batch-import-tab', { active: batchImportTab === 'token' }]"
-                @click="batchImportTab = 'token'"
-              >
+              <button :class="['batch-import-tab', { active: batchImportTab === 'token' }]"
+                @click="batchImportTab = 'token'">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+                  <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" />
                 </svg>
                 {{ $t('tokenList.tokenImportTab') }}
               </button>
@@ -244,39 +209,24 @@
 
                 <!-- Session 动态输入框列表 -->
                 <div class="session-inputs-container">
-                  <div
-                    v-for="(input, index) in sessionInputs"
-                    :key="input.id"
-                    class="session-input-item"
-                  >
+                  <div v-for="(input, index) in sessionInputs" :key="input.id" class="session-input-item">
                     <span class="session-input-number">{{ index + 1 }}.</span>
-                    <input
-                      v-model="input.value"
-                      type="text"
-                      :placeholder="$t('tokenList.sessionInputPlaceholder')"
-                      class="session-input-field"
-                    />
-                    <button
-                      @click="removeSessionInput(input.id)"
-                      class="session-input-delete"
-                      :title="$t('tokenList.deleteInput')"
-                      :disabled="sessionInputs.length <= 1"
-                    >
+                    <input v-model="input.value" type="text" :placeholder="$t('tokenList.sessionInputPlaceholder')"
+                      class="session-input-field" />
+                    <button @click="removeSessionInput(input.id)" class="session-input-delete"
+                      :title="$t('tokenList.deleteInput')" :disabled="sessionInputs.length <= 1">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                        <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
                       </svg>
                     </button>
                   </div>
                 </div>
 
                 <!-- 添加更多按钮 -->
-                <button
-                  @click="addSessionInput"
-                  @contextmenu="handleContextMenu($event, 'session')"
-                  class="add-more-btn"
-                >
+                <button @click="addSessionInput" @contextmenu="handleContextMenu($event, 'session')"
+                  class="add-more-btn">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
                   </svg>
                   {{ $t('tokenList.addMore') }}
                 </button>
@@ -292,29 +242,23 @@
                     <span class="format-title">{{ $t('tokenList.tokenFormatTitle') }}</span>
                   </div>
                   <p class="format-desc">{{ $t('tokenList.tokenFormatDesc') }}</p>
-                  <button
-                    @click="fillTokenTemplate()"
-                    @contextmenu="handleContextMenu($event, 'token')"
-                    class="btn-fill-template"
-                  >
+                  <button @click="fillTokenTemplate()" @contextmenu="handleContextMenu($event, 'token')"
+                    class="btn-fill-template">
                     {{ $t('tokenList.fillTemplate') }}
                   </button>
                 </div>
 
                 <div class="import-input-section">
-                  <textarea
-                    v-model="importJsonText"
-                    rows="10"
-                    class="import-textarea"
-                    @input="validateImportJson"
-                  ></textarea>
+                  <textarea v-model="importJsonText" rows="10" class="import-textarea"
+                    @input="validateImportJson"></textarea>
                 </div>
 
                 <!-- 错误信息 -->
                 <div v-if="importErrors.length > 0" class="import-errors">
                   <div class="error-header">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                      <path
+                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
                     </svg>
                     <span>{{ $t('tokenList.importErrorsFound', { count: importErrors.length }) }}</span>
                   </div>
@@ -327,7 +271,7 @@
                 <div v-if="importPreview.length > 0" class="import-preview">
                   <div class="preview-header">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                      <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
                     </svg>
                     <span>{{ $t('tokenList.importPreviewReady', { count: importPreview.length }) }}</span>
                   </div>
@@ -339,11 +283,8 @@
               <button @click="showBatchImportDialog = false" class="btn-cancel">
                 {{ $t('tokenList.cancel') }}
               </button>
-              <button
-                @click="executeBatchImport"
-                class="btn-confirm"
-                :disabled="isImporting || (batchImportTab === 'session' ? validSessionCount === 0 : importPreview.length === 0)"
-              >
+              <button @click="executeBatchImport" class="btn-confirm"
+                :disabled="isImporting || (batchImportTab === 'session' ? validSessionCount === 0 : importPreview.length === 0)">
                 <template v-if="isImporting">
                   {{ $t('tokenList.importing') }}
                 </template>
@@ -362,30 +303,16 @@
 
     <!-- Context Menu for Fill Template -->
     <Teleport to="body">
-      <div
-        v-if="showContextMenu"
-        class="context-menu-overlay"
-        @click="closeContextMenu"
-      >
-        <div
-          class="context-menu"
-          :style="{ left: contextMenuPosition.x + 'px', top: contextMenuPosition.y + 'px' }"
-          @click.stop
-        >
+      <div v-if="showContextMenu" class="context-menu-overlay" @click="closeContextMenu">
+        <div class="context-menu" :style="{ left: contextMenuPosition.x + 'px', top: contextMenuPosition.y + 'px' }"
+          @click.stop>
           <div class="context-menu-header">{{ $t('tokenList.selectFillCount') }}</div>
 
           <!-- Session Tab: 简化菜单 -->
           <template v-if="contextMenuType === 'session'">
             <div class="context-menu-custom">
-              <input
-                v-model.number="customFillCount"
-                type="number"
-                min="1"
-                max="20"
-                :placeholder="$t('tokenList.customCount')"
-                class="custom-count-input"
-                @click.stop
-              />
+              <input v-model.number="customFillCount" type="number" min="1" max="20"
+                :placeholder="$t('tokenList.customCount')" class="custom-count-input" @click.stop />
               <button @click="setDefaultCountFromInput" class="btn-custom-fill">
                 {{ $t('tokenList.setAsDefault') }}
               </button>
@@ -395,15 +322,8 @@
           <!-- Token Tab: 完整菜单 -->
           <template v-else>
             <div class="context-menu-custom">
-              <input
-                v-model.number="customFillCount"
-                type="number"
-                min="1"
-                max="100"
-                :placeholder="$t('tokenList.customCount')"
-                class="custom-count-input"
-                @click.stop
-              />
+              <input v-model.number="customFillCount" type="number" min="1" max="100"
+                :placeholder="$t('tokenList.customCount')" class="custom-count-input" @click.stop />
               <button @click="fillWithCustomCount" class="btn-custom-fill">
                 {{ $t('common.confirm') }}
               </button>
@@ -428,7 +348,8 @@
               <h3>{{ $t('tokenList.batchDeleteConfirm') }}</h3>
               <button @click="showBatchDeleteDialog = false" class="dialog-close">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                  <path
+                    d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
                 </svg>
               </button>
             </div>
@@ -498,7 +419,8 @@ const isSyncNeeded = ref(false)
 let storageCheckTimer = null
 
 // 排序状态管理
-const sortOrder = ref('desc') // 'desc' = 最新优先, 'asc' = 最旧优先
+const sortType = ref('time') // 'time' = 按时间排序, 'balance' = 按余额排序
+const sortOrder = ref('desc') // 'desc' = 最新优先/余额从多到少, 'asc' = 最旧优先/余额从少到多
 
 // 搜索状态管理
 const searchQuery = ref('')
@@ -621,14 +543,38 @@ const sortedTokens = computed(() => {
   if (tokens.value.length === 0) return []
 
   return [...tokens.value].sort((a, b) => {
-    const dateA = new Date(a.created_at)
-    const dateB = new Date(b.created_at)
+    if (sortType.value === 'time') {
+      // 按时间排序
+      const dateA = new Date(a.created_at)
+      const dateB = new Date(b.created_at)
 
-    if (sortOrder.value === 'desc') {
-      return dateB - dateA // 最新优先
-    } else {
-      return dateA - dateB // 最旧优先
+      if (sortOrder.value === 'desc') {
+        return dateB - dateA // 最新优先
+      } else {
+        return dateA - dateB // 最旧优先
+      }
+    } else if (sortType.value === 'balance') {
+      // 按余额排序
+      const balanceA = a.portal_info?.credits_balance
+      const balanceB = b.portal_info?.credits_balance
+
+      // 处理没有余额信息的情况
+      const hasBalanceA = balanceA !== undefined && balanceA !== null
+      const hasBalanceB = balanceB !== undefined && balanceB !== null
+
+      // 没有余额信息的排在最后
+      if (!hasBalanceA && !hasBalanceB) return 0
+      if (!hasBalanceA) return 1
+      if (!hasBalanceB) return -1
+
+      // 都有余额信息,按数值排序
+      if (sortOrder.value === 'desc') {
+        return balanceB - balanceA // 余额从多到少
+      } else {
+        return balanceA - balanceB // 余额从少到多
+      }
     }
+    return 0
   })
 })
 
@@ -649,8 +595,15 @@ const filteredTokens = computed(() => {
 })
 
 // 切换排序方式
-const toggleSort = () => {
-  sortOrder.value = sortOrder.value === 'desc' ? 'asc' : 'desc'
+const toggleSort = (type = 'time') => {
+  // 如果切换到不同的排序类型,重置为降序
+  if (sortType.value !== type) {
+    sortType.value = type
+    sortOrder.value = 'desc'
+  } else {
+    // 同一类型,切换升序/降序
+    sortOrder.value = sortOrder.value === 'desc' ? 'asc' : 'desc'
+  }
 
   // 清空高亮状态，避免排序时重新触发动画
   if (highlightedTokenId.value) {
@@ -1893,8 +1846,10 @@ defineExpose({
 .modal-content {
   background: var(--color-surface, #ffffff);
   border-radius: 12px;
-  width: 95vw;  /* 使用视口宽度的 95%,自适应屏幕大小 */
-  max-width: none;  /* 移除固定最大宽度限制 */
+  width: 95vw;
+  /* 使用视口宽度的 95%,自适应屏幕大小 */
+  max-width: none;
+  /* 移除固定最大宽度限制 */
   height: 90vh;
   overflow: hidden;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
@@ -2001,8 +1956,13 @@ defineExpose({
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .loading-state p {
@@ -2180,7 +2140,8 @@ defineExpose({
   background: var(--color-surface, #ffffff);
   border-radius: 12px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
-  max-width: 896px; /* 2xl: 56rem = 896px */
+  max-width: 896px;
+  /* 2xl: 56rem = 896px */
   width: 100%;
   max-height: 85vh;
   display: flex;
@@ -2275,6 +2236,7 @@ defineExpose({
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -2993,6 +2955,17 @@ defineExpose({
   border-color: var(--color-border-hover, #d1d5db);
 }
 
+.sort-btn.active {
+  background: var(--color-primary-surface, #dbeafe);
+  color: var(--color-primary, #2563eb);
+  border-color: var(--color-primary-border, #93c5fd);
+}
+
+.sort-btn.active:hover {
+  background: var(--color-primary-surface-hover, #bfdbfe);
+  border-color: var(--color-primary-border-hover, #60a5fa);
+}
+
 .sort-icon {
   flex-shrink: 0;
 }
@@ -3162,9 +3135,12 @@ defineExpose({
 }
 
 @keyframes pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.5;
   }
@@ -3178,8 +3154,13 @@ defineExpose({
 
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .btn.loading {
@@ -3275,5 +3256,4 @@ defineExpose({
 [data-theme='dark'] .clear-search-btn:hover {
   background: var(--color-hover, #374151);
 }
-
 </style>
