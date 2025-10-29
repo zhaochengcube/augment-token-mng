@@ -2,6 +2,7 @@ use std::sync::Arc;
 use tokio::sync::{oneshot, Semaphore};
 use warp::{Filter, Reply, Rejection};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 use crate::storage::{TokenData, TokenStorage};
 
 // ==================== 数据结构定义 ====================
@@ -10,12 +11,21 @@ use crate::storage::{TokenData, TokenStorage};
 #[derive(Debug, Deserialize)]
 pub struct ImportSessionRequest {
     pub session: String,
+    #[serde(default = "default_detailed_response")]
+    pub detailed_response: bool,
 }
 
 /// 批量 session 导入请求
 #[derive(Debug, Deserialize)]
 pub struct ImportSessionsRequest {
     pub sessions: Vec<String>,
+    #[serde(default = "default_detailed_response")]
+    pub detailed_response: bool,
+}
+
+/// 默认返回详细响应
+fn default_detailed_response() -> bool {
+    true
 }
 
 /// 单个导入结果
@@ -52,6 +62,18 @@ pub struct HealthResponse {
 pub struct ApiErrorResponse {
     pub error: String,
     pub code: String,
+}
+
+/// 简化导入响应
+#[derive(Debug, Serialize)]
+pub struct SimpleImportResult {
+    pub success: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub code: Option<String>,
 }
 
 // ==================== API 服务器结构 ====================
@@ -142,10 +164,50 @@ async fn import_session_handler(
     // 调用内部函数导入
     match crate::add_token_from_session_internal_with_cache(&request.session, &state).await {
         Ok(response) => {
-            // 从 tenant_url 提取 ID (使用 tenant_url 作为唯一标识)
-            let id = response.tenant_url.replace("https://", "").replace("http://", "").replace("/", "_");
+            // 检查重复 email（与前端逻辑保持一致）
+            if let Some(ref email_note) = response.user_info.email_note {
+                let email_to_check = email_note.trim().to_lowercase();
 
-            // 构造 TokenData
+                // 从 storage_manager 加载现有 tokens
+                let storage_manager = {
+                    let guard = state.storage_manager.lock().unwrap();
+                    guard.clone()
+                };
+
+                if let Some(storage) = storage_manager {
+                    match storage.load_tokens().await {
+                        Ok(existing_tokens) => {
+                            // 检查是否存在相同的 email
+                            if existing_tokens.iter().any(|token| {
+                                if let Some(ref existing_email) = token.email_note {
+                                    existing_email.trim().to_lowercase() == email_to_check
+                                } else {
+                                    false
+                                }
+                            }) {
+                                println!("⚠️  API: Duplicate email detected: {}", email_note);
+                                let error_response = ApiErrorResponse {
+                                    error: format!("Token with email '{}' already exists", email_note),
+                                    code: "DUPLICATE_EMAIL".to_string(),
+                                };
+                                return Ok(warp::reply::with_status(
+                                    warp::reply::json(&error_response),
+                                    warp::http::StatusCode::CONFLICT,
+                                ));
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("⚠️  API: Failed to load existing tokens for duplicate check: {}", e);
+                            // 继续导入，不因为加载失败而阻止导入
+                        }
+                    }
+                }
+            }
+
+            // 使用 UUID 生成唯一 ID（与前端逻辑保持一致）
+            let id = Uuid::new_v4().to_string();
+
+            // 构造 TokenData（与前端逻辑保持一致）
             let token_data = TokenData {
                 id,
                 tenant_url: response.tenant_url.clone(),
@@ -156,12 +218,12 @@ async fn import_session_handler(
                 email_note: response.user_info.email_note.clone(),
                 tag_name: None,
                 tag_color: None,
-                ban_status: serde_json::to_value(&response.user_info.ban_status).ok(),
+                ban_status: None,  // 与前端保持一致，设置为 null
                 portal_info: None,
                 auth_session: Some(request.session.clone()),
                 suspensions: response.user_info.suspensions.clone(),
                 balance_color_mode: None,
-                skip_check: None,
+                skip_check: Some(false),  // 与前端保持一致，默认不跳过检测
             };
 
             // 保存到存储
@@ -179,16 +241,33 @@ async fn import_session_handler(
             match storage_result {
                 Ok(_) => {
                     println!("✅ API: Session imported successfully");
-                    let result = ImportResult {
-                        success: true,
-                        token_data: Some(token_data),
-                        error: None,
-                        session_preview: Some(mask_session(&request.session)),
-                    };
-                    Ok(warp::reply::with_status(
-                        warp::reply::json(&result),
-                        warp::http::StatusCode::OK,
-                    ))
+
+                    // 根据 detailed_response 参数返回不同格式
+                    if request.detailed_response {
+                        // 返回完整响应
+                        let result = ImportResult {
+                            success: true,
+                            token_data: Some(token_data),
+                            error: None,
+                            session_preview: Some(mask_session(&request.session)),
+                        };
+                        Ok(warp::reply::with_status(
+                            warp::reply::json(&result),
+                            warp::http::StatusCode::OK,
+                        ))
+                    } else {
+                        // 返回简化响应
+                        let result = SimpleImportResult {
+                            success: true,
+                            message: Some("Session imported successfully".to_string()),
+                            error: None,
+                            code: None,
+                        };
+                        Ok(warp::reply::with_status(
+                            warp::reply::json(&result),
+                            warp::http::StatusCode::OK,
+                        ))
+                    }
                 }
                 Err(e) => {
                     eprintln!("❌ API: Failed to save token: {}", e);
@@ -272,8 +351,46 @@ async fn import_sessions_handler(
             // 导入 session
             match crate::add_token_from_session_internal_with_cache(&session, &state).await {
                 Ok(response) => {
-                    // 从 tenant_url 提取 ID
-                    let id = response.tenant_url.replace("https://", "").replace("http://", "").replace("/", "_");
+                    // 检查重复 email（与前端逻辑保持一致）
+                    if let Some(ref email_note) = response.user_info.email_note {
+                        let email_to_check = email_note.trim().to_lowercase();
+
+                        // 从 storage_manager 加载现有 tokens
+                        let storage_manager = {
+                            let guard = state.storage_manager.lock().unwrap();
+                            guard.clone()
+                        };
+
+                        if let Some(storage) = storage_manager {
+                            match storage.load_tokens().await {
+                                Ok(existing_tokens) => {
+                                    // 检查是否存在相同的 email
+                                    if existing_tokens.iter().any(|token| {
+                                        if let Some(ref existing_email) = token.email_note {
+                                            existing_email.trim().to_lowercase() == email_to_check
+                                        } else {
+                                            false
+                                        }
+                                    }) {
+                                        println!("⚠️  API: Duplicate email detected in batch: {}", email_note);
+                                        return ImportResult {
+                                            success: false,
+                                            token_data: None,
+                                            error: Some(format!("Token with email '{}' already exists", email_note)),
+                                            session_preview: Some(mask_session(&session)),
+                                        };
+                                    }
+                                }
+                                Err(e) => {
+                                    eprintln!("⚠️  API: Failed to load existing tokens for duplicate check: {}", e);
+                                    // 继续导入，不因为加载失败而阻止导入
+                                }
+                            }
+                        }
+                    }
+
+                    // 使用 UUID 生成唯一 ID（与前端逻辑保持一致）
+                    let id = Uuid::new_v4().to_string();
 
                     let token_data = TokenData {
                         id,
@@ -285,12 +402,12 @@ async fn import_sessions_handler(
                         email_note: response.user_info.email_note.clone(),
                         tag_name: None,
                         tag_color: None,
-                        ban_status: serde_json::to_value(&response.user_info.ban_status).ok(),
+                        ban_status: None,  // 与前端保持一致，设置为 null
                         portal_info: None,
                         auth_session: Some(session.clone()),
                         suspensions: response.user_info.suspensions.clone(),
                         balance_color_mode: None,
-                        skip_check: None,
+                        skip_check: Some(false),  // 与前端保持一致，默认不跳过检测
                     };
 
                     // 保存到存储
@@ -352,19 +469,34 @@ async fn import_sessions_handler(
     let successful = results.iter().filter(|r| r.success).count();
     let failed = results.len() - successful;
 
-    let batch_result = BatchImportResult {
-        total: results.len(),
-        successful,
-        failed,
-        results,
-    };
+    println!("✅ API: Batch import completed - {}/{} successful", successful, results.len());
 
-    println!("✅ API: Batch import completed - {}/{} successful", successful, batch_result.total);
-
-    Ok(warp::reply::with_status(
-        warp::reply::json(&batch_result),
-        warp::http::StatusCode::OK,
-    ))
+    // 根据 detailed_response 参数返回不同格式
+    if request.detailed_response {
+        // 返回完整响应
+        let batch_result = BatchImportResult {
+            total: results.len(),
+            successful,
+            failed,
+            results,
+        };
+        Ok(warp::reply::with_status(
+            warp::reply::json(&batch_result),
+            warp::http::StatusCode::OK,
+        ))
+    } else {
+        // 返回简化响应
+        let result = SimpleImportResult {
+            success: true,
+            message: Some(format!("{} of {} sessions imported successfully", successful, results.len())),
+            error: None,
+            code: None,
+        };
+        Ok(warp::reply::with_status(
+            warp::reply::json(&result),
+            warp::http::StatusCode::OK,
+        ))
+    }
 }
 
 // ==================== 服务器启动 ====================
