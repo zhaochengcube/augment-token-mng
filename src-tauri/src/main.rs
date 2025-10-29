@@ -5,6 +5,7 @@ mod augment_oauth;
 mod augment_user_info;
 mod bookmarks;
 mod http_server;
+mod api_server;
 mod outlook_manager;
 mod database;
 mod storage;
@@ -53,14 +54,15 @@ pub struct AppSessionCache {
 }
 
 // Global state to store OAuth state and storage managers
-struct AppState {
+pub struct AppState {
     augment_oauth_state: Mutex<Option<AugmentOAuthState>>,
     http_server: Mutex<Option<HttpServer>>,
+    api_server: Mutex<Option<api_server::ApiServer>>,
     outlook_manager: Mutex<OutlookManager>,
-    storage_manager: Arc<Mutex<Option<Arc<DualStorage>>>>,
+    pub storage_manager: Arc<Mutex<Option<Arc<DualStorage>>>>,
     database_manager: Arc<Mutex<Option<Arc<DatabaseManager>>>>,
     // App session 缓存: key 为 auth_session, value 为缓存的 app_session
-    app_session_cache: Arc<Mutex<HashMap<String, AppSessionCache>>>,
+    pub app_session_cache: Arc<Mutex<HashMap<String, AppSessionCache>>>,
 }
 
 #[tauri::command]
@@ -1990,6 +1992,7 @@ fn main() {
             let app_state = AppState {
                 augment_oauth_state: Mutex::new(None),
                 http_server: Mutex::new(None),
+                api_server: Mutex::new(None),
                 outlook_manager: Mutex::new(OutlookManager::new()),
                 storage_manager: Arc::new(Mutex::new(None)),
                 database_manager: Arc::new(Mutex::new(None)),
@@ -2053,6 +2056,50 @@ fn main() {
                 // 初始化存储管理器
                 if let Err(e) = initialize_storage_manager(&app_handle, &state).await {
                     eprintln!("Failed to initialize storage manager: {}", e);
+                }
+            });
+
+            // 启动 API 服务器
+            let app_handle_for_api = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                let state = app_handle_for_api.state::<AppState>();
+
+                // 等待存储管理器初始化完成
+                let mut attempts = 0;
+                while attempts < 50 {
+                    let storage_ready = {
+                        let storage_guard = state.storage_manager.lock().unwrap();
+                        storage_guard.is_some()
+                    };
+
+                    if storage_ready {
+                        break;
+                    }
+
+                    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                    attempts += 1;
+                }
+
+                // 启动 API 服务器
+                match api_server::start_api_server(
+                    Arc::new(AppState {
+                        augment_oauth_state: Mutex::new(None),
+                        http_server: Mutex::new(None),
+                        api_server: Mutex::new(None),
+                        outlook_manager: Mutex::new(OutlookManager::new()),
+                        storage_manager: state.storage_manager.clone(),
+                        database_manager: state.database_manager.clone(),
+                        app_session_cache: state.app_session_cache.clone(),
+                    }),
+                    8766,
+                ).await {
+                    Ok(server) => {
+                        println!("✅ API Server initialized successfully");
+                        *state.api_server.lock().unwrap() = Some(server);
+                    }
+                    Err(e) => {
+                        eprintln!("❌ Failed to start API server: {}", e);
+                    }
                 }
             });
 
