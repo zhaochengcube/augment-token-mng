@@ -486,6 +486,31 @@ const saveDefaultInputCount = (count) => {
   }
 }
 
+// 智能提取email字段的辅助函数
+// 支持多种外部格式的email字段命名
+const extractEmail = (item) => {
+  // 按优先级顺序查找email字段
+  const emailFields = [
+    'email_note',    // 优先：当前应用标准格式
+    'email',         // 次优：常见外部格式
+    'emailNote',     // 驼峰格式
+    'Email',         // 首字母大写
+    'user_email',    // 带前缀
+    'userEmail',     // 驼峰带前缀
+    'mail'           // 简写
+  ]
+  
+  for (const field of emailFields) {
+    const value = item[field]
+    // 验证字段存在、类型正确且值有效
+    if (value && typeof value === 'string' && value.trim()) {
+      return value.trim()
+    }
+  }
+  
+  return null
+}
+
 // 初始化 Session 输入框
 const initializeSessionInputs = (count) => {
   const inputs = []
@@ -754,7 +779,7 @@ const executeBatchImportFromSessionInputs = async () => {
           tenantUrl: result.tenant_url,
           accessToken: result.access_token,
           portalUrl: result.user_info?.portal_url || null,
-          emailNote: result.user_info?.email_note || null,
+          emailNote: result.user_info ? extractEmail(result.user_info) : null,  // 智能提取email字段
           authSession: session,
           suspensions: result.user_info?.suspensions || null
         }
@@ -974,7 +999,7 @@ const executeBatchImport = async () => {
             tenantUrl: result.tenant_url,
             accessToken: result.access_token,
             portalUrl: result.user_info?.portal_url || null,
-            emailNote: result.user_info?.email_note || null,
+            emailNote: result.user_info ? extractEmail(result.user_info) : null,  // 智能提取email字段
             authSession: item.auth_session,
             suspensions: result.user_info?.suspensions || null
           }
@@ -1005,7 +1030,7 @@ const executeBatchImport = async () => {
           tenantUrl: item.tenant_url,
           accessToken: item.access_token,
           portalUrl: item.portal_url || null,
-          emailNote: item.email_note || null,
+          emailNote: extractEmail(item),  // 智能提取email字段
           tagName: item.tag_name || null,
           tagColor: item.tag_color || null,
           authSession: null,
