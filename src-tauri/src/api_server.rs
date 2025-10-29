@@ -3,6 +3,7 @@ use tokio::sync::{oneshot, Semaphore};
 use warp::{Filter, Reply, Rejection};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use tauri::Emitter;
 use crate::storage::{TokenData, TokenStorage};
 
 // ==================== 数据结构定义 ====================
@@ -242,6 +243,11 @@ async fn import_session_handler(
                 Ok(_) => {
                     println!("✅ API: Session imported successfully");
 
+                    // 发送前端刷新事件
+                    if let Err(e) = state.app_handle.emit("tokens-updated", ()) {
+                        eprintln!("⚠️  Failed to emit tokens-updated event: {}", e);
+                    }
+
                     // 根据 detailed_response 参数返回不同格式
                     if request.detailed_response {
                         // 返回完整响应
@@ -470,6 +476,13 @@ async fn import_sessions_handler(
     let failed = results.len() - successful;
 
     println!("✅ API: Batch import completed - {}/{} successful", successful, results.len());
+
+    // 如果有成功导入的 token，发送前端刷新事件
+    if successful > 0 {
+        if let Err(e) = state.app_handle.emit("tokens-updated", ()) {
+            eprintln!("⚠️  Failed to emit tokens-updated event: {}", e);
+        }
+    }
 
     // 根据 detailed_response 参数返回不同格式
     if request.detailed_response {

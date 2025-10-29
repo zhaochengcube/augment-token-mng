@@ -63,6 +63,8 @@ pub struct AppState {
     database_manager: Arc<Mutex<Option<Arc<DatabaseManager>>>>,
     // App session 缓存: key 为 auth_session, value 为缓存的 app_session
     pub app_session_cache: Arc<Mutex<HashMap<String, AppSessionCache>>>,
+    // App handle for emitting events
+    pub app_handle: tauri::AppHandle,
 }
 
 #[tauri::command]
@@ -1997,6 +1999,7 @@ fn main() {
                 storage_manager: Arc::new(Mutex::new(None)),
                 database_manager: Arc::new(Mutex::new(None)),
                 app_session_cache: Arc::new(Mutex::new(HashMap::new())),
+                app_handle: app.handle().clone(),
             };
 
             app.manage(app_state);
@@ -2090,6 +2093,7 @@ fn main() {
                         storage_manager: state.storage_manager.clone(),
                         database_manager: state.database_manager.clone(),
                         app_session_cache: state.app_session_cache.clone(),
+                        app_handle: app_handle_for_api.clone(),
                     }),
                     8766,
                 ).await {
