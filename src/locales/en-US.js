@@ -164,6 +164,7 @@ export default {
     syncing: 'Syncing...',
     syncTooltip: 'Perform bidirectional sync (Local ↔ Database)',
     sortByTime: 'Sort by creation time',
+    sortByBalance: 'Sort by balance',
     batchDelete: 'Batch Delete',
     batchDeleteConfirm: 'Batch Delete Confirmation',
     batchDeleteMessage: 'The following tokens will be deleted:',
