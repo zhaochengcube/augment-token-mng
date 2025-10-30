@@ -482,6 +482,7 @@
 import { ref, nextTick, onMounted, onUnmounted, computed, readonly, watch } from 'vue'
 import { watchDebounced } from '@vueuse/core'
 import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 import { useI18n } from 'vue-i18n'
 import TokenCard from './TokenCard.vue'
 import DatabaseConfig from './DatabaseConfig.vue'
@@ -512,6 +513,9 @@ const isSyncNeeded = ref(false)
 
 // 存储状态检查定时器
 let storageCheckTimer = null
+
+// 事件监听器取消函数
+let unlistenTokensUpdated = null
 
 // 排序状态管理
 const sortType = ref('time') // 'time' = 按时间排序, 'balance' = 按余额排序
@@ -2038,13 +2042,25 @@ onMounted(async () => {
   isSyncNeeded.value = false
 
   isReady.value = true
+
+  // 监听后端发送的 tokens-updated 事件
+  unlistenTokensUpdated = await listen('tokens-updated', async () => {
+    console.log('📡 Received tokens-updated event from backend, reloading tokens...')
+    await loadTokens(false)
+  })
 })
 
-// 组件卸载时清理定时器
+// 组件卸载时清理定时器和事件监听器
 onUnmounted(() => {
   if (storageCheckTimer) {
     clearInterval(storageCheckTimer)
     storageCheckTimer = null
+  }
+
+  // 取消事件监听
+  if (unlistenTokensUpdated) {
+    unlistenTokensUpdated()
+    unlistenTokensUpdated = null
   }
 })
 
