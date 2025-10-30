@@ -151,8 +151,16 @@ export default {
       loadFailed: 'Failed to load emails'
     }
   },
+  pagination: {
+    showing: 'Showing {start}-{end} of {total}',
+    page: 'Page {current} / {total} items',
+    pageSize: 'Items per page',
+    prev: 'Previous',
+    next: 'Next',
+    goToPage: 'Go to'
+  },
   tokenList: {
-    title: 'Saved Tokens',
+    title: 'Token List',
     empty: 'No saved tokens yet',
     loading: 'Loading tokens...',
     listTitle: 'Token List ({count})',
@@ -163,8 +171,9 @@ export default {
     sync: 'Sync',
     syncing: 'Syncing...',
     syncTooltip: 'Perform bidirectional sync (Local ↔ Database)',
-    sortByTime: 'Sort by creation time',
-    sortByBalance: 'Sort by balance',
+    sort: 'Sort',
+    sortByTime: 'By Time',
+    sortByBalance: 'By Balance',
     batchDelete: 'Batch Delete',
     batchDeleteConfirm: 'Batch Delete Confirmation',
     batchDeleteMessage: 'The following tokens will be deleted:',

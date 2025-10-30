@@ -151,8 +151,16 @@ export default {
       loadFailed: '加载邮件失败'
     }
   },
+  pagination: {
+    showing: '第 {start}-{end} 条,共 {total} 条',
+    page: '第 {current} 页 / 共 {total} 条',
+    pageSize: '每页显示',
+    prev: '上一页',
+    next: '下一页',
+    goToPage: '跳转'
+  },
   tokenList: {
-    title: '已保存Token',
+    title: 'Token 列表',
     empty: '还没有保存的Token',
     loading: '正在加载Token...',
     listTitle: 'Token列表 ({count})',
@@ -163,8 +171,9 @@ export default {
     sync: '同步',
     syncing: '同步中...',
     syncTooltip: '执行双向同步（本地 ↔ 数据库）',
-    sortByTime: '按创建时间排序',
-    sortByBalance: '按剩余额度排序',
+    sort: '排序',
+    sortByTime: '按时间',
+    sortByBalance: '按余额',
     batchDelete: '批量删除',
     batchDeleteConfirm: '批量删除确认',
     batchDeleteMessage: '即将删除以下 token:',
