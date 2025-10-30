@@ -613,6 +613,7 @@ export default {
     emailList: '邮件列表',
     from: '发件人',
     subject: '主题',
-    time: '时间'
+    time: '时间',
+    noContent: '(无内容)'
   }
 }

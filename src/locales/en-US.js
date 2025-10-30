@@ -613,6 +613,7 @@ export default {
     emailList: 'Email List',
     from: 'From',
     subject: 'Subject',
-    time: 'Time'
+    time: 'Time',
+    noContent: '(No content)'
   }
 }
