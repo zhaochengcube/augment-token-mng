@@ -21,7 +21,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' data: https: http:; connect-src ipc: http://ipc.localhost https://oauth.example.com; style-src 'self' 'unsafe-inline'"
+      "csp": "default-src 'self'; img-src 'self' data: https: http:; connect-src ipc: http://ipc.localhost https://oauth.example.com https://mail.chatgpt.org.uk; style-src 'self' 'unsafe-inline'"
     }
   },
   "bundle": {

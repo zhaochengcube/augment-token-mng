@@ -3,18 +3,19 @@
     <!-- Header -->
     <header class="app-header">
       <div class="header-left">
-        <h1>Augment Token Manager</h1>
+        <h1 @click="handleLogoClick" style="cursor: pointer; user-select: none;">Augment Token Manager</h1>
         <!-- External Link buttons -->
         <div class="external-links-group">
           <button @click="showAppHomeDialog = true" class="btn app-home-btn">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+              <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
             </svg>
             {{ $t('app.appHome') }}
           </button>
           <button @click="showPluginHomeDialog = true" class="btn plugin-home-btn">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M20.5 11H19V7c0-1.1-.9-2-2-2h-4V3.5C13 2.12 11.88 1 10.5 1S8 2.12 8 3.5V5H4c-1.1 0-2 .9-2 2v3.8H3.5c1.49 0 2.7 1.21 2.7 2.7s-1.21 2.7-2.7 2.7H2V20c0 1.1.9 2 2 2h3.8v-1.5c0-1.49 1.21-2.7 2.7-2.7 1.49 0 2.7 1.21 2.7 2.7V22H17c1.1 0 2-.9 2-2v-4h1.5c1.38 0 2.5-1.12 2.5-2.5S21.88 11 20.5 11z"/>
+              <path
+                d="M20.5 11H19V7c0-1.1-.9-2-2-2h-4V3.5C13 2.12 11.88 1 10.5 1S8 2.12 8 3.5V5H4c-1.1 0-2 .9-2 2v3.8H3.5c1.49 0 2.7 1.21 2.7 2.7s-1.21 2.7-2.7 2.7H2V20c0 1.1.9 2 2 2h3.8v-1.5c0-1.49 1.21-2.7 2.7-2.7 1.49 0 2.7 1.21 2.7 2.7V22H17c1.1 0 2-.9 2-2v-4h1.5c1.38 0 2.5-1.12 2.5-2.5S21.88 11 20.5 11z" />
             </svg>
             {{ $t('app.pluginHome') }}
           </button>
@@ -24,20 +25,28 @@
         <!-- Feature buttons -->
         <button @click="showBookmarkManager = true" class="btn secondary">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M17 3H7c-1.1 0-1.99.9-1.99 2L5 21l7-3 7 3V5c0-1.1-.9-2-2-2z"/>
+            <path d="M17 3H7c-1.1 0-1.99.9-1.99 2L5 21l7-3 7 3V5c0-1.1-.9-2-2-2z" />
           </svg>
           {{ $t('app.bookmarkManager') }}
         </button>
         <button @click="showOutlookManager = true" class="btn warning">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+            <path
+              d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
           </svg>
           {{ $t('app.outlookManager') }}
+        </button>
+        <button v-if="isGPTMailUnlocked" @click="showGPTMailManager = true" class="btn warning">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
+          </svg>
+          {{ $t('app.gptMailManager') }}
         </button>
 
         <button @click="showTokenList = true" class="btn primary">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/>
+            <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z" />
           </svg>
           {{ $t('app.viewTokens') }}
         </button>
@@ -57,21 +66,16 @@
 
             <!-- Tab Navigation -->
             <div class="tab-navigation">
-              <button
-                :class="['tab-btn', { active: activeTab === 'oauth' }]"
-                @click="activeTab = 'oauth'"
-              >
+              <button :class="['tab-btn', { active: activeTab === 'oauth' }]" @click="activeTab = 'oauth'">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+                  <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" />
                 </svg>
                 {{ $t('tokenGenerator.oauthTab') }}
               </button>
-              <button
-                :class="['tab-btn', { active: activeTab === 'session' }]"
-                @click="activeTab = 'session'"
-              >
+              <button :class="['tab-btn', { active: activeTab === 'session' }]" @click="activeTab = 'session'">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm0 4c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm6 12H6v-1.4c0-2 4-3.1 6-3.1s6 1.1 6 3.1V19z"/>
+                  <path
+                    d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm0 4c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm6 12H6v-1.4c0-2 4-3.1 6-3.1s6 1.1 6 3.1V19z" />
                 </svg>
                 {{ $t('tokenGenerator.sessionTab') }}
               </button>
@@ -83,119 +87,88 @@
         <div class="generator-body">
           <!-- OAuth Flow Tab -->
           <div v-if="activeTab === 'oauth'" class="tab-content">
-          <!-- Step 1: Generate Authorization URL -->
-          <div class="section">
-            <h3>{{ $t('tokenGenerator.step1') }}</h3>
-            <button
-              @click="generateAuthUrl"
-              :class="['btn', 'primary', { loading: isGenerating }]"
-              :disabled="isGenerating"
-            >
-              {{ $t('tokenGenerator.generateUrl') }}
-            </button>
-
-            <div v-if="authUrl" class="url-section">
-              <label>{{ $t('tokenGenerator.authUrlLabel') }}</label>
-              <div class="input-with-copy">
-                <input
-                  type="text"
-                  :value="authUrl"
-                  readonly
-                  ref="authUrlInput"
-                  :placeholder="$t('tokenGenerator.authUrlPlaceholder')"
-                >
-                <button @click="copyAuthUrl" class="copy-icon-btn" :title="$t('tokenGenerator.copyUrl')">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-                  </svg>
-                </button>
-              </div>
-              <div class="button-container">
-                <button @click="showAuthUrlDialog = true" class="btn secondary">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
-                  </svg>
-                  {{ $t('tokenGenerator.openAuthUrl') }}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Step 2: Enter Authorization Code -->
-          <div class="section">
-            <h3>{{ $t('tokenGenerator.step2') }}</h3>
-            <textarea
-              v-model="authCode"
-              :placeholder="$t('tokenGenerator.authCodePlaceholder')"
-              rows="4"
-            ></textarea>
-            <div class="button-container">
-              <button
-                @click="getAccessToken"
-                :class="['btn', 'primary', { loading: isGettingToken }]"
-                :disabled="!canGetToken || isGettingToken"
-              >
-                {{ $t('tokenGenerator.getToken') }}
+            <!-- Step 1: Generate Authorization URL -->
+            <div class="section">
+              <h3>{{ $t('tokenGenerator.step1') }}</h3>
+              <button @click="generateAuthUrl" :class="['btn', 'primary', { loading: isGenerating }]"
+                :disabled="isGenerating">
+                {{ $t('tokenGenerator.generateUrl') }}
               </button>
+
+              <div v-if="authUrl" class="url-section">
+                <label>{{ $t('tokenGenerator.authUrlLabel') }}</label>
+                <div class="input-with-copy">
+                  <input type="text" :value="authUrl" readonly ref="authUrlInput"
+                    :placeholder="$t('tokenGenerator.authUrlPlaceholder')">
+                  <button @click="copyAuthUrl" class="copy-icon-btn" :title="$t('tokenGenerator.copyUrl')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path
+                        d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
+                    </svg>
+                  </button>
+                </div>
+                <div class="button-container">
+                  <button @click="showAuthUrlDialog = true" class="btn secondary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path
+                        d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z" />
+                    </svg>
+                    {{ $t('tokenGenerator.openAuthUrl') }}
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
 
-          <!-- Step 3: Access Token -->
-          <div class="section" v-if="tokenResult">
-            <h3>{{ $t('tokenGenerator.step3') }}</h3>
-            <div class="token-section">
-              <div class="result-container">
-                <label>{{ $t('tokenGenerator.accessTokenLabel') }}</label>
-                <div class="token-container">
-                  <input
-                    type="text"
-                    :value="tokenResult.access_token"
-                    readonly
-                    ref="accessTokenInput"
-                  >
-                  <button @click="copyAccessToken" class="btn secondary">{{ $t('tokenGenerator.copy') }}</button>
-                </div>
-              </div>
-              <div class="result-container">
-                <label>{{ $t('tokenGenerator.tenantUrlLabel') }}</label>
-                <div class="token-container">
-                  <input
-                    type="text"
-                    :value="tokenResult.tenant_url"
-                    readonly
-                    ref="tenantUrlInput"
-                  >
-                  <button @click="copyTenantUrl" class="btn secondary">{{ $t('tokenGenerator.copy') }}</button>
-                </div>
-              </div>
-
-              <!-- Additional Fields -->
-              <div class="additional-fields">
-                <div class="field-container">
-                  <label>{{ $t('tokenGenerator.portalUrl') }}:</label>
-                  <input
-                    type="text"
-                    v-model="portalUrl"
-                    :placeholder="$t('tokenGenerator.portalUrlPlaceholder')"
-                    class="field-input"
-                  >
-                </div>
-                <div class="field-container">
-                  <label>{{ $t('tokenGenerator.emailNote') }}:</label>
-                  <input
-                    type="text"
-                    v-model="emailNote"
-                    :placeholder="$t('tokenGenerator.emailNotePlaceholder')"
-                    class="field-input"
-                  >
-                </div>
-              </div>
-
+            <!-- Step 2: Enter Authorization Code -->
+            <div class="section">
+              <h3>{{ $t('tokenGenerator.step2') }}</h3>
+              <textarea v-model="authCode" :placeholder="$t('tokenGenerator.authCodePlaceholder')" rows="4"></textarea>
               <div class="button-container">
-                <button @click="saveToken" class="btn success">{{ $t('tokenGenerator.saveToken') }}</button>
+                <button @click="getAccessToken" :class="['btn', 'primary', { loading: isGettingToken }]"
+                  :disabled="!canGetToken || isGettingToken">
+                  {{ $t('tokenGenerator.getToken') }}
+                </button>
               </div>
             </div>
-          </div>
+
+            <!-- Step 3: Access Token -->
+            <div class="section" v-if="tokenResult">
+              <h3>{{ $t('tokenGenerator.step3') }}</h3>
+              <div class="token-section">
+                <div class="result-container">
+                  <label>{{ $t('tokenGenerator.accessTokenLabel') }}</label>
+                  <div class="token-container">
+                    <input type="text" :value="tokenResult.access_token" readonly ref="accessTokenInput">
+                    <button @click="copyAccessToken" class="btn secondary">{{ $t('tokenGenerator.copy') }}</button>
+                  </div>
+                </div>
+                <div class="result-container">
+                  <label>{{ $t('tokenGenerator.tenantUrlLabel') }}</label>
+                  <div class="token-container">
+                    <input type="text" :value="tokenResult.tenant_url" readonly ref="tenantUrlInput">
+                    <button @click="copyTenantUrl" class="btn secondary">{{ $t('tokenGenerator.copy') }}</button>
+                  </div>
+                </div>
+
+                <!-- Additional Fields -->
+                <div class="additional-fields">
+                  <div class="field-container">
+                    <label>{{ $t('tokenGenerator.portalUrl') }}:</label>
+                    <input type="text" v-model="portalUrl" :placeholder="$t('tokenGenerator.portalUrlPlaceholder')"
+                      class="field-input">
+                  </div>
+                  <div class="field-container">
+                    <label>{{ $t('tokenGenerator.emailNote') }}:</label>
+                    <input type="text" v-model="emailNote" :placeholder="$t('tokenGenerator.emailNotePlaceholder')"
+                      class="field-input">
+                  </div>
+                </div>
+
+                <div class="button-container">
+                  <button @click="saveToken" class="btn success">{{ $t('tokenGenerator.saveToken') }}</button>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Session Import Tab -->
@@ -209,26 +182,16 @@
               </div>
               <p class="section-description">{{ $t('tokenGenerator.sessionImportDescription') }}</p>
 
-              <textarea
-                v-model="sessionInput"
-                :placeholder="$t('tokenGenerator.sessionPlaceholder')"
-                rows="6"
-                :disabled="isImportingSession"
-              ></textarea>
+              <textarea v-model="sessionInput" :placeholder="$t('tokenGenerator.sessionPlaceholder')" rows="6"
+                :disabled="isImportingSession"></textarea>
 
               <div class="button-container">
-                <button
-                  @click="importFromSession"
-                  class="btn primary"
-                  :disabled="!sessionInput.trim() || isImportingSession"
-                >
+                <button @click="importFromSession" class="btn primary"
+                  :disabled="!sessionInput.trim() || isImportingSession">
                   {{ $t('tokenGenerator.importSession') }}
                 </button>
-                <button
-                  @click="openInternalBrowserForAutoImport"
-                  class="btn secondary"
-                  :disabled="isImportingSession || isOpeningBrowser"
-                >
+                <button @click="openInternalBrowserForAutoImport" class="btn secondary"
+                  :disabled="isImportingSession || isOpeningBrowser">
                   {{ $t('tokenGenerator.autoImportSession') }}
                 </button>
               </div>
@@ -247,11 +210,7 @@
     </main>
 
     <!-- Token List Modal -->
-    <TokenList
-      v-if="showTokenList"
-      ref="tokenListRef"
-      @close="showTokenList = false"
-    />
+    <TokenList v-if="showTokenList" ref="tokenListRef" @close="showTokenList = false" />
 
     <!-- Session Help Modal -->
     <div v-if="showSessionHelp" class="help-modal" @click.self="showSessionHelp = false">
@@ -310,13 +269,14 @@
         <div class="dialog-buttons">
           <button @click="cancelDelete" class="dialog-btn cancel">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+              <path
+                d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
             </svg>
             {{ $t('dialogs.cancel') }}
           </button>
           <button @click="confirmDelete" class="dialog-btn delete">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+              <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
             </svg>
             {{ $t('dialogs.delete') }}
           </button>
@@ -329,23 +289,16 @@
 
 
     <!-- Bookmark Manager Modal -->
-    <BookmarkManager
-      v-if="showBookmarkManager"
-      @close="showBookmarkManager = false"
-    />
+    <BookmarkManager v-if="showBookmarkManager" @close="showBookmarkManager = false" />
 
     <!-- Outlook Manager Modal -->
-    <OutlookManager
-      v-if="showOutlookManager"
-      @close="showOutlookManager = false"
-    />
+    <OutlookManager v-if="showOutlookManager" @close="showOutlookManager = false" />
+
+    <!-- GPTMail Manager Modal -->
+    <GPTMailManager v-if="showGPTMailManager" @close="showGPTMailManager = false" />
 
     <!-- Proxy Config Modal -->
-    <ProxyConfig
-      v-if="showProxyConfig"
-      @close="showProxyConfig = false"
-      @config-saved="handleProxyConfigSaved"
-    />
+    <ProxyConfig v-if="showProxyConfig" @close="showProxyConfig = false" @config-saved="handleProxyConfigSaved" />
 
 
 
@@ -353,122 +306,94 @@
     <NotificationManager ref="notificationManager" />
 
     <!-- 授权URL链接对话框 -->
-    <ExternalLinkDialog
-      :show="showAuthUrlDialog"
-      :title="$t('dialogs.selectOpenMethod')"
-      :url="authUrl"
-      :browser-title="$t('messages.oauthTitle')"
-      @close="showAuthUrlDialog = false"
-    />
+    <ExternalLinkDialog :show="showAuthUrlDialog" :title="$t('dialogs.selectOpenMethod')" :url="authUrl"
+      :browser-title="$t('messages.oauthTitle')" @close="showAuthUrlDialog = false" />
 
     <!-- App主页链接对话框 -->
-    <ExternalLinkDialog
-      :show="showAppHomeDialog"
-      :title="$t('dialogs.appHomeTitle')"
-      url="https://github.com/zhaochengcube/augment-token-mng"
-      :browser-title="$t('messages.appHomeTitle')"
-      @close="showAppHomeDialog = false"
-    />
+    <ExternalLinkDialog :show="showAppHomeDialog" :title="$t('dialogs.appHomeTitle')"
+      url="https://github.com/zhaochengcube/augment-token-mng" :browser-title="$t('messages.appHomeTitle')"
+      @close="showAppHomeDialog = false" />
 
     <!-- 插件主页链接对话框 -->
-    <ExternalLinkDialog
-      :show="showPluginHomeDialog"
-      :title="$t('dialogs.pluginHomeTitle')"
-      url="https://github.com/zhaochengcube/augment-code-auto"
-      :browser-title="$t('messages.pluginHomeTitle')"
-      @close="showPluginHomeDialog = false"
-    />
+    <ExternalLinkDialog :show="showPluginHomeDialog" :title="$t('dialogs.pluginHomeTitle')"
+      url="https://github.com/zhaochengcube/augment-code-auto" :browser-title="$t('messages.pluginHomeTitle')"
+      @close="showPluginHomeDialog = false" />
 
     <!-- 更新横幅 -->
-    <UpdateBanner
-      v-if="updateInfo && updateInfo.has_update"
-      :update-info="updateInfo"
-      @close="updateInfo = null"
-    />
+    <UpdateBanner v-if="updateInfo && updateInfo.has_update" :update-info="updateInfo" @close="updateInfo = null" />
 
     <!-- 固定在右下角的控制按钮 -->
     <div class="fixed-controls">
       <!-- 弹出的设置选项 -->
       <div v-if="showSettingsMenu" class="settings-menu">
-        <!-- 检查更新按钮 -->
-        <button
-          type="button"
-          class="control-btn update-check-toggle"
-          @click="manualCheckForUpdates"
-          :aria-label="$t('app.checkForUpdates')"
-          :title="$t('app.checkForUpdates')"
-          :disabled="checkingUpdate"
-        >
-          <svg v-if="!checkingUpdate" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/>
-            <polyline points="16 12 12 8 8 12"/>
-            <line x1="12" y1="16" x2="12" y2="8"/>
+        <!-- GPT邮箱管理器锁定/解锁按钮 -->
+        <button v-if="isGPTMailUnlocked" type="button" class="control-btn gpt-mail-lock-toggle" @click="lockGPTMail"
+          :aria-label="$t('app.lockGPTMail')" :title="$t('app.lockGPTMail')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
-          <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spinning">
-            <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+        </button>
+        <!-- 检查更新按钮 -->
+        <button type="button" class="control-btn update-check-toggle" @click="manualCheckForUpdates"
+          :aria-label="$t('app.checkForUpdates')" :title="$t('app.checkForUpdates')" :disabled="checkingUpdate">
+          <svg v-if="!checkingUpdate" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="16 12 12 8 8 12" />
+            <line x1="12" y1="16" x2="12" y2="8" />
+          </svg>
+          <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            class="spinning">
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
           </svg>
         </button>
         <!-- 代理设置按钮 -->
-        <button
-          type="button"
-          class="control-btn proxy-toggle"
-          @click="showProxyConfig = true; showSettingsMenu = false"
-          :aria-label="$t('app.proxySettings')"
-          :title="$t('app.proxySettings')"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/>
-            <path d="M2 12h20"/>
-            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+        <button type="button" class="control-btn proxy-toggle" @click="showProxyConfig = true; showSettingsMenu = false"
+          :aria-label="$t('app.proxySettings')" :title="$t('app.proxySettings')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M2 12h20" />
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
           </svg>
         </button>
         <!-- 语言切换按钮 -->
-        <button
-          type="button"
-          class="control-btn language-toggle"
-          @click="toggleLanguage"
-          :aria-label="languageToggleLabel"
-          :title="languageToggleLabel"
-        >
+        <button type="button" class="control-btn language-toggle" @click="toggleLanguage"
+          :aria-label="languageToggleLabel" :title="languageToggleLabel">
           {{ currentLocale === 'zh-CN' ? 'EN' : '中' }}
         </button>
         <!-- 主题切换按钮 -->
-        <button
-          type="button"
-          class="control-btn theme-toggle"
-          @click="toggleTheme"
-          :aria-pressed="isDarkTheme"
-          :aria-label="themeToggleLabel"
-          :title="themeToggleLabel"
-        >
-          <svg v-if="isDarkTheme" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        <button type="button" class="control-btn theme-toggle" @click="toggleTheme" :aria-pressed="isDarkTheme"
+          :aria-label="themeToggleLabel" :title="themeToggleLabel">
+          <svg v-if="isDarkTheme" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
           </svg>
-          <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="5"/>
-            <path d="m12 1 0 2"/>
-            <path d="m12 21 0 2"/>
-            <path d="m4.22 4.22 1.42 1.42"/>
-            <path d="m18.36 18.36 1.42 1.42"/>
-            <path d="m1 12 2 0"/>
-            <path d="m21 12 2 0"/>
-            <path d="m4.22 19.78 1.42-1.42"/>
-            <path d="m18.36 5.64 1.42-1.42"/>
+          <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5" />
+            <path d="m12 1 0 2" />
+            <path d="m12 21 0 2" />
+            <path d="m4.22 4.22 1.42 1.42" />
+            <path d="m18.36 18.36 1.42 1.42" />
+            <path d="m1 12 2 0" />
+            <path d="m21 12 2 0" />
+            <path d="m4.22 19.78 1.42-1.42" />
+            <path d="m18.36 5.64 1.42-1.42" />
           </svg>
         </button>
       </div>
 
       <!-- 设置按钮 -->
-      <button
-        type="button"
-        class="control-btn settings-toggle"
-        @click="toggleSettingsMenu"
-        :aria-label="$t('app.settings')"
-        :title="$t('app.settings')"
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="3"/>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      <button type="button" class="control-btn settings-toggle" @click="toggleSettingsMenu"
+        :aria-label="$t('app.settings')" :title="$t('app.settings')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3" />
+          <path
+            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
         </svg>
       </button>
     </div>
@@ -483,6 +408,7 @@ import { useI18n } from 'vue-i18n'
 import TokenList from './components/TokenList.vue'
 import BookmarkManager from './components/BookmarkManager.vue'
 import OutlookManager from './components/OutlookManager.vue'
+import GPTMailManager from './components/GPTMailManager.vue'
 import ProxyConfig from './components/ProxyConfig.vue'
 import ExternalLinkDialog from './components/ExternalLinkDialog.vue'
 import NotificationManager from './components/NotificationManager.vue'
@@ -550,10 +476,71 @@ const manualCheckForUpdates = async () => {
   await checkForUpdates(false)
 }
 
+// GPT邮箱管理器解锁/锁定功能
+const unlockGPTMail = () => {
+  isGPTMailUnlocked.value = true
+  localStorage.setItem('gpt-mail-unlocked', 'true')
+  showStatus(t('messages.gptMailUnlocked'), 'success')
+}
+
+const lockGPTMail = () => {
+  isGPTMailUnlocked.value = false
+  localStorage.removeItem('gpt-mail-unlocked')
+  showStatus(t('messages.gptMailLocked'), 'info')
+}
+
+// 处理Logo点击事件(连续点击5次解锁)
+const handleLogoClick = () => {
+  logoClickCount.value++
+
+  // 清除之前的定时器
+  if (logoClickTimer) {
+    clearTimeout(logoClickTimer)
+  }
+
+  // 如果已解锁,不处理
+  if (isGPTMailUnlocked.value) {
+    return
+  }
+
+  // 检查是否达到5次点击
+  if (logoClickCount.value >= 5) {
+    unlockGPTMail()
+    logoClickCount.value = 0
+    return
+  }
+
+  // 设置2秒超时,重置计数
+  logoClickTimer = setTimeout(() => {
+    logoClickCount.value = 0
+  }, 2000)
+}
+
+// 处理快捷键(Ctrl+Shift+G)
+const handleKeyboardShortcut = (event) => {
+  const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
+  const modifierKey = isMac ? event.metaKey : event.ctrlKey
+
+  if (modifierKey && event.shiftKey && event.key.toLowerCase() === 'g') {
+    event.preventDefault()
+    if (isGPTMailUnlocked.value) {
+      lockGPTMail()
+    } else {
+      unlockGPTMail()
+    }
+  }
+}
+
 const showTokenList = ref(false)
 const showBookmarkManager = ref(false)
 const showOutlookManager = ref(false)
+const showGPTMailManager = ref(false)
 const showProxyConfig = ref(false)
+
+// GPT邮箱管理器解锁状态
+const isGPTMailUnlocked = ref(false)
+const logoClickCount = ref(0)
+let logoClickTimer = null
 
 // 代理配置保存处理
 const handleProxyConfigSaved = () => {
@@ -851,7 +838,7 @@ const openInternalBrowserForAutoImport = async () => {
   if (isOpeningBrowser.value) {
     return // 防止重复点击
   }
-  
+
   isOpeningBrowser.value = true
   try {
     // 打开登录页面,登录后会跳转到 auth.augmentcode.com
@@ -930,6 +917,15 @@ onMounted(async () => {
     currentLocale.value = savedLanguage
     locale.value = savedLanguage
   }
+
+  // 读取GPT邮箱管理器解锁状态
+  const gptMailUnlocked = localStorage.getItem('gpt-mail-unlocked')
+  if (gptMailUnlocked === 'true') {
+    isGPTMailUnlocked.value = true
+  }
+
+  // 注册快捷键监听器
+  document.addEventListener('keydown', handleKeyboardShortcut)
 
   // 启动时检查更新（静默模式）
   checkForUpdates(true)
@@ -1021,6 +1017,12 @@ onBeforeUnmount(() => {
   }
   // 移除事件监听器
   document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('keydown', handleKeyboardShortcut)
+
+  // 清除定时器
+  if (logoClickTimer) {
+    clearTimeout(logoClickTimer)
+  }
 })
 
 
@@ -1037,8 +1039,10 @@ onBeforeUnmount(() => {
 
 /* 隐藏所有滚动条 */
 * {
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE and Edge */
 }
 
 *::-webkit-scrollbar {
@@ -1047,7 +1051,8 @@ onBeforeUnmount(() => {
 }
 
 /* 确保body和html不产生滚动条 */
-html, body {
+html,
+body {
   overflow: hidden;
   height: 100%;
   margin: 0;
@@ -1110,6 +1115,7 @@ html, body {
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -1176,6 +1182,7 @@ html, body {
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -1368,6 +1375,7 @@ html, body {
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -1460,6 +1468,7 @@ html, body {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -1487,6 +1496,7 @@ html, body {
     transform: translateY(20px);
     opacity: 0;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;
@@ -1940,8 +1950,13 @@ input[type="text"]:read-only {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .token-list {
@@ -2041,7 +2056,8 @@ input[type="text"]:read-only {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 3000; /* 确保在所有其他元素之上 */
+  z-index: 3000;
+  /* 确保在所有其他元素之上 */
 }
 
 .portal-dialog {
@@ -2187,7 +2203,4 @@ input[type="text"]:read-only {
 }
 
 /* 移除了重复的状态指示器样式，现在在 TokenList.vue 中 */
-
-
 </style>
-

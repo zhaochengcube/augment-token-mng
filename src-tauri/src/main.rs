@@ -7,6 +7,7 @@ mod bookmarks;
 mod http_server;
 mod api_server;
 mod outlook_manager;
+mod gptmail;
 mod database;
 mod storage;
 mod http_client;
@@ -2215,6 +2216,9 @@ fn main() {
             outlook_check_account_status,
             outlook_get_emails,
             outlook_get_email_details,
+            // GPTMail 管理命令
+            gptmail::generate_random_email,
+            gptmail::get_emails,
             // 数据库配置命令
             save_database_config,
             load_database_config,
