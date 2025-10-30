@@ -300,6 +300,9 @@
     <!-- Proxy Config Modal -->
     <ProxyConfig v-if="showProxyConfig" @close="showProxyConfig = false" @config-saved="handleProxyConfigSaved" />
 
+    <!-- API Server Status Modal -->
+    <ApiServerStatus v-if="showApiServerStatus" @close="showApiServerStatus = false" />
+
 
 
     <!-- Notification Manager -->
@@ -347,6 +350,17 @@
           <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             class="spinning">
             <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+          </svg>
+        </button>
+        <!-- API服务器按钮 -->
+        <button type="button" class="control-btn api-server-toggle" @click="showApiServerStatus = true; showSettingsMenu = false"
+          :aria-label="$t('apiServer.title')" :title="$t('apiServer.title')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="2" width="20" height="8" rx="2" ry="2" />
+            <rect x="2" y="14" width="20" height="8" rx="2" ry="2" />
+            <line x1="6" y1="6" x2="6.01" y2="6" />
+            <line x1="6" y1="18" x2="6.01" y2="18" />
           </svg>
         </button>
         <!-- 代理设置按钮 -->
@@ -413,6 +427,7 @@ import ProxyConfig from './components/ProxyConfig.vue'
 import ExternalLinkDialog from './components/ExternalLinkDialog.vue'
 import NotificationManager from './components/NotificationManager.vue'
 import UpdateBanner from './components/UpdateBanner.vue'
+import ApiServerStatus from './components/ApiServerStatus.vue'
 
 const { t, locale } = useI18n()
 
@@ -536,6 +551,7 @@ const showBookmarkManager = ref(false)
 const showOutlookManager = ref(false)
 const showGPTMailManager = ref(false)
 const showProxyConfig = ref(false)
+const showApiServerStatus = ref(false)
 
 // GPT邮箱管理器解锁状态
 const isGPTMailUnlocked = ref(false)

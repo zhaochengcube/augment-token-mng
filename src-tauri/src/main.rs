@@ -4,7 +4,6 @@
 mod augment_oauth;
 mod augment_user_info;
 mod bookmarks;
-mod http_server;
 mod api_server;
 mod outlook_manager;
 mod gptmail;
@@ -17,7 +16,6 @@ mod proxy_helper;
 use augment_oauth::{create_augment_oauth_state, generate_augment_authorize_url, complete_augment_oauth_flow, check_account_ban_status, batch_check_account_status, extract_token_from_session, get_batch_credit_consumption_with_app_session, AugmentOAuthState, AugmentTokenResponse, AccountStatus, TokenInfo, TokenStatusResult, BatchCreditConsumptionResponse};
 use augment_user_info::{get_user_info, get_user_info_with_app_session, CompleteUserInfo, exchange_auth_session_for_app_session};
 use bookmarks::{BookmarkManager, Bookmark};
-use http_server::HttpServer;
 use outlook_manager::{OutlookManager, OutlookCredentials, EmailListResponse, EmailDetailsResponse, AccountStatus as OutlookAccountStatus, AccountInfo};
 use database::{DatabaseConfig, DatabaseConfigManager, DatabaseManager};
 use storage::{DualStorage, LocalFileStorage, PostgreSQLStorage, TokenStorage, SyncManager};
@@ -57,7 +55,6 @@ pub struct AppSessionCache {
 // Global state to store OAuth state and storage managers
 pub struct AppState {
     augment_oauth_state: Mutex<Option<AugmentOAuthState>>,
-    http_server: Mutex<Option<HttpServer>>,
     api_server: Mutex<Option<api_server::ApiServer>>,
     outlook_manager: Mutex<OutlookManager>,
     pub storage_manager: Arc<Mutex<Option<Arc<DualStorage>>>>,
@@ -245,6 +242,70 @@ async fn check_for_updates() -> Result<UpdateInfo, String> {
         download_url: release.html_url,
         release_notes: release.body,
     })
+}
+
+// API 服务器管理命令
+#[tauri::command]
+async fn get_api_server_status(state: State<'_, AppState>) -> Result<api_server::ApiServerStatus, String> {
+    let server_guard = state.api_server.lock().unwrap();
+
+    if let Some(server) = server_guard.as_ref() {
+        let port = server.get_port();
+        Ok(api_server::ApiServerStatus {
+            running: true,
+            port: Some(port),
+            address: Some(format!("http://127.0.0.1:{}", port)),
+        })
+    } else {
+        Ok(api_server::ApiServerStatus {
+            running: false,
+            port: None,
+            address: None,
+        })
+    }
+}
+
+#[tauri::command]
+async fn start_api_server_cmd(state: State<'_, AppState>) -> Result<(), String> {
+    // 检查是否已经在运行
+    {
+        let server_guard = state.api_server.lock().unwrap();
+        if server_guard.is_some() {
+            return Err("API server is already running".to_string());
+        }
+    }
+
+    // 启动服务器
+    let server = api_server::start_api_server(
+        Arc::new(AppState {
+            augment_oauth_state: Mutex::new(None),
+            api_server: Mutex::new(None),
+            outlook_manager: Mutex::new(OutlookManager::new()),
+            storage_manager: state.storage_manager.clone(),
+            database_manager: state.database_manager.clone(),
+            app_session_cache: state.app_session_cache.clone(),
+            app_handle: state.app_handle.clone(),
+        }),
+        8766,
+    ).await?;
+
+    // 保存服务器实例
+    *state.api_server.lock().unwrap() = Some(server);
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn stop_api_server(state: State<'_, AppState>) -> Result<(), String> {
+    let mut server_guard = state.api_server.lock().unwrap();
+
+    if let Some(mut server) = server_guard.take() {
+        server.shutdown();
+        println!("🛑 API Server stopped");
+        Ok(())
+    } else {
+        Err("API server is not running".to_string())
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -1994,7 +2055,6 @@ fn main() {
         .setup(|app| {
             let app_state = AppState {
                 augment_oauth_state: Mutex::new(None),
-                http_server: Mutex::new(None),
                 api_server: Mutex::new(None),
                 outlook_manager: Mutex::new(OutlookManager::new()),
                 storage_manager: Arc::new(Mutex::new(None)),
@@ -2088,7 +2148,6 @@ fn main() {
                 match api_server::start_api_server(
                     Arc::new(AppState {
                         augment_oauth_state: Mutex::new(None),
-                        http_server: Mutex::new(None),
                         api_server: Mutex::new(None),
                         outlook_manager: Mutex::new(OutlookManager::new()),
                         storage_manager: state.storage_manager.clone(),
@@ -2242,7 +2301,11 @@ fn main() {
 
             open_internal_browser,
             close_window,
-            check_for_updates
+            check_for_updates,
+            // API 服务器管理命令
+            get_api_server_status,
+            start_api_server_cmd,
+            stop_api_server
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -3644,4 +3644,77 @@ defineExpose({
 [data-theme='dark'] .clear-search-btn:hover {
   background: var(--color-hover, #374151);
 }
+
+[data-theme='dark'] .list-toolbar {
+  background: var(--color-surface-alt, #111827);
+}
+
+[data-theme='dark'] .open-folder-btn,
+[data-theme='dark'] .batch-delete-btn,
+[data-theme='dark'] .batch-import-btn,
+[data-theme='dark'] .sort-dropdown .sort-btn {
+  background: var(--color-surface, #1f2937);
+  border-color: var(--color-border, #374151);
+  color: var(--color-text-primary, #f9fafb);
+}
+
+[data-theme='dark'] .open-folder-btn:hover,
+[data-theme='dark'] .batch-import-btn:hover,
+[data-theme='dark'] .sort-dropdown .sort-btn:hover {
+  background: var(--color-surface-alt, #111827);
+  border-color: var(--color-primary, #3b82f6);
+}
+
+[data-theme='dark'] .batch-delete-btn:hover:not(:disabled) {
+  background: var(--color-surface-alt, #111827);
+  border-color: var(--color-danger, #ef4444);
+  color: var(--color-danger, #ef4444);
+}
+
+[data-theme='dark'] .pagination-combined {
+  background: var(--color-surface, #1f2937);
+  border-color: var(--color-border, #374151);
+}
+
+[data-theme='dark'] .pagination-info-text {
+  color: var(--color-text-primary, #f9fafb);
+}
+
+[data-theme='dark'] .pagination-size-select {
+  background: var(--color-surface, #1f2937);
+  border-color: var(--color-border, #374151);
+  color: var(--color-text-primary, #f9fafb);
+}
+
+[data-theme='dark'] .pagination-size-select:hover {
+  border-color: var(--color-primary, #3b82f6);
+}
+
+[data-theme='dark'] .pagination-size-select:focus {
+  border-color: var(--color-primary, #3b82f6);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+[data-theme='dark'] .sort-menu {
+  background: var(--color-surface, #1f2937);
+  border-color: var(--color-border, #374151);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme='dark'] .sort-option {
+  color: var(--color-text-primary, #f9fafb);
+}
+
+[data-theme='dark'] .sort-option:hover {
+  background: var(--color-surface-alt, #111827);
+}
+
+[data-theme='dark'] .sort-option.active {
+  background: rgba(59, 130, 246, 0.2);
+  color: var(--color-primary, #3b82f6);
+}
+
+[data-theme='dark'] .sort-divider {
+  background: var(--color-border, #374151);
+}
 </style>

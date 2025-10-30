@@ -65,6 +65,14 @@ pub struct ApiErrorResponse {
     pub code: String,
 }
 
+/// API 服务器状态响应
+#[derive(Debug, Serialize)]
+pub struct ApiServerStatus {
+    pub running: bool,
+    pub port: Option<u16>,
+    pub address: Option<String>,
+}
+
 /// 简化导入响应
 #[derive(Debug, Serialize)]
 pub struct SimpleImportResult {
@@ -514,34 +522,26 @@ async fn import_sessions_handler(
 
 // ==================== 服务器启动 ====================
 
-/// 启动 API 服务器
+/// 启动 API 服务器（固定端口）
 pub async fn start_api_server(
     state: Arc<crate::AppState>,
-    start_port: u16,
+    port: u16,
 ) -> Result<ApiServer, String> {
-    println!("🚀 Starting API Server...");
+    println!("🚀 Starting API Server on port {}...", port);
 
-    // 尝试绑定端口（从 start_port 到 start_port + 9）
-    let mut last_error = String::new();
-
-    for port in start_port..start_port + 10 {
-        match try_bind_server(state.clone(), port).await {
-            Ok(server) => {
-                println!("✅ API Server started successfully on http://127.0.0.1:{}", port);
-                println!("📡 Available endpoints:");
-                println!("   - GET  http://127.0.0.1:{}/api/health", port);
-                println!("   - POST http://127.0.0.1:{}/api/import/session", port);
-                println!("   - POST http://127.0.0.1:{}/api/import/sessions", port);
-                return Ok(server);
-            }
-            Err(e) => {
-                last_error = e;
-                eprintln!("⚠️  Port {} is in use, trying next port...", port);
-            }
+    match try_bind_server(state.clone(), port).await {
+        Ok(server) => {
+            println!("✅ API Server started successfully on http://127.0.0.1:{}", port);
+            println!("📡 Available endpoints:");
+            println!("   - GET  http://127.0.0.1:{}/api/health", port);
+            println!("   - POST http://127.0.0.1:{}/api/import/session", port);
+            println!("   - POST http://127.0.0.1:{}/api/import/sessions", port);
+            Ok(server)
+        }
+        Err(e) => {
+            Err(format!("Failed to start API server on port {}: {}", port, e))
         }
     }
-
-    Err(format!("Failed to start API server: {}", last_error))
 }
 
 /// 尝试在指定端口绑定服务器

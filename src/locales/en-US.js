@@ -627,5 +627,31 @@ export default {
     subject: 'Subject',
     time: 'Time',
     noContent: '(No content)'
+  },
+  apiServer: {
+    title: 'API Server Status',
+    status: 'Status',
+    running: 'Running',
+    stopped: 'Stopped',
+    address: 'Address',
+    port: 'Port',
+    endpoints: 'Available Endpoints',
+    examples: 'API Usage Examples',
+    copyExample: 'Copy Example',
+    startServer: 'Start Server',
+    stopServer: 'Stop Server',
+    autoStart: 'Auto-start API server when app launches',
+    starting: 'Starting...',
+    stopping: 'Stopping...',
+    startSuccess: 'API server started successfully',
+    startFailed: 'Failed to start API server',
+    stopSuccess: 'API server stopped successfully',
+    stopFailed: 'Failed to stop API server',
+    loadStatusFailed: 'Failed to load server status',
+    exampleCopied: 'Example copied to clipboard',
+    copyFailed: 'Failed to copy',
+    healthCheck: 'Health Check',
+    importSingleSession: 'Import Single Session',
+    importMultipleSessions: 'Import Multiple Sessions'
   }
 }

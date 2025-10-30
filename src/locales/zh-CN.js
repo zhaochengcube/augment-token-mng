@@ -627,5 +627,31 @@ export default {
     subject: '主题',
     time: '时间',
     noContent: '(无内容)'
+  },
+  apiServer: {
+    title: 'API 服务器状态',
+    status: '状态',
+    running: '运行中',
+    stopped: '已停止',
+    address: '地址',
+    port: '端口',
+    endpoints: '可用端点',
+    examples: 'API 使用示例',
+    copyExample: '复制示例',
+    startServer: '启动服务器',
+    stopServer: '停止服务器',
+    autoStart: '应用启动时自动启动API服务器',
+    starting: '正在启动...',
+    stopping: '正在停止...',
+    startSuccess: 'API服务器启动成功',
+    startFailed: 'API服务器启动失败',
+    stopSuccess: 'API服务器停止成功',
+    stopFailed: 'API服务器停止失败',
+    loadStatusFailed: '加载服务器状态失败',
+    exampleCopied: '示例已复制到剪贴板',
+    copyFailed: '复制失败',
+    healthCheck: '健康检查',
+    importSingleSession: '导入单个Session',
+    importMultipleSessions: '批量导入Sessions'
   }
 }
