@@ -18,7 +18,8 @@ export default {
     switchToEnglish: '切换到英文',
     switchToChinese: '切换到中文',
     settings: '设置',
-    checkForUpdates: '检查更新'
+    checkForUpdates: '检查更新',
+    lockGPTMail: '锁定GPT邮箱管理器'
   },
   update: {
     newVersionAvailable: '新版本可用',
@@ -454,6 +455,8 @@ export default {
     copyEmailNoteFailed: '复制邮箱备注失败',
     batchImportSuccess: '成功导入 {count} 个Token',
     batchImportSuccessWithSkipped: '成功导入 {success} 个Token，跳过 {skipped} 个重复邮箱',
+    gptMailUnlocked: 'GPT邮箱管理器已解锁',
+    gptMailLocked: 'GPT邮箱管理器已锁定',
     duplicateEmailSkipped: '该邮箱账号已存在：{email}，跳过导入',
     batchImportFailed: '批量导入失败',
     editorTokenFileCreated: '{editor} Token 文件已创建',

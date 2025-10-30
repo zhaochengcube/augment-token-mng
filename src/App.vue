@@ -3,7 +3,7 @@
     <!-- Header -->
     <header class="app-header">
       <div class="header-left">
-        <h1>Augment Token Manager</h1>
+        <h1 @click="handleLogoClick" style="cursor: pointer; user-select: none;">Augment Token Manager</h1>
         <!-- External Link buttons -->
         <div class="external-links-group">
           <button @click="showAppHomeDialog = true" class="btn app-home-btn">
@@ -36,7 +36,7 @@
           </svg>
           {{ $t('app.outlookManager') }}
         </button>
-        <button @click="showGPTMailManager = true" class="btn warning">
+        <button v-if="isGPTMailUnlocked" @click="showGPTMailManager = true" class="btn warning">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
             <path
               d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
@@ -326,6 +326,15 @@
     <div class="fixed-controls">
       <!-- 弹出的设置选项 -->
       <div v-if="showSettingsMenu" class="settings-menu">
+        <!-- GPT邮箱管理器锁定/解锁按钮 -->
+        <button v-if="isGPTMailUnlocked" type="button" class="control-btn gpt-mail-lock-toggle" @click="lockGPTMail"
+          :aria-label="$t('app.lockGPTMail')" :title="$t('app.lockGPTMail')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+        </button>
         <!-- 检查更新按钮 -->
         <button type="button" class="control-btn update-check-toggle" @click="manualCheckForUpdates"
           :aria-label="$t('app.checkForUpdates')" :title="$t('app.checkForUpdates')" :disabled="checkingUpdate">
@@ -467,11 +476,71 @@ const manualCheckForUpdates = async () => {
   await checkForUpdates(false)
 }
 
+// GPT邮箱管理器解锁/锁定功能
+const unlockGPTMail = () => {
+  isGPTMailUnlocked.value = true
+  localStorage.setItem('gpt-mail-unlocked', 'true')
+  showStatus(t('messages.gptMailUnlocked'), 'success')
+}
+
+const lockGPTMail = () => {
+  isGPTMailUnlocked.value = false
+  localStorage.removeItem('gpt-mail-unlocked')
+  showStatus(t('messages.gptMailLocked'), 'info')
+}
+
+// 处理Logo点击事件(连续点击5次解锁)
+const handleLogoClick = () => {
+  logoClickCount.value++
+
+  // 清除之前的定时器
+  if (logoClickTimer) {
+    clearTimeout(logoClickTimer)
+  }
+
+  // 如果已解锁,不处理
+  if (isGPTMailUnlocked.value) {
+    return
+  }
+
+  // 检查是否达到5次点击
+  if (logoClickCount.value >= 5) {
+    unlockGPTMail()
+    logoClickCount.value = 0
+    return
+  }
+
+  // 设置2秒超时,重置计数
+  logoClickTimer = setTimeout(() => {
+    logoClickCount.value = 0
+  }, 2000)
+}
+
+// 处理快捷键(Ctrl+Shift+G)
+const handleKeyboardShortcut = (event) => {
+  const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
+  const modifierKey = isMac ? event.metaKey : event.ctrlKey
+
+  if (modifierKey && event.shiftKey && event.key.toLowerCase() === 'g') {
+    event.preventDefault()
+    if (isGPTMailUnlocked.value) {
+      lockGPTMail()
+    } else {
+      unlockGPTMail()
+    }
+  }
+}
+
 const showTokenList = ref(false)
 const showBookmarkManager = ref(false)
 const showOutlookManager = ref(false)
 const showGPTMailManager = ref(false)
 const showProxyConfig = ref(false)
+
+// GPT邮箱管理器解锁状态
+const isGPTMailUnlocked = ref(false)
+const logoClickCount = ref(0)
+let logoClickTimer = null
 
 // 代理配置保存处理
 const handleProxyConfigSaved = () => {
@@ -849,6 +918,15 @@ onMounted(async () => {
     locale.value = savedLanguage
   }
 
+  // 读取GPT邮箱管理器解锁状态
+  const gptMailUnlocked = localStorage.getItem('gpt-mail-unlocked')
+  if (gptMailUnlocked === 'true') {
+    isGPTMailUnlocked.value = true
+  }
+
+  // 注册快捷键监听器
+  document.addEventListener('keydown', handleKeyboardShortcut)
+
   // 启动时检查更新（静默模式）
   checkForUpdates(true)
 
@@ -939,6 +1017,12 @@ onBeforeUnmount(() => {
   }
   // 移除事件监听器
   document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('keydown', handleKeyboardShortcut)
+
+  // 清除定时器
+  if (logoClickTimer) {
+    clearTimeout(logoClickTimer)
+  }
 })
 
 
