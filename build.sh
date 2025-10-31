@@ -42,11 +42,11 @@ if [ "$PLATFORM" = "Linux" ]; then
     if command -v apt-get &> /dev/null; then
         echo "🔧 Installing required packages..."
         sudo apt-get update
-        sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+        sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
     else
         echo "⚠️  Please install the following packages manually:"
         echo "   - libgtk-3-dev"
-        echo "   - libwebkit2gtk-4.0-dev" 
+        echo "   - libwebkit2gtk-4.1-dev"
         echo "   - libappindicator3-dev"
         echo "   - librsvg2-dev"
         echo "   - patchelf"
