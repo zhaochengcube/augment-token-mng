@@ -30,6 +30,9 @@ pub struct ParsedCode {
 pub struct AugmentTokenResponse {
     pub access_token: String,
     pub tenant_url: String,
+    pub email: Option<String>,
+    pub credits_balance: Option<i32>,  // 从 get-credit-info 获取的余额
+    pub expiry_date: Option<String>,   // 从 get-credit-info 获取的过期时间
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -61,6 +64,7 @@ pub struct TokenInfo {
     pub id: Option<String>, // 用于前端识别是哪个token
     pub portal_url: Option<String>, // Portal URL用于获取使用次数信息
     pub auth_session: Option<String>, // Auth session用于自动刷新token
+    pub email_note: Option<String>, // 邮箱备注,用于判断是否需要获取邮箱
 }
 
 // Portal信息结构体
@@ -68,6 +72,35 @@ pub struct TokenInfo {
 pub struct PortalInfo {
     pub credits_balance: i32,
     pub expiry_date: Option<String>,
+}
+
+// get-credit-info API 响应结构体
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreditInfoResponse {
+    pub usage_units_remaining: f64,  // API 返回浮点数
+    pub usage_units_total_current_billing_cycle: f64,
+    pub usage_units_total_additional: f64,
+    pub is_credit_balance_low: bool,
+    pub display_info: Option<serde_json::Value>,
+    pub refreshed_at: String,
+    pub included_usage_units_per_billing_cycle: f64,
+    pub current_billing_cycle_end_date_iso: String,
+    pub credit_details: Option<Vec<serde_json::Value>>,
+    pub usage_units_total: f64,
+}
+
+// get-models API 响应结构体
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ModelsResponse {
+    pub user: UserData,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UserData {
+    pub id: String,
+    pub email: String,
+    pub tenant_id: String,
+    pub tenant_name: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -79,6 +112,7 @@ pub struct TokenStatusResult {
     pub portal_info: Option<PortalInfo>, // Portal信息（如果有）
     pub portal_error: Option<String>, // Portal获取错误（如果有）
     pub suspensions: Option<serde_json::Value>, // 封禁详情（如果有）
+    pub email_note: Option<String>, // 邮箱备注（如果获取到）
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -195,9 +229,39 @@ pub async fn complete_augment_oauth_flow(
         &parsed_code.code,
     ).await?;
 
+    // 并行获取用户邮箱和 credit 信息
+    let (email_result, credit_result) = tokio::join!(
+        get_models(&token, &parsed_code.tenant_url),
+        get_credit_info(&token, &parsed_code.tenant_url)
+    );
+
+    // 处理邮箱结果
+    let email = match email_result {
+        Ok(models_response) => Some(models_response.user.email),
+        Err(err) => {
+            println!("Failed to get user email: {}", err);
+            None
+        }
+    };
+
+    // 处理 credit 信息结果
+    let (credits_balance, expiry_date) = match credit_result {
+        Ok(credit_info) => (
+            Some(credit_info.usage_units_remaining.floor() as i32),  // 转换为整数
+            Some(credit_info.current_billing_cycle_end_date_iso),
+        ),
+        Err(err) => {
+            println!("Failed to get credit info: {}", err);
+            (None, None)
+        }
+    };
+
     Ok(AugmentTokenResponse {
         access_token: token,
         tenant_url: parsed_code.tenant_url,
+        email,
+        credits_balance,
+        expiry_date,
     })
 }
 
@@ -382,6 +446,7 @@ pub async fn batch_check_account_status(
                         portal_info: None,
                         portal_error: Some(format!("Status check failed: {}", err)),
                         suspensions: None,
+                        email_note: None,
                     };
                 }
             };
@@ -475,28 +540,40 @@ pub async fn batch_check_account_status(
                     portal_info: None,
                     portal_error: None,
                     suspensions: suspensions_info,
+                    email_note: None,  // 封禁账号不获取邮箱
                 };
             }
 
             // 4. 获取余额和过期时间信息
-            // 使用 portal_url
-            let (portal_info, portal_error) = if let Some(ref portal_url_ref) = portal_url {
-                println!("Using portal_url to fetch credits and expiry for {:?}", token_id);
-                match get_portal_info(portal_url_ref).await {
-                    Ok(portal_info) => {
+            // 使用 get-credit-info API
+            let (portal_info, portal_error) = {
+                match get_credit_info(&token, &tenant_url).await {
+                    Ok(credit_info) => {
+                        let portal_info = PortalInfo {
+                            credits_balance: credit_info.usage_units_remaining.floor() as i32,  // 转换为整数
+                            expiry_date: Some(credit_info.current_billing_cycle_end_date_iso),
+                        };
                         (Some(portal_info), None)
                     }
                     Err(err) => {
-                        println!("Failed to get portal info: {}", err);
                         (None, Some(err))
                     }
                 }
-            } else {
-                // 没有 portal_url
-                println!("No portal_url available for {:?}", token_id);
-                (None, None)
             };
 
+            // 5. 如果没有邮箱备注,尝试获取邮箱
+            let email_note = if token_info.email_note.is_none() {
+                match get_models(&token, &tenant_url).await {
+                    Ok(models_response) => {
+                        Some(models_response.user.email)
+                    }
+                    Err(_err) => {
+                        None
+                    }
+                }
+            } else {
+                token_info.email_note.clone()
+            };
 
             TokenStatusResult {
                 token_id,
@@ -506,6 +583,7 @@ pub async fn batch_check_account_status(
                 portal_info,
                 portal_error,
                 suspensions: None,  // 正常情况下不需要 suspensions
+                email_note,
             }
         });
         
@@ -541,6 +619,7 @@ pub async fn batch_check_account_status(
                     portal_info: None,
                     portal_error: Some(format!("Task failed: {}", err)),
                     suspensions: None,
+                    email_note: None,
                 });
             }
         }
@@ -735,9 +814,42 @@ pub async fn extract_token_from_session(session: &str) -> Result<AugmentTokenRes
         .await
         .map_err(|e| format!("Failed to parse token response: {}", e))?;
 
+    // 并行获取用户邮箱和 credit 信息
+    let token = token_data.access_token.clone();
+    let tenant_url_clone = tenant_url.to_string();
+
+    let (email_result, credit_result) = tokio::join!(
+        get_models(&token, &tenant_url_clone),
+        get_credit_info(&token, &tenant_url_clone)
+    );
+
+    // 处理邮箱结果
+    let email = match email_result {
+        Ok(models_response) => Some(models_response.user.email),
+        Err(err) => {
+            println!("Failed to get user email from session: {}", err);
+            None
+        }
+    };
+
+    // 处理 credit 信息结果
+    let (credits_balance, expiry_date) = match credit_result {
+        Ok(credit_info) => (
+            Some(credit_info.usage_units_remaining.floor() as i32),  // 转换为整数
+            Some(credit_info.current_billing_cycle_end_date_iso),
+        ),
+        Err(err) => {
+            println!("Failed to get credit info from session: {}", err);
+            (None, None)
+        }
+    };
+
     Ok(AugmentTokenResponse {
         access_token: token_data.access_token,
         tenant_url: tenant_url.to_string(),
+        email,
+        credits_balance,
+        expiry_date,
     })
 }
 
@@ -748,6 +860,106 @@ fn generate_random_string(length: usize) -> String {
     let mut random_bytes = vec![0u8; length];
     rng.fill_bytes(&mut random_bytes);
     base64_url_encode(&random_bytes)
+}
+
+/// 获取 Credit 信息 (get-credit-info API)
+pub async fn get_credit_info(
+    token: &str,
+    tenant_url: &str,
+) -> Result<CreditInfoResponse, String> {
+    // 使用 ProxyClient，自动处理 Edge Function
+    let client = create_proxy_client()?;
+
+    // Ensure tenant_url ends with a slash
+    let base_url = if tenant_url.ends_with('/') {
+        tenant_url.to_string()
+    } else {
+        format!("{}/", tenant_url)
+    };
+
+    let api_url = format!("{}get-credit-info", base_url);
+
+    println!("=== get-credit-info API Request ===");
+    println!("URL: {}", api_url);
+
+    // Send request to get-credit-info API
+    let response = client
+        .post(&api_url)
+        .header("Content-Type", "application/json")
+        .header("Authorization", &format!("Bearer {}", token))
+        .json(&serde_json::json!({}))
+        .send()
+        .await
+        .map_err(|e| format!("HTTP request failed: {}", e))?;
+
+    let status_code = response.status().as_u16();
+    println!("Response Status: {}", status_code);
+
+    if !response.status().is_success() {
+        let error_body = response.text().await
+            .unwrap_or_else(|_| "Unknown error".to_string());
+        return Err(format!("API request failed with status {}: {}", status_code, error_body));
+    }
+
+    // Read response body
+    let response_body = response.text().await
+        .map_err(|e| format!("Failed to read response body: {}", e))?;
+
+    // Parse response
+    let credit_info: CreditInfoResponse = serde_json::from_str(&response_body)
+        .map_err(|e| format!("Failed to parse response: {}", e))?;
+
+    Ok(credit_info)
+}
+
+/// 获取用户模型信息 (get-models API)
+pub async fn get_models(
+    token: &str,
+    tenant_url: &str,
+) -> Result<ModelsResponse, String> {
+    // 使用 ProxyClient，自动处理 Edge Function
+    let client = create_proxy_client()?;
+
+    // Ensure tenant_url ends with a slash
+    let base_url = if tenant_url.ends_with('/') {
+        tenant_url.to_string()
+    } else {
+        format!("{}/", tenant_url)
+    };
+
+    let api_url = format!("{}get-models", base_url);
+
+    println!("=== get-models API Request ===");
+    println!("URL: {}", api_url);
+
+    // Send request to get-models API
+    let response = client
+        .post(&api_url)
+        .header("Content-Type", "application/json")
+        .header("Authorization", &format!("Bearer {}", token))
+        .json(&serde_json::json!({}))
+        .send()
+        .await
+        .map_err(|e| format!("HTTP request failed: {}", e))?;
+
+    let status_code = response.status().as_u16();
+    println!("Response Status: {}", status_code);
+
+    if !response.status().is_success() {
+        let error_body = response.text().await
+            .unwrap_or_else(|_| "Unknown error".to_string());
+        return Err(format!("API request failed with status {}: {}", status_code, error_body));
+    }
+
+    // Read response body
+    let response_body = response.text().await
+        .map_err(|e| format!("Failed to read response body: {}", e))?;
+
+    // Parse response
+    let models_info: ModelsResponse = serde_json::from_str(&response_body)
+        .map_err(|e| format!("Failed to parse response: {}", e))?;
+
+    Ok(models_info)
 }
 
 // ============ Credit Consumption API ============
@@ -789,6 +1001,7 @@ pub struct CreditConsumptionResponse {
 pub struct BatchCreditConsumptionResponse {
     pub stats_data: CreditConsumptionResponse,
     pub chart_data: CreditConsumptionResponse,
+    pub portal_url: Option<String>,  // 添加 portal_url 字段
 }
 
 /// 使用已有的 app_session 获取 Credit 消费数据
@@ -862,5 +1075,6 @@ pub async fn get_batch_credit_consumption_with_app_session(
     Ok(BatchCreditConsumptionResponse {
         stats_data,
         chart_data,
+        portal_url: None,
     })
 }

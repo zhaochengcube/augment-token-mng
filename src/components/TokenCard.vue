@@ -49,7 +49,7 @@
             </div>
           </div>
           <!-- 第二行：Portal信息 -->
-          <template v-if="token.portal_url">
+          <template v-if="token.portal_url || portalInfo.data">
             <div class="meta-row portal-row">
               <template v-if="portalInfo.data">
                 <span v-if="portalInfo.data.expiry_date" class="portal-meta expiry">{{ $t('tokenCard.expiry') }}: {{ formatExpiryDate(portalInfo.data.expiry_date) }}</span>
@@ -456,8 +456,10 @@
         v-if="showCreditUsageModal && token.auth_session"
         :auth-session="token.auth_session"
         :credits-balance="remainingCredits"
+        :has-portal-url="!!token.portal_url"
         @close="showCreditUsageModal = false"
         @refresh-balance="handleCreditUsageRefresh"
+        @update-portal-url="handleUpdatePortalUrl"
       />
     </Transition>
   </Teleport>
@@ -543,7 +545,7 @@ const tagBadgeStyle = computed(() => {
 })
 
 const hasStatusBadge = computed(() => {
-  const hasPortalStatus = props.token.portal_url && portalInfo.value.data
+  const hasPortalStatus = portalInfo.value.data  // 只要有 portal_info 数据就显示
   return Boolean(hasPortalStatus || props.token.ban_status)
 })
 
@@ -1172,7 +1174,8 @@ const checkAccountStatus = async (showNotification = true) => {
         access_token: props.token.access_token,
         tenant_url: props.token.tenant_url,
         portal_url: props.token.portal_url || null,
-        auth_session: props.token.auth_session || null
+        auth_session: props.token.auth_session || null,
+        email_note: props.token.email_note || null
       }]
     })
 
@@ -1258,12 +1261,15 @@ const checkAccountStatus = async (showNotification = true) => {
         }
       }
 
+      // 比对并更新 email_note（如果有）
+      if (result.email_note && props.token.email_note !== result.email_note) {
+        props.token.email_note = result.email_note
+        hasChanges = true
+      }
+
       // 只有在有实际变化时才更新时间戳
       if (hasChanges) {
         props.token.updated_at = new Date().toISOString()
-        console.log(`Updated token ${props.token.id} with changes`)
-      } else {
-        console.log(`No changes for token ${props.token.id}, skipping update`)
       }
 
       // 根据具体状态设置消息
@@ -1325,7 +1331,7 @@ const checkAccountStatus = async (showNotification = true) => {
 
 // 监听token变化，同步更新Portal信息显示
 watch(() => props.token.portal_info, (newPortalInfo) => {
-  if (newPortalInfo && props.token.portal_url) {
+  if (newPortalInfo) {
     portalInfo.value = {
       data: {
         credits_balance: newPortalInfo.credits_balance,
@@ -1338,20 +1344,20 @@ watch(() => props.token.portal_info, (newPortalInfo) => {
 
 // 组件挂载时加载Portal信息
 onMounted(async () => {
-  if (props.token.portal_url) {
-    // 如果有本地数据，立即显示
-    if (props.token.portal_info) {
-      portalInfo.value = {
-        data: {
-          credits_balance: props.token.portal_info.credits_balance,
-          expiry_date: props.token.portal_info.expiry_date
-        },
-        error: null
-      }
+  // 如果有本地 portal_info 数据，立即显示（不管是否有 portal_url）
+  if (props.token.portal_info) {
+    portalInfo.value = {
+      data: {
+        credits_balance: props.token.portal_info.credits_balance,
+        expiry_date: props.token.portal_info.expiry_date
+      },
+      error: null
     }
-    // 禁用自动刷新，避免清空搜索时大量重新挂载并发起请求
-    // checkAccountStatus(false)
   }
+  // 禁用自动刷新，避免清空搜索时大量重新挂载并发起请求
+  // if (props.token.portal_url) {
+  //   checkAccountStatus(false)
+  // }
 
   // 添加事件监听器
   document.addEventListener('keydown', handleKeydown)
@@ -1369,6 +1375,19 @@ const refreshAccountStatus = async () => {
 
 const handleCreditUsageRefresh = () => {
   checkAccountStatus(false)
+}
+
+// 处理更新 portal_url
+const handleUpdatePortalUrl = (portalUrl) => {
+  if (!portalUrl || props.token.portal_url === portalUrl) {
+    return
+  }
+
+  // 直接更新本地 token 对象
+  props.token.portal_url = portalUrl
+
+  // 触发父组件刷新(会自动保存)
+  emit('token-updated')
 }
 
 // 暴露方法给父组件

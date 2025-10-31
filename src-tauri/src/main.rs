@@ -14,7 +14,7 @@ mod proxy_config;
 mod proxy_helper;
 
 use augment_oauth::{create_augment_oauth_state, generate_augment_authorize_url, complete_augment_oauth_flow, check_account_ban_status, batch_check_account_status, extract_token_from_session, get_batch_credit_consumption_with_app_session, AugmentOAuthState, AugmentTokenResponse, AccountStatus, TokenInfo, TokenStatusResult, BatchCreditConsumptionResponse};
-use augment_user_info::{get_user_info, get_user_info_with_app_session, CompleteUserInfo, exchange_auth_session_for_app_session};
+use augment_user_info::{exchange_auth_session_for_app_session, fetch_app_subscription};
 use bookmarks::{BookmarkManager, Bookmark};
 use outlook_manager::{OutlookManager, OutlookCredentials, EmailListResponse, EmailDetailsResponse, AccountStatus as OutlookAccountStatus, AccountInfo};
 use database::{DatabaseConfig, DatabaseConfigManager, DatabaseManager};
@@ -38,11 +38,30 @@ struct UpdateInfo {
     release_notes: Option<String>,
 }
 
+// RSS Feed 解析结构
 #[derive(Debug, Deserialize)]
-struct GitHubRelease {
-    tag_name: String,
-    html_url: String,
-    body: Option<String>,
+struct Feed {
+    entry: Vec<Entry>,
+}
+
+#[derive(Debug, Deserialize)]
+struct Entry {
+    id: String,
+    title: String,
+    link: Link,
+    content: Option<Content>,
+}
+
+#[derive(Debug, Deserialize)]
+struct Link {
+    #[serde(rename = "@href")]
+    href: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct Content {
+    #[serde(rename = "$value")]
+    value: String,
 }
 
 // App Session 缓存结构 (公开以便其他模块使用)
@@ -137,8 +156,11 @@ async fn batch_check_tokens_status(
 #[tauri::command]
 async fn fetch_batch_credit_consumption(
     auth_session: String,
+    fetch_portal_url: Option<bool>,  // 是否获取 portal_url,默认为 true
     state: State<'_, AppState>,
 ) -> Result<BatchCreditConsumptionResponse, String> {
+    let should_fetch_portal_url = fetch_portal_url.unwrap_or(true);
+    println!("fetch_batch_credit_consumption called with fetch_portal_url: {:?}, should_fetch: {}", fetch_portal_url, should_fetch_portal_url);
     // 1. 检查缓存中是否有有效的 app_session
     let cached_app_session = {
         let cache = state.app_session_cache.lock().unwrap();
@@ -151,8 +173,22 @@ async fn fetch_batch_credit_consumption(
 
         // 尝试使用缓存的 app_session 获取数据
         match get_batch_credit_consumption_with_app_session(&app_session).await {
-            Ok(result) => {
+            Ok(mut result) => {
                 println!("Successfully fetched credit data with cached app_session");
+
+                // 只有在需要时才获取 portal_url
+                if should_fetch_portal_url {
+                    println!("Fetching portal_url from subscription API...");
+                    if let Ok(subscription) = fetch_app_subscription(&app_session).await {
+                        println!("Got portal_url: {:?}", subscription.portal_url);
+                        result.portal_url = subscription.portal_url;
+                    } else {
+                        println!("Failed to fetch subscription info");
+                    }
+                } else {
+                    println!("Skipping portal_url fetch (already exists)");
+                }
+
                 return Ok(result);
             }
             Err(e) => {
@@ -181,7 +217,22 @@ async fn fetch_batch_credit_consumption(
     }
 
     // 5. 使用新的 app_session 获取数据
-    get_batch_credit_consumption_with_app_session(&app_session).await
+    let mut result = get_batch_credit_consumption_with_app_session(&app_session).await?;
+
+    // 6. 只有在需要时才获取 portal_url
+    if should_fetch_portal_url {
+        println!("Fetching portal_url from subscription API (new session)...");
+        if let Ok(subscription) = fetch_app_subscription(&app_session).await {
+            println!("Got portal_url: {:?}", subscription.portal_url);
+            result.portal_url = subscription.portal_url;
+        } else {
+            println!("Failed to fetch subscription info");
+        }
+    } else {
+        println!("Skipping portal_url fetch (already exists)");
+    }
+
+    Ok(result)
 }
 
 // Version comparison helper
@@ -214,33 +265,53 @@ fn compare_versions(current: &str, latest: &str) -> bool {
 async fn check_for_updates() -> Result<UpdateInfo, String> {
     let current_version = env!("CARGO_PKG_VERSION");
 
-    // 使用 ProxyClient，自动处理 Edge Function
+    // 使用 GitHub RSS Feed，避免 API 速率限制
     let client = http_client::create_proxy_client()?;
     let response = client
-        .get("https://api.github.com/repos/zhaochengcube/augment-token-mng/releases/latest")
+        .get("https://github.com/zhaochengcube/augment-token-mng/releases.atom")
         .header("User-Agent", "Mozilla/5.0 (compatible; ATM-App/1.0)")
         .send()
         .await
-        .map_err(|e| format!("Failed to check for updates: {}", e))?;
+        .map_err(|e| format!("Failed to fetch RSS feed: {}", e))?;
 
     if !response.status().is_success() {
-        return Err(format!("GitHub API returned status: {}", response.status()));
+        return Err(format!("GitHub RSS feed returned status: {}", response.status()));
     }
 
-    let release: GitHubRelease = response
-        .json()
+    let xml_text = response
+        .text()
         .await
-        .map_err(|e| format!("Failed to parse GitHub response: {}", e))?;
+        .map_err(|e| format!("Failed to read RSS feed: {}", e))?;
 
-    let latest_version = release.tag_name.trim_start_matches('v');
+    // 解析 XML
+    let feed: Feed = quick_xml::de::from_str(&xml_text)
+        .map_err(|e| format!("Failed to parse RSS feed: {}", e))?;
+
+    // 获取第一个 entry (最新版本)
+    let latest_entry = feed.entry.first()
+        .ok_or("No releases found in RSS feed")?;
+
+    // 从 id 中提取版本号 (格式: tag:github.com,2008:Repository/.../v1.2.3)
+    let latest_version = latest_entry.id
+        .split('/')
+        .last()
+        .ok_or("Invalid release ID format")?
+        .trim_start_matches('v');
+
     let has_update = compare_versions(current_version, latest_version);
+
+    // 构建 GitHub Release 页面 URL
+    let download_url = latest_entry.link.href.clone();
+
+    // 从 content 中提取 release notes (如果有)
+    let release_notes = latest_entry.content.as_ref().map(|c| c.value.clone());
 
     Ok(UpdateInfo {
         current_version: current_version.to_string(),
         latest_version: latest_version.to_string(),
         has_update,
-        download_url: release.html_url,
-        release_notes: release.body,
+        download_url,
+        release_notes,
     })
 }
 
@@ -312,86 +383,39 @@ async fn stop_api_server(state: State<'_, AppState>) -> Result<(), String> {
 struct TokenFromSessionResponse {
     access_token: String,
     tenant_url: String,
-    user_info: CompleteUserInfo,
+    email: Option<String>,           // 从 get-models API 获取的邮箱
+    credits_balance: Option<i32>,    // 从 get-credit-info 获取的余额
+    expiry_date: Option<String>,     // 从 get-credit-info 获取的过期时间
 }
 
 // 内部函数,不发送进度事件,使用缓存的 app_session
 async fn add_token_from_session_internal_with_cache(
     session: &str,
-    state: &AppState,
+    _state: &AppState,
 ) -> Result<TokenFromSessionResponse, String> {
-    // 1. 从 session 提取 token
+    // 从 session 提取 token (包含 email, credits_balance, expiry_date)
     let token_response = extract_token_from_session(session).await?;
-
-    // 2. 检查缓存中是否有有效的 app_session
-    let cached_app_session = {
-        let cache = state.app_session_cache.lock().unwrap();
-        cache.get(session).map(|c| c.app_session.clone())
-    };
-
-    // 3. 尝试使用缓存的 app_session 获取用户信息
-    let user_info = if let Some(app_session) = cached_app_session {
-        println!("Using cached app_session for user info");
-        match get_user_info_with_app_session(&app_session).await {
-            Ok(info) => {
-                println!("Successfully fetched user info with cached app_session");
-                info
-            }
-            Err(e) => {
-                println!("Cached app_session failed: {}, will refresh", e);
-                // 缓存失效，获取新的
-                let app_session = exchange_auth_session_for_app_session(session).await?;
-                // 更新缓存
-                {
-                    let mut cache = state.app_session_cache.lock().unwrap();
-                    cache.insert(
-                        session.to_string(),
-                        AppSessionCache {
-                            app_session: app_session.clone(),
-                            created_at: SystemTime::now(),
-                        },
-                    );
-                }
-                get_user_info_with_app_session(&app_session).await?
-            }
-        }
-    } else {
-        // 没有缓存，获取新的 app_session
-        println!("No cached app_session, exchanging new one");
-        let app_session = exchange_auth_session_for_app_session(session).await?;
-        // 更新缓存
-        {
-            let mut cache = state.app_session_cache.lock().unwrap();
-            cache.insert(
-                session.to_string(),
-                AppSessionCache {
-                    app_session: app_session.clone(),
-                    created_at: SystemTime::now(),
-                },
-            );
-        }
-        get_user_info_with_app_session(&app_session).await?
-    };
 
     Ok(TokenFromSessionResponse {
         access_token: token_response.access_token,
         tenant_url: token_response.tenant_url,
-        user_info,
+        email: token_response.email,
+        credits_balance: token_response.credits_balance,
+        expiry_date: token_response.expiry_date,
     })
 }
 
 // 内部函数,不发送进度事件（保留用于向后兼容）
 async fn add_token_from_session_internal(session: &str) -> Result<TokenFromSessionResponse, String> {
-    // 1. 从 session 提取 token
+    // 从 session 提取 token (包含 email, credits_balance, expiry_date)
     let token_response = extract_token_from_session(session).await?;
-
-    // 2. 获取用户信息
-    let user_info = get_user_info(session).await?;
 
     Ok(TokenFromSessionResponse {
         access_token: token_response.access_token,
         tenant_url: token_response.tenant_url,
-        user_info,
+        email: token_response.email,
+        credits_balance: token_response.credits_balance,
+        expiry_date: token_response.expiry_date,
     })
 }
 
@@ -399,70 +423,20 @@ async fn add_token_from_session_internal(session: &str) -> Result<TokenFromSessi
 async fn add_token_from_session(
     session: String,
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
+    _state: State<'_, AppState>,
 ) -> Result<TokenFromSessionResponse, String> {
-    // 1. 从 session 提取 token
+    // 从 session 提取 token (包含 email, credits_balance, expiry_date)
     let _ = app.emit("session-import-progress", "sessionImportExtractingToken");
     let token_response = extract_token_from_session(&session).await?;
-
-    // 2. 检查缓存中是否有有效的 app_session
-    let _ = app.emit("session-import-progress", "sessionImportGettingUserInfo");
-
-    let cached_app_session = {
-        let cache = state.app_session_cache.lock().unwrap();
-        cache.get(&session).map(|c| c.app_session.clone())
-    };
-
-    // 3. 尝试使用缓存的 app_session 获取用户信息
-    let user_info = if let Some(app_session) = cached_app_session {
-        println!("Using cached app_session for user info");
-        match get_user_info_with_app_session(&app_session).await {
-            Ok(info) => {
-                println!("Successfully fetched user info with cached app_session");
-                info
-            }
-            Err(e) => {
-                println!("Cached app_session failed: {}, will refresh", e);
-                // 缓存失效，获取新的
-                let app_session = exchange_auth_session_for_app_session(&session).await?;
-                // 更新缓存
-                {
-                    let mut cache = state.app_session_cache.lock().unwrap();
-                    cache.insert(
-                        session.clone(),
-                        AppSessionCache {
-                            app_session: app_session.clone(),
-                            created_at: SystemTime::now(),
-                        },
-                    );
-                }
-                get_user_info_with_app_session(&app_session).await?
-            }
-        }
-    } else {
-        // 没有缓存，获取新的 app_session
-        println!("No cached app_session, exchanging new one");
-        let app_session = exchange_auth_session_for_app_session(&session).await?;
-        // 更新缓存
-        {
-            let mut cache = state.app_session_cache.lock().unwrap();
-            cache.insert(
-                session.clone(),
-                AppSessionCache {
-                    app_session: app_session.clone(),
-                    created_at: SystemTime::now(),
-                },
-            );
-        }
-        get_user_info_with_app_session(&app_session).await?
-    };
 
     let _ = app.emit("session-import-progress", "sessionImportComplete");
 
     Ok(TokenFromSessionResponse {
         access_token: token_response.access_token,
         tenant_url: token_response.tenant_url,
-        user_info,
+        email: token_response.email,
+        credits_balance: token_response.credits_balance,
+        expiry_date: token_response.expiry_date,
     })
 }
 
@@ -534,7 +508,6 @@ async fn load_tokens_json(app: tauri::AppHandle) -> Result<String, String> {
         let content = fs::read_to_string(&new_storage_path)
             .map_err(|e| format!("Failed to read tokens file: {}", e))?;
 
-        println!("从新目录读取到的文件内容: {}", content);
 
         // 如果文件为空，返回空数组的 JSON
         if content.trim().is_empty() {
@@ -557,7 +530,6 @@ async fn load_tokens_json(app: tauri::AppHandle) -> Result<String, String> {
         let content = fs::read_to_string(&old_storage_path)
             .map_err(|e| format!("Failed to read old tokens file: {}", e))?;
 
-        println!("从旧目录读取到的文件内容: {}", content);
 
         // 如果文件为空，返回空数组的 JSON
         if content.trim().is_empty() {

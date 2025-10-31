@@ -719,7 +719,8 @@ const filteredTokens = computed(() => {
     return (
       token.access_token?.toLowerCase().includes(query) ||
       token.email_note?.toLowerCase().includes(query) ||
-      token.auth_session?.toLowerCase().includes(query)
+      token.auth_session?.toLowerCase().includes(query) ||
+      token.tag_name?.toLowerCase().includes(query)
     )
   })
 })
@@ -994,10 +995,13 @@ const executeBatchImportFromSessionInputs = async () => {
         const tokenData = {
           tenantUrl: result.tenant_url,
           accessToken: result.access_token,
-          portalUrl: result.user_info?.portal_url || null,
-          emailNote: result.user_info ? extractEmail(result.user_info) : null,  // 智能提取email字段
+          portalUrl: null,  // Session 导入不再获取 portal_url
+          emailNote: result.email || null,  // 从 get-models API 获取的邮箱
           authSession: session,
-          suspensions: result.user_info?.suspensions || null
+          suspensions: null,  // Session 导入不再获取 suspensions
+          creditsBalance: result.credits_balance || null,  // 从 get-credit-info 获取的余额
+          expiryDate: result.expiry_date || null,  // 从 get-credit-info 获取的过期时间
+          banStatus: 'ACTIVE'  // Session 导入默认设置为 ACTIVE 状态
         }
 
         const addResult = addToken(tokenData)
@@ -1214,10 +1218,12 @@ const executeBatchImport = async () => {
           const tokenData = {
             tenantUrl: result.tenant_url,
             accessToken: result.access_token,
-            portalUrl: result.user_info?.portal_url || null,
-            emailNote: result.user_info ? extractEmail(result.user_info) : null,  // 智能提取email字段
+            portalUrl: null,  // Session 导入不再获取 portal_url
+            emailNote: result.email || null,  // 从 get-models API 获取的邮箱
             authSession: item.auth_session,
-            suspensions: result.user_info?.suspensions || null
+            suspensions: null,  // Session 导入不再获取 suspensions
+            creditsBalance: result.credits_balance || null,  // 从 get-credit-info 获取的余额
+            expiryDate: result.expiry_date || null  // 从 get-credit-info 获取的过期时间
           }
 
           const addResult = addToken(tokenData)
@@ -1508,7 +1514,8 @@ const checkAllAccountStatus = async () => {
       access_token: token.access_token,
       tenant_url: token.tenant_url,
       portal_url: token.portal_url || null,
-      auth_session: token.auth_session || null
+      auth_session: token.auth_session || null,
+      email_note: token.email_note || null
     }))
 
     // 单次批量API调用
@@ -1584,8 +1591,7 @@ const updateTokensFromResults = (results) => {
       if (result.portal_info) {
         const newPortalInfo = {
           credits_balance: result.portal_info.credits_balance,
-          expiry_date: result.portal_info.expiry_date,
-          can_still_use: result.portal_info.can_still_use
+          expiry_date: result.portal_info.expiry_date
         }
 
         if (!isEqual(token.portal_info, newPortalInfo)) {
@@ -1597,13 +1603,16 @@ const updateTokensFromResults = (results) => {
         console.warn(`Failed to get portal info for token ${token.id}:`, result.portal_error)
       }
 
+      // 比对并更新 email_note（如果有）
+      if (result.email_note && token.email_note !== result.email_note) {
+        token.email_note = result.email_note
+        hasChanges = true
+      }
+
       // 只有在有实际变化时才更新时间戳
       if (hasChanges) {
         token.updated_at = new Date().toISOString()
-        console.log(`Updated token ${token.id} status to: ${statusResult.status}`)
         anyChanges = true
-      } else {
-        console.log(`No changes for token ${token.id}, skipping update`)
       }
     }
   })
@@ -1775,6 +1784,15 @@ const addToken = (tokenData) => {
   const tagName = tokenData.tagName ? tokenData.tagName.trim() : ''
   const tagColor = tokenData.tagColor || DEFAULT_TAG_COLOR
 
+  // 构建 portal_info (如果有 creditsBalance 或 expiryDate)
+  let portalInfo = null
+  if (tokenData.creditsBalance !== undefined && tokenData.creditsBalance !== null) {
+    portalInfo = {
+      credits_balance: tokenData.creditsBalance,
+      expiry_date: tokenData.expiryDate || null
+    }
+  }
+
   const newToken = {
     id: crypto.randomUUID(),
     tenant_url: tokenData.tenantUrl,
@@ -1782,8 +1800,8 @@ const addToken = (tokenData) => {
     created_at: now,
     updated_at: now,  // 添加 updated_at 字段
     portal_url: tokenData.portalUrl || null,
-    ban_status: null,
-    portal_info: null,
+    ban_status: tokenData.banStatus || null,  // 使用传入的 banStatus，Session 导入时为 'ACTIVE'
+    portal_info: portalInfo,  // 使用构建的 portal_info
     email_note: tokenData.emailNote || null,
     tag_name: tagName || null,
     tag_color: tagName ? tagColor : null,
@@ -1886,22 +1904,112 @@ const handleClose = () => {
 
 // 检查当前页账号状态
 const checkPageAccountStatus = async () => {
-  const tokenCards = paginatedTokens.value
-    .map(token => tokenCardRefs.value[token.id])
-    .filter(card => card != null)
+  // 获取当前页需要检测的tokens(过滤掉标记为跳过检测的)
+  const tokensToCheck = paginatedTokens.value.filter(token => !token.skip_check)
 
-  let hasChanges = false
-
-  for (const card of tokenCards) {
-    if (card.refreshAccountStatus) {
-      const result = await card.refreshAccountStatus()
-      if (result?.hasChanges) {
-        hasChanges = true
-      }
-    }
+  if (tokensToCheck.length === 0) {
+    return { hasChanges: false }
   }
 
-  return { hasChanges }
+  try {
+    // 准备批量检测的数据
+    const tokenInfos = tokensToCheck.map(token => ({
+      id: token.id,
+      access_token: token.access_token,
+      tenant_url: token.tenant_url,
+      portal_url: token.portal_url || null,
+      auth_session: token.auth_session || null,
+      email_note: token.email_note || null
+    }))
+
+    // 单次批量API调用检测当前页所有tokens
+    const results = await invoke('batch_check_tokens_status', {
+      tokens: tokenInfos
+    })
+
+    // 批量更新tokens状态
+    let hasChanges = false
+
+    results.forEach(result => {
+      const token = tokens.value.find(t => t.id === result.token_id)
+      if (token) {
+        const statusResult = result.status_result
+        let tokenHasChanges = false
+
+        // 比对并更新 access_token
+        if (token.access_token !== result.access_token) {
+          token.access_token = result.access_token
+          tokenHasChanges = true
+        }
+
+        // 比对并更新 tenant_url
+        if (token.tenant_url !== result.tenant_url) {
+          token.tenant_url = result.tenant_url
+          tokenHasChanges = true
+        }
+
+        // 比对并更新 ban_status
+        if (token.ban_status !== statusResult.status) {
+          token.ban_status = statusResult.status
+          tokenHasChanges = true
+        }
+
+        // 自动禁用封禁或过期的账号检测
+        if ((statusResult.status === 'SUSPENDED' || statusResult.status === 'EXPIRED') && !token.skip_check) {
+          token.skip_check = true
+          tokenHasChanges = true
+          // 显示通知
+          const autoDisableMsg = statusResult.status === 'SUSPENDED'
+            ? t('messages.autoDisabledBanned')
+            : t('messages.autoDisabledExpired')
+          window.$notify.info(autoDisableMsg)
+        }
+
+        // 比对并更新 suspensions 信息（如果有）
+        if (result.suspensions) {
+          if (!isEqual(token.suspensions, result.suspensions)) {
+            token.suspensions = result.suspensions
+            tokenHasChanges = true
+            console.log(`Updated suspensions for token ${token.id}:`, result.suspensions)
+          }
+        }
+
+        // 比对并更新 Portal 信息（如果有）
+        if (result.portal_info) {
+          const newPortalInfo = {
+            credits_balance: result.portal_info.credits_balance,
+            expiry_date: result.portal_info.expiry_date
+          }
+
+          if (!isEqual(token.portal_info, newPortalInfo)) {
+            token.portal_info = newPortalInfo
+            tokenHasChanges = true
+            console.log(`Updated token ${token.id} portal info:`, token.portal_info)
+          }
+        } else if (result.portal_error) {
+          // 如果获取Portal信息失败，记录错误但不影响状态更新
+          console.warn(`Failed to fetch portal info for token ${token.id}:`, result.portal_error)
+        }
+
+        // 比对并更新 email_note（如果有）
+        if (result.email_note && token.email_note !== result.email_note) {
+          token.email_note = result.email_note
+          tokenHasChanges = true
+        }
+
+        // 只有在有实际变化时才更新时间戳
+        if (tokenHasChanges) {
+          token.updated_at = new Date().toISOString()
+          hasChanges = true
+        }
+      }
+    })
+
+    return { hasChanges }
+  } catch (error) {
+    console.error('Batch check page error:', error)
+    throw error
+  }
 }
 
 // 处理刷新事件 - 只刷新当前页

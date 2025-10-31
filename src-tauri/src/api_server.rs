@@ -174,7 +174,7 @@ async fn import_session_handler(
     match crate::add_token_from_session_internal_with_cache(&request.session, &state).await {
         Ok(response) => {
             // 检查重复 email（与前端逻辑保持一致）
-            if let Some(ref email_note) = response.user_info.email_note {
+            if let Some(ref email_note) = response.email {
                 let email_to_check = email_note.trim().to_lowercase();
 
                 // 从 storage_manager 加载现有 tokens
@@ -216,6 +216,20 @@ async fn import_session_handler(
             // 使用 UUID 生成唯一 ID（与前端逻辑保持一致）
             let id = Uuid::new_v4().to_string();
 
+            // 构建 portal_info (如果有 credits_balance 或 expiry_date)
+            let portal_info = if response.credits_balance.is_some() || response.expiry_date.is_some() {
+                let mut portal_map = serde_json::Map::new();
+                if let Some(credits) = response.credits_balance {
+                    portal_map.insert("credits_balance".to_string(), serde_json::Value::Number(credits.into()));
+                }
+                if let Some(expiry) = &response.expiry_date {
+                    portal_map.insert("expiry_date".to_string(), serde_json::Value::String(expiry.clone()));
+                }
+                Some(serde_json::Value::Object(portal_map))
+            } else {
+                None
+            };
+
             // 构造 TokenData（与前端逻辑保持一致）
             let token_data = TokenData {
                 id,
@@ -223,14 +237,14 @@ async fn import_session_handler(
                 access_token: response.access_token.clone(),
                 created_at: chrono::Utc::now(),
                 updated_at: chrono::Utc::now(),
-                portal_url: response.user_info.portal_url.clone(),
-                email_note: response.user_info.email_note.clone(),
+                portal_url: None,  // Session 导入不再获取 portal_url
+                email_note: response.email.clone(),
                 tag_name: None,
                 tag_color: None,
-                ban_status: None,  // 与前端保持一致，设置为 null
-                portal_info: None,
+                ban_status: Some(serde_json::Value::String("ACTIVE".to_string())),  // Session 导入默认设置为 ACTIVE
+                portal_info,  // 使用构建的 portal_info
                 auth_session: Some(request.session.clone()),
-                suspensions: response.user_info.suspensions.clone(),
+                suspensions: None,  // Session 导入不再获取 suspensions
                 balance_color_mode: None,
                 skip_check: Some(false),  // 与前端保持一致，默认不跳过检测
             };
@@ -366,7 +380,7 @@ async fn import_sessions_handler(
             match crate::add_token_from_session_internal_with_cache(&session, &state).await {
                 Ok(response) => {
                     // 检查重复 email（与前端逻辑保持一致）
-                    if let Some(ref email_note) = response.user_info.email_note {
+                    if let Some(ref email_note) = response.email {
                         let email_to_check = email_note.trim().to_lowercase();
 
                         // 从 storage_manager 加载现有 tokens
@@ -406,20 +420,34 @@ async fn import_sessions_handler(
                     // 使用 UUID 生成唯一 ID（与前端逻辑保持一致）
                     let id = Uuid::new_v4().to_string();
 
+                    // 构建 portal_info (如果有 credits_balance 或 expiry_date)
+                    let portal_info = if response.credits_balance.is_some() || response.expiry_date.is_some() {
+                        let mut portal_map = serde_json::Map::new();
+                        if let Some(credits) = response.credits_balance {
+                            portal_map.insert("credits_balance".to_string(), serde_json::Value::Number(credits.into()));
+                        }
+                        if let Some(expiry) = &response.expiry_date {
+                            portal_map.insert("expiry_date".to_string(), serde_json::Value::String(expiry.clone()));
+                        }
+                        Some(serde_json::Value::Object(portal_map))
+                    } else {
+                        None
+                    };
+
                     let token_data = TokenData {
                         id,
                         tenant_url: response.tenant_url.clone(),
                         access_token: response.access_token.clone(),
                         created_at: chrono::Utc::now(),
                         updated_at: chrono::Utc::now(),
-                        portal_url: response.user_info.portal_url.clone(),
-                        email_note: response.user_info.email_note.clone(),
+                        portal_url: None,  // Session 导入不再获取 portal_url
+                        email_note: response.email.clone(),
                         tag_name: None,
                         tag_color: None,
-                        ban_status: None,  // 与前端保持一致，设置为 null
-                        portal_info: None,
+                        ban_status: Some(serde_json::Value::String("ACTIVE".to_string())),  // Session 导入默认设置为 ACTIVE
+                        portal_info,  // 使用构建的 portal_info
                         auth_session: Some(session.clone()),
-                        suspensions: response.user_info.suspensions.clone(),
+                        suspensions: None,  // Session 导入不再获取 suspensions
                         balance_color_mode: None,
                         skip_check: Some(false),  // 与前端保持一致，默认不跳过检测
                     };

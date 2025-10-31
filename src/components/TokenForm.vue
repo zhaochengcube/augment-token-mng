@@ -402,14 +402,17 @@ const importFromSession = async () => {
     const authSession = sessionInput.value.trim()
     const result = await invoke('add_token_from_session', { session: authSession })
 
-    // 创建包含 auth_session 和 suspensions 的 tokenData
+    // 创建包含 auth_session 的 tokenData
     const tokenData = {
       tenantUrl: result.tenant_url,
       accessToken: result.access_token,
-      portalUrl: result.user_info?.portal_url || null,
-      emailNote: result.user_info?.email_note || null,
+      portalUrl: null,  // Session 导入不再获取 portal_url
+      emailNote: result.email || null,  // 从 get-models API 获取的邮箱
       authSession: authSession,  // 保存 auth_session
-      suspensions: result.user_info?.suspensions || null  // 保存 suspensions
+      suspensions: null,  // Session 导入不再获取 suspensions
+      creditsBalance: result.credits_balance || null,  // 从 get-credit-info 获取的余额
+      expiryDate: result.expiry_date || null,  // 从 get-credit-info 获取的过期时间
+      banStatus: 'ACTIVE'  // Session 导入默认设置为 ACTIVE 状态
     }
 
     // 保存 token
@@ -485,10 +488,12 @@ onMounted(async () => {
       const tokenData = {
         tenantUrl: event.payload.token.tenant_url,
         accessToken: event.payload.token.access_token,
-        portalUrl: event.payload.token.user_info?.portal_url || null,
-        emailNote: event.payload.token.user_info?.email_note || null,
+        portalUrl: null,  // Session 导入不再获取 portal_url
+        emailNote: event.payload.token.email || null,  // 从 get-models API 获取的邮箱
         authSession: event.payload.session || null,  // 保存 auth_session
-        suspensions: event.payload.token.user_info?.suspensions || null
+        suspensions: null,  // Session 导入不再获取 suspensions
+        creditsBalance: event.payload.token.credits_balance || null,  // 从 get-credit-info 获取的余额
+        expiryDate: event.payload.token.expiry_date || null  // 从 get-credit-info 获取的过期时间
       }
 
       // 通知父组件添加 token
