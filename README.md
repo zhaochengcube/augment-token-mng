@@ -50,7 +50,7 @@ scoop uninstall atm
    # Windows (PowerShell)
    Invoke-WebRequest -Uri https://win.rustup.rs/ -OutFile rustup-init.exe
    .\rustup-init.exe
-
+   
    # macOS/Linux
    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
    ```
@@ -142,6 +142,23 @@ cargo tauri build    # 构建生产版本
 ## 许可证
 
 本项目是开源项目，采用 MIT 许可证。
+
+## ❤️ 赞助支持
+
+如果该项目对你有帮助，可以请我喝杯咖啡
+
+<table align="center">
+  <tr>
+    <td align="center" style="padding: 20px; background: rgba(232, 248, 236, 0.6); border-radius: 16px;">
+      <h4>⭐ 微信支付</h4>
+      <img src="./wx.jpg" width="180" style="border-radius: 12px;">
+    </td>
+    <td align="center" style="padding: 20px; background: rgba(234, 243, 255, 0.6); border-radius: 16px;">
+      <h4>⭐ 支付宝</h4>
+      <img src="./zfb.jpg" width="180" style="border-radius: 12px;">
+    </td>
+  </tr>
+</table>
 
 ## ⭐ Star History
 
