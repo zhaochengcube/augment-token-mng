@@ -708,6 +708,27 @@ const sortedTokens = computed(() => {
   })
 })
 
+// 状态关键词匹配辅助函数 - 支持中英文及常见别名搜索
+const matchStatusKeyword = (banStatus, query) => {
+  if (!banStatus || !query) return false
+
+  const lowerQuery = query.toLowerCase()
+
+  // 状态关键词映射表（支持中英文及别名）
+  const statusKeywords = {
+    'ACTIVE': ['active', 'normal', '正常', '激活', '可用'],
+    'SUSPENDED': ['suspended', 'banned', 'ban', '封禁', '已封禁', '被封', '禁用'],
+    'EXPIRED': ['expired', 'expire', '过期', '已过期', '到期'],
+    'INVALID_TOKEN': ['invalid', 'token invalid', '失效', 'token失效', '无效']
+  }
+
+  // 获取当前状态的关键词列表
+  const keywords = statusKeywords[banStatus] || []
+
+  // 检查是否有任何关键词包含查询词（支持部分匹配）
+  return keywords.some(keyword => keyword.includes(lowerQuery))
+}
+
 // 过滤后的tokens计算属性（搜索 + 排序）
 const filteredTokens = computed(() => {
   if (!searchQuery.value.trim()) {
@@ -716,12 +737,19 @@ const filteredTokens = computed(() => {
 
   const query = searchQuery.value.toLowerCase().trim()
   return sortedTokens.value.filter(token => {
-    return (
+    // 原有字段搜索
+    const matchesOriginalFields = (
       token.access_token?.toLowerCase().includes(query) ||
       token.email_note?.toLowerCase().includes(query) ||
       token.auth_session?.toLowerCase().includes(query) ||
       token.tag_name?.toLowerCase().includes(query)
     )
+
+    // 状态搜索（支持中英文关键词）
+    const matchesStatus = matchStatusKeyword(token.ban_status, query)
+
+    // 任一匹配即返回
+    return matchesOriginalFields || matchesStatus
   })
 })
 
