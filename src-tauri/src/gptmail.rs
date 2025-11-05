@@ -50,7 +50,7 @@ pub async fn generate_random_email() -> Result<GenerateEmailResponse, String> {
 pub async fn get_emails(email: String) -> Result<GetEmailsResponse, String> {
     let client = create_http_client().map_err(|e| format!("创建 HTTP 客户端失败: {}", e))?;
 
-    let url = format!("https://mail.chatgpt.org.uk/api/get-emails?email={}", email);
+    let url = format!("https://mail.chatgpt.org.uk/api/emails?email={}", email);
 
     let response = client
         .get(&url)
