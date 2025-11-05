@@ -14,39 +14,37 @@
             <!-- 数据库配置按钮 -->
             <button @click="showDatabaseConfig = true" class="btn info small">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 3C7.58 3 4 4.79 4 7s3.58 4 8 4 8-1.79 8-4-3.58-4-8-4zM4 9v3c0 2.21 3.58 4 8 4s8-1.79 8-4V9c0 2.21-3.58 4-8 4s-8-1.79-8-4zM4 16v3c0 2.21 3.58 4 8 4s8-1.79 8-4v-3c0 2.21-3.58 4-8 4s-8-1.79-8-4z"/>
+                <path
+                  d="M12 3C7.58 3 4 4.79 4 7s3.58 4 8 4 8-1.79 8-4-3.58-4-8-4zM4 9v3c0 2.21 3.58 4 8 4s8-1.79 8-4V9c0 2.21-3.58 4-8 4s-8-1.79-8-4zM4 16v3c0 2.21 3.58 4 8 4s8-1.79 8-4v-3c0 2.21-3.58 4-8 4s-8-1.79-8-4z" />
               </svg>
               {{ $t('tokenList.databaseConfig') }}
             </button>
             <!-- 同步按钮 - 仅双向存储模式显示 -->
-            <button
-              v-if="isDatabaseAvailable"
-              @click="handleBidirectionalSync"
-              class="btn info small"
-              :disabled="isSyncing"
-              :title="$t('tokenList.syncTooltip')"
-            >
+            <button v-if="isDatabaseAvailable" @click="handleBidirectionalSync" class="btn info small"
+              :disabled="isSyncing" :title="$t('tokenList.syncTooltip')">
               <svg v-if="!isSyncing" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/>
+                <path
+                  d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" />
               </svg>
               {{ isSyncing ? $t('tokenList.syncing') : $t('tokenList.sync') }}
             </button>
             <button @click="handleAddToken" class="btn primary small">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
               </svg>
               {{ $t('tokenList.addToken') }}
             </button>
             <button @click="handleRefresh" class="btn secondary small" :disabled="isRefreshing">
               <svg v-if="!isRefreshing" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+                <path
+                  d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
               </svg>
               {{ isRefreshing ? $t('loading.refreshing') : $t('tokenList.refresh') }}
             </button>
             <button class="close-btn" @click="handleClose">×</button>
           </div>
         </div>
-        
+
         <div class="modal-body">
           <!-- Loading State -->
           <div v-if="isLoading" class="loading-state">
@@ -74,6 +72,124 @@
 
           <!-- Token List -->
           <div v-else class="token-list">
+            <!-- 状态统计栏 -->
+            <div class="status-stats-bar">
+              <div class="status-stats-container">
+                <!-- 全部 -->
+                <div :class="['status-stat-card', { 'selected': selectedStatusFilters.size === 0 }]"
+                  @click="clearStatusFilters" :title="$t('tokenList.allStatus')">
+                  <div class="stat-icon all">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path
+                        d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z" />
+                    </svg>
+                  </div>
+                  <div class="stat-content">
+                    <div class="stat-label">{{ $t('tokenList.allStatus') }}</div>
+                    <div class="stat-value">{{ statusStatistics.TOTAL }}</div>
+                  </div>
+                </div>
+
+                <!-- 活跃 -->
+                <div :class="['status-stat-card', 'active', { 'selected': isStatusSelected('ACTIVE') }]"
+                  @click="toggleStatusFilter('ACTIVE')" :title="$t('tokenList.activeStatus')">
+                  <div class="stat-icon active">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                    </svg>
+                  </div>
+                  <div class="stat-content">
+                    <div class="stat-label">{{ $t('tokenList.activeStatus') }}</div>
+                    <div class="stat-value">{{ statusStatistics.ACTIVE }}</div>
+                  </div>
+                </div>
+
+                <!-- 封禁 -->
+                <div :class="['status-stat-card', 'suspended', { 'selected': isStatusSelected('SUSPENDED') }]"
+                  @click="toggleStatusFilter('SUSPENDED')" :title="$t('tokenList.suspendedStatus')">
+                  <div class="stat-icon suspended">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path
+                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 11c-.55 0-1-.45-1-1V8c0-.55.45-1 1-1s1 .45 1 1v4c0 .55-.45 1-1 1zm1 4h-2v-2h2v2z" />
+                    </svg>
+                  </div>
+                  <div class="stat-content">
+                    <div class="stat-label">{{ $t('tokenList.suspendedStatus') }}</div>
+                    <div class="stat-value">{{ statusStatistics.SUSPENDED }}</div>
+                  </div>
+                </div>
+
+                <!-- 过期 -->
+                <div :class="['status-stat-card', 'expired', { 'selected': isStatusSelected('EXPIRED') }]"
+                  @click="toggleStatusFilter('EXPIRED')" :title="$t('tokenList.expiredStatus')">
+                  <div class="stat-icon expired">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path
+                        d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" />
+                    </svg>
+                  </div>
+                  <div class="stat-content">
+                    <div class="stat-label">{{ $t('tokenList.expiredStatus') }}</div>
+                    <div class="stat-value">{{ statusStatistics.EXPIRED }}</div>
+                  </div>
+                </div>
+
+                <!-- 失效 -->
+                <div :class="['status-stat-card', 'invalid', { 'selected': isStatusSelected('INVALID_TOKEN') }]"
+                  @click="toggleStatusFilter('INVALID_TOKEN')" :title="$t('tokenList.invalidStatus')">
+                  <div class="stat-icon invalid">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path
+                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
+                    </svg>
+                  </div>
+                  <div class="stat-content">
+                    <div class="stat-label">{{ $t('tokenList.invalidStatus') }}</div>
+                    <div class="stat-value">{{ statusStatistics.INVALID_TOKEN }}</div>
+                  </div>
+                </div>
+
+                <!-- 错误 -->
+                <div :class="['status-stat-card', 'error', { 'selected': isStatusSelected('ERROR') }]"
+                  @click="toggleStatusFilter('ERROR')" :title="$t('tokenList.errorStatus')">
+                  <div class="stat-icon error">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path
+                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
+                    </svg>
+                  </div>
+                  <div class="stat-content">
+                    <div class="stat-label">{{ $t('tokenList.errorStatus') }}</div>
+                    <div class="stat-value">{{ statusStatistics.ERROR }}</div>
+                  </div>
+                </div>
+
+                <!-- 其他 -->
+                <div v-if="statusStatistics.OTHER > 0"
+                  :class="['status-stat-card', 'other', { 'selected': isStatusSelected('OTHER') }]"
+                  @click="toggleStatusFilter('OTHER')" :title="$t('tokenList.otherStatus')">
+                  <div class="stat-icon other">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path
+                        d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
+                    </svg>
+                  </div>
+                  <div class="stat-content">
+                    <div class="stat-label">{{ $t('tokenList.otherStatus') }}</div>
+                    <div class="stat-value">{{ statusStatistics.OTHER }}</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 筛选提示 -->
+              <div v-if="selectedStatusFilters.size > 0" class="filter-hint">
+                <span>{{ $t('tokenList.filteredResults', { count: filteredTokens.length }) }}</span>
+                <button @click="clearStatusFilters" class="clear-filter-btn">
+                  {{ $t('tokenList.clearFilter') }}
+                </button>
+              </div>
+            </div>
+
             <div class="list-header">
               <div class="list-toolbar">
                 <!-- 搜索框 (移到最前面) -->
@@ -95,80 +211,81 @@
                 <!-- 排序下拉菜单 -->
                 <div class="sort-dropdown">
                   <button class="sort-btn" @click.stop="toggleSortMenu" :title="$t('tokenList.sort')">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                      stroke-linecap="round">
                       <!-- 左边向上箭头 -->
-                      <path d="M7 16V6M4 9l3-3 3 3"/>
+                      <path d="M7 16V6M4 9l3-3 3 3" />
                       <!-- 右边向下箭头 -->
-                      <path d="M17 8v10M14 15l3 3 3-3"/>
+                      <path d="M17 8v10M14 15l3 3 3-3" />
                     </svg>
                   </button>
 
                   <!-- 下拉菜单 -->
                   <Transition name="dropdown">
                     <div v-if="showSortMenu" class="sort-menu" @click.stop>
-                      <button
-                        :class="['sort-option', { active: sortType === 'time' && sortOrder === 'desc' }]"
-                        @click="setSortType('time', 'desc')"
-                      >
+                      <button :class="['sort-option', { active: sortType === 'time' && sortOrder === 'desc' }]"
+                        @click="setSortType('time', 'desc')">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
+                          <path
+                            d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z" />
                         </svg>
                         <span>{{ $t('tokenList.sortByTime') }}</span>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" class="arrow-down">
-                          <path d="M16 10l-4 4-4-4h8z"/>
+                          <path d="M16 10l-4 4-4-4h8z" />
                         </svg>
-                        <svg v-if="sortType === 'time' && sortOrder === 'desc'" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="check-icon">
-                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                        <svg v-if="sortType === 'time' && sortOrder === 'desc'" width="16" height="16"
+                          viewBox="0 0 24 24" fill="currentColor" class="check-icon">
+                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
                         </svg>
                       </button>
 
-                      <button
-                        :class="['sort-option', { active: sortType === 'time' && sortOrder === 'asc' }]"
-                        @click="setSortType('time', 'asc')"
-                      >
+                      <button :class="['sort-option', { active: sortType === 'time' && sortOrder === 'asc' }]"
+                        @click="setSortType('time', 'asc')">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
+                          <path
+                            d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z" />
                         </svg>
                         <span>{{ $t('tokenList.sortByTime') }}</span>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" class="arrow-up">
-                          <path d="M8 14l4-4 4 4H8z"/>
+                          <path d="M8 14l4-4 4 4H8z" />
                         </svg>
-                        <svg v-if="sortType === 'time' && sortOrder === 'asc'" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="check-icon">
-                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                        <svg v-if="sortType === 'time' && sortOrder === 'asc'" width="16" height="16"
+                          viewBox="0 0 24 24" fill="currentColor" class="check-icon">
+                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
                         </svg>
                       </button>
 
                       <div class="sort-divider"></div>
 
-                      <button
-                        :class="['sort-option', { active: sortType === 'balance' && sortOrder === 'desc' }]"
-                        @click="setSortType('balance', 'desc')"
-                      >
+                      <button :class="['sort-option', { active: sortType === 'balance' && sortOrder === 'desc' }]"
+                        @click="setSortType('balance', 'desc')">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
+                          <path
+                            d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z" />
                         </svg>
                         <span>{{ $t('tokenList.sortByBalance') }}</span>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" class="arrow-down">
-                          <path d="M16 10l-4 4-4-4h8z"/>
+                          <path d="M16 10l-4 4-4-4h8z" />
                         </svg>
-                        <svg v-if="sortType === 'balance' && sortOrder === 'desc'" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="check-icon">
-                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                        <svg v-if="sortType === 'balance' && sortOrder === 'desc'" width="16" height="16"
+                          viewBox="0 0 24 24" fill="currentColor" class="check-icon">
+                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
                         </svg>
                       </button>
 
-                      <button
-                        :class="['sort-option', { active: sortType === 'balance' && sortOrder === 'asc' }]"
-                        @click="setSortType('balance', 'asc')"
-                      >
+                      <button :class="['sort-option', { active: sortType === 'balance' && sortOrder === 'asc' }]"
+                        @click="setSortType('balance', 'asc')">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
+                          <path
+                            d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z" />
                         </svg>
                         <span>{{ $t('tokenList.sortByBalance') }}</span>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" class="arrow-up">
-                          <path d="M8 14l4-4 4 4H8z"/>
+                          <path d="M8 14l4-4 4 4H8z" />
                         </svg>
-                        <svg v-if="sortType === 'balance' && sortOrder === 'asc'" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="check-icon">
-                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                        <svg v-if="sortType === 'balance' && sortOrder === 'asc'" width="16" height="16"
+                          viewBox="0 0 24 24" fill="currentColor" class="check-icon">
+                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
                         </svg>
                       </button>
                     </div>
@@ -196,7 +313,10 @@
 
                 <!-- 分页信息和每页数量 -->
                 <div v-if="filteredTokens.length > 0" class="pagination-combined">
-                  <span class="pagination-info-text">{{ $t('pagination.page', { current: currentPage, total: filteredTokens.length }) }}</span>
+                  <span class="pagination-info-text">{{ $t('pagination.page', {
+                    current: currentPage, total:
+                      filteredTokens.length
+                  }) }}</span>
                   <select v-model.number="pageSize" @change="changePageSize(pageSize)" class="pagination-size-select">
                     <option v-for="size in pageSizeOptions" :key="size" :value="size">
                       {{ size }}
@@ -225,11 +345,7 @@
 
               <!-- 分页导航 -->
               <div v-if="totalPages > 1" class="pagination-nav">
-                <button
-                  class="pagination-btn"
-                  :disabled="currentPage === 1"
-                  @click="prevPage"
-                >
+                <button class="pagination-btn" :disabled="currentPage === 1" @click="prevPage">
                   {{ $t('pagination.prev') }}
                 </button>
 
@@ -239,11 +355,7 @@
                   <span class="page-total">{{ totalPages }}</span>
                 </div>
 
-                <button
-                  class="pagination-btn"
-                  :disabled="currentPage === totalPages"
-                  @click="nextPage"
-                >
+                <button class="pagination-btn" :disabled="currentPage === totalPages" @click="nextPage">
                   {{ $t('pagination.next') }}
                 </button>
               </div>
@@ -525,6 +637,9 @@ const showSortMenu = ref(false) // 排序下拉菜单显示状态
 // 搜索状态管理
 const searchQuery = ref('')
 
+// 状态筛选管理
+const selectedStatusFilters = ref(new Set()) // 使用 Set 存储选中的状态
+
 // 分页状态管理
 const currentPage = ref(1)           // 当前页码
 const pageSize = ref(20)             // 每页显示数量(默认 20)
@@ -604,7 +719,7 @@ const extractEmail = (item) => {
     'userEmail',     // 驼峰带前缀
     'mail'           // 简写
   ]
-  
+
   for (const field of emailFields) {
     const value = item[field]
     // 验证字段存在、类型正确且值有效
@@ -612,7 +727,7 @@ const extractEmail = (item) => {
       return value.trim()
     }
   }
-  
+
   return null
 }
 
@@ -666,6 +781,38 @@ const bannedTokensCount = computed(() => {
 // 计算已过期的 token 数量
 const expiredTokensCount = computed(() => {
   return tokens.value.filter(token => token.ban_status === 'EXPIRED').length
+})
+
+// 状态统计计算属性
+const statusStatistics = computed(() => {
+  const stats = {
+    ACTIVE: 0,
+    SUSPENDED: 0,
+    EXPIRED: 0,
+    INVALID_TOKEN: 0,
+    ERROR: 0,
+    OTHER: 0,
+    TOTAL: tokens.value.length
+  }
+
+  tokens.value.forEach(token => {
+    const status = token.ban_status
+    if (status === 'ACTIVE') {
+      stats.ACTIVE++
+    } else if (status === 'SUSPENDED') {
+      stats.SUSPENDED++
+    } else if (status === 'EXPIRED') {
+      stats.EXPIRED++
+    } else if (status === 'INVALID_TOKEN') {
+      stats.INVALID_TOKEN++
+    } else if (status === 'ERROR') {
+      stats.ERROR++
+    } else {
+      stats.OTHER++
+    }
+  })
+
+  return stats
 })
 
 // 排序后的tokens计算属性
@@ -729,28 +876,42 @@ const matchStatusKeyword = (banStatus, query) => {
   return keywords.some(keyword => keyword.includes(lowerQuery))
 }
 
-// 过滤后的tokens计算属性（搜索 + 排序）
+// 过滤后的tokens计算属性（搜索 + 状态筛选 + 排序）
 const filteredTokens = computed(() => {
-  if (!searchQuery.value.trim()) {
-    return sortedTokens.value
+  let result = sortedTokens.value
+
+  // 1. 应用状态筛选
+  if (selectedStatusFilters.value.size > 0) {
+    result = result.filter(token => {
+      const status = token.ban_status || 'OTHER'
+      // 将 null/undefined 状态归类为 OTHER
+      const normalizedStatus = status === null || status === undefined ? 'OTHER' : status
+      // 检查是否在选中的状态中
+      return selectedStatusFilters.value.has(normalizedStatus)
+    })
   }
 
-  const query = searchQuery.value.toLowerCase().trim()
-  return sortedTokens.value.filter(token => {
-    // 原有字段搜索
-    const matchesOriginalFields = (
-      token.access_token?.toLowerCase().includes(query) ||
-      token.email_note?.toLowerCase().includes(query) ||
-      token.auth_session?.toLowerCase().includes(query) ||
-      token.tag_name?.toLowerCase().includes(query)
-    )
+  // 2. 应用搜索过滤
+  if (searchQuery.value.trim()) {
+    const query = searchQuery.value.toLowerCase().trim()
+    result = result.filter(token => {
+      // 原有字段搜索
+      const matchesOriginalFields = (
+        token.access_token?.toLowerCase().includes(query) ||
+        token.email_note?.toLowerCase().includes(query) ||
+        token.auth_session?.toLowerCase().includes(query) ||
+        token.tag_name?.toLowerCase().includes(query)
+      )
 
-    // 状态搜索（支持中英文关键词）
-    const matchesStatus = matchStatusKeyword(token.ban_status, query)
+      // 状态搜索（支持中英文关键词）
+      const matchesStatus = matchStatusKeyword(token.ban_status, query)
 
-    // 任一匹配即返回
-    return matchesOriginalFields || matchesStatus
-  })
+      // 任一匹配即返回
+      return matchesOriginalFields || matchesStatus
+    })
+  }
+
+  return result
 })
 
 // 总页数
@@ -817,6 +978,31 @@ const setSortType = (type, order) => {
       highlightTimer = null
     }
   }
+}
+
+// 切换状态筛选
+const toggleStatusFilter = (status) => {
+  if (selectedStatusFilters.value.has(status)) {
+    selectedStatusFilters.value.delete(status)
+  } else {
+    selectedStatusFilters.value.add(status)
+  }
+  // 触发响应式更新
+  selectedStatusFilters.value = new Set(selectedStatusFilters.value)
+  // 重置到第一页
+  currentPage.value = 1
+}
+
+// 清除所有状态筛选
+const clearStatusFilters = () => {
+  selectedStatusFilters.value.clear()
+  selectedStatusFilters.value = new Set()
+  currentPage.value = 1
+}
+
+// 检查状态是否被选中
+const isStatusSelected = (status) => {
+  return selectedStatusFilters.value.has(status)
 }
 
 // 处理模态框内容点击 (关闭排序菜单)
@@ -1623,7 +1809,11 @@ const updateTokensFromResults = (results) => {
         }
 
         if (!isEqual(token.portal_info, newPortalInfo)) {
-          token.portal_info = newPortalInfo
+          // 使用 Object.assign 确保触发响应式更新
+          if (!token.portal_info) {
+            token.portal_info = {}
+          }
+          Object.assign(token.portal_info, newPortalInfo)
           hasChanges = true
           console.log(`Updated token ${token.id} portal info:`, token.portal_info)
         }
@@ -2010,7 +2200,11 @@ const checkPageAccountStatus = async () => {
           }
 
           if (!isEqual(token.portal_info, newPortalInfo)) {
-            token.portal_info = newPortalInfo
+            // 使用 Object.assign 确保触发响应式更新
+            if (!token.portal_info) {
+              token.portal_info = {}
+            }
+            Object.assign(token.portal_info, newPortalInfo)
             tokenHasChanges = true
             console.log(`Updated token ${token.id} portal info:`, token.portal_info)
           }
@@ -2032,6 +2226,11 @@ const checkPageAccountStatus = async () => {
         }
       }
     })
+
+    // 强制触发响应式更新,确保UI刷新
+    if (hasChanges) {
+      await nextTick()
+    }
 
     return { hasChanges }
   } catch (error) {
@@ -3214,6 +3413,145 @@ defineExpose({
   .btn.sync-btn {
     min-width: auto;
   }
+}
+
+/* 状态统计栏样式 */
+.status-stats-bar {
+  margin-bottom: 16px;
+  padding: 0 16px;
+}
+
+.status-stats-container {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.status-stat-card {
+  flex: 1;
+  min-width: 120px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--color-background-soft, #f9fafb);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.status-stat-card:hover {
+  background: var(--color-background-mute, #f3f4f6);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.status-stat-card.selected {
+  border-color: var(--color-primary, #3b82f6);
+  background: var(--color-primary-soft, #eff6ff);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+}
+
+.stat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.stat-icon.all {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.stat-icon.active {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+}
+
+.stat-icon.suspended {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+}
+
+.stat-icon.expired {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+}
+
+.stat-icon.invalid {
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  color: white;
+}
+
+.stat-icon.error {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: white;
+}
+
+.stat-icon.other {
+  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+  color: white;
+}
+
+.stat-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--color-text-muted, #6b7280);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text, #1f2937);
+  line-height: 1;
+}
+
+.filter-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: var(--color-primary-soft, #eff6ff);
+  border: 1px solid var(--color-primary, #3b82f6);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--color-primary, #3b82f6);
+  font-weight: 500;
+}
+
+.clear-filter-btn {
+  padding: 4px 12px;
+  background: var(--color-primary, #3b82f6);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clear-filter-btn:hover {
+  background: var(--color-primary-hover, #2563eb);
+  transform: scale(1.05);
 }
 
 .list-header {
