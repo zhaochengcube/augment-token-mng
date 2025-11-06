@@ -1527,6 +1527,79 @@ async fn create_jetbrains_token_file(
 }
 
 #[tauri::command]
+async fn configure_vim_augment(
+    access_token: String,
+    tenant_url: String,
+) -> Result<String, String> {
+    use std::fs;
+    use std::env;
+    use std::path::PathBuf;
+
+    // 获取用户主目录
+    let home_dir = env::var("USERPROFILE")
+        .or_else(|_| env::var("HOME"))
+        .map_err(|_| "Failed to get home directory".to_string())?;
+
+    // 根据操作系统确定配置文件路径
+    let vim_augment_dir = if cfg!(target_os = "windows") {
+        PathBuf::from(&home_dir).join(".local").join("share").join("vim-augment")
+    } else {
+        // Linux/macOS
+        PathBuf::from(&home_dir).join(".local").join("share").join("vim-augment")
+    };
+
+    // 确保目录存在
+    fs::create_dir_all(&vim_augment_dir)
+        .map_err(|e| format!("Failed to create vim-augment directory: {}", e))?;
+
+    let secrets_path = vim_augment_dir.join("secrets.json");
+
+    // 如果文件已存在，先删除
+    if secrets_path.exists() {
+        fs::remove_file(&secrets_path)
+            .map_err(|e| format!("Failed to remove existing secrets.json: {}", e))?;
+    }
+
+    // 构建内层 JSON 对象
+    let inner_json = serde_json::json!({
+        "accessToken": access_token,
+        "tenantURL": tenant_url,
+        "scopes": ["email"]
+    });
+
+    // 将内层 JSON 转换为字符串（这会自动转义引号）
+    let inner_json_str = serde_json::to_string(&inner_json)
+        .map_err(|e| format!("Failed to serialize inner JSON: {}", e))?;
+
+    // 构建外层 JSON 对象
+    let outer_json = serde_json::json!({
+        "augment.sessions": inner_json_str
+    });
+
+    // 将外层 JSON 转换为格式化的字符串
+    let json_content = serde_json::to_string_pretty(&outer_json)
+        .map_err(|e| format!("Failed to serialize outer JSON: {}", e))?;
+
+    // 写入文件
+    fs::write(&secrets_path, json_content)
+        .map_err(|e| format!("Failed to write secrets.json: {}", e))?;
+
+    // 在 Unix 系统上设置文件权限
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(&secrets_path)
+            .map_err(|e| format!("Failed to get file metadata: {}", e))?
+            .permissions();
+        perms.set_mode(0o600); // 仅所有者可读写
+        fs::set_permissions(&secrets_path, perms)
+            .map_err(|e| format!("Failed to set file permissions: {}", e))?;
+    }
+
+    Ok(secrets_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
 async fn open_editor_with_protocol(
     app: tauri::AppHandle,
     protocol_url: String,
@@ -2239,6 +2312,7 @@ fn main() {
             open_data_folder,
             open_editor_with_protocol,
             create_jetbrains_token_file,
+            configure_vim_augment,
             // Outlook 邮箱管理命令
             outlook_save_credentials,
             outlook_get_all_accounts,

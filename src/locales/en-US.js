@@ -470,6 +470,8 @@ export default {
         createEditorTokenFileFailed: 'Failed to create {editor} Token file: {error}',
         openingEditor: 'Opening {editor}...',
         operationFailed: 'Operation failed',
+        vimConfigSuccess: 'Vim configuration written successfully. Please restart Vim to apply the configuration',
+        vimConfigFailed: 'Failed to configure Vim',
         accountBanned: 'Account banned',
         accountStatusNormal: 'Account status normal',
         statusCheckFailed: 'Status check failed',

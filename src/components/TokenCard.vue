@@ -259,6 +259,14 @@
                     <span class="editor-name">CodeBuddy</span>
                   </div>
                 </button>
+                <button @click="handleEditorClick('vim')" class="editor-option vim-option">
+                  <div class="editor-icon">
+                    <img :src="editorIcons.vim" alt="Vim" width="32" height="32" />
+                  </div>
+                  <div class="editor-info">
+                    <span class="editor-name">Vim</span>
+                  </div>
+                </button>
               </div>
             </div>
 
@@ -561,6 +569,7 @@ const editorIcons = {
   qoder: '/icons/qoder.svg',
   vscodium: '/icons/vscodium.svg',
   codebuddy: '/icons/codebuddy.svg',
+  vim: '/icons/vim.svg',
   idea: '/icons/idea.svg',
   pycharm: '/icons/pycharm.svg',
   goland: '/icons/goland.svg',
@@ -935,6 +944,7 @@ const editorNames = {
   'qoder': 'Qoder',
   'vscodium': 'VSCodium',
   'codebuddy': 'CodeBuddy',
+  'vim': 'Vim',
   'idea': 'IntelliJ IDEA',
   'pycharm': 'PyCharm',
   'goland': 'GoLand',
@@ -1008,6 +1018,20 @@ const createJetBrainsTokenFile = async (editorType) => {
   }
 }
 
+// 配置 Vim Augment 插件
+const configureVimAugment = async () => {
+  try {
+    const result = await invoke('configure_vim_augment', {
+      accessToken: props.token.access_token,
+      tenantUrl: props.token.tenant_url
+    })
+
+    return { success: true, filePath: result }
+  } catch (error) {
+    return { success: false, error: error.toString() }
+  }
+}
+
 // 处理编辑器链接点击事件
 const handleEditorClick = async (editorType) => {
   // 如果是 Trae，显示版本选择对话框
@@ -1019,7 +1043,16 @@ const handleEditorClick = async (editorType) => {
   try {
     const editorName = editorNames[editorType] || editorType
 
-    if (jetbrainsEditors.has(editorType)) {
+    if (editorType === 'vim') {
+      // 处理 Vim 配置
+      const result = await configureVimAugment()
+
+      if (result.success) {
+        window.$notify.success(t('messages.vimConfigSuccess'))
+      } else {
+        window.$notify.error(t('messages.vimConfigFailed') + ': ' + result.error)
+      }
+    } else if (jetbrainsEditors.has(editorType)) {
       const result = await createJetBrainsTokenFile(editorType)
 
       if (result.success) {
