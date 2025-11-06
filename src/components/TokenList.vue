@@ -76,8 +76,8 @@
             <div class="status-stats-bar">
               <div class="status-stats-container">
                 <!-- 全部 -->
-                <div :class="['status-stat-card', { 'selected': selectedStatusFilters.size === 0 }]"
-                  @click="clearStatusFilters" :title="$t('tokenList.allStatus')">
+                <div :class="['status-stat-card', { 'selected': selectedStatusFilter === null }]"
+                  @click="selectStatusFilter(null)" :title="$t('tokenList.allStatus')">
                   <div class="stat-icon all">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                       <path
@@ -91,8 +91,8 @@
                 </div>
 
                 <!-- 活跃 -->
-                <div :class="['status-stat-card', 'active', { 'selected': isStatusSelected('ACTIVE') }]"
-                  @click="toggleStatusFilter('ACTIVE')" :title="$t('tokenList.activeStatus')">
+                <div :class="['status-stat-card', 'active', { 'selected': selectedStatusFilter === 'ACTIVE' }]"
+                  @click="selectStatusFilter('ACTIVE')" :title="$t('tokenList.activeStatus')">
                   <div class="stat-icon active">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
@@ -105,8 +105,8 @@
                 </div>
 
                 <!-- 封禁 -->
-                <div :class="['status-stat-card', 'suspended', { 'selected': isStatusSelected('SUSPENDED') }]"
-                  @click="toggleStatusFilter('SUSPENDED')" :title="$t('tokenList.suspendedStatus')">
+                <div :class="['status-stat-card', 'suspended', { 'selected': selectedStatusFilter === 'SUSPENDED' }]"
+                  @click="selectStatusFilter('SUSPENDED')" :title="$t('tokenList.suspendedStatus')">
                   <div class="stat-icon suspended">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                       <path
@@ -119,55 +119,9 @@
                   </div>
                 </div>
 
-                <!-- 过期 -->
-                <div :class="['status-stat-card', 'expired', { 'selected': isStatusSelected('EXPIRED') }]"
-                  @click="toggleStatusFilter('EXPIRED')" :title="$t('tokenList.expiredStatus')">
-                  <div class="stat-icon expired">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                      <path
-                        d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" />
-                    </svg>
-                  </div>
-                  <div class="stat-content">
-                    <div class="stat-label">{{ $t('tokenList.expiredStatus') }}</div>
-                    <div class="stat-value">{{ statusStatistics.EXPIRED }}</div>
-                  </div>
-                </div>
-
-                <!-- 失效 -->
-                <div :class="['status-stat-card', 'invalid', { 'selected': isStatusSelected('INVALID_TOKEN') }]"
-                  @click="toggleStatusFilter('INVALID_TOKEN')" :title="$t('tokenList.invalidStatus')">
-                  <div class="stat-icon invalid">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                      <path
-                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
-                    </svg>
-                  </div>
-                  <div class="stat-content">
-                    <div class="stat-label">{{ $t('tokenList.invalidStatus') }}</div>
-                    <div class="stat-value">{{ statusStatistics.INVALID_TOKEN }}</div>
-                  </div>
-                </div>
-
-                <!-- 错误 -->
-                <div :class="['status-stat-card', 'error', { 'selected': isStatusSelected('ERROR') }]"
-                  @click="toggleStatusFilter('ERROR')" :title="$t('tokenList.errorStatus')">
-                  <div class="stat-icon error">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                      <path
-                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
-                    </svg>
-                  </div>
-                  <div class="stat-content">
-                    <div class="stat-label">{{ $t('tokenList.errorStatus') }}</div>
-                    <div class="stat-value">{{ statusStatistics.ERROR }}</div>
-                  </div>
-                </div>
-
                 <!-- 其他 -->
-                <div v-if="statusStatistics.OTHER > 0"
-                  :class="['status-stat-card', 'other', { 'selected': isStatusSelected('OTHER') }]"
-                  @click="toggleStatusFilter('OTHER')" :title="$t('tokenList.otherStatus')">
+                <div :class="['status-stat-card', 'other', { 'selected': selectedStatusFilter === 'OTHER' }]"
+                  @click="selectStatusFilter('OTHER')" :title="$t('tokenList.otherStatus')">
                   <div class="stat-icon other">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                       <path
@@ -179,14 +133,6 @@
                     <div class="stat-value">{{ statusStatistics.OTHER }}</div>
                   </div>
                 </div>
-              </div>
-
-              <!-- 筛选提示 -->
-              <div v-if="selectedStatusFilters.size > 0" class="filter-hint">
-                <span>{{ $t('tokenList.filteredResults', { count: filteredTokens.length }) }}</span>
-                <button @click="clearStatusFilters" class="clear-filter-btn">
-                  {{ $t('tokenList.clearFilter') }}
-                </button>
               </div>
             </div>
 
@@ -637,8 +583,8 @@ const showSortMenu = ref(false) // 排序下拉菜单显示状态
 // 搜索状态管理
 const searchQuery = ref('')
 
-// 状态筛选管理
-const selectedStatusFilters = ref(new Set()) // 使用 Set 存储选中的状态
+// 状态筛选管理 - 改为单选模式
+const selectedStatusFilter = ref(null) // null表示"全部", 其他值为具体状态
 
 // 分页状态管理
 const currentPage = ref(1)           // 当前页码
@@ -783,14 +729,11 @@ const expiredTokensCount = computed(() => {
   return tokens.value.filter(token => token.ban_status === 'EXPIRED').length
 })
 
-// 状态统计计算属性
+// 状态统计计算属性 - 简化为4个类别
 const statusStatistics = computed(() => {
   const stats = {
     ACTIVE: 0,
     SUSPENDED: 0,
-    EXPIRED: 0,
-    INVALID_TOKEN: 0,
-    ERROR: 0,
     OTHER: 0,
     TOTAL: tokens.value.length
   }
@@ -801,13 +744,8 @@ const statusStatistics = computed(() => {
       stats.ACTIVE++
     } else if (status === 'SUSPENDED') {
       stats.SUSPENDED++
-    } else if (status === 'EXPIRED') {
-      stats.EXPIRED++
-    } else if (status === 'INVALID_TOKEN') {
-      stats.INVALID_TOKEN++
-    } else if (status === 'ERROR') {
-      stats.ERROR++
     } else {
+      // 所有其他状态(EXPIRED, INVALID_TOKEN, ERROR等)都归入OTHER
       stats.OTHER++
     }
   })
@@ -880,14 +818,21 @@ const matchStatusKeyword = (banStatus, query) => {
 const filteredTokens = computed(() => {
   let result = sortedTokens.value
 
-  // 1. 应用状态筛选
-  if (selectedStatusFilters.value.size > 0) {
+  // 1. 应用状态筛选 - 单选模式
+  if (selectedStatusFilter.value !== null) {
     result = result.filter(token => {
-      const status = token.ban_status || 'OTHER'
-      // 将 null/undefined 状态归类为 OTHER
-      const normalizedStatus = status === null || status === undefined ? 'OTHER' : status
-      // 检查是否在选中的状态中
-      return selectedStatusFilters.value.has(normalizedStatus)
+      const status = token.ban_status
+
+      if (selectedStatusFilter.value === 'ACTIVE') {
+        return status === 'ACTIVE'
+      } else if (selectedStatusFilter.value === 'SUSPENDED') {
+        return status === 'SUSPENDED'
+      } else if (selectedStatusFilter.value === 'OTHER') {
+        // OTHER包含除ACTIVE和SUSPENDED以外的所有状态
+        return status !== 'ACTIVE' && status !== 'SUSPENDED'
+      }
+
+      return true
     })
   }
 
@@ -980,29 +925,16 @@ const setSortType = (type, order) => {
   }
 }
 
-// 切换状态筛选
-const toggleStatusFilter = (status) => {
-  if (selectedStatusFilters.value.has(status)) {
-    selectedStatusFilters.value.delete(status)
+// 选择状态筛选 - 单选模式
+const selectStatusFilter = (status) => {
+  // 如果点击当前已选中的状态,则取消选择(回到"全部")
+  if (selectedStatusFilter.value === status) {
+    selectedStatusFilter.value = null
   } else {
-    selectedStatusFilters.value.add(status)
+    selectedStatusFilter.value = status
   }
-  // 触发响应式更新
-  selectedStatusFilters.value = new Set(selectedStatusFilters.value)
   // 重置到第一页
   currentPage.value = 1
-}
-
-// 清除所有状态筛选
-const clearStatusFilters = () => {
-  selectedStatusFilters.value.clear()
-  selectedStatusFilters.value = new Set()
-  currentPage.value = 1
-}
-
-// 检查状态是否被选中
-const isStatusSelected = (status) => {
-  return selectedStatusFilters.value.has(status)
 }
 
 // 处理模态框内容点击 (关闭排序菜单)
