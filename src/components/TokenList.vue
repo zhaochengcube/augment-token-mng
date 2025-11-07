@@ -3611,7 +3611,7 @@ defineExpose({
 }
 
 .stat-icon.all {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   color: white;
 }
 
@@ -4581,5 +4581,44 @@ defineExpose({
 
 [data-theme='dark'] .suffix-extract-btn:disabled {
   color: var(--color-text-muted, #6b7280);
+}
+
+/* 状态统计卡片暗色主题 */
+[data-theme='dark'] .status-stat-card {
+  background: rgba(55, 65, 81, 0.5);
+  border-color: transparent;
+}
+
+[data-theme='dark'] .status-stat-card:hover {
+  background: rgba(55, 65, 81, 0.7);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme='dark'] .status-stat-card.selected {
+  border-color: var(--color-primary, #3b82f6);
+  background: rgba(59, 130, 246, 0.2);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+}
+
+[data-theme='dark'] .stat-label {
+  color: var(--color-text-secondary, #9ca3af);
+}
+
+[data-theme='dark'] .stat-value {
+  color: var(--color-text-primary, #f9fafb);
+}
+
+[data-theme='dark'] .filter-hint {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: var(--color-primary, #3b82f6);
+  color: var(--color-primary, #60a5fa);
+}
+
+[data-theme='dark'] .clear-filter-btn {
+  background: var(--color-primary, #3b82f6);
+}
+
+[data-theme='dark'] .clear-filter-btn:hover {
+  background: var(--color-primary-hover, #2563eb);
 }
 </style>
