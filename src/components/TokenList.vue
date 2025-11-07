@@ -238,6 +238,82 @@
                   </Transition>
                 </div>
 
+                <!-- 邮箱后缀筛选下拉菜单 -->
+                <div class="email-suffix-dropdown">
+                  <button class="email-suffix-btn" @click.stop="toggleEmailSuffixMenu"
+                    :title="selectedEmailSuffix ? `筛选: ${selectedEmailSuffix}` : '按邮箱后缀筛选'"
+                    :class="{ 'active': selectedEmailSuffix }">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path
+                        d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
+                    </svg>
+                  </button>
+
+                  <!-- 下拉菜单 -->
+                  <Transition name="dropdown">
+                    <div v-if="showEmailSuffixMenu" class="email-suffix-menu" @click.stop>
+                      <!-- 顶部操作栏 -->
+                      <div class="suffix-menu-header">
+                        <!-- 全部选项 -->
+                        <button
+                          :class="['suffix-option', 'suffix-option-all', { active: selectedEmailSuffix === null }]"
+                          @click="clearEmailSuffixFilter">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                              d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z" />
+                          </svg>
+                          <span>全部</span>
+                          <span class="suffix-count">{{ statusFilteredTokens.length }}</span>
+                          <svg v-if="selectedEmailSuffix === null" width="16" height="16" viewBox="0 0 24 24"
+                            fill="currentColor" class="check-icon">
+                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                          </svg>
+                        </button>
+
+                        <!-- 提取按钮 -->
+                        <button class="suffix-extract-btn" @click="extractEmailSuffixes"
+                          :disabled="emailSuffixes.length === 0"
+                          :title="emailSuffixes.length === 0 ? '暂无邮箱后缀可提取' : '复制所有邮箱后缀到剪贴板'">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                              d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
+                          </svg>
+                          <span>提取</span>
+                        </button>
+                      </div>
+
+                      <div v-if="emailSuffixes.length > 0" class="sort-divider"></div>
+
+                      <!-- 邮箱后缀选项 -->
+                      <div v-if="emailSuffixes.length > 0" class="suffix-list">
+                        <button v-for="suffix in emailSuffixes" :key="suffix"
+                          :class="['suffix-option', { active: selectedEmailSuffix === suffix }]"
+                          @click="selectEmailSuffix(suffix)">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                              d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                          </svg>
+                          <span class="suffix-text">{{ suffix }}</span>
+                          <span class="suffix-count">{{ emailSuffixStatistics[suffix] }}</span>
+                          <svg v-if="selectedEmailSuffix === suffix" width="16" height="16" viewBox="0 0 24 24"
+                            fill="currentColor" class="check-icon">
+                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                          </svg>
+                        </button>
+                      </div>
+
+                      <!-- 无邮箱后缀提示 -->
+                      <div v-else class="no-suffix-hint">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" opacity="0.3">
+                          <path
+                            d="M11 15h2v2h-2zm0-8h2v6h-2zm.99-5C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z" />
+                        </svg>
+                        <p>暂无邮箱数据</p>
+                      </div>
+                    </div>
+                  </Transition>
+                </div>
+
                 <!-- 其他按钮 -->
                 <button class="open-folder-btn" @click="openDataFolder" :title="$t('bookmarkManager.openDataFolder')">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -586,6 +662,10 @@ const searchQuery = ref('')
 // 状态筛选管理 - 改为单选模式
 const selectedStatusFilter = ref(null) // null表示"全部", 其他值为具体状态
 
+// 邮箱后缀筛选管理
+const selectedEmailSuffix = ref(null) // null表示"全部", 其他值为具体邮箱后缀
+const showEmailSuffixMenu = ref(false) // 邮箱后缀下拉菜单显示状态
+
 // 分页状态管理
 const currentPage = ref(1)           // 当前页码
 const pageSize = ref(20)             // 每页显示数量(默认 20)
@@ -677,6 +757,25 @@ const extractEmail = (item) => {
   return null
 }
 
+// 从邮箱地址中提取后缀的辅助函数
+// 返回包含 @ 符号的后缀,如 "@gmail.com"
+const extractEmailSuffix = (email) => {
+  if (!email || typeof email !== 'string') {
+    return null
+  }
+
+  const trimmedEmail = email.trim()
+  const atIndex = trimmedEmail.indexOf('@')
+
+  // 验证 @ 符号存在且不在末尾
+  if (atIndex === -1 || atIndex >= trimmedEmail.length - 1) {
+    return null
+  }
+
+  // 返回包含 @ 符号的后缀
+  return trimmedEmail.substring(atIndex)
+}
+
 // 初始化 Session 输入框
 const initializeSessionInputs = (count) => {
   const inputs = []
@@ -753,6 +852,56 @@ const statusStatistics = computed(() => {
   return stats
 })
 
+// 状态筛选后的tokens - 用于邮箱后缀统计
+const statusFilteredTokens = computed(() => {
+  let result = tokens.value
+
+  // 应用状态筛选
+  if (selectedStatusFilter.value !== null) {
+    result = result.filter(token => {
+      const status = token.ban_status
+
+      if (selectedStatusFilter.value === 'ACTIVE') {
+        return status === 'ACTIVE'
+      } else if (selectedStatusFilter.value === 'SUSPENDED') {
+        return status === 'SUSPENDED'
+      } else if (selectedStatusFilter.value === 'OTHER') {
+        // OTHER包含除ACTIVE和SUSPENDED以外的所有状态
+        return status !== 'ACTIVE' && status !== 'SUSPENDED'
+      }
+
+      return true
+    })
+  }
+
+  return result
+})
+
+// 邮箱后缀统计 - 基于状态筛选后的token列表
+const emailSuffixStatistics = computed(() => {
+  const stats = {}
+
+  statusFilteredTokens.value.forEach(token => {
+    // 使用辅助函数提取邮箱后缀
+    const suffix = extractEmailSuffix(token.email_note)
+    if (suffix) {
+      stats[suffix] = (stats[suffix] || 0) + 1
+    }
+  })
+
+  return stats
+})
+
+// 提取所有唯一的邮箱后缀 - 按数量从大到小排序
+const emailSuffixes = computed(() => {
+  const stats = emailSuffixStatistics.value
+
+  // 转换为数组并按数量排序(从大到小)
+  return Object.keys(stats).sort((a, b) => {
+    return stats[b] - stats[a]
+  })
+})
+
 // 排序后的tokens计算属性
 const sortedTokens = computed(() => {
   if (tokens.value.length === 0) return []
@@ -814,7 +963,7 @@ const matchStatusKeyword = (banStatus, query) => {
   return keywords.some(keyword => keyword.includes(lowerQuery))
 }
 
-// 过滤后的tokens计算属性（搜索 + 状态筛选 + 排序）
+// 过滤后的tokens计算属性（搜索 + 状态筛选 + 邮箱后缀筛选 + 排序）
 const filteredTokens = computed(() => {
   let result = sortedTokens.value
 
@@ -836,7 +985,16 @@ const filteredTokens = computed(() => {
     })
   }
 
-  // 2. 应用搜索过滤
+  // 2. 应用邮箱后缀筛选
+  if (selectedEmailSuffix.value !== null) {
+    result = result.filter(token => {
+      // 使用辅助函数提取邮箱后缀
+      const suffix = extractEmailSuffix(token.email_note)
+      return suffix === selectedEmailSuffix.value
+    })
+  }
+
+  // 3. 应用搜索过滤
   if (searchQuery.value.trim()) {
     const query = searchQuery.value.toLowerCase().trim()
     result = result.filter(token => {
@@ -937,16 +1095,71 @@ const selectStatusFilter = (status) => {
   currentPage.value = 1
 }
 
-// 处理模态框内容点击 (关闭排序菜单)
+// 切换邮箱后缀筛选菜单显示
+const toggleEmailSuffixMenu = () => {
+  showEmailSuffixMenu.value = !showEmailSuffixMenu.value
+}
+
+// 选择邮箱后缀筛选
+const selectEmailSuffix = (suffix) => {
+  // 如果点击当前已选中的后缀,则取消选择(回到"全部")
+  if (selectedEmailSuffix.value === suffix) {
+    selectedEmailSuffix.value = null
+  } else {
+    selectedEmailSuffix.value = suffix
+  }
+  showEmailSuffixMenu.value = false
+  // 重置到第一页
+  currentPage.value = 1
+}
+
+// 清除邮箱后缀筛选
+const clearEmailSuffixFilter = () => {
+  selectedEmailSuffix.value = null
+  showEmailSuffixMenu.value = false
+  currentPage.value = 1
+}
+
+// 提取邮箱后缀到剪贴板
+const extractEmailSuffixes = async () => {
+  if (emailSuffixes.value.length === 0) {
+    window.$notify.warning('暂无邮箱后缀可提取')
+    return
+  }
+
+  try {
+    // 将邮箱后缀以逗号分隔的格式复制到剪贴板
+    const suffixText = emailSuffixes.value.join(', ')
+    await navigator.clipboard.writeText(suffixText)
+
+    window.$notify.success(`已复制 ${emailSuffixes.value.length} 个邮箱后缀到剪贴板`)
+
+    // 关闭下拉菜单
+    showEmailSuffixMenu.value = false
+  } catch (error) {
+    console.error('Failed to copy email suffixes:', error)
+    window.$notify.error('复制失败,请重试')
+  }
+}
+
+// 处理模态框内容点击 (关闭排序菜单和邮箱后缀菜单)
 const handleModalContentClick = (event) => {
-  if (!showSortMenu.value) return
-
-  // 检查点击目标是否在排序下拉菜单内
   const target = event.target
-  const sortDropdown = document.querySelector('.sort-dropdown')
 
-  if (sortDropdown && !sortDropdown.contains(target)) {
-    showSortMenu.value = false
+  // 关闭排序菜单
+  if (showSortMenu.value) {
+    const sortDropdown = document.querySelector('.sort-dropdown')
+    if (sortDropdown && !sortDropdown.contains(target)) {
+      showSortMenu.value = false
+    }
+  }
+
+  // 关闭邮箱后缀菜单
+  if (showEmailSuffixMenu.value) {
+    const emailSuffixDropdown = document.querySelector('.email-suffix-dropdown')
+    if (emailSuffixDropdown && !emailSuffixDropdown.contains(target)) {
+      showEmailSuffixMenu.value = false
+    }
   }
 }
 
@@ -3642,6 +3855,177 @@ defineExpose({
   margin: 4px 0;
 }
 
+/* 邮箱后缀筛选下拉菜单 */
+.email-suffix-dropdown {
+  position: relative;
+}
+
+.email-suffix-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  width: 36px;
+  padding: 0;
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 6px;
+  background: var(--color-background, #ffffff);
+  color: var(--color-text, #374151);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.email-suffix-btn:hover {
+  background: var(--color-background-soft, #f9fafb);
+  border-color: var(--color-primary, #2563eb);
+}
+
+.email-suffix-btn.active {
+  background: var(--color-primary-soft, rgba(37, 99, 235, 0.1));
+  border-color: var(--color-primary, #2563eb);
+  color: var(--color-primary, #2563eb);
+}
+
+/* 邮箱后缀下拉菜单容器 */
+.email-suffix-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 220px;
+  max-width: 300px;
+  background: var(--color-background, #ffffff);
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  overflow: hidden;
+}
+
+/* 邮箱后缀菜单顶部操作栏 */
+.suffix-menu-header {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--color-background-soft, #f9fafb);
+  border-bottom: 1px solid var(--color-border, #e5e7eb);
+}
+
+.suffix-option-all {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 提取按钮样式 */
+.suffix-extract-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 6px;
+  background: var(--color-background, #ffffff);
+  color: var(--color-primary, #2563eb);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.suffix-extract-btn:hover:not(:disabled) {
+  background: var(--color-primary-soft, rgba(37, 99, 235, 0.1));
+  border-color: var(--color-primary, #2563eb);
+  color: var(--color-primary, #2563eb);
+}
+
+.suffix-extract-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.suffix-extract-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  color: var(--color-text-muted, #9ca3af);
+}
+
+/* 邮箱后缀列表容器 */
+.suffix-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* 邮箱后缀选项 */
+.suffix-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: var(--color-text, #374151);
+  cursor: pointer;
+  transition: background 0.2s;
+  text-align: left;
+}
+
+.suffix-option:hover {
+  background: var(--color-background-soft, #f9fafb);
+}
+
+.suffix-option.active {
+  background: var(--color-primary-soft, rgba(37, 99, 235, 0.1));
+  color: var(--color-primary, #2563eb);
+}
+
+.suffix-option .suffix-text {
+  flex: 1;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suffix-option .suffix-count {
+  font-size: 12px;
+  color: var(--color-text-secondary, #6b7280);
+  background: var(--color-background-soft, #f3f4f6);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+  min-width: 24px;
+  text-align: center;
+}
+
+.suffix-option.active .suffix-count {
+  background: var(--color-primary-soft, rgba(37, 99, 235, 0.2));
+  color: var(--color-primary, #2563eb);
+}
+
+.suffix-option .check-icon {
+  color: var(--color-primary, #2563eb);
+}
+
+/* 无邮箱后缀提示 */
+.no-suffix-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  color: var(--color-text-secondary, #6b7280);
+}
+
+.no-suffix-hint p {
+  margin-top: 12px;
+  font-size: 14px;
+  color: var(--color-text-muted, #9ca3af);
+}
+
 /* 下拉菜单动画 */
 .dropdown-enter-active,
 .dropdown-leave-active {
@@ -4122,5 +4506,80 @@ defineExpose({
 
 [data-theme='dark'] .sort-divider {
   background: var(--color-border, #374151);
+}
+
+/* 邮箱后缀筛选暗色主题 */
+[data-theme='dark'] .email-suffix-btn {
+  background: var(--color-surface, #1f2937);
+  border-color: var(--color-border, #374151);
+  color: var(--color-text-primary, #f9fafb);
+}
+
+[data-theme='dark'] .email-suffix-btn:hover {
+  background: var(--color-surface-alt, #111827);
+  border-color: var(--color-primary, #3b82f6);
+}
+
+[data-theme='dark'] .email-suffix-btn.active {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: var(--color-primary, #3b82f6);
+  color: var(--color-primary, #3b82f6);
+}
+
+[data-theme='dark'] .email-suffix-menu {
+  background: var(--color-surface, #1f2937);
+  border-color: var(--color-border, #374151);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme='dark'] .suffix-option {
+  color: var(--color-text-primary, #f9fafb);
+}
+
+[data-theme='dark'] .suffix-option:hover {
+  background: var(--color-surface-alt, #111827);
+}
+
+[data-theme='dark'] .suffix-option.active {
+  background: rgba(59, 130, 246, 0.2);
+  color: var(--color-primary, #3b82f6);
+}
+
+[data-theme='dark'] .suffix-option .suffix-count {
+  background: var(--color-surface-alt, #111827);
+  color: var(--color-text-secondary, #9ca3af);
+}
+
+[data-theme='dark'] .suffix-option.active .suffix-count {
+  background: rgba(59, 130, 246, 0.3);
+  color: var(--color-primary, #3b82f6);
+}
+
+[data-theme='dark'] .no-suffix-hint {
+  color: var(--color-text-secondary, #9ca3af);
+}
+
+[data-theme='dark'] .no-suffix-hint p {
+  color: var(--color-text-muted, #6b7280);
+}
+
+[data-theme='dark'] .suffix-menu-header {
+  background: var(--color-surface-alt, #111827);
+  border-bottom-color: var(--color-border, #374151);
+}
+
+[data-theme='dark'] .suffix-extract-btn {
+  background: var(--color-surface, #1f2937);
+  border-color: var(--color-border, #374151);
+  color: var(--color-primary, #3b82f6);
+}
+
+[data-theme='dark'] .suffix-extract-btn:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: var(--color-primary, #3b82f6);
+}
+
+[data-theme='dark'] .suffix-extract-btn:disabled {
+  color: var(--color-text-muted, #6b7280);
 }
 </style>
