@@ -472,6 +472,8 @@ export default {
         operationFailed: 'Operation failed',
         vimConfigSuccess: 'Vim configuration written successfully. Please restart Vim to apply the configuration',
         vimConfigFailed: 'Failed to configure Vim',
+        auggieConfigSuccess: 'Auggie configuration written successfully. Please restart Auggie to apply the configuration',
+        auggieConfigFailed: 'Failed to configure Auggie',
         accountBanned: 'Account banned',
         accountStatusNormal: 'Account status normal',
         statusCheckFailed: 'Status check failed',

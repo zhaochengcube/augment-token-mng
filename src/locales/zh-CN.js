@@ -474,6 +474,8 @@ export default {
         operationFailed: '操作失败',
         vimConfigSuccess: 'Vim 配置已写入，请重启 Vim 以使配置生效',
         vimConfigFailed: 'Vim 配置失败',
+        auggieConfigSuccess: 'Auggie 配置已写入，请重启 Auggie 以使配置生效',
+        auggieConfigFailed: 'Auggie 配置失败',
         accountBanned: '账号已封禁',
         accountStatusNormal: '账号状态正常',
         statusCheckFailed: '状态检测失败',

@@ -267,6 +267,14 @@
                     <span class="editor-name">Vim</span>
                   </div>
                 </button>
+                <button @click="handleEditorClick('auggie')" class="editor-option auggie-option">
+                  <div class="editor-icon">
+                    <img :src="editorIcons.auggie" alt="Auggie" width="32" height="32" />
+                  </div>
+                  <div class="editor-info">
+                    <span class="editor-name">Auggie</span>
+                  </div>
+                </button>
               </div>
             </div>
 
@@ -559,8 +567,32 @@ const hasStatusBadge = computed(() => {
 
 const showStatusIndicator = computed(() => hasTag.value || hasStatusBadge.value)
 
+// 当前主题
+const currentTheme = ref('light')
+
+// 监听主题变化
+const updateTheme = () => {
+  currentTheme.value = document.documentElement.dataset.theme || 'light'
+}
+
+onMounted(() => {
+  updateTheme()
+  // 监听主题变化
+  const observer = new MutationObserver(() => {
+    updateTheme()
+  })
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-theme']
+  })
+  // 清理
+  onUnmounted(() => {
+    observer.disconnect()
+  })
+})
+
 // 图标映射
-const editorIcons = {
+const editorIcons = computed(() => ({
   vscode: '/icons/vscode.svg',
   cursor: '/icons/cursor.svg',
   kiro: '/icons/kiro.svg',
@@ -570,6 +602,7 @@ const editorIcons = {
   vscodium: '/icons/vscodium.svg',
   codebuddy: '/icons/codebuddy.svg',
   vim: '/icons/vim.svg',
+  auggie: currentTheme.value === 'dark' ? '/icons/auggie_dark.svg' : '/icons/auggie.svg',
   idea: '/icons/idea.svg',
   pycharm: '/icons/pycharm.svg',
   goland: '/icons/goland.svg',
@@ -582,7 +615,7 @@ const editorIcons = {
   rubymine: '/icons/rubymine.svg',
   aqua: '/icons/aqua.svg',
   androidstudio: '/icons/androidstudio.svg'
-}
+}))
 
 // 判断是否为封禁状态且有 suspensions 数据
 const isBannedWithSuspensions = computed(() => {
@@ -945,6 +978,7 @@ const editorNames = {
   'vscodium': 'VSCodium',
   'codebuddy': 'CodeBuddy',
   'vim': 'Vim',
+  'auggie': 'Auggie',
   'idea': 'IntelliJ IDEA',
   'pycharm': 'PyCharm',
   'goland': 'GoLand',
@@ -1032,6 +1066,20 @@ const configureVimAugment = async () => {
   }
 }
 
+// 配置 Auggie 编辑器
+const configureAuggie = async () => {
+  try {
+    const result = await invoke('configure_auggie', {
+      accessToken: props.token.access_token,
+      tenantUrl: props.token.tenant_url
+    })
+
+    return { success: true, filePath: result }
+  } catch (error) {
+    return { success: false, error: error.toString() }
+  }
+}
+
 // 处理编辑器链接点击事件
 const handleEditorClick = async (editorType) => {
   // 如果是 Trae，显示版本选择对话框
@@ -1051,6 +1099,15 @@ const handleEditorClick = async (editorType) => {
         window.$notify.success(t('messages.vimConfigSuccess'))
       } else {
         window.$notify.error(t('messages.vimConfigFailed') + ': ' + result.error)
+      }
+    } else if (editorType === 'auggie') {
+      // 处理 Auggie 配置
+      const result = await configureAuggie()
+
+      if (result.success) {
+        window.$notify.success(t('messages.auggieConfigSuccess'))
+      } else {
+        window.$notify.error(t('messages.auggieConfigFailed') + ': ' + result.error)
       }
     } else if (jetbrainsEditors.has(editorType)) {
       const result = await createJetBrainsTokenFile(editorType)
@@ -2318,7 +2375,9 @@ defineExpose({
 .windsurf-option .editor-icon,
 .qoder-option .editor-icon,
 .vscodium-option .editor-icon,
-.codebuddy-option .editor-icon {
+.codebuddy-option .editor-icon,
+.vim-option .editor-icon,
+.auggie-option .editor-icon {
   background: var(--color-info-surface, #f0f9ff);
   border-color: var(--color-info-surface, #e0f2fe);
 }

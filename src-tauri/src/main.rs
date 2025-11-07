@@ -1540,13 +1540,8 @@ async fn configure_vim_augment(
         .or_else(|_| env::var("HOME"))
         .map_err(|_| "Failed to get home directory".to_string())?;
 
-    // 根据操作系统确定配置文件路径
-    let vim_augment_dir = if cfg!(target_os = "windows") {
-        PathBuf::from(&home_dir).join(".local").join("share").join("vim-augment")
-    } else {
-        // Linux/macOS
-        PathBuf::from(&home_dir).join(".local").join("share").join("vim-augment")
-    };
+    // 配置文件路径 (所有系统统一使用 .local/share/vim-augment)
+    let vim_augment_dir = PathBuf::from(&home_dir).join(".local").join("share").join("vim-augment");
 
     // 确保目录存在
     fs::create_dir_all(&vim_augment_dir)
@@ -1597,6 +1592,65 @@ async fn configure_vim_augment(
     }
 
     Ok(secrets_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+async fn configure_auggie(
+    access_token: String,
+    tenant_url: String,
+) -> Result<String, String> {
+    use std::fs;
+    use std::env;
+    use std::path::PathBuf;
+
+    // 获取用户主目录
+    let home_dir = env::var("USERPROFILE")
+        .or_else(|_| env::var("HOME"))
+        .map_err(|_| "Failed to get home directory".to_string())?;
+
+    // 确定 .augment 目录路径
+    let augment_dir = PathBuf::from(&home_dir).join(".augment");
+
+    // 确保目录存在
+    fs::create_dir_all(&augment_dir)
+        .map_err(|e| format!("Failed to create .augment directory: {}", e))?;
+
+    let session_path = augment_dir.join("session.json");
+
+    // 如果文件已存在，先删除
+    if session_path.exists() {
+        fs::remove_file(&session_path)
+            .map_err(|e| format!("Failed to remove existing session.json: {}", e))?;
+    }
+
+    // 构建 JSON 对象
+    let session_json = serde_json::json!({
+        "accessToken": access_token,
+        "tenantURL": tenant_url,
+        "scopes": ["read", "write"]
+    });
+
+    // 将 JSON 转换为格式化的字符串
+    let json_content = serde_json::to_string_pretty(&session_json)
+        .map_err(|e| format!("Failed to serialize session JSON: {}", e))?;
+
+    // 写入文件
+    fs::write(&session_path, json_content)
+        .map_err(|e| format!("Failed to write session.json: {}", e))?;
+
+    // 在 Unix 系统上设置文件权限
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(&session_path)
+            .map_err(|e| format!("Failed to get file metadata: {}", e))?
+            .permissions();
+        perms.set_mode(0o600); // 仅所有者可读写
+        fs::set_permissions(&session_path, perms)
+            .map_err(|e| format!("Failed to set file permissions: {}", e))?;
+    }
+
+    Ok(session_path.to_string_lossy().to_string())
 }
 
 #[tauri::command]
@@ -2313,6 +2367,7 @@ fn main() {
             open_editor_with_protocol,
             create_jetbrains_token_file,
             configure_vim_augment,
+            configure_auggie,
             // Outlook 邮箱管理命令
             outlook_save_credentials,
             outlook_get_all_accounts,
