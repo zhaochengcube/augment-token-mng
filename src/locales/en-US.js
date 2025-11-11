@@ -294,6 +294,7 @@ export default {
     tagLabel: 'Tag',
     tagPlaceholder: 'Enter a short label for this token',
     tagColorPicker: 'Select tag color',
+    clearTag: 'Clear tag',
     optional: 'Optional',
     required: 'Required',
     save: 'Save',

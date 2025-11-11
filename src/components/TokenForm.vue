@@ -67,14 +67,50 @@
             <div class="form-group tag-group">
               <label for="tagName">{{ $t('tokenForm.tagLabel') }} ({{ $t('tokenForm.optional') }})</label>
               <div class="tag-input-row">
-                <input
-                  id="tagName"
-                  v-model="formData.tagName"
-                  type="text"
-                  class="tag-name-input"
-                  :placeholder="$t('tokenForm.tagPlaceholder')"
-                  :disabled="isLoading"
-                >
+                <div class="tag-autocomplete-wrapper">
+                  <input
+                    id="tagName"
+                    v-model="formData.tagName"
+                    type="text"
+                    class="tag-name-input"
+                    :placeholder="$t('tokenForm.tagPlaceholder')"
+                    :disabled="isLoading"
+                    @input="handleTagInput"
+                    @focus="showTagSuggestions = true"
+                    @blur="handleTagBlur"
+                    @keydown.down.prevent="navigateSuggestions(1)"
+                    @keydown.up.prevent="navigateSuggestions(-1)"
+                    @keydown.enter.prevent="selectSuggestion(selectedSuggestionIndex)"
+                    @keydown.escape="showTagSuggestions = false"
+                  >
+                  <button
+                    v-if="formData.tagName"
+                    type="button"
+                    class="tag-clear-btn"
+                    :title="$t('tokenForm.clearTag')"
+                    @click="clearTag"
+                    :disabled="isLoading"
+                  >
+                    ×
+                  </button>
+                  <Transition name="dropdown">
+                    <div v-if="showTagSuggestions && filteredTagSuggestions.length > 0" class="tag-suggestions">
+                      <div
+                        v-for="(suggestion, index) in filteredTagSuggestions"
+                        :key="suggestion.name"
+                        :class="['tag-suggestion-item', { selected: index === selectedSuggestionIndex }]"
+                        @mousedown.prevent="selectTagSuggestion(suggestion)"
+                        @mouseenter="selectedSuggestionIndex = index"
+                      >
+                        <span
+                          class="tag-preview"
+                          :style="{ backgroundColor: suggestion.color }"
+                        ></span>
+                        <span class="tag-suggestion-name">{{ suggestion.name }}</span>
+                      </div>
+                    </div>
+                  </Transition>
+                </div>
                 <button
                   type="button"
                   class="tag-color-display"
@@ -204,6 +240,10 @@ const props = defineProps({
   token: {
     type: Object,
     default: null
+  },
+  allTokens: {
+    type: Array,
+    default: () => []
   }
 })
 
@@ -242,6 +282,10 @@ const isImportingSession = ref(false)
 const sessionImportProgress = ref('')
 const isOpeningBrowser = ref(false)
 
+// Tag autocomplete state
+const showTagSuggestions = ref(false)
+const selectedSuggestionIndex = ref(0)
+
 // Computed properties
 const isEditing = computed(() => !!props.token)
 
@@ -252,6 +296,43 @@ const isFormValid = computed(() => {
          !errors.value.accessToken &&
          !errors.value.portalUrl &&
          !errors.value.emailNote
+})
+
+// 从所有 tokens 中提取已使用的标签
+const existingTags = computed(() => {
+  const tagMap = new Map()
+
+  props.allTokens.forEach(token => {
+    if (token.tag_name && token.tag_name.trim()) {
+      const originalName = token.tag_name.trim()
+      const normalizedName = originalName.toLowerCase() // 统一转小写用于去重
+      const tagColor = token.tag_color || defaultTagColor
+
+      // 如果标签已存在(不区分大小写),保留第一次出现的原始名称和颜色
+      if (!tagMap.has(normalizedName)) {
+        tagMap.set(normalizedName, { name: originalName, color: tagColor })
+      }
+    }
+  })
+
+  // 转换为数组并按名称排序
+  return Array.from(tagMap.values())
+    .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()))
+})
+
+// 根据输入过滤标签建议
+const filteredTagSuggestions = computed(() => {
+  const input = formData.value.tagName.trim().toLowerCase()
+
+  // 如果没有输入,显示所有标签
+  if (!input) {
+    return existingTags.value
+  }
+
+  // 过滤匹配的标签
+  return existingTags.value.filter(tag =>
+    tag.name.toLowerCase().includes(input)
+  )
 })
 
 // Watch for token prop changes (for editing)
@@ -385,6 +466,54 @@ const handleTagColorInput = (event) => {
   if (typeof value === 'string' && value) {
     formData.value.tagColor = value
   }
+}
+
+// 标签输入处理
+const handleTagInput = () => {
+  showTagSuggestions.value = true
+  selectedSuggestionIndex.value = 0
+}
+
+// 标签输入框失焦处理
+const handleTagBlur = () => {
+  // 延迟关闭,以便点击建议项时能够触发
+  setTimeout(() => {
+    showTagSuggestions.value = false
+  }, 200)
+}
+
+// 导航建议列表
+const navigateSuggestions = (direction) => {
+  if (filteredTagSuggestions.value.length === 0) return
+
+  selectedSuggestionIndex.value += direction
+
+  if (selectedSuggestionIndex.value < 0) {
+    selectedSuggestionIndex.value = filteredTagSuggestions.value.length - 1
+  } else if (selectedSuggestionIndex.value >= filteredTagSuggestions.value.length) {
+    selectedSuggestionIndex.value = 0
+  }
+}
+
+// 选择建议项
+const selectSuggestion = (index) => {
+  if (index >= 0 && index < filteredTagSuggestions.value.length) {
+    selectTagSuggestion(filteredTagSuggestions.value[index])
+  }
+}
+
+// 选择标签建议
+const selectTagSuggestion = (suggestion) => {
+  formData.value.tagName = suggestion.name
+  formData.value.tagColor = suggestion.color
+  showTagSuggestions.value = false
+}
+
+// 清空标签
+const clearTag = () => {
+  formData.value.tagName = ''
+  formData.value.tagColor = defaultTagColor
+  showTagSuggestions.value = false
 }
 
 // Session import method
@@ -659,8 +788,93 @@ onUnmounted(() => {
   gap: 12px;
 }
 
-.tag-name-input {
+.tag-autocomplete-wrapper {
   flex: 1;
+  position: relative;
+}
+
+.tag-name-input {
+  width: 100%;
+  padding-right: 32px; /* 为清空按钮留出空间 */
+}
+
+.tag-clear-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--color-text-muted, #666);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.tag-clear-btn:hover {
+  background: var(--color-surface-hover, #f3f4f6);
+  color: var(--color-text-heading, #333);
+}
+
+.tag-clear-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.tag-suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border-strong, #d1d5db);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+}
+
+.tag-suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.tag-suggestion-item:hover {
+  background: var(--color-surface-hover, #f3f4f6);
+}
+
+.tag-suggestion-item.selected {
+  background: var(--color-accent, #3b82f6);
+}
+
+.tag-suggestion-item.selected .tag-suggestion-name {
+  color: #ffffff;
+}
+
+.tag-preview {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border-strong, #d1d5db);
+  flex-shrink: 0;
+}
+
+.tag-suggestion-name {
+  font-size: 14px;
+  color: var(--color-text-primary, #374151);
 }
 
 .tag-color-display {
@@ -671,6 +885,7 @@ onUnmounted(() => {
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   padding: 0;
+  flex-shrink: 0;
 }
 
 .tag-color-display:disabled {
@@ -691,6 +906,18 @@ onUnmounted(() => {
   width: 0;
   height: 0;
   pointer-events: none;
+}
+
+/* Dropdown transition */
+.dropdown-enter-active,
+.dropdown-leave-active {
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.dropdown-enter-from,
+.dropdown-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
 }
 
 .help-text {

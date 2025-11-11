@@ -393,7 +393,7 @@
       @config-saved="handleDatabaseConfigSaved" @config-deleted="handleDatabaseConfigDeleted" />
 
     <!-- Token Form Modal -->
-    <TokenForm v-if="showTokenFormModal" :token="editingToken" @close="closeTokenForm" @success="handleTokenFormSuccess"
+    <TokenForm v-if="showTokenFormModal" :token="editingToken" :all-tokens="tokens" @close="closeTokenForm" @success="handleTokenFormSuccess"
       @update-token="handleUpdateToken" @add-token="handleAddTokenFromForm"
       @auto-import-completed="handleAutoImportCompleted" @manual-import-completed="handleManualImportCompleted" />
 

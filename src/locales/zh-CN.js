@@ -294,6 +294,7 @@ export default {
     tagLabel: '标签',
     tagPlaceholder: '为此 Token 输入一个简短标签',
     tagColorPicker: '选择标签颜色',
+    clearTag: '清空标签',
     optional: '可选',
     required: '必填项',
     save: '保存',
