@@ -1351,6 +1351,13 @@ const checkAccountStatus = async (showNotification = true) => {
         }
       }
 
+      // 比对并更新 portal_url（如果有）
+      if (result.portal_url && props.token.portal_url !== result.portal_url) {
+        props.token.portal_url = result.portal_url
+        hasChanges = true
+        console.log(`Updated portal_url for token ${props.token.id}:`, result.portal_url)
+      }
+
       // 比对并更新 email_note（如果有）
       if (result.email_note && props.token.email_note !== result.email_note) {
         props.token.email_note = result.email_note
@@ -1444,10 +1451,16 @@ onMounted(async () => {
       error: null
     }
   }
-  // 禁用自动刷新，避免清空搜索时大量重新挂载并发起请求
-  // if (props.token.portal_url) {
-  //   checkAccountStatus(false)
-  // }
+
+  // 只对有 auth_session 但没有 portal_url 的 token 自动检查状态
+  // 排除已封禁(SUSPENDED)和已过期(EXPIRED)的 token
+  if (props.token.auth_session &&
+      !props.token.portal_url &&
+      props.token.ban_status !== 'SUSPENDED' &&
+      props.token.ban_status !== 'EXPIRED') {
+    console.log('TokenCard: Auto-checking status for token with auth_session but no portal_url:', props.token.id)
+    await checkAccountStatus(false)  // 静默检查
+  }
 
   // 添加事件监听器
   document.addEventListener('keydown', handleKeydown)

@@ -410,8 +410,8 @@ const importFromSession = async () => {
       emailNote: result.email || null,  // 从 get-models API 获取的邮箱
       authSession: authSession,  // 保存 auth_session
       suspensions: null,  // Session 导入不再获取 suspensions
-      creditsBalance: result.credits_balance || null,  // 从 get-credit-info 获取的余额
-      expiryDate: result.expiry_date || null,  // 从 get-credit-info 获取的过期时间
+      creditsBalance: null,  // Session 导入不再获取余额
+      expiryDate: null,  // Session 导入不再获取过期时间
       banStatus: 'ACTIVE'  // Session 导入默认设置为 ACTIVE 状态
     }
 
@@ -492,8 +492,8 @@ onMounted(async () => {
         emailNote: event.payload.token.email || null,  // 从 get-models API 获取的邮箱
         authSession: event.payload.session || null,  // 保存 auth_session
         suspensions: null,  // Session 导入不再获取 suspensions
-        creditsBalance: event.payload.token.credits_balance || null,  // 从 get-credit-info 获取的余额
-        expiryDate: event.payload.token.expiry_date || null  // 从 get-credit-info 获取的过期时间
+        creditsBalance: null,  // Session 导入不再获取余额
+        expiryDate: null  // Session 导入不再获取过期时间
       }
 
       // 通知父组件添加 token

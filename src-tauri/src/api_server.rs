@@ -216,20 +216,6 @@ async fn import_session_handler(
             // 使用 UUID 生成唯一 ID（与前端逻辑保持一致）
             let id = Uuid::new_v4().to_string();
 
-            // 构建 portal_info (如果有 credits_balance 或 expiry_date)
-            let portal_info = if response.credits_balance.is_some() || response.expiry_date.is_some() {
-                let mut portal_map = serde_json::Map::new();
-                if let Some(credits) = response.credits_balance {
-                    portal_map.insert("credits_balance".to_string(), serde_json::Value::Number(credits.into()));
-                }
-                if let Some(expiry) = &response.expiry_date {
-                    portal_map.insert("expiry_date".to_string(), serde_json::Value::String(expiry.clone()));
-                }
-                Some(serde_json::Value::Object(portal_map))
-            } else {
-                None
-            };
-
             // 构造 TokenData（与前端逻辑保持一致）
             let token_data = TokenData {
                 id,
@@ -242,7 +228,7 @@ async fn import_session_handler(
                 tag_name: None,
                 tag_color: None,
                 ban_status: Some(serde_json::Value::String("ACTIVE".to_string())),  // Session 导入默认设置为 ACTIVE
-                portal_info,  // 使用构建的 portal_info
+                portal_info: None,  // Session 导入不再获取 portal_info
                 auth_session: Some(request.session.clone()),
                 suspensions: None,  // Session 导入不再获取 suspensions
                 balance_color_mode: None,
@@ -420,20 +406,6 @@ async fn import_sessions_handler(
                     // 使用 UUID 生成唯一 ID（与前端逻辑保持一致）
                     let id = Uuid::new_v4().to_string();
 
-                    // 构建 portal_info (如果有 credits_balance 或 expiry_date)
-                    let portal_info = if response.credits_balance.is_some() || response.expiry_date.is_some() {
-                        let mut portal_map = serde_json::Map::new();
-                        if let Some(credits) = response.credits_balance {
-                            portal_map.insert("credits_balance".to_string(), serde_json::Value::Number(credits.into()));
-                        }
-                        if let Some(expiry) = &response.expiry_date {
-                            portal_map.insert("expiry_date".to_string(), serde_json::Value::String(expiry.clone()));
-                        }
-                        Some(serde_json::Value::Object(portal_map))
-                    } else {
-                        None
-                    };
-
                     let token_data = TokenData {
                         id,
                         tenant_url: response.tenant_url.clone(),
@@ -445,7 +417,7 @@ async fn import_sessions_handler(
                         tag_name: None,
                         tag_color: None,
                         ban_status: Some(serde_json::Value::String("ACTIVE".to_string())),  // Session 导入默认设置为 ACTIVE
-                        portal_info,  // 使用构建的 portal_info
+                        portal_info: None,  // Session 导入不再获取 portal_info
                         auth_session: Some(session.clone()),
                         suspensions: None,  // Session 导入不再获取 suspensions
                         balance_color_mode: None,

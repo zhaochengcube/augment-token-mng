@@ -31,8 +31,6 @@ pub struct AugmentTokenResponse {
     pub access_token: String,
     pub tenant_url: String,
     pub email: Option<String>,
-    pub credits_balance: Option<i32>,  // 从 get-credit-info 获取的余额
-    pub expiry_date: Option<String>,   // 从 get-credit-info 获取的过期时间
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -74,21 +72,6 @@ pub struct PortalInfo {
     pub expiry_date: Option<String>,
 }
 
-// get-credit-info API 响应结构体
-#[derive(Debug, Serialize, Deserialize)]
-pub struct CreditInfoResponse {
-    pub usage_units_remaining: f64,  // API 返回浮点数
-    pub usage_units_total_current_billing_cycle: f64,
-    pub usage_units_total_additional: f64,
-    pub is_credit_balance_low: bool,
-    pub display_info: Option<serde_json::Value>,
-    pub refreshed_at: String,
-    pub included_usage_units_per_billing_cycle: f64,
-    pub current_billing_cycle_end_date_iso: String,
-    pub credit_details: Option<Vec<serde_json::Value>>,
-    pub usage_units_total: f64,
-}
-
 // get-models API 响应结构体
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ModelsResponse {
@@ -113,6 +96,7 @@ pub struct TokenStatusResult {
     pub portal_error: Option<String>, // Portal获取错误（如果有）
     pub suspensions: Option<serde_json::Value>, // 封禁详情（如果有）
     pub email_note: Option<String>, // 邮箱备注（如果获取到）
+    pub portal_url: Option<String>, // Portal URL（如果获取到）
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -229,14 +213,8 @@ pub async fn complete_augment_oauth_flow(
         &parsed_code.code,
     ).await?;
 
-    // 并行获取用户邮箱和 credit 信息
-    let (email_result, credit_result) = tokio::join!(
-        get_models(&token, &parsed_code.tenant_url),
-        get_credit_info(&token, &parsed_code.tenant_url)
-    );
-
-    // 处理邮箱结果
-    let email = match email_result {
+    // 获取用户邮箱
+    let email = match get_models(&token, &parsed_code.tenant_url).await {
         Ok(models_response) => Some(models_response.user.email),
         Err(err) => {
             println!("Failed to get user email: {}", err);
@@ -244,24 +222,10 @@ pub async fn complete_augment_oauth_flow(
         }
     };
 
-    // 处理 credit 信息结果
-    let (credits_balance, expiry_date) = match credit_result {
-        Ok(credit_info) => (
-            Some(credit_info.usage_units_remaining.floor() as i32),  // 转换为整数
-            Some(credit_info.current_billing_cycle_end_date_iso),
-        ),
-        Err(err) => {
-            println!("Failed to get credit info: {}", err);
-            (None, None)
-        }
-    };
-
     Ok(AugmentTokenResponse {
         access_token: token,
         tenant_url: parsed_code.tenant_url,
         email,
-        credits_balance,
-        expiry_date,
     })
 }
 
@@ -398,6 +362,7 @@ pub async fn check_account_ban_status(
 // 批量检测账号状态
 pub async fn batch_check_account_status(
     tokens: Vec<TokenInfo>,
+    app_session_cache: std::sync::Arc<std::sync::Mutex<std::collections::HashMap<String, crate::AppSessionCache>>>,
 ) -> Result<Vec<TokenStatusResult>, String> {
 
 
@@ -410,6 +375,7 @@ pub async fn batch_check_account_status(
         let token_id = token_info.id.clone();
         let portal_url = token_info.portal_url.clone();
         let auth_session = token_info.auth_session.clone();
+        let cache = app_session_cache.clone();
 
         let handle = tokio::spawn(async move {
             println!("Checking status for token: {:?}", token_id);
@@ -447,6 +413,7 @@ pub async fn batch_check_account_status(
                         portal_error: Some(format!("Status check failed: {}", err)),
                         suspensions: None,
                         email_note: None,
+                        portal_url: None,
                     };
                 }
             };
@@ -513,7 +480,7 @@ pub async fn batch_check_account_status(
                 // 如果有 auth_session,获取详细的封禁信息
                 if let Some(ref session) = auth_session {
                     println!("Account banned for {:?}, fetching detailed user info", token_id);
-                    match crate::augment_user_info::get_user_info(session).await {
+                    match crate::augment_user_info::get_user_info(session, &cache).await {
                         Ok(user_info) => {
                             println!("Successfully fetched user info for banned account {:?}", token_id);
                             // 保存 suspensions 信息
@@ -541,27 +508,101 @@ pub async fn batch_check_account_status(
                     portal_error: None,
                     suspensions: suspensions_info,
                     email_note: None,  // 封禁账号不获取邮箱
+                    portal_url: None,
                 };
             }
 
-            // 4. 获取余额和过期时间信息
-            // 使用 get-credit-info API
-            let (portal_info, portal_error) = {
-                match get_credit_info(&token, &tenant_url).await {
-                    Ok(credit_info) => {
-                        let portal_info = PortalInfo {
-                            credits_balance: credit_info.usage_units_remaining.floor() as i32,  // 转换为整数
-                            expiry_date: Some(credit_info.current_billing_cycle_end_date_iso),
-                        };
-                        (Some(portal_info), None)
+            // 4. 如果没有 portal_url 但有 auth_session，尝试获取 portal_url
+            let mut fetched_portal_url = portal_url.clone();
+            if fetched_portal_url.is_none() && auth_session.is_some() {
+                println!("No portal_url for token {:?}, attempting to fetch from auth_session", token_id);
+
+                // 尝试从 auth_session 获取 portal_url
+                if let Some(ref session) = auth_session {
+                    // 检查缓存
+                    let cached_app_session = {
+                        let cache_guard = cache.lock().unwrap();
+                        cache_guard.get(session).map(|c| c.app_session.clone())
+                    };
+
+                    // 尝试使用缓存的 app_session
+                    let app_session = if let Some(app_session) = cached_app_session {
+                        println!("Using cached app_session for portal_url fetch");
+                        match crate::augment_user_info::fetch_app_subscription(&app_session).await {
+                            Ok(subscription) => {
+                                fetched_portal_url = subscription.portal_url.clone();
+                                if let Some(ref url) = fetched_portal_url {
+                                    println!("Successfully fetched portal_url from cached app_session: {}", url);
+                                } else {
+                                    println!("Subscription response has no portal_url");
+                                }
+                                Some(app_session)
+                            }
+                            Err(e) => {
+                                println!("Cached app_session failed: {}, will refresh", e);
+                                None
+                            }
+                        }
+                    } else {
+                        println!("No cached app_session found, will exchange auth_session");
+                        None
+                    };
+
+                    // 如果缓存失败或不存在，交换新的 app_session
+                    if app_session.is_none() && fetched_portal_url.is_none() {
+                        match crate::augment_user_info::exchange_auth_session_for_app_session(session).await {
+                            Ok(new_app_session) => {
+                                // 更新缓存
+                                {
+                                    let mut cache_guard = cache.lock().unwrap();
+                                    cache_guard.insert(session.clone(), crate::AppSessionCache {
+                                        app_session: new_app_session.clone(),
+                                        created_at: std::time::SystemTime::now(),
+                                    });
+                                }
+
+                                // 获取订阅信息
+                                match crate::augment_user_info::fetch_app_subscription(&new_app_session).await {
+                                    Ok(subscription) => {
+                                        fetched_portal_url = subscription.portal_url;
+                                    }
+                                    Err(e) => {
+                                        println!("Failed to fetch subscription with new app_session: {}", e);
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                println!("Failed to exchange auth_session for app_session: {}", e);
+                            }
+                        }
+                    }
+
+                    if let Some(ref url) = fetched_portal_url {
+                        println!("Successfully fetched portal_url for token {:?}: {}", token_id, url);
+                    }
+                }
+            }
+
+            // 5. 获取余额和过期时间信息
+            // 使用 get_portal_info (需要 portal_url)
+            let (portal_info, portal_error) = if let Some(ref url) = fetched_portal_url {
+                match get_portal_info(url).await {
+                    Ok(info) => {
+                        println!("Successfully fetched portal_info for token {:?}: balance={}, expiry={:?}",
+                                 token_id, info.credits_balance, info.expiry_date);
+                        (Some(info), None)
                     }
                     Err(err) => {
+                        println!("Failed to fetch portal_info for token {:?}: {}", token_id, err);
                         (None, Some(err))
                     }
                 }
+            } else {
+                println!("No portal_url available for token {:?}, skipping portal_info fetch", token_id);
+                (None, Some("No portal_url available".to_string()))
             };
 
-            // 5. 如果没有邮箱备注,尝试获取邮箱
+            // 6. 如果没有邮箱备注,尝试获取邮箱
             let email_note = if token_info.email_note.is_none() {
                 match get_models(&token, &tenant_url).await {
                     Ok(models_response) => {
@@ -584,6 +625,7 @@ pub async fn batch_check_account_status(
                 portal_error,
                 suspensions: None,  // 正常情况下不需要 suspensions
                 email_note,
+                portal_url: fetched_portal_url,
             }
         });
         
@@ -620,6 +662,7 @@ pub async fn batch_check_account_status(
                     portal_error: Some(format!("Task failed: {}", err)),
                     suspensions: None,
                     email_note: None,
+                    portal_url: None,
                 });
             }
         }
@@ -814,17 +857,11 @@ pub async fn extract_token_from_session(session: &str) -> Result<AugmentTokenRes
         .await
         .map_err(|e| format!("Failed to parse token response: {}", e))?;
 
-    // 并行获取用户邮箱和 credit 信息
+    // 获取用户邮箱
     let token = token_data.access_token.clone();
     let tenant_url_clone = tenant_url.to_string();
 
-    let (email_result, credit_result) = tokio::join!(
-        get_models(&token, &tenant_url_clone),
-        get_credit_info(&token, &tenant_url_clone)
-    );
-
-    // 处理邮箱结果
-    let email = match email_result {
+    let email = match get_models(&token, &tenant_url_clone).await {
         Ok(models_response) => Some(models_response.user.email),
         Err(err) => {
             println!("Failed to get user email from session: {}", err);
@@ -832,24 +869,10 @@ pub async fn extract_token_from_session(session: &str) -> Result<AugmentTokenRes
         }
     };
 
-    // 处理 credit 信息结果
-    let (credits_balance, expiry_date) = match credit_result {
-        Ok(credit_info) => (
-            Some(credit_info.usage_units_remaining.floor() as i32),  // 转换为整数
-            Some(credit_info.current_billing_cycle_end_date_iso),
-        ),
-        Err(err) => {
-            println!("Failed to get credit info from session: {}", err);
-            (None, None)
-        }
-    };
-
     Ok(AugmentTokenResponse {
         access_token: token_data.access_token,
         tenant_url: tenant_url.to_string(),
         email,
-        credits_balance,
-        expiry_date,
     })
 }
 
@@ -860,56 +883,6 @@ fn generate_random_string(length: usize) -> String {
     let mut random_bytes = vec![0u8; length];
     rng.fill_bytes(&mut random_bytes);
     base64_url_encode(&random_bytes)
-}
-
-/// 获取 Credit 信息 (get-credit-info API)
-pub async fn get_credit_info(
-    token: &str,
-    tenant_url: &str,
-) -> Result<CreditInfoResponse, String> {
-    // 使用 ProxyClient，自动处理 Edge Function
-    let client = create_proxy_client()?;
-
-    // Ensure tenant_url ends with a slash
-    let base_url = if tenant_url.ends_with('/') {
-        tenant_url.to_string()
-    } else {
-        format!("{}/", tenant_url)
-    };
-
-    let api_url = format!("{}get-credit-info", base_url);
-
-    println!("=== get-credit-info API Request ===");
-    println!("URL: {}", api_url);
-
-    // Send request to get-credit-info API
-    let response = client
-        .post(&api_url)
-        .header("Content-Type", "application/json")
-        .header("Authorization", &format!("Bearer {}", token))
-        .json(&serde_json::json!({}))
-        .send()
-        .await
-        .map_err(|e| format!("HTTP request failed: {}", e))?;
-
-    let status_code = response.status().as_u16();
-    println!("Response Status: {}", status_code);
-
-    if !response.status().is_success() {
-        let error_body = response.text().await
-            .unwrap_or_else(|_| "Unknown error".to_string());
-        return Err(format!("API request failed with status {}: {}", status_code, error_body));
-    }
-
-    // Read response body
-    let response_body = response.text().await
-        .map_err(|e| format!("Failed to read response body: {}", e))?;
-
-    // Parse response
-    let credit_info: CreditInfoResponse = serde_json::from_str(&response_body)
-        .map_err(|e| format!("Failed to parse response: {}", e))?;
-
-    Ok(credit_info)
 }
 
 /// 获取用户模型信息 (get-models API)

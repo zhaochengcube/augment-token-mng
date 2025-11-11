@@ -71,25 +71,12 @@ const fetchData = async () => {
 
   try {
     // 使用批量获取接口,只交换一次 app_session
-    // 如果已有 portal_url,则不需要获取
-    const fetchPortalUrl = !props.hasPortalUrl
-    console.log('CreditUsageModal: hasPortalUrl =', props.hasPortalUrl, ', fetchPortalUrl =', fetchPortalUrl)
-
     const result = await invoke('fetch_batch_credit_consumption', {
-      authSession: props.authSession,
-      fetchPortalUrl: fetchPortalUrl  // 只有在没有 portal_url 时才获取
+      authSession: props.authSession
     })
-
-    console.log('CreditUsageModal: received portal_url =', result.portal_url)
 
     statsData.value = result.stats_data
     chartData.value = result.chart_data
-
-    // 如果获取到 portal_url,通知父组件更新
-    if (result.portal_url) {
-      console.log('CreditUsageModal: emitting update-portal-url event')
-      emit('update-portal-url', result.portal_url)
-    }
   } catch (e) {
     error.value = e.toString()
     console.error('Failed to fetch credit data:', e)

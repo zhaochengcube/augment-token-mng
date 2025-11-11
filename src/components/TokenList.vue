@@ -1358,8 +1358,8 @@ const executeBatchImportFromSessionInputs = async () => {
           emailNote: result.email || null,  // 从 get-models API 获取的邮箱
           authSession: session,
           suspensions: null,  // Session 导入不再获取 suspensions
-          creditsBalance: result.credits_balance || null,  // 从 get-credit-info 获取的余额
-          expiryDate: result.expiry_date || null,  // 从 get-credit-info 获取的过期时间
+          creditsBalance: null,  // Session 导入不再获取余额
+          expiryDate: null,  // Session 导入不再获取过期时间
           banStatus: 'ACTIVE'  // Session 导入默认设置为 ACTIVE 状态
         }
 
@@ -1581,8 +1581,8 @@ const executeBatchImport = async () => {
             emailNote: result.email || null,  // 从 get-models API 获取的邮箱
             authSession: item.auth_session,
             suspensions: null,  // Session 导入不再获取 suspensions
-            creditsBalance: result.credits_balance || null,  // 从 get-credit-info 获取的余额
-            expiryDate: result.expiry_date || null  // 从 get-credit-info 获取的过期时间
+            creditsBalance: null,  // Session 导入不再获取余额
+            expiryDate: null  // Session 导入不再获取过期时间
           }
 
           const addResult = addToken(tokenData)

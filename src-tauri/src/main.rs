@@ -14,7 +14,7 @@ mod proxy_config;
 mod proxy_helper;
 
 use augment_oauth::{create_augment_oauth_state, generate_augment_authorize_url, complete_augment_oauth_flow, check_account_ban_status, batch_check_account_status, extract_token_from_session, get_batch_credit_consumption_with_app_session, AugmentOAuthState, AugmentTokenResponse, AccountStatus, TokenInfo, TokenStatusResult, BatchCreditConsumptionResponse};
-use augment_user_info::{exchange_auth_session_for_app_session, fetch_app_subscription};
+use augment_user_info::exchange_auth_session_for_app_session;
 use bookmarks::{BookmarkManager, Bookmark};
 use outlook_manager::{OutlookManager, OutlookCredentials, EmailListResponse, EmailDetailsResponse, AccountStatus as OutlookAccountStatus, AccountInfo};
 use database::{DatabaseConfig, DatabaseConfigManager, DatabaseManager};
@@ -146,8 +146,9 @@ async fn check_account_status(token: String, tenant_url: String) -> Result<Accou
 #[tauri::command]
 async fn batch_check_tokens_status(
     tokens: Vec<TokenInfo>,
+    state: State<'_, AppState>,
 ) -> Result<Vec<TokenStatusResult>, String> {
-    batch_check_account_status(tokens)
+    batch_check_account_status(tokens, state.app_session_cache.clone())
         .await
         .map_err(|e| format!("Failed to batch check tokens status: {}", e))
 }
@@ -156,11 +157,9 @@ async fn batch_check_tokens_status(
 #[tauri::command]
 async fn fetch_batch_credit_consumption(
     auth_session: String,
-    fetch_portal_url: Option<bool>,  // 是否获取 portal_url,默认为 true
     state: State<'_, AppState>,
 ) -> Result<BatchCreditConsumptionResponse, String> {
-    let should_fetch_portal_url = fetch_portal_url.unwrap_or(true);
-    println!("fetch_batch_credit_consumption called with fetch_portal_url: {:?}, should_fetch: {}", fetch_portal_url, should_fetch_portal_url);
+    println!("fetch_batch_credit_consumption called");
     // 1. 检查缓存中是否有有效的 app_session
     let cached_app_session = {
         let cache = state.app_session_cache.lock().unwrap();
@@ -173,22 +172,8 @@ async fn fetch_batch_credit_consumption(
 
         // 尝试使用缓存的 app_session 获取数据
         match get_batch_credit_consumption_with_app_session(&app_session).await {
-            Ok(mut result) => {
+            Ok(result) => {
                 println!("Successfully fetched credit data with cached app_session");
-
-                // 只有在需要时才获取 portal_url
-                if should_fetch_portal_url {
-                    println!("Fetching portal_url from subscription API...");
-                    if let Ok(subscription) = fetch_app_subscription(&app_session).await {
-                        println!("Got portal_url: {:?}", subscription.portal_url);
-                        result.portal_url = subscription.portal_url;
-                    } else {
-                        println!("Failed to fetch subscription info");
-                    }
-                } else {
-                    println!("Skipping portal_url fetch (already exists)");
-                }
-
                 return Ok(result);
             }
             Err(e) => {
@@ -217,20 +202,7 @@ async fn fetch_batch_credit_consumption(
     }
 
     // 5. 使用新的 app_session 获取数据
-    let mut result = get_batch_credit_consumption_with_app_session(&app_session).await?;
-
-    // 6. 只有在需要时才获取 portal_url
-    if should_fetch_portal_url {
-        println!("Fetching portal_url from subscription API (new session)...");
-        if let Ok(subscription) = fetch_app_subscription(&app_session).await {
-            println!("Got portal_url: {:?}", subscription.portal_url);
-            result.portal_url = subscription.portal_url;
-        } else {
-            println!("Failed to fetch subscription info");
-        }
-    } else {
-        println!("Skipping portal_url fetch (already exists)");
-    }
+    let result = get_batch_credit_consumption_with_app_session(&app_session).await?;
 
     Ok(result)
 }
@@ -384,8 +356,6 @@ struct TokenFromSessionResponse {
     access_token: String,
     tenant_url: String,
     email: Option<String>,           // 从 get-models API 获取的邮箱
-    credits_balance: Option<i32>,    // 从 get-credit-info 获取的余额
-    expiry_date: Option<String>,     // 从 get-credit-info 获取的过期时间
 }
 
 // 内部函数,不发送进度事件,使用缓存的 app_session
@@ -393,29 +363,25 @@ async fn add_token_from_session_internal_with_cache(
     session: &str,
     _state: &AppState,
 ) -> Result<TokenFromSessionResponse, String> {
-    // 从 session 提取 token (包含 email, credits_balance, expiry_date)
+    // 从 session 提取 token (包含 email)
     let token_response = extract_token_from_session(session).await?;
 
     Ok(TokenFromSessionResponse {
         access_token: token_response.access_token,
         tenant_url: token_response.tenant_url,
         email: token_response.email,
-        credits_balance: token_response.credits_balance,
-        expiry_date: token_response.expiry_date,
     })
 }
 
 // 内部函数,不发送进度事件（保留用于向后兼容）
 async fn add_token_from_session_internal(session: &str) -> Result<TokenFromSessionResponse, String> {
-    // 从 session 提取 token (包含 email, credits_balance, expiry_date)
+    // 从 session 提取 token (包含 email)
     let token_response = extract_token_from_session(session).await?;
 
     Ok(TokenFromSessionResponse {
         access_token: token_response.access_token,
         tenant_url: token_response.tenant_url,
         email: token_response.email,
-        credits_balance: token_response.credits_balance,
-        expiry_date: token_response.expiry_date,
     })
 }
 
@@ -425,7 +391,7 @@ async fn add_token_from_session(
     app: tauri::AppHandle,
     _state: State<'_, AppState>,
 ) -> Result<TokenFromSessionResponse, String> {
-    // 从 session 提取 token (包含 email, credits_balance, expiry_date)
+    // 从 session 提取 token (包含 email)
     let _ = app.emit("session-import-progress", "sessionImportExtractingToken");
     let token_response = extract_token_from_session(&session).await?;
 
@@ -435,8 +401,6 @@ async fn add_token_from_session(
         access_token: token_response.access_token,
         tenant_url: token_response.tenant_url,
         email: token_response.email,
-        credits_balance: token_response.credits_balance,
-        expiry_date: token_response.expiry_date,
     })
 }
 
@@ -1091,6 +1055,12 @@ async fn open_internal_browser(
                     showCopyNotification('⚠️ 未找到可填充的字段', '#f59e0b');
                 }
             }, 300);
+            
+            // 获取提交按钮
+            const submitButton = document.querySelector('button[type="submit"]');
+            if (submitButton) {
+                submitButton.click();
+            }
         }
 
         // 创建导航栏的函数
