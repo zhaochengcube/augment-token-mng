@@ -121,6 +121,13 @@
                 </svg>
                 <span>{{ $t('tokenCard.copyAuthSession') }}</span>
               </button>
+              <button v-if="token.auth_session" @click="handleCopyMenuClick('payment')" class="copy-menu-item" :disabled="isFetchingPaymentLink">
+                <div v-if="isFetchingPaymentLink" class="loading-spinner-small"></div>
+                <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
+                </svg>
+                <span>{{ isFetchingPaymentLink ? $t('tokenCard.fetchingPaymentLink') : $t('tokenCard.copyPaymentLink') }}</span>
+              </button>
             </div>
           </Transition>
         </div>
@@ -523,6 +530,7 @@ const showSuspensionsModal = ref(false)
 const showTraeVersionDialog = ref(false)
 const showCopyMenu = ref(false)
 const showCreditUsageModal = ref(false)
+const isFetchingPaymentLink = ref(false)
 
 const DEFAULT_TAG_COLOR = '#f97316'
 
@@ -806,18 +814,49 @@ const deleteToken = () => {
 
 // 复制到剪贴板的通用方法
 const copyToClipboard = async (text) => {
+  // 方法1: 尝试使用 Clipboard API
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    try {
+      await navigator.clipboard.writeText(text)
+      console.log('Clipboard API copy succeeded')
+      return true
+    } catch (error) {
+      console.warn('Clipboard API failed, trying fallback:', error)
+    }
+  }
+  
+  // 方法2: 备用方案 - 使用 textarea + execCommand
   try {
-    await navigator.clipboard.writeText(text)
-    return true
-  } catch (error) {
-    // 备用方案
     const textArea = document.createElement('textarea')
     textArea.value = text
+    // 确保 textarea 不可见但可以被选中
+    textArea.style.position = 'fixed'
+    textArea.style.top = '0'
+    textArea.style.left = '0'
+    textArea.style.width = '2em'
+    textArea.style.height = '2em'
+    textArea.style.padding = '0'
+    textArea.style.border = 'none'
+    textArea.style.outline = 'none'
+    textArea.style.boxShadow = 'none'
+    textArea.style.background = 'transparent'
+    textArea.style.opacity = '0'
+    
     document.body.appendChild(textArea)
+    textArea.focus()
     textArea.select()
-    document.execCommand('copy')
+    
+    // 尝试选择所有文本
+    textArea.setSelectionRange(0, text.length)
+    
+    const success = document.execCommand('copy')
     document.body.removeChild(textArea)
-    return true
+    
+    console.log('execCommand copy result:', success)
+    return success
+  } catch (e) {
+    console.error('All copy methods failed:', e)
+    return false
   }
 }
 
@@ -874,6 +913,43 @@ const copyAuthSession = () => {
   )
 }
 
+// 复制绑卡链接（通过 Tauri 后端写系统剪贴板）
+const copyPaymentMethodLink = async () => {
+  if (!props.token.auth_session) {
+    window.$notify.warning(t('messages.noAuthSession'))
+    showCopyMenu.value = false
+    return
+  }
+
+  isFetchingPaymentLink.value = true
+  try {
+    console.log('Fetching payment link...')
+    const result = await invoke('fetch_payment_method_link_command', {
+      authSession: props.token.auth_session
+    })
+
+    console.log('Payment link result:', result)
+    const paymentLink = result.payment_method_link
+
+    if (!paymentLink) {
+      console.error('Payment link is empty')
+      window.$notify.error(t('messages.copyPaymentLinkFailed') + ': 链接为空')
+      return
+    }
+
+    console.log('Copying payment link via backend clipboard command...')
+    await invoke('copy_to_clipboard', { text: paymentLink })
+    window.$notify.success(t('messages.paymentLinkCopied'))
+  } catch (error) {
+    console.error('Failed to fetch or copy payment link:', error)
+    window.$notify.error(t('messages.copyPaymentLinkFailed') + ': ' + error)
+  } finally {
+    isFetchingPaymentLink.value = false
+    // 操作完成后关闭菜单
+    showCopyMenu.value = false
+  }
+}
+
 // 导出Token为JSON
 const exportTokenAsJson = () => {
   const exportData = {
@@ -915,7 +991,11 @@ const toggleCopyMenu = () => {
 
 // 处理复制菜单项点击
 const handleCopyMenuClick = (type) => {
-  showCopyMenu.value = false
+  // payment 类型不立即关闭菜单，等异步操作完成后再关闭
+  if (type !== 'payment') {
+    showCopyMenu.value = false
+  }
+  
   switch (type) {
     case 'token':
       copyToken()
@@ -928,6 +1008,9 @@ const handleCopyMenuClick = (type) => {
       break
     case 'session':
       copyAuthSession()
+      break
+    case 'payment':
+      copyPaymentMethodLink()
       break
   }
 }
@@ -2064,6 +2147,16 @@ defineExpose({
   animation: spin 1s linear infinite;
 }
 
+.loading-spinner-small {
+  width: 12px;
+  height: 12px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  display: inline-block;
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -2115,6 +2208,15 @@ defineExpose({
 
 .copy-menu-item span {
   flex: 1;
+}
+
+.copy-menu-item:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.copy-menu-item:disabled:hover {
+  background: transparent;
 }
 
 /* 检测菜单样式 - 复用复制菜单样式 */

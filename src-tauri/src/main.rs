@@ -27,6 +27,7 @@ use tauri::{State, Manager, Emitter, WebviewWindowBuilder, WebviewUrl};
 use chrono;
 use serde::{Serialize, Deserialize};
 use tauri_plugin_deep_link::DeepLinkExt;
+use arboard::Clipboard;
 
 // Update check structures
 #[derive(Debug, Serialize, Deserialize)]
@@ -287,6 +288,14 @@ async fn check_for_updates() -> Result<UpdateInfo, String> {
     })
 }
 
+
+#[tauri::command]
+async fn copy_to_clipboard(text: String) -> Result<(), String> {
+    let mut clipboard = Clipboard::new().map_err(|e| format!("Failed to access clipboard: {}", e))?;
+    clipboard.set_text(text).map_err(|e| format!("Failed to set clipboard text: {}", e))?;
+    Ok(())
+}
+
 // API 服务器管理命令
 #[tauri::command]
 async fn get_api_server_status(state: State<'_, AppState>) -> Result<api_server::ApiServerStatus, String> {
@@ -384,6 +393,27 @@ async fn add_token_from_session_internal(session: &str) -> Result<TokenFromSessi
         email: token_response.email,
     })
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+struct PaymentMethodLinkResult {
+    payment_method_link: String,
+}
+
+#[tauri::command]
+async fn fetch_payment_method_link_command(
+    auth_session: String,
+) -> Result<PaymentMethodLinkResult, String> {
+    // 1. 交换 auth_session 为完整的Cookie字符串
+    let full_cookies = augment_user_info::exchange_auth_session_for_full_cookies(&auth_session).await?;
+
+    // 2. 使用完整Cookie获取绑卡链接
+    let payment_link = augment_user_info::fetch_payment_method_link(&full_cookies).await?;
+
+    Ok(PaymentMethodLinkResult {
+        payment_method_link: payment_link,
+    })
+}
+
 
 #[tauri::command]
 async fn add_token_from_session(
@@ -2318,6 +2348,7 @@ fn main() {
             check_account_status,
             batch_check_tokens_status,
             fetch_batch_credit_consumption,
+            fetch_payment_method_link_command,
             add_token_from_session,
             open_url,
             // 新的简化命令
@@ -2373,6 +2404,7 @@ fn main() {
             open_internal_browser,
             close_window,
             check_for_updates,
+            copy_to_clipboard,
             // API 服务器管理命令
             get_api_server_status,
             start_api_server_cmd,
