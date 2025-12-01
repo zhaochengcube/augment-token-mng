@@ -1,5 +1,17 @@
 <template>
-  <div :class="['token-card', { 'menu-open': showCopyMenu || showCheckMenu, 'highlighted': isHighlighted }]" @click="handleClickOutside">
+  <div :class="['token-card', { 'menu-open': showCopyMenu || showCheckMenu, 'highlighted': isHighlighted, 'selected': isSelected }]" @click="handleClickOutside">
+    <!-- 选择框 - 左上角 -->
+    <div 
+      class="selection-checkbox" 
+      :class="{ 'visible': selectionMode || isSelected }"
+      @click.stop="$emit('select', token.id)"
+    >
+      <div class="checkbox-inner" :class="{ 'checked': isSelected }">
+        <svg v-if="isSelected" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+        </svg>
+      </div>
+    </div>
     <!-- 状态指示器 -->
     <div v-if="showStatusIndicator" class="status-indicator">
       <span
@@ -136,20 +148,20 @@
             @click="checkAccountStatus"
             @contextmenu.prevent="showCheckMenu = !showCheckMenu"
             :class="['btn-action', 'status-check', {
-              loading: isCheckingStatus || (isBatchChecking && !token.skip_check),
+              loading: isCheckingStatus || (isBatchChecking && !token.skip_check) || (isSelectedRefreshing && isSelected && !token.skip_check),
               disabled: token.skip_check
             }]"
-            :disabled="isCheckingStatus || (isBatchChecking && !token.skip_check)"
+            :disabled="isCheckingStatus || (isBatchChecking && !token.skip_check) || (isSelectedRefreshing && isSelected && !token.skip_check)"
             :title="token.skip_check ? $t('tokenCard.checkDisabled') : $t('tokenCard.checkAccountStatus')"
           >
-            <svg v-if="!isCheckingStatus && !(isBatchChecking && !token.skip_check) && !token.skip_check" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <svg v-if="!isCheckingStatus && !(isBatchChecking && !token.skip_check) && !(isSelectedRefreshing && isSelected && !token.skip_check) && !token.skip_check" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
               <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
             </svg>
             <!-- 禁用检测时显示暂停图标 -->
-            <svg v-else-if="!isCheckingStatus && !(isBatchChecking && !token.skip_check) && token.skip_check" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <svg v-else-if="!isCheckingStatus && !(isBatchChecking && !token.skip_check) && !(isSelectedRefreshing && isSelected && !token.skip_check) && token.skip_check" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
               <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
             </svg>
-            <div v-else-if="isCheckingStatus || (isBatchChecking && !token.skip_check)" class="loading-spinner"></div>
+            <div v-else-if="isCheckingStatus || (isBatchChecking && !token.skip_check) || (isSelectedRefreshing && isSelected && !token.skip_check)" class="loading-spinner"></div>
           </button>
           <Transition name="dropdown">
             <div v-if="showCheckMenu" class="check-dropdown" @click.stop>
@@ -280,6 +292,14 @@
                   </div>
                   <div class="editor-info">
                     <span class="editor-name">Auggie</span>
+                  </div>
+                </button>
+                <button @click="handleEditorClick('antigravity')" class="editor-option antigravity-option">
+                  <div class="editor-icon">
+                    <img :src="editorIcons.antigravity" alt="Antigravity" width="32" height="32" />
+                  </div>
+                  <div class="editor-info">
+                    <span class="editor-name">Antigravity</span>
                   </div>
                 </button>
               </div>
@@ -511,11 +531,27 @@ const props = defineProps({
   isHighlighted: {
     type: Boolean,
     default: false
+  },
+  isSelected: {
+    type: Boolean,
+    default: false
+  },
+  selectionMode: {
+    type: Boolean,
+    default: false
+  },
+  isSelectedRefreshing: {
+    type: Boolean,
+    default: false
+  },
+  cachedPaymentLink: {
+    type: String,
+    default: null
   }
 })
 
 // Emits
-const emit = defineEmits(['delete', 'edit', 'token-updated'])
+const emit = defineEmits(['delete', 'edit', 'token-updated', 'select'])
 
 // Reactive data
 const isLoadingPortalInfo = ref(false)
@@ -611,6 +647,7 @@ const editorIcons = computed(() => ({
   codebuddy: '/icons/codebuddy.svg',
   vim: '/icons/vim.svg',
   auggie: currentTheme.value === 'dark' ? '/icons/auggie_dark.svg' : '/icons/auggie.svg',
+  antigravity: '/icons/antigravity.png',
   idea: '/icons/idea.svg',
   pycharm: '/icons/pycharm.svg',
   goland: '/icons/goland.svg',
@@ -669,27 +706,8 @@ const maskedEmail = computed(() => {
   const email = props.token.email_note
   if (!email || !email.includes('@')) return email
 
-  const [username, domain] = email.split('@')
-
-  // 如果用户名太短，直接返回原邮箱
-  if (username.length <= 3) {
-    return email
-  }
-
-  let maskedUsername
-  if (username.length <= 6) {
-    // 短邮箱：保留前1-2个字符，其余用星号替换
-    const keepChars = username.length <= 4 ? 1 : 2
-    const hiddenCount = username.length - keepChars
-    maskedUsername = username.substring(0, keepChars) + '*'.repeat(hiddenCount)
-  } else {
-    // 长邮箱：保留前后各2-3个字符，中间用4个星号替换
-    const frontKeep = username.length >= 8 ? 3 : 2
-    const backKeep = 2
-    maskedUsername = username.substring(0, frontKeep) + '****' + username.substring(username.length - backKeep)
-  }
-
-  return maskedUsername + '@' + domain
+  // 悬浮前显示为固定格式
+  return 'hello@augmentcode.com'
 })
 
 // Portal余额显示相关计算属性
@@ -921,6 +939,21 @@ const copyPaymentMethodLink = async () => {
     return
   }
 
+  // 如果有缓存的绑卡链接，直接复制
+  if (props.cachedPaymentLink) {
+    try {
+      await invoke('copy_to_clipboard', { text: props.cachedPaymentLink })
+      window.$notify.success(t('messages.paymentLinkCopied'))
+    } catch (error) {
+      console.error('Failed to copy cached payment link:', error)
+      window.$notify.error(t('messages.copyPaymentLinkFailed') + ': ' + error)
+    } finally {
+      showCopyMenu.value = false
+    }
+    return
+  }
+
+  // 没有缓存，需要获取
   isFetchingPaymentLink.value = true
   try {
     console.log('Fetching payment link...')
@@ -1334,8 +1367,10 @@ const checkAccountStatus = async (showNotification = true) => {
     return
   }
 
-  // 如果正在检测中，或者批量检测中（且未禁用），则返回
-  if (isCheckingStatus.value || (props.isBatchChecking && !props.token.skip_check)) return
+  // 如果正在检测中，或者批量检测中，或者选中项刷新中（且未禁用），则返回
+  if (isCheckingStatus.value || 
+      (props.isBatchChecking && !props.token.skip_check) ||
+      (props.isSelectedRefreshing && props.isSelected && !props.token.skip_check)) return
 
   isCheckingStatus.value = true
 
@@ -1616,6 +1651,57 @@ defineExpose({
   100% {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   }
+}
+
+/* 选中状态样式 */
+.token-card.selected {
+  border-color: var(--color-accent, #3b82f6);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2), 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* 选择框样式 */
+.selection-checkbox {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 15;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.selection-checkbox.visible,
+.token-card:hover .selection-checkbox {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.checkbox-inner {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 2px solid var(--color-divider, #d1d5db);
+  background: var(--color-surface, #ffffff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.checkbox-inner:hover {
+  border-color: var(--color-accent, #3b82f6);
+  background: var(--color-surface-soft, #f8fafc);
+}
+
+.checkbox-inner.checked {
+  background: var(--color-accent, #3b82f6);
+  border-color: var(--color-accent, #3b82f6);
+  color: white;
+}
+
+.checkbox-inner.checked svg {
+  color: white;
 }
 
 .status-indicator {
@@ -2492,7 +2578,8 @@ defineExpose({
 .vscodium-option .editor-icon,
 .codebuddy-option .editor-icon,
 .vim-option .editor-icon,
-.auggie-option .editor-icon {
+.auggie-option .editor-icon,
+.antigravity-option .editor-icon {
   background: var(--color-info-surface, #f0f9ff);
   border-color: var(--color-info-surface, #e0f2fe);
 }

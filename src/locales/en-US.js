@@ -241,7 +241,26 @@ export default {
     setAsDefault: 'Set as Default Count',
     defaultCountSaved: 'Default input count set to {count}',
     saveDefaultFailed: 'Failed to save default count',
-    invalidDefaultCount: 'Default count must be between 1 and 20'
+    invalidDefaultCount: 'Default count must be between 1 and 20',
+    // Batch selection
+    selected: '{count} selected',
+    selectAllPage: 'Select All',
+    cancelSelection: 'Cancel Selection',
+    batchRefreshSelected: 'Refresh Selected',
+    batchExportSelected: 'Export Selected',
+    batchDeleteSelected: 'Delete Selected',
+    batchRefreshing: 'Refreshing {count} tokens...',
+    batchRefreshComplete: 'Completed refreshing {count} tokens',
+    batchExportSuccess: 'Copied {count} tokens to clipboard',
+    batchExportFailed: 'Export failed',
+    selectedDeleteMessage: 'Are you sure you want to delete the selected tokens?',
+    selectedCount: 'Selected',
+    batchDeleteSelectedSuccess: 'Deleted {count} tokens',
+    batchFetchPaymentLinks: 'Get Payment Links',
+    noTokensWithSession: 'Selected tokens have no valid session',
+    batchFetchingPaymentLinks: 'Fetching {count} payment links...',
+    batchPaymentLinksCopied: 'Copied {success} payment links ({failed} failed)',
+    batchPaymentLinksFailed: 'Failed to fetch payment links'
   },
   tokenCard: {
     banned: 'Banned',

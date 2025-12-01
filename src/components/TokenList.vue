@@ -362,7 +362,11 @@
               <div class="token-grid">
                 <TokenCard v-for="token in paginatedTokens" :key="token.id" :ref="el => setTokenCardRef(el, token.id)"
                   :token="token" :is-batch-checking="isRefreshing" :is-highlighted="highlightedTokenId === token.id"
-                  @delete="deleteToken" @edit="handleEditToken" @token-updated="handleTokenUpdated" />
+                  :is-selected="selectedTokenIds.has(token.id)" :selection-mode="isSelectionMode"
+                  :is-selected-refreshing="isBatchRefreshing"
+                  :cached-payment-link="paymentLinksCache.get(token.id)"
+                  @delete="deleteToken" @edit="handleEditToken" @token-updated="handleTokenUpdated"
+                  @select="toggleTokenSelection" @payment-link-fetched="cachePaymentLink" />
               </div>
 
               <!-- 分页导航 -->
@@ -385,6 +389,68 @@
 
           </div>
         </div>
+
+        <!-- 批量操作工具栏 -->
+        <Transition name="slide-up">
+          <div v-if="isSelectionMode" class="batch-toolbar">
+            <div class="batch-toolbar-content">
+              <!-- 左侧：选中数量 -->
+              <div class="batch-info">
+                <span class="selected-count">
+                  {{ $t('tokenList.selected', { count: selectedTokenIds.size }) }}
+                </span>
+                <button @click="selectAllOnPage" class="btn-text">
+                  {{ $t('tokenList.selectAllPage') }}
+                </button>
+              </div>
+              
+              <!-- 右侧：操作按钮 -->
+              <div class="batch-actions">
+                <!-- 批量刷新状态 -->
+                <button @click="batchRefreshSelected" class="batch-action-btn" 
+                        :disabled="isBatchRefreshing"
+                        :title="$t('tokenList.batchRefreshSelected')">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+                  </svg>
+                </button>
+                
+                <!-- 批量导出 -->
+                <button @click="batchExportSelected" class="batch-action-btn"
+                        :title="$t('tokenList.batchExportSelected')">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/>
+                  </svg>
+                </button>
+                
+                <!-- 批量获取绑卡链接 -->
+                <button @click="batchFetchPaymentLinks" class="batch-action-btn"
+                        :disabled="isBatchFetchingPaymentLinks"
+                        :title="$t('tokenList.batchFetchPaymentLinks')">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
+                  </svg>
+                </button>
+                
+                <!-- 批量删除 -->
+                <button @click="showBatchDeleteSelectedConfirm" class="batch-action-btn danger"
+                        :title="$t('tokenList.batchDeleteSelected')">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                  </svg>
+                </button>
+                
+                <!-- 取消选择 -->
+                <button @click="clearSelection" class="batch-action-btn close"
+                        :title="$t('tokenList.cancelSelection')">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </Transition>
       </div>
     </div>
 
@@ -609,6 +675,39 @@
         </div>
       </Transition>
     </Teleport>
+
+    <!-- Selected Tokens Delete Confirmation Dialog -->
+    <Teleport to="body">
+      <Transition name="modal" appear>
+        <div v-if="showSelectedDeleteDialog" class="batch-delete-overlay" @click="showSelectedDeleteDialog = false">
+          <div class="batch-delete-dialog" @click.stop>
+            <div class="dialog-header">
+              <h3>{{ $t('tokenList.batchDeleteConfirm') }}</h3>
+              <button @click="showSelectedDeleteDialog = false" class="dialog-close">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                </svg>
+              </button>
+            </div>
+            <div class="dialog-body">
+              <p class="dialog-message">{{ $t('tokenList.selectedDeleteMessage') }}</p>
+              <div class="delete-stats">
+                <div class="stat-item total">
+                  <span class="stat-label">{{ $t('tokenList.selectedCount') }}:</span>
+                  <span class="stat-value">{{ selectedTokenIds.size }} {{ $t('tokenList.items') }}</span>
+                </div>
+              </div>
+              <p class="dialog-warning">{{ $t('tokenList.cannotUndo') }}</p>
+            </div>
+            <div class="dialog-footer">
+              <button @click="executeBatchDeleteSelected" class="btn btn-danger">
+                {{ $t('tokenList.confirmDelete') }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -680,6 +779,16 @@ const DEFAULT_TAG_COLOR = '#f97316'
 // 批量删除状态
 const showBatchDeleteDialog = ref(false)
 const isDeleting = ref(false)
+
+// 批量选择状态
+const selectedTokenIds = ref(new Set())
+const isSelectionMode = computed(() => selectedTokenIds.value.size > 0)
+const showSelectedDeleteDialog = ref(false)
+const isBatchRefreshing = ref(false)
+const isBatchFetchingPaymentLinks = ref(false)
+
+// 绑卡链接缓存（Session 级别，不持久化）
+const paymentLinksCache = ref(new Map())
 
 // 批量导入状态
 const showBatchImportDialog = ref(false)
@@ -1275,6 +1384,216 @@ const fillWithCustomCount = () => {
 const handleBatchDelete = () => {
   showBatchDeleteDialog.value = true
 }
+
+// ========== 批量选择相关函数 ==========
+
+// 切换单个 token 的选中状态
+const toggleTokenSelection = (tokenId) => {
+  const newSet = new Set(selectedTokenIds.value)
+  if (newSet.has(tokenId)) {
+    newSet.delete(tokenId)
+  } else {
+    newSet.add(tokenId)
+  }
+  selectedTokenIds.value = newSet
+}
+
+// 全选当前页
+const selectAllOnPage = () => {
+  const newSet = new Set(selectedTokenIds.value)
+  paginatedTokens.value.forEach(token => newSet.add(token.id))
+  selectedTokenIds.value = newSet
+}
+
+// 清除所有选择
+const clearSelection = () => {
+  selectedTokenIds.value = new Set()
+}
+
+// 获取选中的 tokens
+const selectedTokens = computed(() => {
+  return tokens.value.filter(t => selectedTokenIds.value.has(t.id))
+})
+
+// 批量刷新选中的 token 状态
+const batchRefreshSelected = async () => {
+  if (selectedTokenIds.value.size === 0 || isBatchRefreshing.value) return
+  
+  isBatchRefreshing.value = true
+  const selectedIds = Array.from(selectedTokenIds.value)
+  
+  try {
+    // 获取选中的 tokens（过滤掉标记为跳过检测的）
+    const tokensToCheck = tokens.value
+      .filter(t => selectedIds.includes(t.id) && !t.skip_check)
+    
+    if (tokensToCheck.length === 0) {
+      window.$notify.warning(t('messages.noTokensToCheck'))
+      return
+    }
+    
+    window.$notify.info(t('tokenList.batchRefreshing', { count: tokensToCheck.length }))
+    
+    // 使用公共方法批量检测
+    const result = await batchCheckTokensStatus(tokensToCheck)
+    
+    if (result.hasChanges) {
+      await handleSave()
+      if (isDatabaseAvailable.value) {
+        isSyncNeeded.value = true
+      }
+    }
+    
+    window.$notify.success(t('tokenList.batchRefreshComplete', { count: tokensToCheck.length }))
+  } catch (error) {
+    console.error('Batch refresh error:', error)
+    window.$notify.error(`${t('messages.refreshFailed')}: ${error.message || error}`)
+  } finally {
+    isBatchRefreshing.value = false
+    // 操作完成后清除选择
+    clearSelection()
+  }
+}
+
+// 批量导出选中的 token
+const batchExportSelected = async () => {
+  if (selectedTokenIds.value.size === 0) return
+  
+  const exportData = selectedTokens.value.map(token => ({
+    access_token: token.access_token,
+    tenant_url: token.tenant_url,
+    portal_url: token.portal_url || undefined,
+    email_note: token.email_note || undefined,
+    auth_session: token.auth_session || undefined,
+    tag_name: token.tag_name || undefined,
+    tag_color: token.tag_color || undefined
+  }))
+  
+  const jsonStr = JSON.stringify(exportData, null, 2)
+  
+  try {
+    await navigator.clipboard.writeText(jsonStr)
+    window.$notify.success(t('tokenList.batchExportSuccess', { count: exportData.length }))
+  } catch (error) {
+    console.error('Failed to copy to clipboard:', error)
+    window.$notify.error(t('tokenList.batchExportFailed'))
+  }
+  
+  // 操作完成后清除选择
+  clearSelection()
+}
+
+// 批量获取绑卡链接
+const batchFetchPaymentLinks = async () => {
+  if (selectedTokenIds.value.size === 0 || isBatchFetchingPaymentLinks.value) return
+  
+  isBatchFetchingPaymentLinks.value = true
+  const selectedIds = Array.from(selectedTokenIds.value)
+  
+  try {
+    // 获取选中的 tokens（需要有 auth_session）
+    const tokensToFetch = tokens.value.filter(t => 
+      selectedIds.includes(t.id) && t.auth_session
+    )
+    
+    if (tokensToFetch.length === 0) {
+      window.$notify.warning(t('tokenList.noTokensWithSession'))
+      return
+    }
+    
+    window.$notify.info(t('tokenList.batchFetchingPaymentLinks', { count: tokensToFetch.length }))
+    
+    let successCount = 0
+    let failedCount = 0
+    const links = []
+    
+    // 并行获取所有绑卡链接
+    const fetchPromises = tokensToFetch.map(async (token) => {
+      try {
+        const result = await invoke('fetch_payment_method_link_command', {
+          authSession: token.auth_session
+        })
+        if (result.payment_method_link) {
+          // 缓存绑卡链接
+          paymentLinksCache.value.set(token.id, result.payment_method_link)
+          links.push(result.payment_method_link)
+          successCount++
+        } else {
+          failedCount++
+        }
+      } catch (error) {
+        console.error(`Failed to fetch payment link for token ${token.id}:`, error)
+        failedCount++
+      }
+    })
+    
+    await Promise.all(fetchPromises)
+    
+    // 复制所有链接到剪贴板
+    if (links.length > 0) {
+      const linksText = links.join('\n')
+      await invoke('copy_to_clipboard', { text: linksText })
+      window.$notify.success(t('tokenList.batchPaymentLinksCopied', { 
+        success: successCount, 
+        failed: failedCount 
+      }))
+    } else {
+      window.$notify.error(t('tokenList.batchPaymentLinksFailed'))
+    }
+  } catch (error) {
+    console.error('Batch fetch payment links error:', error)
+    window.$notify.error(`${t('tokenList.batchPaymentLinksFailed')}: ${error}`)
+  } finally {
+    isBatchFetchingPaymentLinks.value = false
+    // 操作完成后清除选择
+    clearSelection()
+  }
+}
+
+// 缓存单个绑卡链接（供 TokenCard 调用）
+const cachePaymentLink = (tokenId, link) => {
+  paymentLinksCache.value.set(tokenId, link)
+}
+
+// 获取缓存的绑卡链接
+const getCachedPaymentLink = (tokenId) => {
+  return paymentLinksCache.value.get(tokenId) || null
+}
+
+// 显示批量删除选中项对话框
+const showBatchDeleteSelectedConfirm = () => {
+  if (selectedTokenIds.value.size === 0) return
+  showSelectedDeleteDialog.value = true
+}
+
+// 执行批量删除选中项
+const executeBatchDeleteSelected = async () => {
+  if (selectedTokenIds.value.size === 0) return
+  
+  const selectedIds = Array.from(selectedTokenIds.value)
+  let deletedCount = 0
+  
+  for (const tokenId of selectedIds) {
+    const index = tokens.value.findIndex(t => t.id === tokenId)
+    if (index !== -1) {
+      tokens.value.splice(index, 1)
+      deletedCount++
+    }
+  }
+  
+  // 关闭对话框
+  showSelectedDeleteDialog.value = false
+  
+  // 清除选择
+  clearSelection()
+  
+  // 保存更改
+  await saveTokensToStorage()
+  
+  window.$notify.success(t('tokenList.batchDeleteSelectedSuccess', { count: deletedCount }))
+}
+
+// ========== 批量选择相关函数结束 ==========
 
 // 显示批量删除确认对话框
 const showBatchDeleteConfirm = () => {
@@ -2265,11 +2584,9 @@ const handleClose = () => {
   emit('close')
 }
 
-// 检查当前页账号状态
-const checkPageAccountStatus = async () => {
-  // 获取当前页需要检测的tokens(过滤掉标记为跳过检测的)
-  const tokensToCheck = paginatedTokens.value.filter(token => !token.skip_check)
-
+// ========== 公共批量检测方法 ==========
+// 批量检测指定 tokens 的状态（公共方法）
+const batchCheckTokensStatus = async (tokensToCheck) => {
   if (tokensToCheck.length === 0) {
     return { hasChanges: false }
   }
@@ -2285,7 +2602,7 @@ const checkPageAccountStatus = async () => {
       email_note: token.email_note || null
     }))
 
-    // 单次批量API调用检测当前页所有tokens
+    // 单次批量API调用检测所有tokens
     const results = await invoke('batch_check_tokens_status', {
       tokens: tokenInfos
     })
@@ -2379,9 +2696,16 @@ const checkPageAccountStatus = async () => {
 
     return { hasChanges }
   } catch (error) {
-    console.error('Batch check page error:', error)
+    console.error('Batch check tokens error:', error)
     throw error
   }
+}
+
+// 检查当前页账号状态
+const checkPageAccountStatus = async () => {
+  // 获取当前页需要检测的tokens(过滤掉标记为跳过检测的)
+  const tokensToCheck = paginatedTokens.value.filter(token => !token.skip_check)
+  return await batchCheckTokensStatus(tokensToCheck)
 }
 
 // 处理刷新事件 - 只刷新当前页
@@ -4620,5 +4944,125 @@ defineExpose({
 
 [data-theme='dark'] .clear-filter-btn:hover {
   background: var(--color-primary-hover, #2563eb);
+}
+
+/* ========== 批量操作工具栏样式 ========== */
+.batch-toolbar {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-divider, #e1e5e9);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  padding: 12px 20px;
+}
+
+.batch-toolbar-content {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.batch-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.selected-count {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--color-accent, #3b82f6);
+}
+
+.btn-text {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary, #6b7280);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.btn-text:hover {
+  background: var(--color-surface-soft, #f3f4f6);
+  color: var(--color-accent, #3b82f6);
+}
+
+.batch-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.batch-action-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: none;
+  background: var(--color-surface-soft, #f3f4f6);
+  color: var(--color-text-secondary, #6b7280);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.batch-action-btn:hover {
+  background: var(--color-accent, #3b82f6);
+  color: white;
+}
+
+.batch-action-btn.danger:hover {
+  background: var(--color-danger, #ef4444);
+}
+
+.batch-action-btn.close:hover {
+  background: var(--color-text-secondary, #6b7280);
+}
+
+/* 工具栏滑入动画 */
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slide-up-enter-from,
+.slide-up-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(20px);
+}
+
+/* 暗色模式适配 */
+[data-theme='dark'] .batch-toolbar {
+  background: var(--color-surface, #1f2937);
+  border-color: var(--color-divider, #374151);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme='dark'] .batch-action-btn {
+  background: rgba(55, 65, 81, 0.6);
+  color: var(--color-text-secondary, #9ca3af);
+}
+
+[data-theme='dark'] .batch-action-btn:hover {
+  background: var(--color-accent, #3b82f6);
+  color: white;
+}
+
+[data-theme='dark'] .btn-text:hover {
+  background: rgba(55, 65, 81, 0.6);
+}
+
+/* 禁用状态 */
+.batch-action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 </style>

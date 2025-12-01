@@ -241,7 +241,26 @@ export default {
     setAsDefault: '设为默认数量',
     defaultCountSaved: '已将默认输入框数量设置为 {count}',
     saveDefaultFailed: '保存默认数量失败',
-    invalidDefaultCount: '默认数量必须在 1-20 之间'
+    invalidDefaultCount: '默认数量必须在 1-20 之间',
+    // 批量选择相关
+    selected: '已选择 {count} 项',
+    selectAllPage: '全选当前页',
+    cancelSelection: '取消选择',
+    batchRefreshSelected: '批量刷新选中项',
+    batchExportSelected: '批量导出选中项',
+    batchDeleteSelected: '批量删除选中项',
+    batchRefreshing: '正在批量刷新 {count} 个 Token...',
+    batchRefreshComplete: '已完成 {count} 个 Token 的状态刷新',
+    batchExportSuccess: '已复制 {count} 个 Token 到剪贴板',
+    batchExportFailed: '导出失败',
+    selectedDeleteMessage: '确定要删除以下选中的 Token 吗？',
+    selectedCount: '选中数量',
+    batchDeleteSelectedSuccess: '已删除 {count} 个 Token',
+    batchFetchPaymentLinks: '批量获取绑卡链接',
+    noTokensWithSession: '选中的 Token 没有有效的 Session',
+    batchFetchingPaymentLinks: '正在获取 {count} 个绑卡链接...',
+    batchPaymentLinksCopied: '已复制 {success} 个绑卡链接（{failed} 个失败）',
+    batchPaymentLinksFailed: '获取绑卡链接失败'
   },
   tokenCard: {
     banned: '已封禁',
