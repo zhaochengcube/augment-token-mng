@@ -260,7 +260,21 @@ export default {
     noTokensWithSession: '选中的 Token 没有有效的 Session',
     batchFetchingPaymentLinks: '正在获取 {count} 个绑卡链接...',
     batchPaymentLinksCopied: '已复制 {success} 个绑卡链接（{failed} 个失败）',
-    batchPaymentLinksFailed: '获取绑卡链接失败'
+    batchPaymentLinksFailed: '获取绑卡链接失败',
+    // 布局切换
+    switchToTable: '切换到列表视图',
+    switchToCard: '切换到卡片视图',
+    // 表格表头
+    tableHeaderTag: '标签',
+    tableHeaderStatus: '状态',
+    tableHeaderEmail: '邮箱',
+    tableHeaderBalance: '剩余次数',
+    tableHeaderExpiry: '过期时间',
+    tableHeaderActions: '操作',
+    // 标签编辑
+    clickToEditTag: '点击编辑标签',
+    clickToAddTag: '点击添加标签',
+    editTag: '编辑标签'
   },
   tokenCard: {
     banned: '已封禁',
@@ -532,7 +546,9 @@ export default {
     checkIsDisabled: '该账号已禁用检测，请右键刷新按钮启用',
     autoDisabledBanned: '账号已封禁，已自动禁用检测',
     autoDisabledExpired: '账号已过期，已自动禁用检测',
-    sessionErrorOrAccountBanned: 'Session错误或账号已被封禁'
+    sessionErrorOrAccountBanned: 'Session错误或账号已被封禁',
+    tagUpdated: '标签已更新',
+    tagCleared: '标签已清除',
   },
   validation: {
     required: '此字段为必填项',

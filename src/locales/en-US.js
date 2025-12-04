@@ -260,7 +260,21 @@ export default {
     noTokensWithSession: 'Selected tokens have no valid session',
     batchFetchingPaymentLinks: 'Fetching {count} payment links...',
     batchPaymentLinksCopied: 'Copied {success} payment links ({failed} failed)',
-    batchPaymentLinksFailed: 'Failed to fetch payment links'
+    batchPaymentLinksFailed: 'Failed to fetch payment links',
+    // Layout switching
+    switchToTable: 'Switch to table view',
+    switchToCard: 'Switch to card view',
+    // Table headers
+    tableHeaderTag: 'Tag',
+    tableHeaderStatus: 'Status',
+    tableHeaderEmail: 'Email',
+    tableHeaderBalance: 'Balance',
+    tableHeaderExpiry: 'Expiry',
+    tableHeaderActions: 'Actions',
+    // Tag editing
+    clickToEditTag: 'Click to edit tag',
+    clickToAddTag: 'Click to add tag',
+    editTag: 'Edit Tag'
   },
   tokenCard: {
     banned: 'Banned',
@@ -530,7 +544,9 @@ export default {
     checkIsDisabled: 'Check is disabled for this account, right-click refresh button to enable',
     autoDisabledBanned: 'Account banned, check automatically disabled',
     autoDisabledExpired: 'Account expired, check automatically disabled',
-    sessionErrorOrAccountBanned: 'Session error or account banned'
+    sessionErrorOrAccountBanned: 'Session error or account banned',
+    tagUpdated: 'Tag updated',
+    tagCleared: 'Tag cleared',
   },
   validation: {
     required: 'This field is required',

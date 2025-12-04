@@ -312,7 +312,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 2000;
+  z-index: 3000;
 }
 
 .modal-content {
@@ -525,7 +525,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 2100;
+  z-index: 3100;
 }
 
 .confirm-dialog {

@@ -238,6 +238,23 @@
                   </Transition>
                 </div>
 
+                <!-- 布局切换按钮 -->
+                <button 
+                  class="view-toggle-btn" 
+                  @click="toggleViewMode" 
+                  :title="viewMode === 'card' ? $t('tokenList.switchToTable') : $t('tokenList.switchToCard')"
+                  :class="{ 'active': viewMode === 'table' }"
+                >
+                  <!-- 卡片图标 -->
+                  <svg v-if="viewMode === 'table'" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M4 11h5V5H4v6zm0 7h5v-6H4v6zm6 0h5v-6h-5v6zm6 0h5v-6h-5v6zm-6-7h5V5h-5v6zm6-6v6h5V5h-5z"/>
+                  </svg>
+                  <!-- 列表图标 -->
+                  <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M3 14h4v-4H3v4zm0 5h4v-4H3v4zM3 9h4V5H3v4zm5 5h13v-4H8v4zm0 5h13v-4H8v4zM8 5v4h13V5H8z"/>
+                  </svg>
+                </button>
+
                 <!-- 邮箱后缀筛选下拉菜单 -->
                 <div class="email-suffix-dropdown">
                   <button class="email-suffix-btn" @click.stop="toggleEmailSuffixMenu"
@@ -358,8 +375,8 @@
             </div>
 
             <template v-else>
-              <!-- Token Grid -->
-              <div class="token-grid">
+              <!-- 卡片布局 -->
+              <div v-if="viewMode === 'card'" class="token-grid">
                 <TokenCard v-for="token in paginatedTokens" :key="token.id" :ref="el => setTokenCardRef(el, token.id)"
                   :token="token" :is-batch-checking="isRefreshing" :is-highlighted="highlightedTokenId === token.id"
                   :is-selected="selectedTokenIds.has(token.id)" :selection-mode="isSelectionMode"
@@ -367,6 +384,63 @@
                   :cached-payment-link="paymentLinksCache.get(token.id)"
                   @delete="deleteToken" @edit="handleEditToken" @token-updated="handleTokenUpdated"
                   @select="toggleTokenSelection" @payment-link-fetched="cachePaymentLink" />
+              </div>
+
+              <!-- 列表布局 -->
+              <div v-else class="token-table-wrapper">
+                <table class="token-table">
+                  <thead>
+                    <tr>
+                      <th class="th-checkbox">
+                        <div class="header-checkbox" @click="toggleSelectAll">
+                          <div 
+                            class="checkbox-inner" 
+                            :class="{ 
+                              'checked': isAllSelected, 
+                              'indeterminate': isPartialSelected 
+                            }"
+                          >
+                            <svg v-if="isAllSelected" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                            </svg>
+                            <svg v-else-if="isPartialSelected" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M19 13H5v-2h14v2z"/>
+                            </svg>
+                          </div>
+                        </div>
+                      </th>
+                      <th class="th-tag">{{ $t('tokenList.tableHeaderTag') }}</th>
+                      <th class="th-status">{{ $t('tokenList.tableHeaderStatus') }}</th>
+                      <th class="th-email">{{ $t('tokenList.tableHeaderEmail') }}</th>
+                      <th class="th-balance">{{ $t('tokenList.tableHeaderBalance') }}</th>
+                      <th class="th-expiry">{{ $t('tokenList.tableHeaderExpiry') }}</th>
+                      <th class="th-actions">{{ $t('tokenList.tableHeaderActions') }}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <TokenTableRow 
+                      v-for="token in paginatedTokens" 
+                      :key="token.id"
+                      :ref="el => setTokenCardRef(el, token.id)"
+                      :token="token" 
+                      :is-batch-checking="isRefreshing" 
+                      :is-highlighted="highlightedTokenId === token.id"
+                      :is-selected="selectedTokenIds.has(token.id)" 
+                      :selection-mode="isSelectionMode"
+                      :is-selected-refreshing="isBatchRefreshing"
+                      :cached-payment-link="paymentLinksCache.get(token.id)"
+                      :all-tokens="tokens"
+                      @delete="deleteToken" 
+                      @edit="handleEditToken" 
+                      @token-updated="handleTokenUpdated"
+                      @select="toggleTokenSelection" 
+                      @payment-link-fetched="cachePaymentLink"
+                      @open-editor="handleOpenEditor"
+                      @open-portal="handleOpenPortal"
+                      @edit-tag="handleEditTag"
+                    />
+                  </tbody>
+                </table>
               </div>
 
               <!-- 分页导航 -->
@@ -455,13 +529,17 @@
     </div>
 
     <!-- Database Config Modal -->
-    <DatabaseConfig v-if="showDatabaseConfig" @close="showDatabaseConfig = false"
-      @config-saved="handleDatabaseConfigSaved" @config-deleted="handleDatabaseConfigDeleted" />
+    <Teleport to="body">
+      <DatabaseConfig v-if="showDatabaseConfig" @close="showDatabaseConfig = false"
+        @config-saved="handleDatabaseConfigSaved" @config-deleted="handleDatabaseConfigDeleted" />
+    </Teleport>
 
     <!-- Token Form Modal -->
-    <TokenForm v-if="showTokenFormModal" :token="editingToken" :all-tokens="tokens" @close="closeTokenForm" @success="handleTokenFormSuccess"
-      @update-token="handleUpdateToken" @add-token="handleAddTokenFromForm"
-      @auto-import-completed="handleAutoImportCompleted" @manual-import-completed="handleManualImportCompleted" />
+    <Teleport to="body">
+      <TokenForm v-if="showTokenFormModal" :token="editingToken" :all-tokens="tokens" @close="closeTokenForm" @success="handleTokenFormSuccess"
+        @update-token="handleUpdateToken" @add-token="handleAddTokenFromForm"
+        @auto-import-completed="handleAutoImportCompleted" @manual-import-completed="handleManualImportCompleted" />
+    </Teleport>
 
     <!-- Batch Import Dialog -->
     <Teleport to="body">
@@ -718,6 +796,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { useI18n } from 'vue-i18n'
 import TokenCard from './TokenCard.vue'
+import TokenTableRow from './TokenTableRow.vue'
 import DatabaseConfig from './DatabaseConfig.vue'
 import TokenForm from './TokenForm.vue'
 
@@ -754,6 +833,9 @@ let unlistenTokensUpdated = null
 const sortType = ref('time') // 'time' = 按时间排序, 'balance' = 按余额排序
 const sortOrder = ref('desc') // 'desc' = 最新优先/余额从多到少, 'asc' = 最旧优先/余额从少到多
 const showSortMenu = ref(false) // 排序下拉菜单显示状态
+
+// 视图模式管理
+const viewMode = ref('card') // 'card' = 卡片布局, 'table' = 列表布局
 
 // 搜索状态管理
 const searchQuery = ref('')
@@ -1176,6 +1258,21 @@ const toggleSortMenu = () => {
   showSortMenu.value = !showSortMenu.value
 }
 
+// 切换视图模式
+const toggleViewMode = () => {
+  viewMode.value = viewMode.value === 'card' ? 'table' : 'card'
+  // 保存到 localStorage
+  localStorage.setItem('tokenListViewMode', viewMode.value)
+}
+
+// 从 localStorage 加载视图模式
+const loadViewMode = () => {
+  const saved = localStorage.getItem('tokenListViewMode')
+  if (saved === 'card' || saved === 'table') {
+    viewMode.value = saved
+  }
+}
+
 // 设置排序类型和顺序
 const setSortType = (type, order) => {
   sortType.value = type
@@ -1414,6 +1511,54 @@ const clearSelection = () => {
 const selectedTokens = computed(() => {
   return tokens.value.filter(t => selectedTokenIds.value.has(t.id))
 })
+
+// 表格全选相关计算属性
+const isAllSelected = computed(() => {
+  if (paginatedTokens.value.length === 0) return false
+  return paginatedTokens.value.every(token => selectedTokenIds.value.has(token.id))
+})
+
+const isPartialSelected = computed(() => {
+  if (paginatedTokens.value.length === 0) return false
+  const selectedCount = paginatedTokens.value.filter(token => selectedTokenIds.value.has(token.id)).length
+  return selectedCount > 0 && selectedCount < paginatedTokens.value.length
+})
+
+// 切换全选状态
+const toggleSelectAll = () => {
+  if (isAllSelected.value) {
+    // 取消选择当前页所有项
+    const newSet = new Set(selectedTokenIds.value)
+    paginatedTokens.value.forEach(token => newSet.delete(token.id))
+    selectedTokenIds.value = newSet
+  } else {
+    // 选择当前页所有项
+    selectAllOnPage()
+  }
+}
+
+// 处理打开编辑器（从 TokenTableRow 触发）
+// 通过设置当前 token 并打开编辑表单来实现编辑器选择
+const handleOpenEditor = (token) => {
+  // 直接使用编辑功能来打开 Token 表单，用户可以在表单中选择编辑器
+  editingToken.value = token
+  showTokenFormModal.value = true
+}
+
+// 处理打开 Portal（从 TokenTableRow 触发）
+const handleOpenPortal = (token) => {
+  if (token.portal_url) {
+    // 直接在浏览器中打开 Portal URL
+    window.open(token.portal_url, '_blank')
+  }
+}
+
+// 处理编辑标签（从 TokenTableRow 触发）
+const handleEditTag = (token) => {
+  // 打开 Token 编辑表单，用户可以编辑标签
+  editingToken.value = token
+  showTokenFormModal.value = true
+}
 
 // 批量刷新选中的 token 状态
 const batchRefreshSelected = async () => {
@@ -2824,6 +2969,9 @@ onMounted(async () => {
   // 加载分页配置
   loadPageSize()
 
+  // 加载视图模式配置
+  loadViewMode()
+
   // 加载默认输入框数量配置
   defaultInputCount.value = loadDefaultInputCount()
 
@@ -3078,6 +3226,141 @@ defineExpose({
   padding: 4px;
 }
 
+/* 视图切换按钮 - 额外样式 */
+.view-toggle-btn {
+  padding: 0 10px;
+}
+
+.view-toggle-btn:hover {
+  background: var(--color-background-soft, #f9fafb);
+  border-color: var(--color-primary, #2563eb);
+  color: var(--color-primary, #2563eb);
+}
+
+.view-toggle-btn.active {
+  background: var(--color-primary-soft, #eff6ff);
+  border-color: var(--color-primary, #2563eb);
+  color: var(--color-primary, #2563eb);
+}
+
+/* 表格布局样式 */
+.token-table-wrapper {
+  overflow-x: auto;
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-divider, #e5e7eb);
+  border-radius: 8px;
+}
+
+.token-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.token-table thead {
+  background: var(--color-surface-secondary, #f9fafb);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.token-table th {
+  padding: 12px 8px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--color-text-secondary, #6b7280);
+  border-bottom: 2px solid var(--color-divider, #e5e7eb);
+  white-space: nowrap;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.token-table .th-checkbox {
+  width: 40px;
+  text-align: center;
+}
+
+.token-table .th-tag {
+  width: 100px;
+}
+
+.token-table .th-status {
+  width: 80px;
+}
+
+.token-table .th-email {
+  min-width: 180px;
+}
+
+.token-table .th-balance {
+  width: 90px;
+  text-align: center;
+}
+
+.token-table .th-expiry {
+  width: 120px;
+}
+
+.token-table .th-actions {
+  width: 220px;
+  text-align: center;
+}
+
+/* 表头多选框 */
+.header-checkbox {
+  display: inline-flex;
+  cursor: pointer;
+}
+
+.header-checkbox .checkbox-inner {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 2px solid var(--color-divider, #d1d5db);
+  background: var(--color-surface, #ffffff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.header-checkbox .checkbox-inner:hover {
+  border-color: var(--color-accent, #3b82f6);
+}
+
+.header-checkbox .checkbox-inner.checked {
+  background: var(--color-accent, #3b82f6);
+  border-color: var(--color-accent, #3b82f6);
+  color: white;
+}
+
+.header-checkbox .checkbox-inner.indeterminate {
+  background: var(--color-accent, #3b82f6);
+  border-color: var(--color-accent, #3b82f6);
+  color: white;
+}
+
+/* 暗黑模式 - 表格 */
+[data-theme='dark'] .token-table-wrapper {
+  background: var(--color-surface, #1f2937);
+  border-color: rgba(75, 85, 99, 0.6);
+}
+
+[data-theme='dark'] .token-table thead {
+  background: rgba(55, 65, 81, 0.5);
+}
+
+[data-theme='dark'] .token-table th {
+  color: #9ca3af;
+  border-bottom-color: rgba(75, 85, 99, 0.6);
+}
+
+[data-theme='dark'] .header-checkbox .checkbox-inner {
+  background: rgba(51, 65, 85, 0.5);
+  border-color: rgba(71, 85, 105, 0.6);
+}
+
 /* 响应式处理 */
 
 /* 超大屏幕优化 */
@@ -3127,7 +3410,8 @@ defineExpose({
 .open-folder-btn,
 .batch-delete-btn,
 .batch-import-btn,
-.sort-dropdown .sort-btn {
+.sort-dropdown .sort-btn,
+.view-toggle-btn {
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -4766,7 +5050,8 @@ defineExpose({
 [data-theme='dark'] .open-folder-btn,
 [data-theme='dark'] .batch-delete-btn,
 [data-theme='dark'] .batch-import-btn,
-[data-theme='dark'] .sort-dropdown .sort-btn {
+[data-theme='dark'] .sort-dropdown .sort-btn,
+[data-theme='dark'] .view-toggle-btn {
   background: var(--color-surface, #1f2937);
   border-color: var(--color-border, #374151);
   color: var(--color-text-primary, #f9fafb);
@@ -4774,9 +5059,16 @@ defineExpose({
 
 [data-theme='dark'] .open-folder-btn:hover,
 [data-theme='dark'] .batch-import-btn:hover,
-[data-theme='dark'] .sort-dropdown .sort-btn:hover {
+[data-theme='dark'] .sort-dropdown .sort-btn:hover,
+[data-theme='dark'] .view-toggle-btn:hover {
   background: var(--color-surface-alt, #111827);
   border-color: var(--color-primary, #3b82f6);
+}
+
+[data-theme='dark'] .view-toggle-btn.active {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: var(--color-primary, #3b82f6);
+  color: var(--color-primary, #3b82f6);
 }
 
 [data-theme='dark'] .batch-delete-btn:hover:not(:disabled) {
