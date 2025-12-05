@@ -111,24 +111,26 @@
                     </div>
                   </Transition>
                 </div>
-                <button
-                  type="button"
-                  class="tag-color-display"
-                  :style="{ backgroundColor: formData.tagColor }"
-                  :title="$t('tokenForm.tagColorPicker')"
-                  :aria-label="$t('tokenForm.tagColorPicker')"
-                  @click="openTagColorPicker"
-                  :disabled="isLoading"
-                ></button>
-                <input
-                  ref="tagColorInput"
-                  type="color"
-                  v-model="formData.tagColor"
-                  class="hidden-color-input"
-                  tabindex="-1"
-                  aria-hidden="true"
-                  @input="handleTagColorInput"
-                >
+                <div class="tag-color-wrapper">
+                  <button
+                    type="button"
+                    class="tag-color-display"
+                    :style="{ backgroundColor: formData.tagColor }"
+                    :title="$t('tokenForm.tagColorPicker')"
+                    :aria-label="$t('tokenForm.tagColorPicker')"
+                    @click="openTagColorPicker"
+                    :disabled="isLoading"
+                  ></button>
+                  <input
+                    ref="tagColorInput"
+                    type="color"
+                    v-model="formData.tagColor"
+                    class="hidden-color-input"
+                    tabindex="-1"
+                    aria-hidden="true"
+                    @input="handleTagColorInput"
+                  >
+                </div>
               </div>
             </div>
 
@@ -877,6 +879,11 @@ onUnmounted(() => {
   color: var(--color-text-primary, #374151);
 }
 
+.tag-color-wrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
 .tag-color-display {
   width: 32px;
   height: 32px;
@@ -885,7 +892,6 @@ onUnmounted(() => {
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   padding: 0;
-  flex-shrink: 0;
 }
 
 .tag-color-display:disabled {
@@ -902,9 +908,12 @@ onUnmounted(() => {
 
 .hidden-color-input {
   position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   opacity: 0;
-  width: 0;
-  height: 0;
+  width: 1px;
+  height: 1px;
   pointer-events: none;
 }
 

@@ -173,6 +173,8 @@ export default {
     sync: '同步',
     syncing: '同步中...',
     syncTooltip: '执行双向同步（本地 ↔ 数据库）',
+    showRealEmail: '显示真实邮箱',
+    hideRealEmail: '隐藏真实邮箱',
     sort: '排序',
     sortByTime: '按时间',
     sortByBalance: '按余额',
@@ -274,7 +276,11 @@ export default {
     // 标签编辑
     clickToEditTag: '点击编辑标签',
     clickToAddTag: '点击添加标签',
-    editTag: '编辑标签'
+    editTag: '编辑标签',
+    batchEditTag: '批量编辑标签',
+    batchTagHint: '将为 {count} 个 Token 设置相同的标签',
+    batchTagUpdated: '已为 {count} 个 Token 设置标签',
+    batchTagCleared: '已清除 {count} 个 Token 的标签'
   },
   tokenCard: {
     banned: '已封禁',

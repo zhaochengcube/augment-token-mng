@@ -13,15 +13,29 @@
       </div>
     </div>
     <!-- 状态指示器 -->
-    <div v-if="showStatusIndicator" class="status-indicator">
+    <div class="status-indicator">
+      <!-- 添加标签按钮（无标签时显示） -->
+      <span
+        v-if="!hasTag"
+        class="add-tag-btn"
+        :title="$t('tokenList.clickToAddTag')"
+        @click.stop="openTagEditor"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+        </svg>
+      </span>
+      <!-- 标签（有标签时显示，可点击编辑） -->
       <span
         v-if="hasTag"
-        class="status-badge tag-badge"
+        class="status-badge tag-badge editable"
         :style="tagBadgeStyle"
-        :title="tagDisplayName"
+        :title="$t('tokenList.clickToEditTag')"
+        @click.stop="openTagEditor"
       >
         {{ tagDisplayName }}
       </span>
+      <!-- 状态徽章 -->
       <span
         v-if="hasStatusBadge"
         :class="['status-badge', getStatusClass(token.ban_status), { clickable: isBannedWithSuspensions }]"
@@ -43,15 +57,11 @@
           <!-- 第二行：邮箱备注（如果有） -->
           <div v-if="token.email_note" class="meta-row email-row">
             <div class="email-note-container">
-              <span
-                class="email-note"
-                @mouseenter="isEmailHovered = true"
-                @mouseleave="isEmailHovered = false"
-              >
+              <span class="email-note">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" class="email-icon">
                   <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.89 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
                 </svg>
-                {{ isEmailHovered ? token.email_note : maskedEmail }}
+                {{ showRealEmail ? token.email_note : maskedEmail }}
               </span>
               <button @click="copyEmailNote" class="copy-email-btn" :title="$t('tokenCard.copyEmailNote')">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
@@ -94,7 +104,7 @@
 
       <div class="actions">
         <button @click="openEditorModal" class="btn-action vscode" :title="$t('tokenCard.selectEditor')">
-          <img :src="editorIcons.vscode" :alt="$t('tokenCard.selectEditor')" width="18" height="18" />
+          <img src="/icons/vscode.svg" :alt="$t('tokenCard.selectEditor')" width="18" height="18" />
         </button>
         <button @click="exportTokenAsJson" class="btn-action export" :title="$t('tokenCard.exportJson')">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -198,219 +208,14 @@
     </div>
   </div>
 
-  <Teleport to="body">
-    <Transition name="modal" appear>
-      <div v-if="showEditorModal" class="editor-modal-overlay">
-        <div class="editor-modal" @click.stop>
-          <div class="modal-header">
-            <h3>{{ $t('tokenCard.selectEditor') }}</h3>
-            <button @click.stop="showEditorModal = false" class="modal-close">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-              </svg>
-            </button>
-          </div>
-          <div class="modal-content">
-            <!-- VSCode 系编辑器区域 -->
-            <div class="editor-section">
-              <div class="editor-options jetbrains-grid">
-                <button @click="handleEditorClick('vscode')" class="editor-option vscode-option">
-                  <div class="editor-icon">
-                    <img :src="editorIcons.vscode" alt="VS Code" width="32" height="32" />
-                  </div>
-                  <div class="editor-info">
-                    <span class="editor-name">VS Code</span>
-                  </div>
-                </button>
-                <button @click="handleEditorClick('cursor')" class="editor-option cursor-option">
-                  <div class="editor-icon">
-                    <img :src="editorIcons.cursor" alt="Cursor" width="32" height="32" />
-                  </div>
-                  <div class="editor-info">
-                    <span class="editor-name">Cursor</span>
-                  </div>
-                </button>
-                <button @click="handleEditorClick('kiro')" class="editor-option kiro-option">
-                  <div class="editor-icon">
-                    <img :src="editorIcons.kiro" alt="Kiro" width="32" height="32" />
-                  </div>
-                  <div class="editor-info">
-                    <span class="editor-name">Kiro</span>
-                  </div>
-                </button>
-                <button @click="handleEditorClick('trae')" class="editor-option trae-option">
-                  <div class="editor-icon">
-                    <img :src="editorIcons.trae" alt="Trae" width="32" height="32" />
-                  </div>
-                  <div class="editor-info">
-                    <span class="editor-name">Trae</span>
-                  </div>
-                </button>
-                <button @click="handleEditorClick('windsurf')" class="editor-option windsurf-option">
-                  <div class="editor-icon">
-                    <img :src="editorIcons.windsurf" alt="Windsurf" width="32" height="32" />
-                  </div>
-                  <div class="editor-info">
-                    <span class="editor-name">Windsurf</span>
-                  </div>
-                </button>
-                <button @click="handleEditorClick('qoder')" class="editor-option qoder-option">
-                  <div class="editor-icon">
-                    <img :src="editorIcons.qoder" alt="Qoder" width="32" height="32" />
-                  </div>
-                  <div class="editor-info">
-                    <span class="editor-name">Qoder</span>
-                  </div>
-                </button>
-                <button @click="handleEditorClick('vscodium')" class="editor-option vscodium-option">
-                  <div class="editor-icon">
-                    <img :src="editorIcons.vscodium" alt="VSCodium" width="32" height="32" />
-                  </div>
-                  <div class="editor-info">
-                    <span class="editor-name">VSCodium</span>
-                  </div>
-                </button>
-                <button @click="handleEditorClick('codebuddy')" class="editor-option codebuddy-option">
-                  <div class="editor-icon">
-                    <img :src="editorIcons.codebuddy" alt="CodeBuddy" width="32" height="32" />
-                  </div>
-                  <div class="editor-info">
-                    <span class="editor-name">CodeBuddy</span>
-                  </div>
-                </button>
-                <button @click="handleEditorClick('vim')" class="editor-option vim-option">
-                  <div class="editor-icon">
-                    <img :src="editorIcons.vim" alt="Vim" width="32" height="32" />
-                  </div>
-                  <div class="editor-info">
-                    <span class="editor-name">Vim</span>
-                  </div>
-                </button>
-                <button @click="handleEditorClick('auggie')" class="editor-option auggie-option">
-                  <div class="editor-icon">
-                    <img :src="editorIcons.auggie" alt="Auggie" width="32" height="32" />
-                  </div>
-                  <div class="editor-info">
-                    <span class="editor-name">Auggie</span>
-                  </div>
-                </button>
-                <button @click="handleEditorClick('antigravity')" class="editor-option antigravity-option">
-                  <div class="editor-icon">
-                    <img :src="editorIcons.antigravity" alt="Antigravity" width="32" height="32" />
-                  </div>
-                  <div class="editor-info">
-                    <span class="editor-name">Antigravity</span>
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            <!-- JetBrains 系编辑器区域 -->
-            <div class="editor-section">
-              <div class="editor-options jetbrains-grid">
-                <button @click="handleEditorClick('idea')" class="editor-option idea-option">
-                  <div class="editor-icon">
-                    <img :src="editorIcons.idea" alt="IntelliJ IDEA" width="32" height="32" />
-                  </div>
-                  <div class="editor-info">
-                    <span class="editor-name">IntelliJ IDEA</span>
-                  </div>
-                </button>
-                <button @click="handleEditorClick('pycharm')" class="editor-option pycharm-option">
-                  <div class="editor-icon">
-                    <img :src="editorIcons.pycharm" alt="PyCharm" width="32" height="32" />
-                  </div>
-                  <div class="editor-info">
-                    <span class="editor-name">PyCharm</span>
-                  </div>
-                </button>
-                <button @click="handleEditorClick('goland')" class="editor-option goland-option">
-                  <div class="editor-icon">
-                    <img :src="editorIcons.goland" alt="GoLand" width="32" height="32" />
-                  </div>
-                  <div class="editor-info">
-                    <span class="editor-name">GoLand</span>
-                  </div>
-                </button>
-                <button @click="handleEditorClick('rustrover')" class="editor-option rustrover-option">
-                  <div class="editor-icon">
-                    <img :src="editorIcons.rustrover" alt="RustRover" width="32" height="32" />
-                  </div>
-                  <div class="editor-info">
-                    <span class="editor-name">RustRover</span>
-                  </div>
-                </button>
-                <button @click="handleEditorClick('webstorm')" class="editor-option webstorm-option">
-                  <div class="editor-icon">
-                    <img :src="editorIcons.webstorm" alt="WebStorm" width="32" height="32" />
-                  </div>
-                  <div class="editor-info">
-                    <span class="editor-name">WebStorm</span>
-                  </div>
-                </button>
-                <button @click="handleEditorClick('phpstorm')" class="editor-option phpstorm-option">
-                  <div class="editor-icon">
-                    <img :src="editorIcons.phpstorm" alt="PhpStorm" width="32" height="32" />
-                  </div>
-                  <div class="editor-info">
-                    <span class="editor-name">PhpStorm</span>
-                  </div>
-                </button>
-                <button @click="handleEditorClick('androidstudio')" class="editor-option androidstudio-option">
-                  <div class="editor-icon">
-                    <img :src="editorIcons.androidstudio" alt="Android Studio" width="32" height="32" />
-                  </div>
-                  <div class="editor-info">
-                    <span class="editor-name">Android Studio</span>
-                  </div>
-                </button>
-                <button @click="handleEditorClick('clion')" class="editor-option clion-option">
-                  <div class="editor-icon">
-                    <img :src="editorIcons.clion" alt="CLion" width="32" height="32" />
-                  </div>
-                  <div class="editor-info">
-                    <span class="editor-name">CLion</span>
-                  </div>
-                </button>
-                <button @click="handleEditorClick('datagrip')" class="editor-option datagrip-option">
-                  <div class="editor-icon">
-                    <img :src="editorIcons.datagrip" alt="DataGrip" width="32" height="32" />
-                  </div>
-                  <div class="editor-info">
-                    <span class="editor-name">DataGrip</span>
-                  </div>
-                </button>
-                <button @click="handleEditorClick('rider')" class="editor-option rider-option">
-                  <div class="editor-icon">
-                    <img :src="editorIcons.rider" alt="Rider" width="32" height="32" />
-                  </div>
-                  <div class="editor-info">
-                    <span class="editor-name">Rider</span>
-                  </div>
-                </button>
-                <button @click="handleEditorClick('rubymine')" class="editor-option rubymine-option">
-                  <div class="editor-icon">
-                    <img :src="editorIcons.rubymine" alt="RubyMine" width="32" height="32" />
-                  </div>
-                  <div class="editor-info">
-                    <span class="editor-name">RubyMine</span>
-                  </div>
-                </button>
-                <button @click="handleEditorClick('aqua')" class="editor-option aqua-option">
-                  <div class="editor-icon">
-                    <img :src="editorIcons.aqua" alt="Aqua" width="32" height="32" />
-                  </div>
-                  <div class="editor-info">
-                    <span class="editor-name">Aqua</span>
-                  </div>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </Transition>
-  </Teleport>
+  <!-- 编辑器选择模态框 -->
+  <EditorSelectModal
+    :show="showEditorModal"
+    :token="token"
+    @close="showEditorModal = false"
+    @success="(msg) => window.$notify.success(msg)"
+    @error="(msg) => window.$notify.error(msg)"
+  />
 
   <ExternalLinkDialog
     :show="showPortalDialog"
@@ -464,36 +269,8 @@
     </Transition>
   </Teleport>
 
-  <!-- Trae 版本选择对话框 -->
+  <!-- Credit Usage Modal -->
   <Teleport to="body">
-    <Transition name="modal" appear>
-      <div v-if="showTraeVersionDialog" class="trae-version-modal-overlay" @click="showTraeVersionDialog = false">
-        <div class="trae-version-modal" @click.stop>
-          <div class="modal-header">
-            <h3>选择 Trae 版本</h3>
-            <button @click="showTraeVersionDialog = false" class="modal-close">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-              </svg>
-            </button>
-          </div>
-          <div class="modal-body">
-            <div class="version-options">
-              <button @click="handleTraeVersionSelect('global')" class="version-option">
-                <div class="version-icon">🌍</div>
-                <div class="version-name">Trae 国际版</div>
-              </button>
-              <button @click="handleTraeVersionSelect('cn')" class="version-option">
-                <div class="version-icon">🇨🇳</div>
-                <div class="version-name">Trae 国内版</div>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </Transition>
-
-    <!-- Credit Usage Modal -->
     <Transition name="modal" appear>
       <CreditUsageModal
         v-if="showCreditUsageModal && token.auth_session"
@@ -506,14 +283,25 @@
       />
     </Transition>
   </Teleport>
+
+  <!-- 标签编辑模态框 -->
+  <TagEditorModal
+    v-model:visible="showTagEditor"
+    :token="token"
+    :all-tokens="allTokens"
+    @save="handleTagSave"
+    @clear="handleTagClear"
+  />
 </template>
 
 <script setup>
 import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from 'vue-i18n'
-import ExternalLinkDialog from './ExternalLinkDialog.vue'
-import CreditUsageModal from './CreditUsageModal.vue'
+import ExternalLinkDialog from '../common/ExternalLinkDialog.vue'
+import CreditUsageModal from '../credit/CreditUsageModal.vue'
+import EditorSelectModal from './EditorSelectModal.vue'
+import TagEditorModal from './TagEditorModal.vue'
 
 const { t } = useI18n()
 
@@ -547,26 +335,34 @@ const props = defineProps({
   cachedPaymentLink: {
     type: String,
     default: null
+  },
+  allTokens: {
+    type: Array,
+    default: () => []
+  },
+  showRealEmail: {
+    type: Boolean,
+    default: false
   }
 })
 
 // Emits
-const emit = defineEmits(['delete', 'edit', 'token-updated', 'select'])
+const emit = defineEmits(['delete', 'edit', 'token-updated', 'select', 'payment-link-fetched'])
 
 // Reactive data
 const isLoadingPortalInfo = ref(false)
 const portalInfo = ref({ data: null, error: null })
 const isCheckingStatus = ref(false)
-const isEmailHovered = ref(false)
 const showEditorModal = ref(false)
-const isModalClosing = ref(false)
 const showPortalDialog = ref(false)
 const showCheckMenu = ref(false)
 const showSuspensionsModal = ref(false)
-const showTraeVersionDialog = ref(false)
 const showCopyMenu = ref(false)
 const showCreditUsageModal = ref(false)
 const isFetchingPaymentLink = ref(false)
+
+// 标签编辑相关
+const showTagEditor = ref(false)
 
 const DEFAULT_TAG_COLOR = '#f97316'
 
@@ -609,8 +405,6 @@ const hasStatusBadge = computed(() => {
   return Boolean(hasPortalStatus || props.token.ban_status)
 })
 
-const showStatusIndicator = computed(() => hasTag.value || hasStatusBadge.value)
-
 // 当前主题
 const currentTheme = ref('light')
 
@@ -634,33 +428,6 @@ onMounted(() => {
     observer.disconnect()
   })
 })
-
-// 图标映射
-const editorIcons = computed(() => ({
-  vscode: '/icons/vscode.svg',
-  cursor: '/icons/cursor.svg',
-  kiro: '/icons/kiro.svg',
-  trae: '/icons/trae.svg',
-  windsurf: '/icons/windsurf.svg',
-  qoder: '/icons/qoder.svg',
-  vscodium: '/icons/vscodium.svg',
-  codebuddy: '/icons/codebuddy.svg',
-  vim: '/icons/vim.svg',
-  auggie: currentTheme.value === 'dark' ? '/icons/auggie_dark.svg' : '/icons/auggie.svg',
-  antigravity: '/icons/antigravity.png',
-  idea: '/icons/idea.svg',
-  pycharm: '/icons/pycharm.svg',
-  goland: '/icons/goland.svg',
-  rustrover: '/icons/rustrover.svg',
-  webstorm: '/icons/webstorm.svg',
-  phpstorm: '/icons/phpstorm.svg',
-  clion: '/icons/clion.svg',
-  datagrip: '/icons/datagrip.svg',
-  rider: '/icons/rider.svg',
-  rubymine: '/icons/rubymine.svg',
-  aqua: '/icons/aqua.svg',
-  androidstudio: '/icons/androidstudio.svg'
-}))
 
 // 判断是否为封禁状态且有 suspensions 数据
 const isBannedWithSuspensions = computed(() => {
@@ -1084,198 +851,6 @@ const openEditorModal = () => {
 }
 
 
-const editorNames = {
-  'cursor': 'Cursor',
-  'vscode': 'VS Code',
-  'kiro': 'Kiro',
-  'trae': 'Trae',
-  'windsurf': 'Windsurf',
-  'qoder': 'Qoder',
-  'vscodium': 'VSCodium',
-  'codebuddy': 'CodeBuddy',
-  'vim': 'Vim',
-  'auggie': 'Auggie',
-  'idea': 'IntelliJ IDEA',
-  'pycharm': 'PyCharm',
-  'goland': 'GoLand',
-  'rustrover': 'RustRover',
-  'webstorm': 'WebStorm',
-  'phpstorm': 'PhpStorm',
-  'androidstudio': 'Android Studio',
-  'clion': 'CLion',
-  'datagrip': 'DataGrip',
-  'rider': 'Rider',
-  'rubymine': 'RubyMine',
-  'aqua': 'Aqua'
-}
-
-const vscodeSchemes = {
-  'cursor': 'cursor',
-  'vscode': 'vscode',
-  'kiro': 'kiro',
-  'trae': 'trae',
-  'trae-cn': 'trae-cn',
-  'windsurf': 'windsurf',
-  'qoder': 'qoder',
-  'vscodium': 'vscodium',
-  'codebuddy': 'codebuddy'
-}
-
-const createVSCodeProtocolUrl = (scheme, label) => {
-  try {
-    const token = encodeURIComponent(props.token.access_token)
-    const url = encodeURIComponent(props.token.tenant_url)
-    const portalUrl = encodeURIComponent(props.token.portal_url || "")
-    return `${scheme}://Augment.vscode-augment/autoAuth?token=${token}&url=${url}&portal=${portalUrl}`
-  } catch (error) {
-    return '#'
-  }
-}
-
-
-const jetbrainsEditors = new Set([
-  'idea', 'pycharm', 'goland', 'rustrover', 'webstorm',
-  'phpstorm', 'androidstudio', 'clion', 'datagrip', 'rider', 'rubymine', 'aqua'
-])
-
-const vscodeProtocolResolvers = Object.fromEntries(
-  Object.entries(vscodeSchemes).map(([type, scheme]) => [
-    type,
-    () => createVSCodeProtocolUrl(scheme, editorNames[type] || type)
-  ])
-)
-
-// 为 JetBrains 编辑器创建 JSON 文件
-const createJetBrainsTokenFile = async (editorType) => {
-  try {
-    // 创建 JSON 数据
-    const tokenData = {
-      url: props.token.tenant_url,
-      token: props.token.access_token,
-      timestamp: Date.now(),
-      ide: editorType
-    }
-
-    // 调用 Tauri 后端命令创建文件
-    const result = await invoke('create_jetbrains_token_file', {
-      editorType,
-      tokenData: JSON.stringify(tokenData, null, 2)
-    })
-
-    return { success: true, filePath: result }
-  } catch (error) {
-    return { success: false, error: error.toString() }
-  }
-}
-
-// 配置 Vim Augment 插件
-const configureVimAugment = async () => {
-  try {
-    const result = await invoke('configure_vim_augment', {
-      accessToken: props.token.access_token,
-      tenantUrl: props.token.tenant_url
-    })
-
-    return { success: true, filePath: result }
-  } catch (error) {
-    return { success: false, error: error.toString() }
-  }
-}
-
-// 配置 Auggie 编辑器
-const configureAuggie = async () => {
-  try {
-    const result = await invoke('configure_auggie', {
-      accessToken: props.token.access_token,
-      tenantUrl: props.token.tenant_url
-    })
-
-    return { success: true, filePath: result }
-  } catch (error) {
-    return { success: false, error: error.toString() }
-  }
-}
-
-// 处理编辑器链接点击事件
-const handleEditorClick = async (editorType) => {
-  // 如果是 Trae，显示版本选择对话框
-  if (editorType === 'trae') {
-    showTraeVersionDialog.value = true
-    return
-  }
-
-  try {
-    const editorName = editorNames[editorType] || editorType
-
-    if (editorType === 'vim') {
-      // 处理 Vim 配置
-      const result = await configureVimAugment()
-
-      if (result.success) {
-        window.$notify.success(t('messages.vimConfigSuccess'))
-      } else {
-        window.$notify.error(t('messages.vimConfigFailed') + ': ' + result.error)
-      }
-    } else if (editorType === 'auggie') {
-      // 处理 Auggie 配置
-      const result = await configureAuggie()
-
-      if (result.success) {
-        window.$notify.success(t('messages.auggieConfigSuccess'))
-      } else {
-        window.$notify.error(t('messages.auggieConfigFailed') + ': ' + result.error)
-      }
-    } else if (jetbrainsEditors.has(editorType)) {
-      const result = await createJetBrainsTokenFile(editorType)
-
-      if (result.success) {
-        emit('copy-success', t('messages.editorTokenFileCreated', { editor: editorName }), 'success')
-      } else {
-        emit('copy-success', t('messages.createEditorTokenFileFailed', { editor: editorName, error: result.error }), 'error')
-      }
-    } else {
-      const resolver = vscodeProtocolResolvers[editorType]
-
-      if (!resolver) {
-        throw new Error(`Unknown VSCode editor type: ${editorType}`)
-      }
-
-      const protocolUrl = resolver()
-
-      await invoke('open_editor_with_protocol', { protocolUrl })
-      window.$notify.success(t('messages.openingEditor', { editor: editorName }))
-    }
-  } catch (error) {
-    window.$notify.error(t('messages.operationFailed'))
-  } finally {
-    showEditorModal.value = false
-    isModalClosing.value = false
-  }
-}
-
-// 处理 Trae 版本选择
-const handleTraeVersionSelect = async (version) => {
-  showTraeVersionDialog.value = false
-
-  try {
-    const editorType = version === 'global' ? 'trae' : 'trae-cn'
-    const resolver = vscodeProtocolResolvers[editorType]
-
-    if (!resolver) {
-      throw new Error(`Unknown Trae version: ${version}`)
-    }
-
-    const protocolUrl = resolver()
-    await invoke('open_editor_with_protocol', { protocolUrl })
-    window.$notify.success(t('messages.openingEditor', { editor: 'Trae' }))
-  } catch (error) {
-    window.$notify.error(t('messages.operationFailed'))
-  } finally {
-    showEditorModal.value = false
-    isModalClosing.value = false
-  }
-}
-
 // Portal相关方法
 const getPortalBrowserTitle = () => {
   if (!props.token) return 'Portal'
@@ -1609,6 +1184,29 @@ const handleUpdatePortalUrl = (portalUrl) => {
 
   // 触发父组件刷新(会自动保存)
   emit('token-updated')
+}
+
+// 打开标签编辑器
+const openTagEditor = () => {
+  showTagEditor.value = true
+}
+
+// 处理标签保存
+const handleTagSave = ({ tagName, tagColor }) => {
+  props.token.tag_name = tagName
+  props.token.tag_color = tagColor
+  props.token.updated_at = new Date().toISOString()
+  emit('token-updated')
+  window.$notify.success(t('messages.tagUpdated'))
+}
+
+// 处理标签清除
+const handleTagClear = () => {
+  props.token.tag_name = ''
+  props.token.tag_color = ''
+  props.token.updated_at = new Date().toISOString()
+  emit('token-updated')
+  window.$notify.success(t('messages.tagCleared'))
 }
 
 // 暴露方法给父组件
@@ -2393,228 +1991,6 @@ defineExpose({
   opacity: 0;
 }
 
-.modal-enter-from .editor-modal,
-.modal-leave-to .editor-modal {
-  transform: translateY(-20px) scale(0.95);
-}
-
-.modal-enter-to .editor-modal,
-.modal-leave-from .editor-modal {
-  transform: translateY(0) scale(1);
-}
-
-/* 编辑器选择模态框样式 */
-.editor-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2100;
-  backdrop-filter: blur(2px);
-  pointer-events: auto;
-}
-
-.editor-modal {
-  background: var(--color-surface, #ffffff);
-  border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  max-width: 700px;
-  width: 90%;
-  max-height: 95vh;
-  overflow: hidden;
-  transition: transform 0.3s ease;
-  position: relative;
-  pointer-events: auto;
-  margin: auto;
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px 24px 16px;
-  border-bottom: 1px solid var(--color-divider, #e1e5e9);
-}
-
-.modal-header h3 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--color-text-heading, #333);
-}
-
-.modal-close {
-  background: none;
-  border: none;
-  padding: 4px;
-  cursor: pointer;
-  color: var(--color-text-muted, #666);
-  border-radius: 4px;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.modal-close:hover {
-  background: var(--color-surface-hover, #f3f4f6);
-  color: var(--color-text-heading, #333);
-}
-
-.modal-content {
-  padding: 20px 24px 24px;
-  max-height: calc(95vh - 80px);
-  overflow-y: auto;
-}
-
-
-
-.editor-section {
-  margin-bottom: 24px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid var(--color-divider, #e1e5e9);
-}
-
-.editor-section:last-child {
-  margin-bottom: 0;
-  padding-bottom: 0;
-  border-bottom: none;
-}
-
-.editor-options {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.jetbrains-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 12px;
-}
-
-.editor-option {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px;
-  border: 2px solid var(--color-divider, #e1e5e9);
-  border-radius: 8px;
-  background: var(--color-surface, #ffffff);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  text-align: left;
-  width: 100%;
-  position: relative;
-  /* 移除按钮默认样式 */
-  font-family: inherit;
-  font-size: inherit;
-  text-decoration: none;
-  color: inherit;
-  box-sizing: border-box;
-}
-
-.editor-option:hover {
-  border-color: var(--color-accent, #3b82f6);
-  background: var(--color-surface-soft, #f8fafc);
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.12);
-}
-
-.editor-option:active {
-  background: var(--color-surface-soft, #f1f5f9);
-  box-shadow: 0 1px 4px rgba(59, 130, 246, 0.08);
-}
-
-/* 确保链接在所有状态下都保持正确的样式 */
-.editor-option:visited {
-  color: inherit;
-  text-decoration: none;
-}
-
-.editor-option:focus {
-  outline: 2px solid var(--color-accent, #3b82f6);
-  outline-offset: 2px;
-}
-
-.editor-icon {
-  flex-shrink: 0;
-  width: 48px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  background: var(--color-surface-muted, #f8f9fa);
-  border: 1px solid var(--color-surface-muted, #e9ecef);
-}
-
-.editor-icon img {
-  width: 32px;
-  height: 32px;
-  object-fit: contain;
-}
-
-.cursor-option .editor-icon {
-  background: var(--color-info-surface, #f0f9ff);
-  border-color: var(--color-info-surface, #e0f2fe);
-}
-
-.vscode-option .editor-icon {
-  background: var(--color-info-surface, #f0f9ff);
-  border-color: var(--color-info-surface, #e0f2fe);
-}
-
-.kiro-option .editor-icon,
-.trae-option .editor-icon,
-.windsurf-option .editor-icon,
-.qoder-option .editor-icon,
-.vscodium-option .editor-icon,
-.codebuddy-option .editor-icon,
-.vim-option .editor-icon,
-.auggie-option .editor-icon,
-.antigravity-option .editor-icon {
-  background: var(--color-info-surface, #f0f9ff);
-  border-color: var(--color-info-surface, #e0f2fe);
-}
-
-.idea-option .editor-icon,
-.pycharm-option .editor-icon,
-.goland-option .editor-icon,
-.rustrover-option .editor-icon,
-.webstorm-option .editor-icon,
-.phpstorm-option .editor-icon,
-.androidstudio-option .editor-icon,
-.clion-option .editor-icon,
-.datagrip-option .editor-icon,
-.rider-option .editor-icon,
-.rubymine-option .editor-icon,
-.aqua-option .editor-icon {
-  background: var(--color-info-surface, #f0f9ff);
-  border-color: var(--color-info-surface, #e0f2fe);
-}
-
-.editor-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.editor-name {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--color-text-heading, #333);
-}
-
-
-
 /* 响应式处理 */
 @media (max-width: 768px) {
   .token-card {
@@ -2876,139 +2252,50 @@ defineExpose({
   border-color: rgba(75, 85, 99, 0.6);
 }
 
-/* Trae 版本选择对话框样式 */
-.trae-version-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
+/* 添加标签按钮样式 */
+.add-tag-btn {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  z-index: 10000;
-  padding: 20px;
-}
-
-.trae-version-modal {
-  background: var(--color-surface, #ffffff);
-  border-radius: 12px;
-  max-width: 500px;
-  width: 100%;
-  max-height: 80vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
-}
-
-.trae-version-modal .modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--color-divider, #e1e5e9);
-}
-
-.trae-version-modal .modal-header h3 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--color-text-primary, #374151);
-}
-
-.trae-version-modal .modal-close {
-  background: none;
-  border: none;
-  padding: 4px;
-  cursor: pointer;
-  color: var(--color-text-muted, #6b7280);
+  width: 24px;
+  height: 24px;
   border-radius: 4px;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.trae-version-modal .modal-close:hover {
-  background: var(--color-surface-hover, #f3f4f6);
-  color: var(--color-text-primary, #374151);
-}
-
-.trae-version-modal .modal-body {
-  padding: 24px;
-  overflow-y: auto;
-  flex: 1;
-}
-
-.version-options {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.version-option {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 20px;
-  border: 2px solid var(--color-divider, #e1e5e9);
-  border-radius: 12px;
-  background: var(--color-surface, #ffffff);
+  border: 1px dashed var(--color-divider, #d1d5db);
+  color: var(--color-text-muted, #9ca3af);
   cursor: pointer;
-  transition: all 0.2s ease;
-  width: 100%;
-  text-align: left;
-  font-family: inherit;
+  transition: all 0.15s ease;
+  opacity: 0;
 }
 
-.version-option:hover {
+.token-card:hover .add-tag-btn {
+  opacity: 1;
+}
+
+.add-tag-btn:hover {
   border-color: var(--color-accent, #3b82f6);
-  background: var(--color-surface-soft, #f8fafc);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
-  transform: translateY(-2px);
+  color: var(--color-accent, #3b82f6);
+  background: var(--color-accent-surface, rgba(59, 130, 246, 0.1));
 }
 
-.version-option:active {
-  transform: translateY(0);
+.status-badge.tag-badge.editable {
+  cursor: pointer;
 }
 
-.version-icon {
-  font-size: 32px;
-  flex-shrink: 0;
-  width: 48px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--color-surface-muted, #f8f9fa);
-  border-radius: 8px;
+.status-badge.tag-badge.editable:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
-.version-name {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--color-text-heading, #333);
-}
-
-/* 黑暗模式 */
-[data-theme='dark'] .trae-version-modal {
-  background: var(--color-surface, #1f2937);
-}
-
-[data-theme='dark'] .version-option {
-  background: rgba(55, 65, 81, 0.5);
+/* 暗黑模式 - 添加标签按钮 */
+[data-theme='dark'] .add-tag-btn {
   border-color: rgba(75, 85, 99, 0.6);
+  color: #9ca3af;
 }
 
-[data-theme='dark'] .version-option:hover {
-  background: rgba(55, 65, 81, 0.7);
-  border-color: rgba(59, 130, 246, 0.6);
-}
-
-[data-theme='dark'] .version-icon {
-  background: rgba(55, 65, 81, 0.8);
+[data-theme='dark'] .add-tag-btn:hover {
+  border-color: var(--color-accent, #3b82f6);
+  color: var(--color-accent, #3b82f6);
+  background: rgba(59, 130, 246, 0.2);
 }
 
 </style>

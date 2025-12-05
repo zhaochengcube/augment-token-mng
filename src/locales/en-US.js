@@ -173,6 +173,8 @@ export default {
     sync: 'Sync',
     syncing: 'Syncing...',
     syncTooltip: 'Perform bidirectional sync (Local ↔ Database)',
+    showRealEmail: 'Show Real Email',
+    hideRealEmail: 'Hide Real Email',
     sort: 'Sort',
     sortByTime: 'By Time',
     sortByBalance: 'By Balance',
@@ -274,7 +276,11 @@ export default {
     // Tag editing
     clickToEditTag: 'Click to edit tag',
     clickToAddTag: 'Click to add tag',
-    editTag: 'Edit Tag'
+    editTag: 'Edit Tag',
+    batchEditTag: 'Batch Edit Tag',
+    batchTagHint: 'Will set the same tag for {count} tokens',
+    batchTagUpdated: 'Tag set for {count} tokens',
+    batchTagCleared: 'Tag cleared for {count} tokens'
   },
   tokenCard: {
     banned: 'Banned',

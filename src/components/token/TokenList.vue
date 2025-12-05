@@ -34,6 +34,16 @@
               </svg>
               {{ $t('tokenList.addToken') }}
             </button>
+            <!-- 邮箱显示切换按钮 -->
+            <button @click="showRealEmail = !showRealEmail" class="btn secondary small"
+              :class="{ active: showRealEmail }" :title="showRealEmail ? $t('tokenList.hideRealEmail') : $t('tokenList.showRealEmail')">
+              <svg v-if="showRealEmail" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+              </svg>
+              <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/>
+              </svg>
+            </button>
             <button @click="handleRefresh" class="btn secondary small" :disabled="isRefreshing">
               <svg v-if="!isRefreshing" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                 <path
@@ -382,6 +392,8 @@
                   :is-selected="selectedTokenIds.has(token.id)" :selection-mode="isSelectionMode"
                   :is-selected-refreshing="isBatchRefreshing"
                   :cached-payment-link="paymentLinksCache.get(token.id)"
+                  :all-tokens="tokens"
+                  :show-real-email="showRealEmail"
                   @delete="deleteToken" @edit="handleEditToken" @token-updated="handleTokenUpdated"
                   @select="toggleTokenSelection" @payment-link-fetched="cachePaymentLink" />
               </div>
@@ -418,22 +430,23 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <TokenTableRow 
-                      v-for="token in paginatedTokens" 
+                    <TokenTableRow
+                      v-for="token in paginatedTokens"
                       :key="token.id"
                       :ref="el => setTokenCardRef(el, token.id)"
-                      :token="token" 
-                      :is-batch-checking="isRefreshing" 
+                      :token="token"
+                      :is-batch-checking="isRefreshing"
                       :is-highlighted="highlightedTokenId === token.id"
-                      :is-selected="selectedTokenIds.has(token.id)" 
+                      :is-selected="selectedTokenIds.has(token.id)"
                       :selection-mode="isSelectionMode"
                       :is-selected-refreshing="isBatchRefreshing"
                       :cached-payment-link="paymentLinksCache.get(token.id)"
                       :all-tokens="tokens"
-                      @delete="deleteToken" 
-                      @edit="handleEditToken" 
+                      :show-real-email="showRealEmail"
+                      @delete="deleteToken"
+                      @edit="handleEditToken"
                       @token-updated="handleTokenUpdated"
-                      @select="toggleTokenSelection" 
+                      @select="toggleTokenSelection"
                       @payment-link-fetched="cachePaymentLink"
                       @open-editor="handleOpenEditor"
                       @open-portal="handleOpenPortal"
@@ -505,7 +518,15 @@
                     <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
                   </svg>
                 </button>
-                
+
+                <!-- 批量编辑标签 -->
+                <button @click="showBatchTagEditor = true" class="batch-action-btn"
+                        :title="$t('tokenList.batchEditTag')">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"/>
+                  </svg>
+                </button>
+
                 <!-- 批量删除 -->
                 <button @click="showBatchDeleteSelectedConfirm" class="batch-action-btn danger"
                         :title="$t('tokenList.batchDeleteSelected')">
@@ -786,6 +807,15 @@
         </div>
       </Transition>
     </Teleport>
+
+    <!-- 批量编辑标签模态框 -->
+    <TagEditorModal
+      v-model:visible="showBatchTagEditor"
+      :tokens="selectedTokens"
+      :all-tokens="tokens"
+      @save="handleBatchTagSave"
+      @clear="handleBatchTagClear"
+    />
   </div>
 </template>
 
@@ -797,8 +827,9 @@ import { listen } from '@tauri-apps/api/event'
 import { useI18n } from 'vue-i18n'
 import TokenCard from './TokenCard.vue'
 import TokenTableRow from './TokenTableRow.vue'
-import DatabaseConfig from './DatabaseConfig.vue'
+import DatabaseConfig from '../settings/DatabaseConfig.vue'
 import TokenForm from './TokenForm.vue'
+import TagEditorModal from './TagEditorModal.vue'
 
 const { t } = useI18n()
 
@@ -837,6 +868,9 @@ const showSortMenu = ref(false) // 排序下拉菜单显示状态
 // 视图模式管理
 const viewMode = ref('card') // 'card' = 卡片布局, 'table' = 列表布局
 
+// 邮箱显示模式
+const showRealEmail = ref(false) // false = 脱敏显示, true = 真实邮箱
+
 // 搜索状态管理
 const searchQuery = ref('')
 
@@ -868,6 +902,7 @@ const isSelectionMode = computed(() => selectedTokenIds.value.size > 0)
 const showSelectedDeleteDialog = ref(false)
 const isBatchRefreshing = ref(false)
 const isBatchFetchingPaymentLinks = ref(false)
+const showBatchTagEditor = ref(false)
 
 // 绑卡链接缓存（Session 级别，不持久化）
 const paymentLinksCache = ref(new Map())
@@ -1736,6 +1771,58 @@ const executeBatchDeleteSelected = async () => {
   await saveTokensToStorage()
   
   window.$notify.success(t('tokenList.batchDeleteSelectedSuccess', { count: deletedCount }))
+}
+
+// 批量编辑标签 - 保存
+const handleBatchTagSave = async ({ tagName, tagColor }) => {
+  if (selectedTokenIds.value.size === 0) return
+
+  const selectedIds = Array.from(selectedTokenIds.value)
+  let updatedCount = 0
+
+  for (const tokenId of selectedIds) {
+    const token = tokens.value.find(t => t.id === tokenId)
+    if (token) {
+      token.tag_name = tagName
+      token.tag_color = tagColor
+      token.updated_at = new Date().toISOString()
+      updatedCount++
+    }
+  }
+
+  // 保存更改
+  await saveTokensToStorage()
+
+  // 清除选择
+  clearSelection()
+
+  window.$notify.success(t('tokenList.batchTagUpdated', { count: updatedCount }))
+}
+
+// 批量编辑标签 - 清除
+const handleBatchTagClear = async () => {
+  if (selectedTokenIds.value.size === 0) return
+
+  const selectedIds = Array.from(selectedTokenIds.value)
+  let clearedCount = 0
+
+  for (const tokenId of selectedIds) {
+    const token = tokens.value.find(t => t.id === tokenId)
+    if (token) {
+      token.tag_name = ''
+      token.tag_color = ''
+      token.updated_at = new Date().toISOString()
+      clearedCount++
+    }
+  }
+
+  // 保存更改
+  await saveTokensToStorage()
+
+  // 清除选择
+  clearSelection()
+
+  window.$notify.success(t('tokenList.batchTagCleared', { count: clearedCount }))
 }
 
 // ========== 批量选择相关函数结束 ==========
