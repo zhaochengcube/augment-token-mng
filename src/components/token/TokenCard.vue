@@ -846,7 +846,7 @@ const handleClickOutside = () => {
 
 // 打开编辑器模态框
 const openEditorModal = () => {
-  if (showEditorModal.value || isModalClosing.value) return
+  if (showEditorModal.value) return
   showEditorModal.value = true
 }
 
