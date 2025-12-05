@@ -1,6 +1,6 @@
 {
   "productName": "ATM",
-  "version": "1.3.5",
+  "version": "1.3.6",
   "identifier": "com.cubezhao.atm",
   "build": {
     "beforeDevCommand": "npm run dev",
