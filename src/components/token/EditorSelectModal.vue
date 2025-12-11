@@ -124,6 +124,7 @@ onUnmounted(() => {
 // 编辑器图标
 const editorIcons = computed(() => ({
   vscode: '/icons/vscode.svg',
+  'vscode-insiders': '/icons/vscode-insiders.svg',
   cursor: '/icons/cursor.svg',
   kiro: '/icons/kiro.svg',
   trae: '/icons/trae.svg',
@@ -151,6 +152,7 @@ const editorIcons = computed(() => ({
 // VSCode 系编辑器列表
 const vscodeEditors = [
   { type: 'vscode', name: 'VS Code' },
+  { type: 'vscode-insiders', name: 'VS Code - Insiders' },
   { type: 'cursor', name: 'Cursor' },
   { type: 'kiro', name: 'Kiro' },
   { type: 'trae', name: 'Trae' },
@@ -183,6 +185,7 @@ const jetbrainsEditorsList = [
 const editorNames = {
   'cursor': 'Cursor',
   'vscode': 'VS Code',
+  'vscode-insiders': 'VS Code - Insiders',
   'kiro': 'Kiro',
   'trae': 'Trae',
   'windsurf': 'Windsurf',
@@ -210,6 +213,7 @@ const editorNames = {
 const vscodeSchemes = {
   'cursor': 'cursor',
   'vscode': 'vscode',
+  'vscode-insiders': 'vscode-insiders',
   'kiro': 'kiro',
   'trae': 'trae',
   'trae-cn': 'trae-cn',
