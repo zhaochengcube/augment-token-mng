@@ -1940,7 +1940,7 @@ const executeBatchDeleteSelected = async () => {
   clearSelection()
   
   // 保存更改
-  await saveTokensToStorage()
+  await saveTokens()
   
   window.$notify.success(t('tokenList.batchDeleteSelectedSuccess', { count: deletedCount }))
 }
@@ -1973,7 +1973,7 @@ const handleBatchTagSave = async ({ tagName, tagColor }) => {
   savePendingChanges()
 
   // 保存更改
-  await saveTokensToStorage()
+  await saveTokens()
 
   // 清除选择
   clearSelection()
@@ -2009,7 +2009,7 @@ const handleBatchTagClear = async () => {
   savePendingChanges()
 
   // 保存更改
-  await saveTokensToStorage()
+  await saveTokens()
 
   // 清除选择
   clearSelection()
@@ -2466,7 +2466,7 @@ const executeBatchDelete = async () => {
     showBatchDeleteDialog.value = false
 
     // 保存更改到本地文件
-    await saveTokensToStorage()
+    await saveTokens()
 
     // 显示结果消息
     if (deletedCount > 0) {
@@ -2625,7 +2625,7 @@ const setTokenCardRef = (el, tokenId) => {
 }
 
 // 处理 Token 更新事件
-const handleTokenUpdated = (updatedToken) => {
+const handleTokenUpdated = async (updatedToken) => {
   // 如果有 updatedToken 参数，记录到待更新集合
   if (updatedToken && updatedToken.id) {
     pendingUpserts.value.set(updatedToken.id, updatedToken)
@@ -2636,6 +2636,9 @@ const handleTokenUpdated = (updatedToken) => {
 
     // 持久化待同步队列
     savePendingChanges()
+    
+    // 保存到本地文件
+    await saveTokens()
   }
 }
 
@@ -2822,7 +2825,7 @@ const saveTokens = async (showSuccessMessage = false) => {
 }
 
 // 删除token - 使用新的增量同步协议，不再直接调用后端删除
-const deleteToken = (tokenId) => {
+const deleteToken = async (tokenId) => {
   const tokenIndex = tokens.value.findIndex(token => token.id === tokenId)
   if (tokenIndex === -1) {
     window.$notify.error(t('messages.tokenNotFound'))
@@ -2854,6 +2857,9 @@ const deleteToken = (tokenId) => {
 
   // 持久化待同步队列
   savePendingChanges()
+  
+  // 保存到本地文件
+  await saveTokens()
 }
 
 // TokenForm event handlers
@@ -2891,7 +2897,7 @@ const handleTokenFormSuccess = () => {
   }
 }
 
-const handleUpdateToken = (updatedTokenData) => {
+const handleUpdateToken = async (updatedTokenData) => {
   const index = tokens.value.findIndex(token => token.id === updatedTokenData.id)
   if (index !== -1) {
     const tagName = updatedTokenData.tagName ? updatedTokenData.tagName.trim() : ''
@@ -2919,11 +2925,14 @@ const handleUpdateToken = (updatedTokenData) => {
 
     // 持久化待同步队列
     savePendingChanges()
+    
+    // 保存到本地文件
+    await saveTokens()
   }
 }
 
-const handleAddTokenFromForm = (tokenData) => {
-  const result = addToken(tokenData)
+const handleAddTokenFromForm = async (tokenData) => {
+  const result = await addToken(tokenData)
   lastAddTokenSuccess.value = result.success
 
   // 如果是重复邮箱，高亮并滚动到重复的 token
@@ -2954,7 +2963,7 @@ const handleManualImportCompleted = () => {
 
 
 // 添加token
-const addToken = (tokenData) => {
+const addToken = async (tokenData) => {
   // 如果有邮箱，检查是否重复
   if (tokenData.emailNote && tokenData.emailNote.trim()) {
     const emailToCheck = tokenData.emailNote.trim().toLowerCase()
@@ -3012,6 +3021,9 @@ const addToken = (tokenData) => {
 
   // 持久化待同步队列
   savePendingChanges()
+  
+  // 保存到本地文件
+  await saveTokens()
   
   return { success: true, token: newToken }
 }
