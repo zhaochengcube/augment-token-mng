@@ -31,19 +31,34 @@ fn try_load_proxy_config() -> Option<ProxyConfig> {
 }
 
 /// 检查是否配置了 CustomUrl 类型的代理
+#[allow(dead_code)]
 pub fn is_using_custom_url_proxy() -> bool {
-    if let Some(config) = try_load_proxy_config() {
-        config.enabled && config.proxy_type == ProxyType::CustomUrl
-    } else {
-        false
+    matches!(get_proxy_type(), Some(ProxyType::CustomUrl))
+}
+
+#[allow(dead_code)]
+pub fn get_custom_proxy_url() -> Option<String> {
+    match get_proxy_type() {
+        Some(ProxyType::CustomUrl) => get_proxy_config().and_then(|c| c.custom_url.clone()),
+        _ => None,
     }
 }
 
-/// 获取 CustomUrl 代理的 URL
-pub fn get_custom_proxy_url() -> Option<String> {
+/// 获取代理类型
+fn get_proxy_type() -> Option<ProxyType> {
     if let Some(config) = try_load_proxy_config() {
-        if config.enabled && config.proxy_type == ProxyType::CustomUrl {
-            return config.custom_url;
+        if config.enabled {
+            return Some(config.proxy_type);
+        }
+    }
+    None
+}
+
+/// 获取代理配置
+fn get_proxy_config() -> Option<ProxyConfig> {
+    if let Some(config) = try_load_proxy_config() {
+        if config.enabled {
+            return Some(config);
         }
     }
     None

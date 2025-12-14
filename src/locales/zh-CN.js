@@ -178,6 +178,7 @@ export default {
     sort: '排序',
     sortByTime: '按时间',
     sortByBalance: '按余额',
+    sortByTag: '按标签',
     // 状态统计和筛选
     statusStats: '状态统计',
     allStatus: '全部',
@@ -280,7 +281,16 @@ export default {
     batchEditTag: '批量编辑标签',
     batchTagHint: '将为 {count} 个 Token 设置相同的标签',
     batchTagUpdated: '已为 {count} 个 Token 设置标签',
-    batchTagCleared: '已清除 {count} 个 Token 的标签'
+    batchTagCleared: '已清除 {count} 个 Token 的标签',
+    // 同步队列查看
+    viewSyncQueueTooltip: '点击查看待同步队列',
+    syncQueueTitle: '待同步队列',
+    syncQueueSummary: '待更新：{upserts} 条，待删除：{deletions} 条',
+    syncQueueUpsertsTitle: '待更新 Tokens',
+    syncQueueDeletionsTitle: '待删除 Tokens',
+    syncQueueEmpty: '暂无',
+    noEmailNote: '[无邮箱备注]',
+    fullSync: '全量同步',
   },
   tokenCard: {
     banned: '已封禁',
@@ -500,6 +510,8 @@ export default {
     syncingData: '正在同步数据...',
     syncComplete: '同步完成',
     databaseNotAvailable: '数据库不可用',
+    noTokensToSync: '没有可同步的 Token',
+    allTokensMarkedForSync: '已将 {count} 个 Token 标记为待同步',
     bidirectionalSyncSaveComplete: '双向同步保存完成',
     saveFailed: '保存失败',
     updatingToken: '正在更新Token...',

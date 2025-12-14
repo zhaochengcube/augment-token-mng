@@ -42,6 +42,7 @@ impl Default for ProxyConfig {
 }
 
 impl ProxyConfig {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Self::default()
     }
@@ -149,13 +150,68 @@ impl ProxyConfig {
     }
 }
 
+#[allow(dead_code)]
 pub struct ProxyConfigManager {
-    config_path: PathBuf,
+    app: tauri::AppHandle,
 }
 
+#[allow(clippy::module_name_repetitions)]
 impl ProxyConfigManager {
+    #[allow(dead_code)]
     pub fn new(app: &tauri::AppHandle) -> Result<Self, String> {
-        let app_data_dir = app
+        Ok(Self { app: app.clone() })
+    }
+
+    #[allow(dead_code)]
+    pub fn save_config(&self, config: &ProxyConfig) -> Result<(), String> {
+        let path = self.get_config_path()?;
+        let json = serde_json::to_string_pretty(config)
+            .map_err(|e| format!("Failed to serialize proxy config: {}", e))?;
+
+        fs::write(&path, json)
+            .map_err(|e| format!("Failed to write proxy config: {}", e))?;
+
+        Ok(())
+    }
+
+    #[allow(dead_code)]
+    pub fn load_config(&self) -> Result<ProxyConfig, String> {
+        let path = self.get_config_path()?;
+        if path.exists() {
+            let json = std::fs::read_to_string(&path)
+                .map_err(|e| format!("Failed to read proxy config: {}", e))?;
+
+            let config: ProxyConfig = serde_json::from_str(&json)
+                .map_err(|e| format!("Failed to parse proxy config: {}", e))?;
+
+            Ok(config)
+        } else {
+            Ok(ProxyConfig::default())
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn delete_config(&self) -> Result<(), String> {
+        let path = self.get_config_path()?;
+        if path.exists() {
+            std::fs::remove_file(&path)
+                .map_err(|e| format!("Failed to delete proxy config: {}", e))?;
+        }
+        Ok(())
+    }
+
+    #[allow(dead_code)]
+    pub fn config_exists(&self) -> bool {
+        let path = match self.get_config_path() {
+            Ok(p) => p,
+            Err(_) => return false,
+        };
+
+        path.exists()
+    }
+
+    fn get_config_path(&self) -> Result<PathBuf, String> {
+        let app_data_dir = self.app
             .path()
             .app_data_dir()
             .map_err(|e| format!("Failed to get app data directory: {}", e))?;
@@ -164,45 +220,7 @@ impl ProxyConfigManager {
         fs::create_dir_all(&app_data_dir)
             .map_err(|e| format!("Failed to create app data directory: {}", e))?;
 
-        let config_path = app_data_dir.join("proxy_config.json");
-
-        Ok(ProxyConfigManager { config_path })
-    }
-
-    pub fn save_config(&self, config: &ProxyConfig) -> Result<(), String> {
-        let json = serde_json::to_string_pretty(config)
-            .map_err(|e| format!("Failed to serialize proxy config: {}", e))?;
-
-        fs::write(&self.config_path, json)
-            .map_err(|e| format!("Failed to write proxy config: {}", e))?;
-
-        Ok(())
-    }
-
-    pub fn load_config(&self) -> Result<ProxyConfig, String> {
-        if !self.config_path.exists() {
-            return Ok(ProxyConfig::default());
-        }
-
-        let json = fs::read_to_string(&self.config_path)
-            .map_err(|e| format!("Failed to read proxy config: {}", e))?;
-
-        let config: ProxyConfig = serde_json::from_str(&json)
-            .map_err(|e| format!("Failed to parse proxy config: {}", e))?;
-
-        Ok(config)
-    }
-
-    pub fn delete_config(&self) -> Result<(), String> {
-        if self.config_path.exists() {
-            fs::remove_file(&self.config_path)
-                .map_err(|e| format!("Failed to delete proxy config: {}", e))?;
-        }
-        Ok(())
-    }
-
-    pub fn config_exists(&self) -> bool {
-        self.config_path.exists()
+        Ok(app_data_dir.join("proxy_config.json"))
     }
 }
 

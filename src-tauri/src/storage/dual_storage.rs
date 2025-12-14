@@ -1,4 +1,4 @@
-use super::traits::{TokenStorage, TokenData, SyncManager, SyncStatus};
+use super::traits::{TokenStorage, TokenData, SyncManager, SyncStatus, ClientSyncRequest, ServerSyncResponse};
 use super::{LocalFileStorage, PostgreSQLStorage};
 use std::sync::Arc;
 use chrono::Utc;
@@ -345,17 +345,6 @@ impl SyncManager for DualStorage {
             tokens_synced: synced_count,
         };
 
-        // 记录同步状态到数据库
-        if let Some(pool) = postgres.db_manager.get_pool() {
-            let _ = super::postgres_storage::record_sync_status(
-                &pool,
-                &sync_status.sync_direction,
-                &sync_status.status,
-                error_message.as_deref(),
-                sync_status.tokens_synced,
-            ).await;
-        }
-
         Ok(sync_status)
     }
 
@@ -392,17 +381,6 @@ impl SyncManager for DualStorage {
             error_message: error_message.clone(),
             tokens_synced: synced_count,
         };
-
-        // 记录同步状态到数据库
-        if let Some(pool) = postgres.db_manager.get_pool() {
-            let _ = super::postgres_storage::record_sync_status(
-                &pool,
-                &sync_status.sync_direction,
-                &sync_status.status,
-                error_message.as_deref(),
-                sync_status.tokens_synced,
-            ).await;
-        }
 
         Ok(sync_status)
     }
@@ -487,17 +465,6 @@ impl SyncManager for DualStorage {
             tokens_synced: synced_count,
         };
 
-        // 记录同步状态到数据库
-        if let Some(pool) = postgres.db_manager.get_pool() {
-            let _ = super::postgres_storage::record_sync_status(
-                &pool,
-                &sync_status.sync_direction,
-                &sync_status.status,
-                error_message.as_deref(),
-                sync_status.tokens_synced,
-            ).await;
-        }
-
         Ok(sync_status)
     }
 
@@ -581,29 +548,11 @@ impl SyncManager for DualStorage {
             tokens_synced: synced_count,
         };
 
-        // 记录同步状态到数据库
-        if let Some(pool) = postgres.db_manager.get_pool() {
-            let _ = super::postgres_storage::record_sync_status(
-                &pool,
-                &sync_status.sync_direction,
-                &sync_status.status,
-                error_message.as_deref(),
-                sync_status.tokens_synced,
-            ).await;
-        }
-
         Ok(sync_status)
     }
 
     async fn get_sync_status(&self) -> Result<Option<SyncStatus>, Box<dyn std::error::Error + Send + Sync>> {
-        if let Some(postgres) = &self.postgres_storage {
-            if postgres.is_available().await {
-                if let Some(pool) = postgres.db_manager.get_pool() {
-                    return super::postgres_storage::get_latest_sync_status(&pool).await;
-                }
-            }
-        }
-        // 如果数据库不可用，返回None
+        // sync_status 表已删除，返回 None
         Ok(None)
     }
 
@@ -670,6 +619,62 @@ impl SyncManager for DualStorage {
         final_tokens.extend(tokens_without_email);
 
         Ok(final_tokens)
+    }
+
+    /// 新的基于 version + tombstone 的增量同步方法
+    async fn sync_tokens(&self, req: ClientSyncRequest) -> Result<ServerSyncResponse, Box<dyn std::error::Error + Send + Sync>> {
+        let postgres = self.postgres_storage.as_ref()
+            .ok_or("Database storage not available")?;
+
+        if !postgres.is_available().await {
+            return Err("Database not available".into());
+        }
+
+        // 1. 处理客户端 upserts
+        for change in &req.upserts {
+            let token = &change.token;
+            
+            // 获取服务器端已有的 token（如果存在）
+            if let Ok(Some(existing)) = postgres.get_token(&token.id).await {
+                // 比较 updated_at，客户端更新时间更新则更新服务器
+                if token.updated_at > existing.updated_at {
+                    let _ = postgres.save_token_with_version(token).await;
+                }
+                // 否则保留服务器版本
+            } else {
+                // 服务器不存在，插入新记录
+                let _ = postgres.save_token_with_version(token).await;
+            }
+        }
+
+        // 2. 处理客户端 deletions
+        for deletion in &req.deletions {
+            let _ = postgres.delete_token_with_tombstone(&deletion.id).await;
+        }
+
+        // 3. 查询服务器相对于 last_version 的变更
+        let server_upserts = postgres.load_tokens_since_version(req.last_version).await?;
+        let server_deletions = postgres.load_tombstones_since_version(req.last_version).await?;
+
+        // 4. 计算 new_version
+        let new_version = postgres.get_max_version().await?;
+
+        // 5. 同步完成后，更新本地缓存（将服务器最终状态写入本地文件）
+        let all_tokens = postgres.load_tokens().await?;
+        if let Err(e) = self.local_storage.clear_all_tokens().await {
+            eprintln!("Failed to clear local tokens: {}", e);
+        }
+        for token in &all_tokens {
+            if let Err(e) = self.local_storage.save_token(token).await {
+                eprintln!("Failed to save token to local: {}", e);
+            }
+        }
+
+        Ok(ServerSyncResponse {
+            upserts: server_upserts,
+            deletions: server_deletions,
+            new_version,
+        })
     }
 }
 

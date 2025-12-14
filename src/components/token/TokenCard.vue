@@ -79,7 +79,7 @@
               <!-- 余额显示：无论是否有数据都显示 -->
               <span
                 :class="balanceClasses"
-                @click="toggleBalanceColor"
+                @click="handleToggleBalanceColor"
                 :style="{ cursor: isBalanceClickable ? 'pointer' : 'default' }"
               >
                 {{ balanceDisplay }}
@@ -155,7 +155,7 @@
         </div>
         <div class="check-menu-wrapper">
           <button
-            @click="checkAccountStatus"
+            @click="handleCheckAccountStatus"
             @contextmenu.prevent="showCheckMenu = !showCheckMenu"
             :class="['btn-action', 'status-check', {
               loading: isCheckingStatus || (isBatchChecking && !token.skip_check) || (isSelectedRefreshing && isSelected && !token.skip_check),
@@ -175,7 +175,7 @@
           </button>
           <Transition name="dropdown">
             <div v-if="showCheckMenu" class="check-dropdown" @click.stop>
-              <button @click="toggleSkipCheck" class="check-menu-item">
+              <button @click="handleToggleSkipCheck" class="check-menu-item">
                 <!-- 禁用检测图标 - 暂停 -->
                 <svg v-if="!token.skip_check" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
@@ -302,6 +302,7 @@ import ExternalLinkDialog from '../common/ExternalLinkDialog.vue'
 import CreditUsageModal from '../credit/CreditUsageModal.vue'
 import EditorSelectModal from './EditorSelectModal.vue'
 import TagEditorModal from './TagEditorModal.vue'
+import { useTokenActions } from '@/composables/useTokenActions'
 
 const { t } = useI18n()
 
@@ -349,56 +350,66 @@ const props = defineProps({
 // Emits
 const emit = defineEmits(['delete', 'edit', 'token-updated', 'select', 'payment-link-fetched'])
 
-// Reactive data
+// 使用共享的 token actions
+const {
+  // 常量
+  DEFAULT_TAG_COLOR,
+  // 响应式状态
+  isCheckingStatus,
+  isFetchingPaymentLink,
+  portalInfo,
+  // 计算属性
+  tagDisplayName,
+  hasTag,
+  tagBadgeStyle,
+  displayUrl,
+  maskedEmail,
+  // 工具方法
+  formatExpiryDate,
+  getStatusClass,
+  getStatusText,
+  normalizeHexColor,
+  getContrastingTextColor,
+  isEqual,
+  // 剪贴板操作
+  copyToClipboard,
+  copyWithNotification,
+  copyToken,
+  copyTenantUrl,
+  copyEmailNote,
+  copyPortalUrl,
+  copyAuthSession,
+  exportTokenAsJson,
+  copyPaymentMethodLink,
+  // 基本操作方法
+  deleteToken,
+  editToken,
+  toggleSelection,
+  // 标签操作
+  handleTagSave,
+  handleTagClear,
+  // 状态切换
+  toggleBalanceColor,
+  toggleSkipCheck,
+  // 账号状态检查
+  checkAccountStatus,
+  handleUpdatePortalUrl,
+  getPortalBrowserTitle,
+  initPortalInfo,
+  formatDate
+} = useTokenActions(props, emit)
+
+// 本地 UI 状态
 const isLoadingPortalInfo = ref(false)
-const portalInfo = ref({ data: null, error: null })
-const isCheckingStatus = ref(false)
 const showEditorModal = ref(false)
 const showPortalDialog = ref(false)
 const showCheckMenu = ref(false)
 const showSuspensionsModal = ref(false)
 const showCopyMenu = ref(false)
 const showCreditUsageModal = ref(false)
-const isFetchingPaymentLink = ref(false)
 
 // 标签编辑相关
 const showTagEditor = ref(false)
-
-const DEFAULT_TAG_COLOR = '#f97316'
-
-const tagDisplayName = computed(() => (props.token.tag_name ?? '').trim())
-const hasTag = computed(() => tagDisplayName.value.length > 0)
-
-const normalizeHexColor = (color) => {
-  if (typeof color !== 'string') {
-    return DEFAULT_TAG_COLOR
-  }
-  const value = color.trim()
-  return /^#[0-9a-fA-F]{6}$/.test(value) ? value.toLowerCase() : DEFAULT_TAG_COLOR
-}
-
-const getContrastingTextColor = (hex) => {
-  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) {
-    return '#ffffff'
-  }
-  const r = parseInt(hex.slice(1, 3), 16)
-  const g = parseInt(hex.slice(3, 5), 16)
-  const b = parseInt(hex.slice(5, 7), 16)
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
-  return luminance > 0.6 ? '#1f2937' : '#ffffff'
-}
-
-const tagBadgeStyle = computed(() => {
-  if (!hasTag.value) {
-    return {}
-  }
-  const color = normalizeHexColor(props.token.tag_color || DEFAULT_TAG_COLOR)
-  return {
-    backgroundColor: color,
-    borderColor: color,
-    color: getContrastingTextColor(color)
-  }
-})
 
 const hasStatusBadge = computed(() => {
   const hasPortalStatus = portalInfo.value.data  // 只要有 portal_info 数据就显示
@@ -456,25 +467,6 @@ const formattedSuspensions = computed(() => {
     reason: props.token.suspensions.reason || '',
     date: props.token.suspensions.date || props.token.suspensions.createdAt || ''
   }]
-})
-
-// Computed properties
-const displayUrl = computed(() => {
-  try {
-    const url = new URL(props.token.tenant_url)
-    return url.hostname
-  } catch {
-    return props.token.tenant_url
-  }
-})
-
-
-const maskedEmail = computed(() => {
-  const email = props.token.email_note
-  if (!email || !email.includes('@')) return email
-
-  // 悬浮前显示为固定格式
-  return 'hello@augmentcode.com'
 })
 
 // Portal余额显示相关计算属性
@@ -543,246 +535,7 @@ const remainingCredits = computed(() => {
   return null
 })
 
-// 获取状态样式类
-const getStatusClass = (status) => {
-  switch (status) {
-    case 'SUSPENDED':
-      return 'banned'
-    case 'EXPIRED':
-      return 'inactive'
-    case 'INVALID_TOKEN':
-      return 'invalid'
-    case 'ACTIVE':
-      return 'active'
-    default:
-      return 'active'
-  }
-}
 
-// 获取状态显示文本
-const getStatusText = (status) => {
-  switch (status) {
-    case 'SUSPENDED':
-      return t('tokenCard.banned')
-    case 'EXPIRED':
-      return t('tokenCard.expired')
-    case 'INVALID_TOKEN':
-      return t('tokenCard.tokenInvalid')
-    case 'ACTIVE':
-      return t('tokenCard.active')
-    default:
-      return t('tokenCard.active')
-  }
-}
-
-
-// Methods
-const formatDate = (dateString) => {
-  const date = new Date(dateString)
-  return date.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
-
-
-
-
-
-const deleteToken = () => {
-  // 直接发出删除事件，让父组件处理确认逻辑
-  emit('delete', props.token.id)
-}
-
-// 复制到剪贴板的通用方法
-const copyToClipboard = async (text) => {
-  // 方法1: 尝试使用 Clipboard API
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    try {
-      await navigator.clipboard.writeText(text)
-      console.log('Clipboard API copy succeeded')
-      return true
-    } catch (error) {
-      console.warn('Clipboard API failed, trying fallback:', error)
-    }
-  }
-  
-  // 方法2: 备用方案 - 使用 textarea + execCommand
-  try {
-    const textArea = document.createElement('textarea')
-    textArea.value = text
-    // 确保 textarea 不可见但可以被选中
-    textArea.style.position = 'fixed'
-    textArea.style.top = '0'
-    textArea.style.left = '0'
-    textArea.style.width = '2em'
-    textArea.style.height = '2em'
-    textArea.style.padding = '0'
-    textArea.style.border = 'none'
-    textArea.style.outline = 'none'
-    textArea.style.boxShadow = 'none'
-    textArea.style.background = 'transparent'
-    textArea.style.opacity = '0'
-    
-    document.body.appendChild(textArea)
-    textArea.focus()
-    textArea.select()
-    
-    // 尝试选择所有文本
-    textArea.setSelectionRange(0, text.length)
-    
-    const success = document.execCommand('copy')
-    document.body.removeChild(textArea)
-    
-    console.log('execCommand copy result:', success)
-    return success
-  } catch (e) {
-    console.error('All copy methods failed:', e)
-    return false
-  }
-}
-
-// 通用复制方法
-const copyWithNotification = async (text, successMessage, errorMessage) => {
-  const success = await copyToClipboard(text)
-  if (success) {
-    window.$notify.success(t(successMessage))
-  } else {
-    window.$notify.error(t(errorMessage))
-  }
-}
-
-// 复制Token
-const copyToken = () => copyWithNotification(
-  props.token.access_token,
-  'messages.tokenCopied',
-  'messages.copyTokenFailed'
-)
-
-// 复制租户URL
-const copyTenantUrl = () => copyWithNotification(
-  props.token.tenant_url,
-  'messages.tenantUrlCopied',
-  'messages.copyTenantUrlFailed'
-)
-
-// 复制邮箱备注
-const copyEmailNote = () => copyWithNotification(
-  props.token.email_note,
-  'messages.emailNoteCopied',
-  'messages.copyEmailNoteFailed'
-)
-
-// 复制Portal URL
-const copyPortalUrl = () => {
-  copyWithNotification(
-    props.token.portal_url,
-    'messages.portalUrlCopied',
-    'messages.copyPortalUrlFailed'
-  )
-}
-
-// 复制Auth Session
-const copyAuthSession = () => {
-  if (!props.token.auth_session) {
-    window.$notify.warning(t('messages.noAuthSession'))
-    return
-  }
-  copyWithNotification(
-    props.token.auth_session,
-    'messages.authSessionCopied',
-    'messages.copyAuthSessionFailed'
-  )
-}
-
-// 复制绑卡链接（通过 Tauri 后端写系统剪贴板）
-const copyPaymentMethodLink = async () => {
-  if (!props.token.auth_session) {
-    window.$notify.warning(t('messages.noAuthSession'))
-    showCopyMenu.value = false
-    return
-  }
-
-  // 如果有缓存的绑卡链接，直接复制
-  if (props.cachedPaymentLink) {
-    try {
-      await invoke('copy_to_clipboard', { text: props.cachedPaymentLink })
-      window.$notify.success(t('messages.paymentLinkCopied'))
-    } catch (error) {
-      console.error('Failed to copy cached payment link:', error)
-      window.$notify.error(t('messages.copyPaymentLinkFailed') + ': ' + error)
-    } finally {
-      showCopyMenu.value = false
-    }
-    return
-  }
-
-  // 没有缓存，需要获取
-  isFetchingPaymentLink.value = true
-  try {
-    console.log('Fetching payment link...')
-    const result = await invoke('fetch_payment_method_link_command', {
-      authSession: props.token.auth_session
-    })
-
-    console.log('Payment link result:', result)
-    const paymentLink = result.payment_method_link
-
-    if (!paymentLink) {
-      console.error('Payment link is empty')
-      window.$notify.error(t('messages.copyPaymentLinkFailed') + ': 链接为空')
-      return
-    }
-
-    console.log('Copying payment link via backend clipboard command...')
-    await invoke('copy_to_clipboard', { text: paymentLink })
-    window.$notify.success(t('messages.paymentLinkCopied'))
-  } catch (error) {
-    console.error('Failed to fetch or copy payment link:', error)
-    window.$notify.error(t('messages.copyPaymentLinkFailed') + ': ' + error)
-  } finally {
-    isFetchingPaymentLink.value = false
-    // 操作完成后关闭菜单
-    showCopyMenu.value = false
-  }
-}
-
-// 导出Token为JSON
-const exportTokenAsJson = () => {
-  const exportData = {
-    access_token: props.token.access_token,
-    tenant_url: props.token.tenant_url
-  }
-
-  if (props.token.portal_url) {
-    exportData.portal_url = props.token.portal_url
-  }
-
-  if (props.token.email_note) {
-    exportData.email_note = props.token.email_note
-  }
-
-  if (props.token.tag_name) {
-    exportData.tag_name = props.token.tag_name
-    if (props.token.tag_color) {
-      exportData.tag_color = props.token.tag_color
-    }
-  }
-
-  if (props.token.auth_session) {
-    exportData.auth_session = props.token.auth_session
-  }
-
-  const jsonString = JSON.stringify(exportData, null, 2)
-  copyWithNotification(
-    jsonString,
-    'messages.tokenJsonExported',
-    'messages.exportTokenJsonFailed'
-  )
-}
 
 // 切换复制菜单
 const toggleCopyMenu = () => {
@@ -790,7 +543,7 @@ const toggleCopyMenu = () => {
 }
 
 // 处理复制菜单项点击
-const handleCopyMenuClick = (type) => {
+const handleCopyMenuClick = async (type) => {
   // payment 类型不立即关闭菜单，等异步操作完成后再关闭
   if (type !== 'payment') {
     showCopyMenu.value = false
@@ -810,7 +563,10 @@ const handleCopyMenuClick = (type) => {
       copyAuthSession()
       break
     case 'payment':
-      copyPaymentMethodLink()
+      await copyPaymentMethodLink({
+        cachedPaymentLink: props.cachedPaymentLink,
+        onMenuClose: () => { showCopyMenu.value = false }
+      })
       break
   }
 }
@@ -851,269 +607,28 @@ const openEditorModal = () => {
 }
 
 
-// Portal相关方法
-const getPortalBrowserTitle = () => {
-  if (!props.token) return 'Portal'
-  const displayUrl = props.token.tenant_url.replace(/^https?:\/\//, '').replace(/\/$/, '')
-  return `Portal - ${displayUrl}`
+// 本地包装的 toggleSkipCheck，需要关闭菜单
+const handleToggleSkipCheck = () => {
+  toggleSkipCheck()
+  showCheckMenu.value = false
 }
 
-
-
-
-const formatExpiryDate = (dateString) => {
-  try {
-    const date = new Date(dateString)
-    return date.toLocaleString('zh-CN', {
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  } catch {
-    return dateString
-  }
-}
-
-
-
-// 切换余额颜色模式
-const toggleBalanceColor = () => {
-  // 只有在非异常状态下才允许切换
+// 本地包装的 toggleBalanceColor，需要检查 isBalanceClickable
+const handleToggleBalanceColor = () => {
   if (!isBalanceClickable.value) {
     return
   }
-
-  // 切换颜色模式：green <-> blue
-  const currentMode = props.token.balance_color_mode || 'green'
-  props.token.balance_color_mode = currentMode === 'green' ? 'blue' : 'green'
-
-  // 更新时间戳，确保双向同步时使用最新版本
-  props.token.updated_at = new Date().toISOString()
-
-  // 通知父组件有更新，触发保存
-  emit('token-updated')
+  toggleBalanceColor()
 }
 
-// 切换跳过检测状态
-const toggleSkipCheck = () => {
-  // 切换 skip_check 状态
-  props.token.skip_check = !props.token.skip_check
-
-  // 更新时间戳，确保双向同步时使用最新版本
-  props.token.updated_at = new Date().toISOString()
-
-  // 关闭菜单
-  showCheckMenu.value = false
-
-  // 通知父组件有更新
-  emit('token-updated')
-
-  // 显示提示
-  const message = props.token.skip_check
-    ? t('messages.checkDisabled')
-    : t('messages.checkEnabled')
-  window.$notify.info(message)
-}
-
-// 深度比对两个对象是否相等
-const isEqual = (obj1, obj2) => {
-  if (obj1 === obj2) return true
-  if (obj1 == null || obj2 == null) return false
-  if (typeof obj1 !== 'object' || typeof obj2 !== 'object') return obj1 === obj2
-
-  const keys1 = Object.keys(obj1)
-  const keys2 = Object.keys(obj2)
-
-  if (keys1.length !== keys2.length) return false
-
-  for (const key of keys1) {
-    if (!keys2.includes(key)) return false
-    if (!isEqual(obj1[key], obj2[key])) return false
-  }
-
-  return true
-}
-
-// 检测账号状态
-const checkAccountStatus = async (showNotification = true) => {
-  // 如果禁用了检测，静默返回
-  if (props.token.skip_check) {
-    return
-  }
-
-  // 如果正在检测中，或者批量检测中，或者选中项刷新中（且未禁用），则返回
-  if (isCheckingStatus.value || 
-      (props.isBatchChecking && !props.token.skip_check) ||
-      (props.isSelectedRefreshing && props.isSelected && !props.token.skip_check)) return
-
-  isCheckingStatus.value = true
-
-  try {
-    // 单次API调用同时获取账号状态和Portal信息
-    const batchResults = await invoke('batch_check_tokens_status', {
-      tokens: [{
-        id: props.token.id,
-        access_token: props.token.access_token,
-        tenant_url: props.token.tenant_url,
-        portal_url: props.token.portal_url || null,
-        auth_session: props.token.auth_session || null,
-        email_note: props.token.email_note || null
-      }]
-    })
-
-    // 处理结果
-    let statusMessage = ''
-    let statusType = 'info'
-    let hasChanges = false
-
-    if (batchResults && batchResults.length > 0) {
-      const result = batchResults[0] // 取第一个结果对象
-      const statusResult = result.status_result // 账号状态结果
-
-      // 使用后端返回的具体状态
-      const banStatus = statusResult.status
-
-      // 比对并更新 access_token
-      if (props.token.access_token !== result.access_token) {
-        props.token.access_token = result.access_token
-        hasChanges = true
-      }
-
-      // 比对并更新 tenant_url
-      if (props.token.tenant_url !== result.tenant_url) {
-        props.token.tenant_url = result.tenant_url
-        hasChanges = true
-      }
-
-      // 比对并更新 ban_status
-      if (props.token.ban_status !== banStatus) {
-        props.token.ban_status = banStatus
-        hasChanges = true
-      }
-
-      // 自动禁用封禁或过期的账号检测
-      if ((banStatus === 'SUSPENDED' || banStatus === 'EXPIRED') && !props.token.skip_check) {
-        props.token.skip_check = true
-        hasChanges = true
-        // 通知父组件有更新，触发保存
-        emit('token-updated')
-        // 显示通知
-        const autoDisableMsg = banStatus === 'SUSPENDED'
-          ? t('messages.autoDisabledBanned')
-          : t('messages.autoDisabledExpired')
-        window.$notify.info(autoDisableMsg)
-      }
-
-      // 比对并更新 suspensions 信息（如果有）
-      if (result.suspensions) {
-        if (!isEqual(props.token.suspensions, result.suspensions)) {
-          props.token.suspensions = result.suspensions
-          hasChanges = true
-          console.log(`Updated suspensions for token ${props.token.id}:`, result.suspensions)
-        }
-      }
-
-      // 比对并更新 Portal 信息（如果有）
-      if (result.portal_info) {
-        const newPortalInfo = {
-          credits_balance: result.portal_info.credits_balance,
-          expiry_date: result.portal_info.expiry_date
-        }
-
-        if (!isEqual(props.token.portal_info, newPortalInfo)) {
-          props.token.portal_info = newPortalInfo
-          hasChanges = true
-
-          // 更新UI显示
-          portalInfo.value = {
-            data: props.token.portal_info,
-            error: null
-          }
-        }
-      } else if (result.portal_error) {
-        // 保存错误信息到 token
-        if (props.token.portal_info !== null) {
-          props.token.portal_info = null
-          hasChanges = true
-        }
-
-        portalInfo.value = {
-          data: null,
-          error: result.portal_error
-        }
-      }
-
-      // 比对并更新 portal_url（如果有）
-      if (result.portal_url && props.token.portal_url !== result.portal_url) {
-        props.token.portal_url = result.portal_url
-        hasChanges = true
-        console.log(`Updated portal_url for token ${props.token.id}:`, result.portal_url)
-      }
-
-      // 比对并更新 email_note（如果有）
-      if (result.email_note && props.token.email_note !== result.email_note) {
-        props.token.email_note = result.email_note
-        hasChanges = true
-      }
-
-      // 只有在有实际变化时才更新时间戳
-      if (hasChanges) {
-        props.token.updated_at = new Date().toISOString()
-      }
-
-      // 根据具体状态设置消息
-      switch (banStatus) {
-        case 'SUSPENDED':
-          statusMessage = t('messages.accountBanned')
-          statusType = 'error'
-          break
-        case 'EXPIRED':
-          statusMessage = t('tokenCard.expired')
-          statusType = 'warning'
-          break
-        case 'INVALID_TOKEN':
-          statusMessage = t('messages.tokenInvalid')
-          statusType = 'warning'
-          break
-        case 'ACTIVE':
-          statusMessage = t('messages.accountStatusNormal')
-          statusType = 'success'
-          break
-        case 'ERROR':
-          statusMessage = `${t('messages.statusCheckFailed')}: ${statusResult.error_message || 'Unknown error'}`
-          statusType = 'error'
-          break
-        default:
-          statusMessage = `${t('messages.accountStatus')}: ${banStatus}`
-          statusType = 'info'
-      }
-    } else {
-      statusMessage = t('messages.statusCheckFailed') + ': No results returned'
-      statusType = 'error'
-    }
-
-
-    // 发送账号状态消息（不包含次数信息）
-    if (showNotification) {
-      const finalMessage = `${t('messages.checkComplete')}: ${statusMessage}`
-      window.$notify[statusType](finalMessage)
-    }
-
-  } catch (error) {
-    // 设置错误状态，让UI显示网络错误
-    portalInfo.value = {
-      data: null,
-      error: String(error)
-    }
-
-    if (showNotification) {
-      window.$notify.error(`${t('messages.checkFailed')}: ${error}`)
-    }
-  } finally {
-    isCheckingStatus.value = false
-    isLoadingPortalInfo.value = false
-  }
+// 本地包装的 checkAccountStatus
+const handleCheckAccountStatus = async (showNotification = true) => {
+  await checkAccountStatus({
+    showNotification,
+    isBatchChecking: props.isBatchChecking,
+    isSelectedRefreshing: props.isSelectedRefreshing,
+    isSelected: props.isSelected
+  })
 }
 
 
@@ -1152,7 +667,7 @@ onMounted(async () => {
       props.token.ban_status !== 'SUSPENDED' &&
       props.token.ban_status !== 'EXPIRED') {
     console.log('TokenCard: Auto-checking status for token with auth_session but no portal_url:', props.token.id)
-    await checkAccountStatus(false)  // 静默检查
+    await handleCheckAccountStatus(false)  // 静默检查
   }
 
   // 添加事件监听器
@@ -1166,47 +681,16 @@ onUnmounted(() => {
 
 // 暴露检查账号状态的方法
 const refreshAccountStatus = async () => {
-  return await checkAccountStatus()
+  return await handleCheckAccountStatus()
 }
 
 const handleCreditUsageRefresh = () => {
-  checkAccountStatus(false)
-}
-
-// 处理更新 portal_url
-const handleUpdatePortalUrl = (portalUrl) => {
-  if (!portalUrl || props.token.portal_url === portalUrl) {
-    return
-  }
-
-  // 直接更新本地 token 对象
-  props.token.portal_url = portalUrl
-
-  // 触发父组件刷新(会自动保存)
-  emit('token-updated')
+  handleCheckAccountStatus(false)
 }
 
 // 打开标签编辑器
 const openTagEditor = () => {
   showTagEditor.value = true
-}
-
-// 处理标签保存
-const handleTagSave = ({ tagName, tagColor }) => {
-  props.token.tag_name = tagName
-  props.token.tag_color = tagColor
-  props.token.updated_at = new Date().toISOString()
-  emit('token-updated')
-  window.$notify.success(t('messages.tagUpdated'))
-}
-
-// 处理标签清除
-const handleTagClear = () => {
-  props.token.tag_name = ''
-  props.token.tag_color = ''
-  props.token.updated_at = new Date().toISOString()
-  emit('token-updated')
-  window.$notify.success(t('messages.tagCleared'))
 }
 
 // 暴露方法给父组件

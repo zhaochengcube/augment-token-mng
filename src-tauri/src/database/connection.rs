@@ -1,5 +1,5 @@
 use deadpool_postgres::{Config, Pool, Runtime};
-use tokio_postgres::{NoTls, Error as PgError};
+use tokio_postgres::NoTls;
 use tokio_postgres_rustls::MakeRustlsConnect;
 use rustls::{ClientConfig, RootCertStore};
 use std::sync::Arc;

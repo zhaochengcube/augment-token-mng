@@ -100,6 +100,7 @@ pub struct TokenStatusResult {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct ChatMessage {
     pub response_text: String,
     pub request_message: String,

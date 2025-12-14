@@ -521,6 +521,7 @@ const handleTraeVersionSelect = async (version) => {
 }
 
 .vscode-option .editor-icon,
+.vscode-insiders-option .editor-icon,
 .cursor-option .editor-icon,
 .kiro-option .editor-icon,
 .trae-option .editor-icon,

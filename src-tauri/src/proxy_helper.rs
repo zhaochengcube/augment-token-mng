@@ -37,6 +37,7 @@ pub struct ProxyClient {
     edge_function_url: Option<String>,
 }
 
+#[allow(dead_code)]
 impl ProxyClient {
     pub fn new(client: Client, edge_function_url: Option<String>) -> Self {
         ProxyClient {

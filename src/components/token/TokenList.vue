@@ -5,7 +5,11 @@
         <div class="modal-header">
           <div class="header-title">
             <h2>{{ $t('tokenList.title') }}</h2>
-            <div :class="['status-badge', storageStatusClass]">
+            <div
+              :class="['status-badge', storageStatusClass, { clickable: isDatabaseAvailable }]"
+              :title="isDatabaseAvailable ? $t('tokenList.viewSyncQueueTooltip') : ''"
+              @click="isDatabaseAvailable && openSyncQueue()"
+            >
               <span :class="['status-dot', storageStatusClass]"></span>
               <span class="status-text">{{ storageStatusText }}</span>
             </div>
@@ -240,6 +244,38 @@
                           <path d="M8 14l4-4 4 4H8z" />
                         </svg>
                         <svg v-if="sortType === 'balance' && sortOrder === 'asc'" width="16" height="16"
+                          viewBox="0 0 24 24" fill="currentColor" class="check-icon">
+                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                        </svg>
+                      </button>
+
+                      <div class="sort-divider"></div>
+
+                      <button :class="['sort-option', { active: sortType === 'tag' && sortOrder === 'asc' }]"
+                        @click="setSortType('tag', 'asc')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"/>
+                        </svg>
+                        <span>{{ $t('tokenList.sortByTag') }}</span>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" class="arrow-up">
+                          <path d="M8 14l4-4 4 4H8z" />
+                        </svg>
+                        <svg v-if="sortType === 'tag' && sortOrder === 'asc'" width="16" height="16"
+                          viewBox="0 0 24 24" fill="currentColor" class="check-icon">
+                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                        </svg>
+                      </button>
+
+                      <button :class="['sort-option', { active: sortType === 'tag' && sortOrder === 'desc' }]"
+                        @click="setSortType('tag', 'desc')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"/>
+                        </svg>
+                        <span>{{ $t('tokenList.sortByTag') }}</span>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" class="arrow-down">
+                          <path d="M16 10l-4 4-4-4h8z" />
+                        </svg>
+                        <svg v-if="sortType === 'tag' && sortOrder === 'desc'" width="16" height="16"
                           viewBox="0 0 24 24" fill="currentColor" class="check-icon">
                           <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
                         </svg>
@@ -562,6 +598,17 @@
         @auto-import-completed="handleAutoImportCompleted" @manual-import-completed="handleManualImportCompleted" />
     </Teleport>
 
+    <!-- Sync Queue Modal -->
+    <SyncQueueModal
+      v-model:visible="showSyncQueueModal"
+      :pending-upserts="pendingUpsertsList"
+      :pending-deletions="pendingDeletionsList"
+      :syncing="isSyncing"
+      :total-tokens-count="tokens.length"
+      @sync="handleBidirectionalSync"
+      @mark-all-for-sync="handleMarkAllForSync"
+    />
+
     <!-- Batch Import Dialog -->
     <Teleport to="body">
       <Transition name="modal" appear>
@@ -830,6 +877,7 @@ import TokenTableRow from './TokenTableRow.vue'
 import DatabaseConfig from '../settings/DatabaseConfig.vue'
 import TokenForm from './TokenForm.vue'
 import TagEditorModal from './TagEditorModal.vue'
+import SyncQueueModal from './SyncQueueModal.vue'
 
 const { t } = useI18n()
 
@@ -854,6 +902,93 @@ const isLoadingFromSync = ref(false)
 // 同步需求标记 - 标识本地有未同步到数据库的更改
 const isSyncNeeded = ref(false)
 
+// === 新增量同步协议状态 ===
+// localStorage 中的存储键
+const STORAGE_KEY_LAST_VERSION = 'atm-sync-last-version'
+const STORAGE_KEY_PENDING_UPSERTS = 'atm-sync-pending-upserts'
+const STORAGE_KEY_PENDING_DELETIONS = 'atm-sync-pending-deletions'
+
+// 上次同步的版本号（从 localStorage 读取）
+const lastVersion = ref(0)
+
+// 待同步的本地变更
+const pendingUpserts = ref(new Map())   // id -> token
+const pendingDeletions = ref(new Map()) // id -> { id, email_note }
+
+// 加载上次同步版本号
+const loadLastVersion = () => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY_LAST_VERSION)
+    if (stored) {
+      const version = parseInt(stored, 10)
+      if (!isNaN(version) && version >= 0) {
+        return version
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to load lastVersion from localStorage:', error)
+  }
+  return 0
+}
+
+// 保存版本号到 localStorage
+const saveLastVersion = (version) => {
+  try {
+    localStorage.setItem(STORAGE_KEY_LAST_VERSION, version.toString())
+  } catch (error) {
+    console.error('Failed to save lastVersion to localStorage:', error)
+  }
+}
+
+// 保存待同步变更到 localStorage
+const savePendingChanges = () => {
+  try {
+    const upsertsArr = Array.from(pendingUpserts.value.entries()).map(([id, token]) => ({ id, token }))
+    const deletionsArr = Array.from(pendingDeletions.value.values())
+
+    localStorage.setItem(STORAGE_KEY_PENDING_UPSERTS, JSON.stringify(upsertsArr))
+    localStorage.setItem(STORAGE_KEY_PENDING_DELETIONS, JSON.stringify(deletionsArr))
+  } catch (error) {
+    console.error('Failed to save pending changes to localStorage:', error)
+  }
+}
+
+// 从 localStorage 加载待同步变更
+const loadPendingChanges = () => {
+  try {
+    const upsertsJson = localStorage.getItem(STORAGE_KEY_PENDING_UPSERTS)
+    if (upsertsJson) {
+      const arr = JSON.parse(upsertsJson)
+      if (Array.isArray(arr)) {
+        pendingUpserts.value = new Map(
+          arr
+            .filter(item => item && item.id && item.token)
+            .map(item => [item.id, item.token])
+        )
+      }
+    }
+
+    const deletionsJson = localStorage.getItem(STORAGE_KEY_PENDING_DELETIONS)
+    if (deletionsJson) {
+      const arr = JSON.parse(deletionsJson)
+      if (Array.isArray(arr)) {
+        pendingDeletions.value = new Map(
+          arr
+            .filter(item => item && item.id)
+            .map(item => [item.id, { id: item.id, email_note: item.email_note || null }])
+        )
+      }
+    }
+
+    // 如果存在未同步的本地变更，标记需要同步
+    if (pendingUpserts.value.size > 0 || pendingDeletions.value.size > 0) {
+      isSyncNeeded.value = true
+    }
+  } catch (error) {
+    console.warn('Failed to load pending changes from localStorage:', error)
+  }
+}
+
 // 存储状态检查定时器
 let storageCheckTimer = null
 
@@ -861,7 +996,7 @@ let storageCheckTimer = null
 let unlistenTokensUpdated = null
 
 // 排序状态管理
-const sortType = ref('time') // 'time' = 按时间排序, 'balance' = 按余额排序
+const sortType = ref('time') // 'time' = 按时间排序, 'balance' = 按余额排序, 'tag' = 按标签排序
 const sortOrder = ref('desc') // 'desc' = 最新优先/余额从多到少, 'asc' = 最旧优先/余额从少到多
 const showSortMenu = ref(false) // 排序下拉菜单显示状态
 
@@ -869,7 +1004,7 @@ const showSortMenu = ref(false) // 排序下拉菜单显示状态
 const viewMode = ref('card') // 'card' = 卡片布局, 'table' = 列表布局
 
 // 邮箱显示模式
-const showRealEmail = ref(false) // false = 脱敏显示, true = 真实邮箱
+const showRealEmail = ref(true) // false = 脱敏显示, true = 真实邮箱
 
 // 搜索状态管理
 const searchQuery = ref('')
@@ -1162,6 +1297,23 @@ const sortedTokens = computed(() => {
         return balanceB - balanceA // 余额从多到少
       } else {
         return balanceA - balanceB // 余额从少到多
+      }
+    } else if (sortType.value === 'tag') {
+      // 按标签排序
+      const tagA = a.tag_name || ''
+      const tagB = b.tag_name || ''
+
+      // 处理无标签的情况：升序时无标签在前，降序时无标签在后
+      if (!tagA && !tagB) return 0
+      if (!tagA) return sortOrder.value === 'asc' ? -1 : 1
+      if (!tagB) return sortOrder.value === 'asc' ? 1 : -1
+
+      // 都有标签,按字母排序
+      const comparison = tagA.localeCompare(tagB, 'zh-CN')
+      if (sortOrder.value === 'asc') {
+        return comparison // A-Z
+      } else {
+        return -comparison // Z-A
       }
     }
     return 0
@@ -1756,10 +1908,30 @@ const executeBatchDeleteSelected = async () => {
   for (const tokenId of selectedIds) {
     const index = tokens.value.findIndex(t => t.id === tokenId)
     if (index !== -1) {
+      const tokenToDelete = tokens.value[index]
+      const emailNote = tokenToDelete?.email_note || null
+      
+      // 检查是否是仅在本地新增但从未同步过的 token
+      const wasOnlyLocal = pendingUpserts.value.has(tokenId)
+      
       tokens.value.splice(index, 1)
       deletedCount++
+      
+      // 从待更新队列中移除
+      pendingUpserts.value.delete(tokenId)
+      
+      // 只有已同步到服务器的 token 才需要记录到待删除队列
+      if (!wasOnlyLocal) {
+        pendingDeletions.value.set(tokenId, { id: tokenId, email_note: emailNote })
+      }
     }
   }
+  
+  // 标记需要同步（如果还有待同步内容）
+  isSyncNeeded.value = pendingUpserts.value.size > 0 || pendingDeletions.value.size > 0
+  
+  // 持久化待同步队列
+  savePendingChanges()
   
   // 关闭对话框
   showSelectedDeleteDialog.value = false
@@ -1787,8 +1959,18 @@ const handleBatchTagSave = async ({ tagName, tagColor }) => {
       token.tag_color = tagColor
       token.updated_at = new Date().toISOString()
       updatedCount++
+      
+      // 添加到待更新队列
+      pendingUpserts.value.set(tokenId, token)
+      pendingDeletions.value.delete(tokenId)
     }
   }
+
+  // 标记需要同步
+  isSyncNeeded.value = true
+  
+  // 持久化待同步队列
+  savePendingChanges()
 
   // 保存更改
   await saveTokensToStorage()
@@ -1813,8 +1995,18 @@ const handleBatchTagClear = async () => {
       token.tag_color = ''
       token.updated_at = new Date().toISOString()
       clearedCount++
+      
+      // 添加到待更新队列
+      pendingUpserts.value.set(tokenId, token)
+      pendingDeletions.value.delete(tokenId)
     }
   }
+
+  // 标记需要同步
+  isSyncNeeded.value = true
+  
+  // 持久化待同步队列
+  savePendingChanges()
 
   // 保存更改
   await saveTokensToStorage()
@@ -2229,7 +2421,7 @@ const executeBatchImport = async () => {
   }
 }
 
-// 执行批量删除
+// 执行批量删除（已封禁/过期的 tokens）
 const executeBatchDelete = async () => {
   isDeleting.value = true
 
@@ -2239,43 +2431,50 @@ const executeBatchDelete = async () => {
       token.ban_status === 'SUSPENDED' || token.ban_status === 'EXPIRED'
     )
 
-    // 并行删除所有 tokens
-    const deletePromises = tokensToDelete.map(token =>
-      invoke('delete_token', { tokenId: token.id })
-        .then(() => {
-          // 删除成功,从本地列表移除
-          const index = tokens.value.findIndex(t => t.id === token.id)
-          if (index !== -1) {
-            tokens.value.splice(index, 1)
-          }
-          return { success: true, id: token.id }
-        })
-        .catch(error => {
-          console.error(`Failed to delete token ${token.id}:`, error)
-          return { success: false, id: token.id, error }
-        })
-    )
+    let deletedCount = 0
 
-    // 等待所有删除操作完成
-    const results = await Promise.allSettled(deletePromises)
+    for (const token of tokensToDelete) {
+      const tokenId = token.id
+      const emailNote = token.email_note || null
+      
+      // 检查是否是仅在本地新增但从未同步过的 token
+      const wasOnlyLocal = pendingUpserts.value.has(tokenId)
+      
+      // 从本地列表移除
+      const index = tokens.value.findIndex(t => t.id === tokenId)
+      if (index !== -1) {
+        tokens.value.splice(index, 1)
+        deletedCount++
+      }
+      
+      // 从待更新队列中移除
+      pendingUpserts.value.delete(tokenId)
+      
+      // 只有已同步到服务器的 token 才需要记录到待删除队列
+      if (!wasOnlyLocal) {
+        pendingDeletions.value.set(tokenId, { id: tokenId, email_note: emailNote })
+      }
+    }
 
-    // 统计成功和失败的数量
-    const successCount = results.filter(r =>
-      r.status === 'fulfilled' && r.value.success
-    ).length
-    const failedCount = tokensToDelete.length - successCount
+    // 标记需要同步（如果还有待同步内容）
+    isSyncNeeded.value = pendingUpserts.value.size > 0 || pendingDeletions.value.size > 0
+
+    // 持久化待同步队列
+    savePendingChanges()
 
     // 关闭对话框
     showBatchDeleteDialog.value = false
 
+    // 保存更改到本地文件
+    await saveTokensToStorage()
+
     // 显示结果消息
-    if (failedCount === 0) {
-      console.log(`Successfully deleted ${successCount} tokens`)
-    } else {
-      console.warn(`Deleted ${successCount} tokens, ${failedCount} failed`)
+    if (deletedCount > 0) {
+      window.$notify.success(t('messages.batchDeleteSuccess', { count: deletedCount }))
     }
   } catch (error) {
     console.error('Batch delete failed:', error)
+    window.$notify.error(`${t('messages.batchDeleteFailed')}: ${error}`)
   } finally {
     isDeleting.value = false
   }
@@ -2295,13 +2494,53 @@ const editingToken = ref(null)
 // Token card refs for accessing child methods
 const tokenCardRefs = ref({})
 
+// 存储状态展示与同步队列查看
+const showSyncQueueModal = ref(false)
+
+const pendingUpsertsList = computed(() => Array.from(pendingUpserts.value.values()))
+const pendingDeletionsList = computed(() => Array.from(pendingDeletions.value.values()))
+
+const openSyncQueue = () => {
+  if (!isDatabaseAvailable.value) return
+  showSyncQueueModal.value = true
+}
+
+const closeSyncQueue = () => {
+  showSyncQueueModal.value = false
+}
+
+// 标记所有 token 为待同步
+const handleMarkAllForSync = () => {
+  if (tokens.value.length === 0) {
+    window.$notify.warning(t('messages.noTokensToSync'))
+    return
+  }
+  
+  for (const token of tokens.value) {
+    pendingUpserts.value.set(token.id, token)
+  }
+  
+  // 持久化队列
+  savePendingChanges()
+  
+  // 标记需要同步
+  isSyncNeeded.value = true
+  
+  window.$notify.success(t('messages.allTokensMarkedForSync', { count: tokens.value.length }))
+}
+
+// 是否有待同步的变更（基于队列是否为空）
+const hasPendingChanges = computed(() => {
+  return pendingUpserts.value.size > 0 || pendingDeletions.value.size > 0
+})
+
 // Computed properties for storage status display
 const storageStatusText = computed(() => {
   if (isStorageInitializing.value) {
     return t('storage.initializing')
   }
   if (isDatabaseAvailable.value) {
-    return isSyncNeeded.value
+    return hasPendingChanges.value
       ? `${t('storage.dualStorage')}-${t('storage.notSynced')}`
       : t('storage.dualStorage')
   }
@@ -2313,8 +2552,8 @@ const storageStatusClass = computed(() => {
   if (isStorageInitializing.value) {
     return 'initializing'
   }
-  // 如果是双向存储且未同步，显示警告样式
-  if (isDatabaseAvailable.value && isSyncNeeded.value) {
+  // 如果是双向存储且有未同步变更，显示警告样式
+  if (isDatabaseAvailable.value && hasPendingChanges.value) {
     return 'unsaved'
   }
   return 'saved'
@@ -2386,8 +2625,18 @@ const setTokenCardRef = (el, tokenId) => {
 }
 
 // 处理 Token 更新事件
-const handleTokenUpdated = () => {
-  // Token 更新时不再设置未保存状态，关闭时会自动保存
+const handleTokenUpdated = (updatedToken) => {
+  // 如果有 updatedToken 参数，记录到待更新集合
+  if (updatedToken && updatedToken.id) {
+    pendingUpserts.value.set(updatedToken.id, updatedToken)
+    pendingDeletions.value.delete(updatedToken.id)
+
+    // 标记需要同步
+    isSyncNeeded.value = true
+
+    // 持久化待同步队列
+    savePendingChanges()
+  }
 }
 
 // 深度比对两个对象是否相等
@@ -2572,7 +2821,7 @@ const saveTokens = async (showSuccessMessage = false) => {
   }
 }
 
-// 删除token
+// 删除token - 使用新的增量同步协议，不再直接调用后端删除
 const deleteToken = (tokenId) => {
   const tokenIndex = tokens.value.findIndex(token => token.id === tokenId)
   if (tokenIndex === -1) {
@@ -2580,14 +2829,31 @@ const deleteToken = (tokenId) => {
     return
   }
 
+  // 获取要删除的 token 信息（用于记录邮箱）
+  const tokenToDelete = tokens.value[tokenIndex]
+  const emailNote = tokenToDelete?.email_note || null
+
+  // 检查是否是仅在本地新增但从未同步过的 token
+  const wasOnlyLocal = pendingUpserts.value.has(tokenId)
+
   // 从内存中删除
   tokens.value = tokens.value.filter(token => token.id !== tokenId)
   window.$notify.success(t('messages.tokenDeleted'))
 
-  // 异步删除后端数据（不阻塞UI）
-  invoke('delete_token', { tokenId }).catch(error => {
-    console.log('Backend delete failed:', error)
-  })
+  // 从待更新队列中移除
+  pendingUpserts.value.delete(tokenId)
+
+  // 只有已同步到服务器的 token 才需要记录到待删除队列
+  // 如果 token 仅在本地存在（从未同步），则无需通知服务器删除
+  if (!wasOnlyLocal) {
+    pendingDeletions.value.set(tokenId, { id: tokenId, email_note: emailNote })
+  }
+  
+  // 标记需要同步（如果还有待同步内容）
+  isSyncNeeded.value = pendingUpserts.value.size > 0 || pendingDeletions.value.size > 0
+
+  // 持久化待同步队列
+  savePendingChanges()
 }
 
 // TokenForm event handlers
@@ -2632,7 +2898,7 @@ const handleUpdateToken = (updatedTokenData) => {
     const tagColor = updatedTokenData.tagColor || DEFAULT_TAG_COLOR
 
     // Update the token in the list
-    tokens.value[index] = {
+    const updatedToken = {
       ...tokens.value[index],
       tenant_url: updatedTokenData.tenantUrl,
       access_token: updatedTokenData.accessToken,
@@ -2642,6 +2908,17 @@ const handleUpdateToken = (updatedTokenData) => {
       tag_color: tagName ? tagColor : null,
       updated_at: new Date().toISOString()  // 更新 updated_at 时间戳
     }
+    tokens.value[index] = updatedToken
+    
+    // 记录到待更新集合
+    pendingUpserts.value.set(updatedToken.id, updatedToken)
+    pendingDeletions.value.delete(updatedToken.id)
+
+    // 标记需要同步
+    isSyncNeeded.value = true
+
+    // 持久化待同步队列
+    savePendingChanges()
   }
 }
 
@@ -2722,10 +2999,20 @@ const addToken = (tokenData) => {
     auth_session: tokenData.authSession || null,  // 添加 auth_session 字段
     suspensions: tokenData.suspensions || null,  // 添加 suspensions 字段
     skip_check: false,  // 默认不跳过检测
-    balance_color_mode: null  // 默认为 null，将使用绿色
+    balance_color_mode: null,  // 默认为 null，将使用绿色
+    version: 0  // 本地创建时版本号为0，由数据库分配
   }
 
   tokens.value.push(newToken)
+  
+  // 记录到待更新集合
+  pendingUpserts.value.set(newToken.id, newToken)
+  pendingDeletions.value.delete(newToken.id)
+  isSyncNeeded.value = true
+
+  // 持久化待同步队列
+  savePendingChanges()
+  
   return { success: true, token: newToken }
 }
 
@@ -3015,8 +3302,8 @@ const handleSave = async () => {
   }
 }
 
-// 双向同步方法（手动触发）
-const handleBidirectionalSync = async () => {
+// 新的基于 version + tombstone 的增量同步方法
+const handleSync = async () => {
   if (isSyncing.value) return
   if (!isDatabaseAvailable.value) {
     window.$notify.warning(t('messages.databaseNotAvailable'))
@@ -3027,16 +3314,52 @@ const handleBidirectionalSync = async () => {
   try {
     window.$notify.info(t('messages.syncingData'))
 
-    // 执行双向同步
-    const tokensJson = JSON.stringify(tokens.value)
-    await invoke('bidirectional_sync_tokens_with_data', { tokensJson })
+    // 构建同步请求
+    const req = {
+      last_version: lastVersion.value,
+      upserts: Array.from(pendingUpserts.value.values()).map(token => ({ token })),
+      deletions: Array.from(pendingDeletions.value.values()).map(item => ({ id: item.id })),
+    }
 
-    // 同步后需要刷新，但要避免触发 watch
+    // 调用新的增量同步接口
+    const res = await invoke('sync_tokens', { reqJson: JSON.stringify(req) })
+
+    // 标记正在从同步加载，避免触发自动保存
     isLoadingFromSync.value = true
-    await loadTokens(false)
 
-    // 延迟重置 isLoadingFromSync，确保 watchDebounced 的 debounce timer 已经被清除
-    // watchDebounced 的 debounce 时间是 2000ms，这里等待 2100ms 确保安全
+    // 应用服务器的 upserts
+    for (const serverToken of res.upserts) {
+      const idx = tokens.value.findIndex(t => t.id === serverToken.id)
+      if (idx !== -1) {
+        tokens.value[idx] = serverToken
+      } else {
+        tokens.value.push(serverToken)
+      }
+    }
+
+    // 应用服务器 deletions
+    for (const id of res.deletions) {
+      const idx = tokens.value.findIndex(t => t.id === id)
+      if (idx !== -1) {
+        tokens.value.splice(idx, 1)
+      }
+    }
+
+    // 更新 lastVersion
+    lastVersion.value = res.new_version
+    saveLastVersion(res.new_version)
+
+    // 清空本地 pending 变更
+    pendingUpserts.value.clear()
+    pendingDeletions.value.clear()
+
+    // 持久化空队列
+    savePendingChanges()
+
+    // 把最终 tokens 全量写入本地文件
+    await handleSave()
+
+    // 延迟重置标记
     await new Promise(resolve => setTimeout(resolve, 2100))
     isLoadingFromSync.value = false
 
@@ -3051,6 +3374,9 @@ const handleBidirectionalSync = async () => {
   }
 }
 
+// 保留旧的双向同步方法作为兼容，内部调用新的 handleSync
+const handleBidirectionalSync = handleSync
+
 // 组件挂载时自动加载tokens和存储状态
 onMounted(async () => {
   // 加载分页配置
@@ -3061,6 +3387,12 @@ onMounted(async () => {
 
   // 加载默认输入框数量配置
   defaultInputCount.value = loadDefaultInputCount()
+
+  // 加载上次同步版本号
+  lastVersion.value = loadLastVersion()
+
+  // 加载未同步的本地变更
+  loadPendingChanges()
 
   // 初始化输入框
   initializeSessionInputs(defaultInputCount.value)
@@ -3332,7 +3664,7 @@ defineExpose({
 
 /* 表格布局样式 */
 .token-table-wrapper {
-  overflow-x: auto;
+  overflow-x: hidden;
   background: var(--color-surface, #ffffff);
   border: 1px solid var(--color-divider, #e5e7eb);
   border-radius: 8px;
@@ -3369,7 +3701,8 @@ defineExpose({
 }
 
 .token-table .th-tag {
-  width: 100px;
+  width: 80px;
+  max-width: 80px;
 }
 
 .token-table .th-status {
@@ -3377,16 +3710,16 @@ defineExpose({
 }
 
 .token-table .th-email {
-  min-width: 180px;
+  min-width: 140px;
 }
 
 .token-table .th-balance {
-  width: 90px;
+  width: 80px;
   text-align: center;
 }
 
 .token-table .th-expiry {
-  width: 120px;
+  width: 100px;
 }
 
 .token-table .th-actions {
@@ -4985,6 +5318,16 @@ defineExpose({
 .status-badge.initializing {
   background-color: var(--color-info-surface, #dbeafe);
   color: var(--color-info-text, #1e40af);
+}
+
+.status-badge.clickable {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.status-badge.clickable:hover {
+  filter: brightness(0.95);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .status-dot {

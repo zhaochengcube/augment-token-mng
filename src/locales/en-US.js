@@ -178,6 +178,7 @@ export default {
     sort: 'Sort',
     sortByTime: 'By Time',
     sortByBalance: 'By Balance',
+    sortByTag: 'By Tag',
     // Status statistics and filtering
     statusStats: 'Status Statistics',
     allStatus: 'All',
@@ -280,7 +281,16 @@ export default {
     batchEditTag: 'Batch Edit Tag',
     batchTagHint: 'Will set the same tag for {count} tokens',
     batchTagUpdated: 'Tag set for {count} tokens',
-    batchTagCleared: 'Tag cleared for {count} tokens'
+    batchTagCleared: 'Tag cleared for {count} tokens',
+    // Sync queue inspection
+    viewSyncQueueTooltip: 'Click to view pending sync queue',
+    syncQueueTitle: 'Pending Sync Queue',
+    syncQueueSummary: '{upserts} to update, {deletions} to delete',
+    syncQueueUpsertsTitle: 'Tokens to Update',
+    syncQueueDeletionsTitle: 'Tokens to Delete',
+    syncQueueEmpty: 'None',
+    noEmailNote: '[No email note]',
+    fullSync: 'Full Sync'
   },
   tokenCard: {
     banned: 'Banned',

@@ -46,6 +46,7 @@ struct Feed {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct Entry {
     id: String,
     title: String,
@@ -383,6 +384,7 @@ async fn add_token_from_session_internal_with_cache(
 }
 
 // 内部函数,不发送进度事件（保留用于向后兼容）
+#[allow(dead_code)]
 async fn add_token_from_session_internal(session: &str) -> Result<TokenFromSessionResponse, String> {
     // 从 session 提取 token (包含 email)
     let token_response = extract_token_from_session(session).await?;
@@ -755,7 +757,7 @@ async fn open_internal_browser(
         }
     }
 
-    let window = builder
+    let _window = builder
     .initialization_script(r#"
         console.log('[Tauri] Initialization script loaded');
 
@@ -1953,6 +1955,24 @@ async fn bidirectional_sync_tokens_with_data(
         .map_err(|e| format!("Sync failed: {}", e))
 }
 
+/// 新的基于 version + tombstone 的增量同步命令
+#[tauri::command]
+async fn sync_tokens(
+    req_json: String,
+    state: State<'_, AppState>,
+) -> Result<storage::ServerSyncResponse, String> {
+    let storage_manager = {
+        let guard = state.storage_manager.lock().unwrap();
+        guard.clone().ok_or("Storage manager not initialized")?
+    };
+
+    let req: storage::ClientSyncRequest = serde_json::from_str(&req_json)
+        .map_err(|e| format!("Failed to parse sync request: {}", e))?;
+
+    storage_manager.sync_tokens(req).await
+        .map_err(|e| format!("Sync failed: {}", e))
+}
+
 #[tauri::command]
 async fn get_storage_status(
     state: State<'_, AppState>,
@@ -2398,6 +2418,8 @@ fn main() {
             delete_token,
             bidirectional_sync_tokens,
             bidirectional_sync_tokens_with_data,
+            // 新的增量同步命令
+            sync_tokens,
             get_storage_status,
             get_sync_status,
 

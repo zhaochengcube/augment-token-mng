@@ -93,10 +93,11 @@ pub struct ApiServer {
 }
 
 impl ApiServer {
+    #[allow(dead_code)]
     pub fn new(port: u16) -> Self {
-        Self {
-            shutdown_tx: None,
+        ApiServer {
             port,
+            shutdown_tx: None,
         }
     }
 
@@ -233,6 +234,7 @@ async fn import_session_handler(
                 suspensions: None,  // Session 导入不再获取 suspensions
                 balance_color_mode: None,
                 skip_check: Some(false),  // 与前端保持一致，默认不跳过检测
+                version: 0,  // 本地创建时版本号为0，由数据库分配
             };
 
             // 保存到存储
@@ -422,6 +424,7 @@ async fn import_sessions_handler(
                         suspensions: None,  // Session 导入不再获取 suspensions
                         balance_color_mode: None,
                         skip_check: Some(false),  // 与前端保持一致，默认不跳过检测
+                        version: 0,  // 本地创建时版本号为0，由数据库分配
                     };
 
                     // 保存到存储

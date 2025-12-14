@@ -18,6 +18,8 @@ pub struct TokenData {
     pub suspensions: Option<serde_json::Value>,
     pub balance_color_mode: Option<String>,
     pub skip_check: Option<bool>,
+    #[serde(default)]
+    pub version: i64,
 }
 
 impl TokenData {
@@ -45,6 +47,7 @@ impl TokenData {
             suspensions: None,
             balance_color_mode: None,
             skip_check: None,
+            version: 0,
         }
     }
 
@@ -62,12 +65,39 @@ pub struct SyncStatus {
     pub tokens_synced: i32,
 }
 
+// 新增量同步协议结构体
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClientTokenChange {
+    pub token: TokenData,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClientDelete {
+    pub id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClientSyncRequest {
+    pub last_version: i64,
+    pub upserts: Vec<ClientTokenChange>,
+    pub deletions: Vec<ClientDelete>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServerSyncResponse {
+    pub upserts: Vec<TokenData>,
+    pub deletions: Vec<String>,
+    pub new_version: i64,
+}
+
 #[async_trait::async_trait]
 pub trait TokenStorage: Send + Sync {
     async fn save_token(&self, token: &TokenData) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
     
     async fn load_tokens(&self) -> Result<Vec<TokenData>, Box<dyn std::error::Error + Send + Sync>>;
     
+    #[allow(dead_code)]
     async fn update_token(&self, token: &TokenData) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
     
     async fn delete_token(&self, token_id: &str) -> Result<bool, Box<dyn std::error::Error + Send + Sync>>;
@@ -94,6 +124,9 @@ pub trait SyncManager: Send + Sync {
     async fn get_sync_status(&self) -> Result<Option<SyncStatus>, Box<dyn std::error::Error + Send + Sync>>;
 
     async fn resolve_conflicts(&self, local_tokens: Vec<TokenData>, remote_tokens: Vec<TokenData>) -> Result<Vec<TokenData>, Box<dyn std::error::Error + Send + Sync>>;
+
+    /// 新的基于 version + tombstone 的增量同步方法
+    async fn sync_tokens(&self, req: ClientSyncRequest) -> Result<ServerSyncResponse, Box<dyn std::error::Error + Send + Sync>>;
 }
 
 // 辅助函数：将旧格式的token转换为新格式
@@ -153,6 +186,10 @@ pub fn convert_legacy_token(legacy: &serde_json::Value) -> Result<TokenData, Box
     let skip_check = legacy.get("skip_check")
         .and_then(|v| v.as_bool());
 
+    let version = legacy.get("version")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(0);
+
     Ok(TokenData {
         id,
         tenant_url,
@@ -169,6 +206,7 @@ pub fn convert_legacy_token(legacy: &serde_json::Value) -> Result<TokenData, Box
         suspensions,
         balance_color_mode,
         skip_check,
+        version,
     })
 }
 

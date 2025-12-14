@@ -39,8 +39,9 @@
     <!-- 状态 -->
     <td class="cell-status">
       <span 
-        :class="['status-badge', getStatusClass(token.ban_status)]"
-        :title="token.ban_status === 'SUSPENDED' ? $t('tokenCard.clickToViewDetails') : ''"
+        :class="['status-badge', getStatusClass(token.ban_status), { clickable: isBannedWithSuspensions }]"
+        :title="isBannedWithSuspensions ? $t('tokenCard.clickToViewDetails') : ''"
+        @click.stop="handleStatusClick"
       >
         {{ getStatusText(token.ban_status) }}
       </span>
@@ -140,7 +141,7 @@
 
         <!-- 刷新状态 -->
         <button 
-          @click.stop="checkAccountStatus"
+          @click.stop="handleCheckAccountStatus"
           :class="['action-btn', 'refresh', { 'loading': isCheckingStatus || (isBatchChecking && !token.skip_check) }]"
           :disabled="isCheckingStatus || (isBatchChecking && !token.skip_check) || token.skip_check"
           :title="token.skip_check ? $t('tokenCard.checkDisabled') : $t('tokenCard.checkAccountStatus')"
@@ -206,6 +207,50 @@
     :browser-title="getPortalBrowserTitle()"
     @close="showPortalDialog = false"
   />
+
+  <!-- Suspensions 详情模态框 -->
+  <Teleport to="body">
+    <Transition name="modal" appear>
+      <div v-if="showSuspensionsModal" class="suspensions-modal-overlay" @click="showSuspensionsModal = false">
+        <div class="suspensions-modal" @click.stop>
+          <div class="modal-header">
+            <h3>{{ $t('tokenCard.suspensionDetails') }}</h3>
+            <button @click="showSuspensionsModal = false" class="modal-close">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+              </svg>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div v-if="formattedSuspensions.length > 0" class="suspensions-list">
+              <div v-for="(suspension, index) in formattedSuspensions" :key="index" class="suspension-item">
+                <div class="suspension-field">
+                  <strong>{{ $t('tokenCard.suspensionType') }}:</strong>
+                  <span class="suspension-value">{{ suspension.type }}</span>
+                </div>
+                <div v-if="suspension.reason" class="suspension-field">
+                  <strong>{{ $t('tokenCard.reason') }}:</strong>
+                  <span class="suspension-value">{{ suspension.reason }}</span>
+                </div>
+                <div v-if="suspension.date" class="suspension-field">
+                  <strong>{{ $t('tokenCard.date') }}:</strong>
+                  <span class="suspension-value">{{ suspension.date }}</span>
+                </div>
+              </div>
+            </div>
+            <div v-else class="no-suspensions">
+              <p>{{ $t('tokenCard.noSuspensionData') }}</p>
+            </div>
+            <!-- 原始 JSON 数据 -->
+            <details class="raw-json" open>
+              <summary>{{ $t('tokenCard.rawData') }}</summary>
+              <pre>{{ JSON.stringify(token.suspensions, null, 2) }}</pre>
+            </details>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <script setup>
@@ -290,20 +335,56 @@ const {
   exportTokenAsJson,
   deleteToken,
   editToken,
-  toggleSelection
+  toggleSelection,
+  // 新增的共享方法
+  isCheckingStatus,
+  isFetchingPaymentLink,
+  handleTagSave,
+  handleTagClear,
+  checkAccountStatus,
+  copyPaymentMethodLink,
+  getPortalBrowserTitle
 } = useTokenActions(props, emit)
 
 // 本地状态
 const showCopyMenu = ref(false)
-const isCheckingStatus = ref(false)
-const isFetchingPaymentLink = ref(false)
 const showEditorModal = ref(false)
 const showPortalDialog = ref(false)
 const showTagEditor = ref(false)
+const showSuspensionsModal = ref(false)
 
 // 计算属性
 const expiryDate = computed(() => {
   return props.token.portal_info?.expiry_date || null
+})
+
+// 判断是否为封禁状态且有 suspensions 数据
+const isBannedWithSuspensions = computed(() => {
+  return (
+    props.token.ban_status === 'SUSPENDED' &&
+    props.token.suspensions &&
+    (Array.isArray(props.token.suspensions) ? props.token.suspensions.length > 0 : true)
+  )
+})
+
+// 格式化 suspensions 数据
+const formattedSuspensions = computed(() => {
+  if (!props.token.suspensions) return []
+
+  if (Array.isArray(props.token.suspensions)) {
+    return props.token.suspensions.map(s => ({
+      type: s.suspensionType || 'Unknown',
+      reason: s.reason || '',
+      date: s.date || s.createdAt || ''
+    }))
+  }
+
+  // 如果不是数组,尝试作为单个对象处理
+  return [{
+    type: props.token.suspensions.suspensionType || 'Unknown',
+    reason: props.token.suspensions.reason || '',
+    date: props.token.suspensions.date || props.token.suspensions.createdAt || ''
+  }]
 })
 
 const balanceClasses = computed(() => {
@@ -362,124 +443,24 @@ const handleCopyMenuClick = async (type) => {
       copyAuthSession()
       break
     case 'payment':
-      await copyPaymentMethodLink()
+      await copyPaymentMethodLink({
+        cachedPaymentLink: props.cachedPaymentLink,
+        onMenuClose: () => { showCopyMenu.value = false }
+      })
       break
   }
 }
 
-const copyPaymentMethodLink = async () => {
-  if (!props.token.auth_session) {
-    window.$notify.warning(t('messages.noAuthSession'))
-    showCopyMenu.value = false
-    return
-  }
-
-  if (props.cachedPaymentLink) {
-    try {
-      await invoke('copy_to_clipboard', { text: props.cachedPaymentLink })
-      window.$notify.success(t('messages.paymentLinkCopied'))
-    } catch (error) {
-      console.error('Failed to copy cached payment link:', error)
-      window.$notify.error(t('messages.copyPaymentLinkFailed') + ': ' + error)
-    } finally {
-      showCopyMenu.value = false
-    }
-    return
-  }
-
-  isFetchingPaymentLink.value = true
-  try {
-    const result = await invoke('fetch_payment_method_link_command', {
-      authSession: props.token.auth_session
-    })
-
-    const paymentLink = result.payment_method_link
-    if (!paymentLink) {
-      window.$notify.error(t('messages.copyPaymentLinkFailed') + ': 链接为空')
-      return
-    }
-
-    await invoke('copy_to_clipboard', { text: paymentLink })
-    window.$notify.success(t('messages.paymentLinkCopied'))
-    emit('payment-link-fetched', { tokenId: props.token.id, link: paymentLink })
-  } catch (error) {
-    console.error('Failed to fetch or copy payment link:', error)
-    window.$notify.error(t('messages.copyPaymentLinkFailed') + ': ' + error)
-  } finally {
-    isFetchingPaymentLink.value = false
-    showCopyMenu.value = false
-  }
+const handleCheckAccountStatus = async () => {
+  await checkAccountStatus({
+    isBatchChecking: props.isBatchChecking
+  })
 }
 
-const checkAccountStatus = async () => {
-  if (props.token.skip_check) return
-  if (isCheckingStatus.value || (props.isBatchChecking && !props.token.skip_check)) return
-
-  isCheckingStatus.value = true
-
-  try {
-    const batchResults = await invoke('batch_check_tokens_status', {
-      tokens: [{
-        id: props.token.id,
-        access_token: props.token.access_token,
-        tenant_url: props.token.tenant_url,
-        portal_url: props.token.portal_url || null,
-        auth_session: props.token.auth_session || null,
-        email_note: props.token.email_note || null
-      }]
-    })
-
-    if (batchResults && batchResults.length > 0) {
-      const result = batchResults[0]
-      const statusResult = result.status_result
-      const banStatus = statusResult.status
-      let hasChanges = false
-
-      if (props.token.ban_status !== banStatus) {
-        props.token.ban_status = banStatus
-        hasChanges = true
-      }
-
-      if (result.portal_info) {
-        props.token.portal_info = {
-          credits_balance: result.portal_info.credits_balance,
-          expiry_date: result.portal_info.expiry_date
-        }
-        hasChanges = true
-      }
-
-      if (hasChanges) {
-        props.token.updated_at = new Date().toISOString()
-        emit('token-updated')
-      }
-
-      // 显示状态消息
-      let statusMessage = ''
-      let statusType = 'info'
-      
-      switch (banStatus) {
-        case 'SUSPENDED':
-          statusMessage = t('messages.accountBanned')
-          statusType = 'error'
-          break
-        case 'EXPIRED':
-          statusMessage = t('tokenCard.expired')
-          statusType = 'warning'
-          break
-        case 'ACTIVE':
-          statusMessage = t('messages.accountStatusNormal')
-          statusType = 'success'
-          break
-        default:
-          statusMessage = `${t('messages.accountStatus')}: ${banStatus}`
-      }
-
-      window.$notify[statusType](`${t('messages.checkComplete')}: ${statusMessage}`)
-    }
-  } catch (error) {
-    window.$notify.error(`${t('messages.checkFailed')}: ${error}`)
-  } finally {
-    isCheckingStatus.value = false
+// 处理状态标签点击
+const handleStatusClick = () => {
+  if (isBannedWithSuspensions.value) {
+    showSuspensionsModal.value = true
   }
 }
 
@@ -493,8 +474,17 @@ const handleClickOutside = (event) => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   document.addEventListener('click', handleClickOutside)
+  
+  // 只对有 auth_session 但没有 portal_url 的 token 自动检查状态
+  // 排除已封禁(SUSPENDED)和已过期(EXPIRED)的 token
+  if (props.token.auth_session &&
+      !props.token.portal_url &&
+      props.token.ban_status !== 'SUSPENDED' &&
+      props.token.ban_status !== 'EXPIRED') {
+    await handleCheckAccountStatus()
+  }
 })
 
 onUnmounted(() => {
@@ -506,37 +496,9 @@ const openTagEditor = () => {
   showTagEditor.value = true
 }
 
-// 处理标签保存
-const handleTagSave = ({ tagName, tagColor }) => {
-  props.token.tag_name = tagName
-  props.token.tag_color = tagColor
-  props.token.updated_at = new Date().toISOString()
-  emit('token-updated')
-  window.$notify.success(t('messages.tagUpdated'))
-}
-
-// 处理标签清除
-const handleTagClear = () => {
-  props.token.tag_name = ''
-  props.token.tag_color = ''
-  props.token.updated_at = new Date().toISOString()
-  emit('token-updated')
-  window.$notify.success(t('messages.tagCleared'))
-}
-
-// 获取 Portal 浏览器标题
-const getPortalBrowserTitle = () => {
-  const email = props.token.email_note || ''
-  const tag = props.token.tag_name || ''
-  if (email && tag) return `${tag} - ${email}`
-  if (email) return email
-  if (tag) return tag
-  return 'Portal'
-}
-
 // 暴露方法给父组件
 defineExpose({
-  refreshAccountStatus: checkAccountStatus
+  refreshAccountStatus: handleCheckAccountStatus
 })
 </script>
 
@@ -606,8 +568,9 @@ defineExpose({
 }
 
 .cell-tag {
-  width: 100px;
-  max-width: 120px;
+  width: 80px;
+  max-width: 80px;
+  overflow: hidden;
 }
 
 .tag-cell-wrapper {
@@ -618,6 +581,8 @@ defineExpose({
   padding: 2px;
   border-radius: 6px;
   transition: background-color 0.15s ease;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .tag-cell-wrapper:hover {
@@ -628,9 +593,9 @@ defineExpose({
   display: inline-block;
   font-size: 11px;
   font-weight: 600;
-  padding: 2px 8px;
+  padding: 2px 6px;
   border-radius: 10px;
-  max-width: 100%;
+  max-width: 70px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -707,8 +672,7 @@ defineExpose({
 }
 
 .cell-email {
-  min-width: 200px;
-  max-width: 260px;
+  min-width: 140px;
 }
 
 .email-wrapper {
@@ -716,7 +680,8 @@ defineExpose({
   align-items: center;
   gap: 4px;
   cursor: pointer;
-  width: 180px;
+  width: 100%;
+  max-width: 100%;
   position: relative;
 }
 
@@ -726,7 +691,8 @@ defineExpose({
   background: var(--color-info-surface, #f0f9ff);
   padding: 2px 6px;
   border-radius: 4px;
-  max-width: 160px;
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -776,7 +742,7 @@ defineExpose({
 }
 
 .cell-expiry {
-  width: 110px;
+  width: 100px;
 }
 
 .expiry-text {
@@ -789,7 +755,8 @@ defineExpose({
 }
 
 .cell-actions {
-  width: 200px;
+  width: 220px;
+  min-width: 220px;
 }
 
 .actions-wrapper {
@@ -998,5 +965,189 @@ defineExpose({
 [data-theme='dark'] .email-text {
   color: #93c5fd;
   background: rgba(56, 189, 248, 0.15);
+}
+
+/* 状态徽章可点击样式 */
+.status-badge.clickable {
+  cursor: pointer;
+}
+
+.status-badge.clickable:hover {
+  filter: brightness(0.9);
+}
+
+/* Suspensions 模态框样式 */
+.suspensions-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.suspensions-modal {
+  background: var(--color-surface, #ffffff);
+  border-radius: 12px;
+  max-width: 600px;
+  width: 100%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+.suspensions-modal .modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-divider, #e1e5e9);
+}
+
+.suspensions-modal .modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-primary, #374151);
+}
+
+.suspensions-modal .modal-close {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--color-text-muted, #6b7280);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.suspensions-modal .modal-close:hover {
+  background: var(--color-surface-hover, #f3f4f6);
+  color: var(--color-text-primary, #374151);
+}
+
+.suspensions-modal .modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.suspensions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.suspension-item {
+  background: var(--color-surface-elevated, #f9fafb);
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid var(--color-divider, #e5e7eb);
+}
+
+.suspension-field {
+  margin-bottom: 8px;
+}
+
+.suspension-field:last-child {
+  margin-bottom: 0;
+}
+
+.suspension-field strong {
+  color: var(--color-text-secondary, #6b7280);
+  font-weight: 500;
+  margin-right: 8px;
+}
+
+.suspension-value {
+  color: var(--color-text-primary, #374151);
+  word-break: break-word;
+}
+
+.no-suspensions {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--color-text-muted, #9ca3af);
+}
+
+.raw-json {
+  margin-top: 20px;
+  border: 1px solid var(--color-divider, #e5e7eb);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.raw-json summary {
+  padding: 12px 16px;
+  background: var(--color-surface-elevated, #f9fafb);
+  cursor: pointer;
+  font-weight: 500;
+  color: var(--color-text-secondary, #6b7280);
+}
+
+.raw-json pre {
+  margin: 0;
+  padding: 16px;
+  font-size: 12px;
+  overflow-x: auto;
+  background: var(--color-surface, #ffffff);
+  color: var(--color-text-primary, #374151);
+}
+
+/* 模态框动画 */
+.modal-enter-active,
+.modal-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.modal-enter-active .suspensions-modal,
+.modal-leave-active .suspensions-modal {
+  transition: transform 0.2s ease;
+}
+
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+}
+
+.modal-enter-from .suspensions-modal,
+.modal-leave-to .suspensions-modal {
+  transform: scale(0.95);
+}
+
+/* 黑暗模式 */
+[data-theme='dark'] .suspensions-modal {
+  background: var(--color-surface, #1f2937);
+}
+
+[data-theme='dark'] .suspensions-modal .modal-header h3 {
+  color: var(--color-text-primary, #f3f4f6);
+}
+
+[data-theme='dark'] .suspension-item {
+  background: rgba(55, 65, 81, 0.5);
+  border-color: rgba(75, 85, 99, 0.6);
+}
+
+[data-theme='dark'] .suspension-value {
+  color: var(--color-text-primary, #f3f4f6);
+}
+
+[data-theme='dark'] .raw-json summary {
+  background: rgba(55, 65, 81, 0.5);
+}
+
+[data-theme='dark'] .raw-json pre {
+  background: rgba(31, 41, 55, 0.8);
+  color: var(--color-text-primary, #f3f4f6);
 }
 </style>
