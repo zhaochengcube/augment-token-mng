@@ -515,6 +515,7 @@ pub async fn batch_check_account_status(
 
             // 4. 如果没有 portal_url 但有 auth_session，尝试获取 portal_url
             let mut fetched_portal_url = portal_url.clone();
+            let mut fetched_app_session: Option<String> = None;  // 保存 app_session 用于后续获取 credits
             if fetched_portal_url.is_none() && auth_session.is_some() {
                 println!("No portal_url for token {:?}, attempting to fetch from auth_session", token_id);
 
@@ -549,6 +550,11 @@ pub async fn batch_check_account_status(
                         None
                     };
 
+                    // 保存 app_session 用于后续获取 credits
+                    if let Some(ref session) = app_session {
+                        fetched_app_session = Some(session.clone());
+                    }
+
                     // 如果缓存失败或不存在，交换新的 app_session
                     if app_session.is_none() && fetched_portal_url.is_none() {
                         match crate::augment_user_info::exchange_auth_session_for_app_session(session).await {
@@ -561,6 +567,9 @@ pub async fn batch_check_account_status(
                                         created_at: std::time::SystemTime::now(),
                                     });
                                 }
+
+                                // 保存 app_session
+                                fetched_app_session = Some(new_app_session.clone());
 
                                 // 获取订阅信息
                                 match crate::augment_user_info::fetch_app_subscription(&new_app_session).await {
@@ -585,7 +594,8 @@ pub async fn batch_check_account_status(
             }
 
             // 5. 获取余额和过期时间信息
-            // 使用 get_portal_info (需要 portal_url)
+            // 优先使用 get_portal_info (需要 portal_url)
+            // 如果没有 portal_url 但有 app_session，则使用 /api/credits 获取余额
             let (portal_info, portal_error) = if let Some(ref url) = fetched_portal_url {
                 match get_portal_info(url).await {
                     Ok(info) => {
@@ -598,9 +608,26 @@ pub async fn batch_check_account_status(
                         (None, Some(err))
                     }
                 }
+            } else if let Some(ref app_session) = fetched_app_session {
+                // 没有 portal_url，尝试使用 /api/credits 获取余额
+                println!("No portal_url for token {:?}, trying /api/credits with app_session", token_id);
+                match get_credits_with_app_session(app_session).await {
+                    Ok(credits_data) => {
+                        let balance = credits_data.usage_units_remaining as i32;
+                        println!("Successfully fetched credits for token {:?}: remaining={}", token_id, balance);
+                        (Some(PortalInfo {
+                            credits_balance: balance,
+                            expiry_date: None,
+                        }), None)
+                    }
+                    Err(err) => {
+                        println!("Failed to fetch credits for token {:?}: {}", token_id, err);
+                        (None, Some(err))
+                    }
+                }
             } else {
-                println!("No portal_url available for token {:?}, skipping portal_info fetch", token_id);
-                (None, Some("No portal_url available".to_string()))
+                println!("No portal_url or app_session available for token {:?}, skipping portal_info fetch", token_id);
+                (None, Some("No portal_url or app_session available".to_string()))
             };
 
             // 6. 如果没有邮箱备注,尝试获取邮箱
@@ -970,12 +997,53 @@ pub struct CreditConsumptionResponse {
     pub data_points: Vec<CreditDataPoint>,
 }
 
+/// /api/credits 响应（新版本账户使用）
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CreditsData {
+    #[serde(rename(serialize = "usage_units_available", deserialize = "usageUnitsAvailable"))]
+    pub usage_units_available: f64,  // 总额
+    #[serde(rename(serialize = "usage_units_remaining", deserialize = "usageUnitsRemaining"))]
+    pub usage_units_remaining: f64,  // 剩余
+}
+
+/// 使用 app_session 获取 credits 余额（新版本账户）
+async fn get_credits_with_app_session(app_session: &str) -> Result<CreditsData, String> {
+    let client = create_proxy_client()?;
+    let credits_url = "https://app.augmentcode.com/api/credits";
+
+    println!("Fetching credits from: {}", credits_url);
+
+    let response = client
+        .get(credits_url)
+        .header("Cookie", format!("_session={}", urlencoding::encode(app_session)))
+        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch credits: {}", e))?;
+
+    let status = response.status();
+    if !status.is_success() {
+        let error_body = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+        return Err(format!("Credits API returned status {}: {}", status, error_body));
+    }
+
+    let response_text = response.text().await
+        .map_err(|e| format!("Failed to read credits response body: {}", e))?;
+
+    println!("Credits response: {}", response_text);
+
+    serde_json::from_str::<CreditsData>(&response_text)
+        .map_err(|e| format!("Failed to parse credits response: {}. Response body: {}", e, response_text))
+}
+
 /// 批量获取 Credit 消费数据的响应
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BatchCreditConsumptionResponse {
     pub stats_data: CreditConsumptionResponse,
     pub chart_data: CreditConsumptionResponse,
     pub portal_url: Option<String>,  // 添加 portal_url 字段
+    pub credits_data: Option<CreditsData>,  // 新增：实时credits余额（用于新版本账户）
 }
 
 /// 使用已有的 app_session 获取 Credit 消费数据
@@ -985,14 +1053,16 @@ pub async fn get_batch_credit_consumption_with_app_session(
     // 使用 ProxyClient
     let client = create_proxy_client()?;
 
-    // 并行获取两个数据
+    // 并行获取三个数据
     let stats_url = "https://app.augmentcode.com/api/credit-consumption?groupBy=NONE&granularity=DAY&billingCycle=CURRENT_BILLING_CYCLE";
     let chart_url = "https://app.augmentcode.com/api/credit-consumption?groupBy=MODEL_NAME&granularity=TOTAL&billingCycle=CURRENT_BILLING_CYCLE";
+    let credits_url = "https://app.augmentcode.com/api/credits";
 
     println!("Fetching stats from: {}", stats_url);
     println!("Fetching chart from: {}", chart_url);
+    println!("Fetching credits from: {}", credits_url);
 
-    let (stats_result, chart_result) = tokio::join!(
+    let (stats_result, chart_result, credits_result) = tokio::join!(
         async {
             let response = client
                 .get(stats_url)
@@ -1040,6 +1110,33 @@ pub async fn get_batch_credit_consumption_with_app_session(
 
             serde_json::from_str::<CreditConsumptionResponse>(&response_text)
                 .map_err(|e| format!("Failed to parse chart response: {}. Response body: {}", e, response_text))
+        },
+        // 获取实时credits（新版本账户）
+        async {
+            let response = client
+                .get(credits_url)
+                .header("Cookie", format!("_session={}", urlencoding::encode(app_session)))
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                .header("Accept", "application/json")
+                .send()
+                .await;
+
+            match response {
+                Ok(resp) => {
+                    if resp.status().is_success() {
+                        let response_text = resp.text().await.unwrap_or_default();
+                        println!("Credits response: {}", response_text);
+                        serde_json::from_str::<CreditsData>(&response_text).ok()
+                    } else {
+                        println!("Credits API returned non-success status: {}", resp.status());
+                        None
+                    }
+                }
+                Err(e) => {
+                    println!("Failed to fetch credits data (optional): {}", e);
+                    None
+                }
+            }
         }
     );
 
@@ -1050,5 +1147,6 @@ pub async fn get_batch_credit_consumption_with_app_session(
         stats_data,
         chart_data,
         portal_url: None,
+        credits_data: credits_result,
     })
 }

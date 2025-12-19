@@ -77,6 +77,12 @@ const fetchData = async () => {
 
     statsData.value = result.stats_data
     chartData.value = result.chart_data
+
+    // 优先使用 /api/credits 返回的实时余额（用于新版本账户）
+    if (result.credits_data && result.credits_data.usage_units_remaining !== undefined) {
+      remainingCredits.value = Math.round(result.credits_data.usage_units_remaining)
+      console.log('Using real-time credits:', result.credits_data)
+    }
   } catch (e) {
     error.value = e.toString()
     console.error('Failed to fetch credit data:', e)
