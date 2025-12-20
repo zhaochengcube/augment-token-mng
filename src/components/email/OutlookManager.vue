@@ -1,12 +1,12 @@
 <template>
-  <div class="modal-overlay">
-    <div class="modal-content outlook-manager" @click.stop>
-      <div class="modal-header">
+  <div :class="isPageMode ? 'page-container' : 'modal-overlay'">
+    <div :class="isPageMode ? 'page-content outlook-manager' : 'modal-content outlook-manager'" @click.stop>
+      <div :class="isPageMode ? 'page-header' : 'modal-header'">
         <h3>{{ $t('outlookManager.title') }}</h3>
-        <button @click="$emit('close')" class="close-btn">×</button>
+        <button v-if="!isPageMode" @click="$emit('close')" class="close-btn">×</button>
       </div>
 
-      <div class="modal-body">
+      <div :class="isPageMode ? 'page-body' : 'modal-body'">
         <!-- 添加邮箱表单 -->
         <div class="add-account-section">
           <h4>{{ $t('outlookManager.addAccount') }}</h4>
@@ -119,6 +119,13 @@ import { ref, computed, onMounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from 'vue-i18n'
 import EmailViewer from './EmailViewer.vue'
+
+const props = defineProps({
+  isPageMode: {
+    type: Boolean,
+    default: false
+  }
+})
 
 const emit = defineEmits(['close'])
 
@@ -273,6 +280,43 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* Page Mode Styles */
+.page-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.page-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-page);
+}
+
+.page-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+  flex-shrink: 0;
+}
+
+.page-header h3 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.page-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+/* Modal Mode Styles */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -288,7 +332,7 @@ onMounted(() => {
 }
 
 .modal-content {
-  background: var(--color-surface, #ffffff);
+  background: var(--bg-surface);
   border-radius: 12px;
   width: 100%;
   max-width: 900px;
@@ -303,14 +347,14 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  border-bottom: 1px solid var(--color-border, #e5e7eb);
-  background: var(--color-surface-alt, #f9fafb);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-muted);
   border-radius: 12px 12px 0 0;
 }
 
 .modal-header h3 {
   margin: 0;
-  color: var(--color-text-primary, #374151);
+  color: var(--text-strong);
   font-size: 18px;
   font-weight: 600;
 }
@@ -320,7 +364,7 @@ onMounted(() => {
   border: none;
   font-size: 24px;
   cursor: pointer;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--text-muted);
   padding: 0;
   width: 32px;
   height: 32px;
@@ -332,8 +376,8 @@ onMounted(() => {
 }
 
 .close-btn:hover {
-  background: var(--color-border, #e5e7eb);
-  color: var(--color-text-primary, #374151);
+  background: var(--bg-hover);
+  color: var(--text);
 }
 
 .outlook-manager {
@@ -348,7 +392,7 @@ onMounted(() => {
 }
 
 .add-account-section {
-  background: var(--color-surface-muted, #f8f9fa);
+  background: var(--bg-muted);
   border-radius: 8px;
   padding: 20px;
   margin-bottom: 24px;
@@ -356,7 +400,7 @@ onMounted(() => {
 
 .add-account-section h4 {
   margin: 0 0 16px 0;
-  color: var(--color-text-heading, #333);
+  color: var(--text-strong);
   font-size: 16px;
   font-weight: 600;
 }
@@ -369,7 +413,7 @@ onMounted(() => {
   display: block;
   margin-bottom: 6px;
   font-weight: 500;
-  color: var(--color-text-primary, #374151);
+  color: var(--text);
   font-size: 14px;
 }
 
@@ -377,20 +421,20 @@ onMounted(() => {
 .form-textarea {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid var(--color-border-strong, #d1d5db);
+  border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 14px;
   transition: border-color 0.2s ease;
   box-sizing: border-box;
-  background: var(--color-surface, #ffffff);
-  color: var(--color-text-primary, #374151);
+  background: var(--bg-surface);
+  color: var(--text);
 }
 
 .form-input:focus,
 .form-textarea:focus {
   outline: none;
-  border-color: var(--color-accent, #3b82f6);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .form-textarea {
@@ -496,23 +540,23 @@ onMounted(() => {
 }
 
 .status-active {
-  background: var(--color-success-surface, #d1fae5);
-  color: var(--color-success-text, #065f46);
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
 }
 
 .status-inactive {
-  background: var(--color-danger-soft-surface, #fee2e2);
-  color: var(--color-danger-bg-hover, #991b1b);
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
 }
 
 .status-error {
-  background: var(--color-warning-surface, #fef3c7);
-  color: var(--color-warning-text, #92400e);
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
 }
 
 .status-unknown {
-  background: var(--color-surface-hover, #f3f4f6);
-  color: var(--color-text-muted, #6b7280);
+  background: var(--bg-muted);
+  color: var(--text-muted);
 }
 
 .account-actions {
@@ -541,32 +585,32 @@ onMounted(() => {
 }
 
 .btn.primary {
-  background: var(--color-accent, #3b82f6);
-  color: var(--color-text-inverse, #ffffff);
+  background: var(--accent);
+  color: var(--text-contrast);
 }
 
 .btn.primary:hover:not(:disabled) {
-  background: var(--color-accent-hover, #2563eb);
+  background: var(--accent-strong);
   transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 2px 4px color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 .btn.secondary {
-  background: var(--color-text-muted, #6b7280);
-  color: var(--color-text-inverse, #ffffff);
+  background: var(--text-muted);
+  color: var(--text-contrast);
 }
 
 .btn.secondary:hover:not(:disabled) {
-  background: var(--color-text-secondary, #4b5563);
+  background: color-mix(in srgb, var(--text-muted) 80%, black);
 }
 
 .btn.danger {
-  background: var(--color-danger-bg, #dc2626);
-  color: var(--color-text-inverse, #ffffff);
+  background: #dc2626;
+  color: #ffffff;
 }
 
 .btn.danger:hover:not(:disabled) {
-  background: var(--color-danger-bg-hover, #b91c1c);
+  background: #b91c1c;
 }
 
 .btn.small {
@@ -579,32 +623,18 @@ onMounted(() => {
   cursor: wait;
 }
 
-.btn.small {
-  padding: 6px 12px;
-  font-size: 12px;
-}
-
-.btn.danger {
-  background: var(--color-danger-bg, #dc2626);
-  color: var(--color-text-inverse, #ffffff);
-}
-
-.btn.danger:hover {
-  background: var(--color-danger-bg-hover, #b91c1c);
-}
-
 .loading-state,
 .empty-state {
   text-align: center;
   padding: 40px 20px;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--text-muted);
 }
 
 .spinner {
   width: 32px;
   height: 32px;
-  border: 3px solid var(--color-surface-hover, #f3f3f3);
-  border-top: 3px solid var(--color-accent, #3b82f6);
+  border: 3px solid var(--bg-muted);
+  border-top: 3px solid var(--accent);
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin: 0 auto 16px;
@@ -630,15 +660,4 @@ onMounted(() => {
   }
 }
 
-/* Dark theme styles */
-[data-theme='dark'] .session-notice {
-  background: rgba(245, 158, 11, 0.15);
-  border-color: rgba(245, 158, 11, 0.4);
-  color: #fbbf24;
-}
-
-[data-theme='dark'] .status-icon.warning {
-  background: rgba(245, 158, 11, 0.15);
-  color: #fbbf24;
-}
 </style>

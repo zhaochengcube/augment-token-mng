@@ -109,16 +109,15 @@
 import { ref, computed, onMounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from 'vue-i18n'
+import { useSettingsStore } from '../../stores/settings'
 
 const { t } = useI18n()
 
 const emit = defineEmits(['close'])
 
-const serverStatus = ref({
-  running: false,
-  port: null,
-  address: null
-})
+// Use settings store
+const settingsStore = useSettingsStore()
+const serverStatus = computed(() => settingsStore.serverStatus)
 
 const isLoading = ref(false)
 const statusMessage = ref('')
@@ -142,11 +141,10 @@ curl -X POST ${addr}/api/import/sessions \\
   -d '{"sessions":["session1","session2"]}'`
 })
 
-// 加载服务器状态
+// 加载服务器状态 - 使用store并强制刷新
 const loadStatus = async () => {
   try {
-    const status = await invoke('get_api_server_status')
-    serverStatus.value = status
+    await settingsStore.loadServerStatus(true) // force refresh
   } catch (error) {
     console.error('Failed to load API server status:', error)
     showMessage(t('apiServer.loadStatusFailed'), 'error')
@@ -221,7 +219,8 @@ const loadAutoStartPreference = () => {
 }
 
 onMounted(() => {
-  loadStatus()
+  // 不需要重新加载,直接使用store中的数据
+  // 如果需要最新数据,可以调用 loadStatus()
   loadAutoStartPreference()
 })
 </script>

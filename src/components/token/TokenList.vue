@@ -1,28 +1,36 @@
 <template>
-  <div class="token-list-modal">
-    <div class="modal-overlay">
+  <div :class="mode === 'modal' ? 'token-list-modal' : 'token-list-page'">
+    <div :class="mode === 'modal' ? 'modal-overlay' : 'page-container'">
       <div class="modal-content" @click.stop="handleModalContentClick">
         <div class="modal-header">
-          <div class="header-title">
-            <h2>{{ $t('tokenList.title') }}</h2>
-            <div
-              :class="['status-badge', storageStatusClass, { clickable: isDatabaseAvailable }]"
-              :title="isDatabaseAvailable ? $t('tokenList.viewSyncQueueTooltip') : ''"
-              @click="isDatabaseAvailable && openSyncQueue()"
-            >
-              <span :class="['status-dot', storageStatusClass]"></span>
-              <span class="status-text">{{ storageStatusText }}</span>
-            </div>
+          <!-- 左侧：存储状态 -->
+          <div
+            :class="['status-badge', storageStatusClass, { clickable: isDatabaseAvailable }]"
+            :title="isDatabaseAvailable ? $t('tokenList.viewSyncQueueTooltip') : ''"
+            @click="isDatabaseAvailable && openSyncQueue()"
+          >
+            <span :class="['status-dot', storageStatusClass]"></span>
+            <span class="status-text">{{ storageStatusText }}</span>
           </div>
-          <div class="header-actions">
-            <!-- 数据库配置按钮 -->
-            <button @click="showDatabaseConfig = true" class="btn info small">
+
+          <!-- 中间：搜索框 -->
+          <div class="header-search-box">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="search-icon">
+              <path
+                d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+            </svg>
+            <input type="text" v-model="searchQuery" :placeholder="$t('tokenList.searchPlaceholder')"
+              class="search-input" />
+            <button v-if="searchQuery.trim()" @click="searchQuery = ''" class="clear-search-btn" title="清空搜索">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                 <path
-                  d="M12 3C7.58 3 4 4.79 4 7s3.58 4 8 4 8-1.79 8-4-3.58-4-8-4zM4 9v3c0 2.21 3.58 4 8 4s8-1.79 8-4V9c0 2.21-3.58 4-8 4s-8-1.79-8-4zM4 16v3c0 2.21 3.58 4 8 4s8-1.79 8-4v-3c0 2.21-3.58 4-8 4s-8-1.79-8-4z" />
+                  d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
               </svg>
-              {{ $t('tokenList.databaseConfig') }}
             </button>
+          </div>
+
+          <!-- 右侧：操作按钮 -->
+          <div class="header-actions">
             <!-- 同步按钮 - 仅双向存储模式显示 -->
             <button v-if="isDatabaseAvailable" @click="handleBidirectionalSync" class="btn info small"
               :disabled="isSyncing" :title="$t('tokenList.syncTooltip')">
@@ -38,28 +46,11 @@
               </svg>
               {{ $t('tokenList.addToken') }}
             </button>
-            <!-- 邮箱显示切换按钮 -->
-            <button @click="showRealEmail = !showRealEmail" class="btn secondary small"
-              :class="{ active: showRealEmail }" :title="showRealEmail ? $t('tokenList.hideRealEmail') : $t('tokenList.showRealEmail')">
-              <svg v-if="showRealEmail" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
-              </svg>
-              <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/>
-              </svg>
-            </button>
-            <button @click="handleRefresh" class="btn secondary small" :disabled="isRefreshing">
-              <svg v-if="!isRefreshing" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <path
-                  d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
-              </svg>
-              {{ isRefreshing ? $t('loading.refreshing') : $t('tokenList.refresh') }}
-            </button>
-            <button class="close-btn" @click="handleClose">×</button>
+            <button v-if="mode === 'modal'" class="close-btn" @click="handleClose">×</button>
           </div>
         </div>
 
-        <div class="modal-body">
+        <div ref="modalBodyRef" class="modal-body">
           <!-- Loading State -->
           <div v-if="isLoading" class="loading-state">
             <div class="spinner"></div>
@@ -86,99 +77,254 @@
 
           <!-- Token List -->
           <div v-else class="token-list">
-            <!-- 状态统计栏 -->
-            <div class="status-stats-bar">
-              <div class="status-stats-container">
-                <!-- 全部 -->
-                <div :class="['status-stat-card', { 'selected': selectedStatusFilter === null }]"
-                  @click="selectStatusFilter(null)" :title="$t('tokenList.allStatus')">
-                  <div class="stat-icon all">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                      <path
-                        d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z" />
-                    </svg>
-                  </div>
-                  <div class="stat-content">
-                    <div class="stat-label">{{ $t('tokenList.allStatus') }}</div>
-                    <div class="stat-value">{{ statusStatistics.TOTAL }}</div>
-                  </div>
-                </div>
-
-                <!-- 活跃 -->
-                <div :class="['status-stat-card', 'active', { 'selected': selectedStatusFilter === 'ACTIVE' }]"
-                  @click="selectStatusFilter('ACTIVE')" :title="$t('tokenList.activeStatus')">
-                  <div class="stat-icon active">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <!-- 工具栏：筛选 + 操作按钮 -->
+            <div class="list-toolbar">
+              <!-- 左侧：筛选和视图控制按钮 -->
+              <div class="toolbar-left">
+                <!-- 状态筛选下拉菜单 -->
+                <div class="status-filter-dropdown">
+                  <button class="filter-btn status-filter-btn" @click.stop="toggleStatusFilterMenu"
+                    :class="{ 'active': selectedStatusFilter !== null }">
+                    <!-- 状态图标 -->
+                    <svg v-if="selectedStatusFilter === 'ACTIVE'" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="status-icon active">
                       <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
                     </svg>
-                  </div>
-                  <div class="stat-content">
-                    <div class="stat-label">{{ $t('tokenList.activeStatus') }}</div>
-                    <div class="stat-value">{{ statusStatistics.ACTIVE }}</div>
-                  </div>
-                </div>
-
-                <!-- 封禁 -->
-                <div :class="['status-stat-card', 'suspended', { 'selected': selectedStatusFilter === 'SUSPENDED' }]"
-                  @click="selectStatusFilter('SUSPENDED')" :title="$t('tokenList.suspendedStatus')">
-                  <div class="stat-icon suspended">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                      <path
-                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 11c-.55 0-1-.45-1-1V8c0-.55.45-1 1-1s1 .45 1 1v4c0 .55-.45 1-1 1zm1 4h-2v-2h2v2z" />
+                    <svg v-else-if="selectedStatusFilter === 'SUSPENDED'" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="status-icon suspended">
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 11c-.55 0-1-.45-1-1V8c0-.55.45-1 1-1s1 .45 1 1v4c0 .55-.45 1-1 1zm1 4h-2v-2h2v2z" />
                     </svg>
-                  </div>
-                  <div class="stat-content">
-                    <div class="stat-label">{{ $t('tokenList.suspendedStatus') }}</div>
-                    <div class="stat-value">{{ statusStatistics.SUSPENDED }}</div>
-                  </div>
-                </div>
-
-                <!-- 其他 -->
-                <div :class="['status-stat-card', 'other', { 'selected': selectedStatusFilter === 'OTHER' }]"
-                  @click="selectStatusFilter('OTHER')" :title="$t('tokenList.otherStatus')">
-                  <div class="stat-icon other">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                      <path
-                        d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
+                    <svg v-else-if="selectedStatusFilter === 'OTHER'" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="status-icon other">
+                      <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
                     </svg>
-                  </div>
-                  <div class="stat-content">
-                    <div class="stat-label">{{ $t('tokenList.otherStatus') }}</div>
-                    <div class="stat-value">{{ statusStatistics.OTHER }}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="list-header">
-              <div class="list-toolbar">
-                <!-- 搜索框 (移到最前面) -->
-                <div class="search-box">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="search-icon">
-                    <path
-                      d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
-                  </svg>
-                  <input type="text" v-model="searchQuery" :placeholder="$t('tokenList.searchPlaceholder')"
-                    class="search-input" />
-                  <button v-if="searchQuery.trim()" @click="searchQuery = ''" class="clear-search-btn" title="清空搜索">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                      <path
-                        d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                    <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="status-icon all">
+                      <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z" />
+                    </svg>
+                    <span class="filter-label">{{ selectedStatusFilter ? $t(`tokenList.${selectedStatusFilter.toLowerCase()}Status`) : $t('tokenList.allStatus') }}</span>
+                    <span class="filter-count">{{ selectedStatusFilter ? statusStatistics[selectedStatusFilter] : statusStatistics.TOTAL }}</span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="dropdown-arrow">
+                      <path d="M7 10l5 5 5-5z" />
                     </svg>
                   </button>
+
+                  <!-- 下拉菜单 -->
+                  <Transition name="dropdown">
+                    <div v-if="showStatusFilterMenu" class="status-filter-menu" @click.stop>
+                      <button :class="['status-option', { active: selectedStatusFilter === null }]"
+                        @click="selectStatusFilter(null)">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="status-icon all">
+                          <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z" />
+                        </svg>
+                        <span>{{ $t('tokenList.allStatus') }}</span>
+                        <span class="status-count">{{ statusStatistics.TOTAL }}</span>
+                        <svg v-if="selectedStatusFilter === null" width="16" height="16" viewBox="0 0 24 24"
+                          fill="currentColor" class="check-icon">
+                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                        </svg>
+                      </button>
+
+                      <button :class="['status-option', 'active-status', { active: selectedStatusFilter === 'ACTIVE' }]"
+                        @click="selectStatusFilter('ACTIVE')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="status-icon active">
+                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                        </svg>
+                        <span>{{ $t('tokenList.activeStatus') }}</span>
+                        <span class="status-count">{{ statusStatistics.ACTIVE }}</span>
+                        <svg v-if="selectedStatusFilter === 'ACTIVE'" width="16" height="16" viewBox="0 0 24 24"
+                          fill="currentColor" class="check-icon">
+                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                        </svg>
+                      </button>
+
+                      <button :class="['status-option', 'suspended-status', { active: selectedStatusFilter === 'SUSPENDED' }]"
+                        @click="selectStatusFilter('SUSPENDED')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="status-icon suspended">
+                          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 11c-.55 0-1-.45-1-1V8c0-.55.45-1 1-1s1 .45 1 1v4c0 .55-.45 1-1 1zm1 4h-2v-2h2v2z" />
+                        </svg>
+                        <span>{{ $t('tokenList.suspendedStatus') }}</span>
+                        <span class="status-count">{{ statusStatistics.SUSPENDED }}</span>
+                        <svg v-if="selectedStatusFilter === 'SUSPENDED'" width="16" height="16" viewBox="0 0 24 24"
+                          fill="currentColor" class="check-icon">
+                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                        </svg>
+                      </button>
+
+                      <button :class="['status-option', 'other-status', { active: selectedStatusFilter === 'OTHER' }]"
+                        @click="selectStatusFilter('OTHER')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="status-icon other">
+                          <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
+                        </svg>
+                        <span>{{ $t('tokenList.otherStatus') }}</span>
+                        <span class="status-count">{{ statusStatistics.OTHER }}</span>
+                        <svg v-if="selectedStatusFilter === 'OTHER'" width="16" height="16" viewBox="0 0 24 24"
+                          fill="currentColor" class="check-icon">
+                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                        </svg>
+                      </button>
+                    </div>
+                  </Transition>
+                </div>
+
+                <!-- 标签筛选下拉菜单 -->
+                <div class="tag-filter-dropdown">
+                  <button class="tag-filter-btn" @click.stop="toggleTagFilterMenu"
+                    :title="selectedTags.size > 0 ? `${tagFilterMode === 'include' ? '包含' : '排除'}: ${Array.from(selectedTags).join(', ')}` : '按标签筛选'"
+                    :class="{ 'active': selectedTags.size > 0 }">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"/>
+                    </svg>
+                    <span v-if="selectedTags.size > 0" class="tag-count-badge">{{ selectedTags.size }}</span>
+                  </button>
+
+                  <!-- 下拉菜单 -->
+                  <Transition name="dropdown">
+                    <div v-if="showTagFilterMenu" class="tag-filter-menu" @click.stop>
+                      <!-- 顶部操作栏 -->
+                      <div class="tag-menu-header">
+                        <!-- 全部选项 -->
+                        <button
+                          :class="['tag-option', 'tag-option-all', { active: selectedTags.size === 0 }]"
+                          @click="clearTagFilter">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                              d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z" />
+                          </svg>
+                          <span>全部</span>
+                          <svg v-if="selectedTags.size === 0" width="16" height="16" viewBox="0 0 24 24"
+                            fill="currentColor" class="check-icon">
+                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                          </svg>
+                        </button>
+
+                        <!-- 筛选模式切换按钮 -->
+                        <button class="tag-mode-toggle-btn" @click="toggleTagFilterMode"
+                          :title="tagFilterMode === 'include' ? '切换到排除模式' : '切换到包含模式'">
+                          <svg v-if="tagFilterMode === 'include'" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                          </svg>
+                          <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 13H5v-2h14v2z"/>
+                          </svg>
+                          <span>{{ tagFilterMode === 'include' ? '包含' : '排除' }}</span>
+                        </button>
+                      </div>
+
+                      <div v-if="allTags.length > 0" class="sort-divider"></div>
+
+                      <!-- 标签选项 -->
+                      <div v-if="allTags.length > 0" class="tag-list">
+                        <button v-for="tag in allTags" :key="tag"
+                          :class="['tag-option', { active: selectedTags.has(tag) }]"
+                          @click="toggleTag(tag)">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                              d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z" />
+                          </svg>
+                          <span class="tag-text">{{ tag }}</span>
+                          <svg v-if="selectedTags.has(tag)" width="16" height="16" viewBox="0 0 24 24"
+                            fill="currentColor" class="check-icon">
+                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                          </svg>
+                        </button>
+                      </div>
+
+                      <!-- 无标签提示 -->
+                      <div v-else class="no-tag-hint">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" opacity="0.3">
+                          <path
+                            d="M11 15h2v2h-2zm0-8h2v6h-2zm.99-5C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z" />
+                        </svg>
+                        <p>暂无标签数据</p>
+                      </div>
+                    </div>
+                  </Transition>
+                </div>
+
+                <!-- 邮箱后缀筛选下拉菜单 -->
+                <div class="email-suffix-dropdown">
+                  <button class="email-suffix-btn" @click.stop="toggleEmailSuffixMenu"
+                    :title="selectedEmailSuffix ? `筛选: ${selectedEmailSuffix}` : '按邮箱后缀筛选'"
+                    :class="{ 'active': selectedEmailSuffix }">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path
+                        d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
+                    </svg>
+                  </button>
+
+                  <!-- 下拉菜单 -->
+                  <Transition name="dropdown">
+                    <div v-if="showEmailSuffixMenu" class="email-suffix-menu" @click.stop>
+                      <!-- 顶部操作栏 -->
+                      <div class="suffix-menu-header">
+                        <!-- 全部选项 -->
+                        <button
+                          :class="['suffix-option', 'suffix-option-all', { active: selectedEmailSuffix === null }]"
+                          @click="clearEmailSuffixFilter">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                              d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z" />
+                          </svg>
+                          <span>全部</span>
+                          <span class="suffix-count">{{ statusFilteredTokens.length }}</span>
+                          <svg v-if="selectedEmailSuffix === null" width="16" height="16" viewBox="0 0 24 24"
+                            fill="currentColor" class="check-icon">
+                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                          </svg>
+                        </button>
+
+                        <!-- 提取按钮 -->
+                        <button class="suffix-extract-btn" @click="extractEmailSuffixes"
+                          :disabled="emailSuffixes.length === 0"
+                          :title="emailSuffixes.length === 0 ? '暂无邮箱后缀可提取' : '复制所有邮箱后缀到剪贴板'">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                              d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
+                          </svg>
+                          <span>提取</span>
+                        </button>
+                      </div>
+
+                      <div v-if="emailSuffixes.length > 0" class="sort-divider"></div>
+
+                      <!-- 邮箱后缀选项 -->
+                      <div v-if="emailSuffixes.length > 0" class="suffix-list">
+                        <button v-for="suffix in emailSuffixes" :key="suffix"
+                          :class="['suffix-option', { active: selectedEmailSuffix === suffix }]"
+                          @click="selectEmailSuffix(suffix)">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                              d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
+                          </svg>
+                          <span class="suffix-text">{{ suffix }}</span>
+                          <span class="suffix-count">{{ emailSuffixStatistics[suffix] || 0 }}</span>
+                          <svg v-if="selectedEmailSuffix === suffix" width="16" height="16" viewBox="0 0 24 24"
+                            fill="currentColor" class="check-icon">
+                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                          </svg>
+                        </button>
+                      </div>
+
+                      <!-- 无邮箱后缀提示 -->
+                      <div v-else class="no-suffix-hint">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" opacity="0.3">
+                          <path
+                            d="M11 15h2v2h-2zm0-8h2v6h-2zm.99-5C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z" />
+                        </svg>
+                        <p>暂无邮箱后缀数据</p>
+                      </div>
+                    </div>
+                  </Transition>
                 </div>
 
                 <!-- 排序下拉菜单 -->
                 <div class="sort-dropdown">
-                  <button class="sort-btn" @click.stop="toggleSortMenu" :title="$t('tokenList.sort')">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                      stroke-linecap="round">
-                      <!-- 左边向上箭头 -->
-                      <path d="M7 16V6M4 9l3-3 3 3" />
-                      <!-- 右边向下箭头 -->
-                      <path d="M17 8v10M14 15l3 3 3-3" />
-                    </svg>
-                  </button>
+                <button class="sort-btn" @click.stop="toggleSortMenu" :title="$t('tokenList.sort')">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round">
+                    <!-- 左边向上箭头 -->
+                    <path d="M7 16V6M4 9l3-3 3 3" />
+                    <!-- 右边向下箭头 -->
+                    <path d="M17 8v10M14 15l3 3 3-3" />
+                  </svg>
+                </button>
 
                   <!-- 下拉菜单 -->
                   <Transition name="dropdown">
@@ -285,9 +431,9 @@
                 </div>
 
                 <!-- 布局切换按钮 -->
-                <button 
-                  class="view-toggle-btn" 
-                  @click="toggleViewMode" 
+                <button
+                  class="action-btn view-toggle-btn"
+                  @click="toggleViewMode"
                   :title="viewMode === 'card' ? $t('tokenList.switchToTable') : $t('tokenList.switchToCard')"
                   :class="{ 'active': viewMode === 'table' }"
                 >
@@ -300,114 +446,72 @@
                     <path d="M3 14h4v-4H3v4zm0 5h4v-4H3v4zM3 9h4V5H3v4zm5 5h13v-4H8v4zm0 5h13v-4H8v4zM8 5v4h13V5H8z"/>
                   </svg>
                 </button>
+              </div>
 
-                <!-- 邮箱后缀筛选下拉菜单 -->
-                <div class="email-suffix-dropdown">
-                  <button class="email-suffix-btn" @click.stop="toggleEmailSuffixMenu"
-                    :title="selectedEmailSuffix ? `筛选: ${selectedEmailSuffix}` : '按邮箱后缀筛选'"
-                    :class="{ 'active': selectedEmailSuffix }">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                      <path
-                        d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
-                    </svg>
-                  </button>
+              <!-- 右侧：其他操作按钮 -->
+              <div class="toolbar-right">
+                <!-- 邮箱显示切换按钮 -->
+              <button
+                class="action-btn email-visibility-btn"
+                @click="showRealEmail = !showRealEmail"
+                :class="{ 'active': showRealEmail }"
+                :title="showRealEmail ? $t('tokenList.hideRealEmail') : $t('tokenList.showRealEmail')"
+              >
+                <svg v-if="showRealEmail" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                </svg>
+                <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/>
+                </svg>
+              </button>
 
-                  <!-- 下拉菜单 -->
-                  <Transition name="dropdown">
-                    <div v-if="showEmailSuffixMenu" class="email-suffix-menu" @click.stop>
-                      <!-- 顶部操作栏 -->
-                      <div class="suffix-menu-header">
-                        <!-- 全部选项 -->
-                        <button
-                          :class="['suffix-option', 'suffix-option-all', { active: selectedEmailSuffix === null }]"
-                          @click="clearEmailSuffixFilter">
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <path
-                              d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z" />
-                          </svg>
-                          <span>全部</span>
-                          <span class="suffix-count">{{ statusFilteredTokens.length }}</span>
-                          <svg v-if="selectedEmailSuffix === null" width="16" height="16" viewBox="0 0 24 24"
-                            fill="currentColor" class="check-icon">
-                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
-                          </svg>
-                        </button>
+              <!-- 刷新按钮 -->
+              <button
+                class="action-btn refresh-btn"
+                @click="handleRefresh"
+                :disabled="isRefreshing"
+                :title="$t('tokenList.refresh')"
+              >
+                <svg v-if="!isRefreshing" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
+                </svg>
+                <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="spinning">
+                  <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
+                </svg>
+              </button>
 
-                        <!-- 提取按钮 -->
-                        <button class="suffix-extract-btn" @click="extractEmailSuffixes"
-                          :disabled="emailSuffixes.length === 0"
-                          :title="emailSuffixes.length === 0 ? '暂无邮箱后缀可提取' : '复制所有邮箱后缀到剪贴板'">
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <path
-                              d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
-                          </svg>
-                          <span>提取</span>
-                        </button>
-                      </div>
+              <!-- 打开文件夹按钮 -->
+              <button
+                class="action-btn open-folder-btn"
+                @click="openDataFolder"
+                :title="$t('bookmarkManager.openDataFolder')"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z" />
+                </svg>
+              </button>
 
-                      <div v-if="emailSuffixes.length > 0" class="sort-divider"></div>
+              <!-- 批量导入按钮 -->
+              <button
+                class="action-btn batch-import-btn"
+                @click="showBatchImportConfirm"
+                :title="$t('tokenList.batchImport')"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z" />
+                </svg>
+              </button>
 
-                      <!-- 邮箱后缀选项 -->
-                      <div v-if="emailSuffixes.length > 0" class="suffix-list">
-                        <button v-for="suffix in emailSuffixes" :key="suffix"
-                          :class="['suffix-option', { active: selectedEmailSuffix === suffix }]"
-                          @click="selectEmailSuffix(suffix)">
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <path
-                              d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-                          </svg>
-                          <span class="suffix-text">{{ suffix }}</span>
-                          <span class="suffix-count">{{ emailSuffixStatistics[suffix] }}</span>
-                          <svg v-if="selectedEmailSuffix === suffix" width="16" height="16" viewBox="0 0 24 24"
-                            fill="currentColor" class="check-icon">
-                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
-                          </svg>
-                        </button>
-                      </div>
-
-                      <!-- 无邮箱后缀提示 -->
-                      <div v-else class="no-suffix-hint">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" opacity="0.3">
-                          <path
-                            d="M11 15h2v2h-2zm0-8h2v6h-2zm.99-5C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z" />
-                        </svg>
-                        <p>暂无邮箱数据</p>
-                      </div>
-                    </div>
-                  </Transition>
-                </div>
-
-                <!-- 其他按钮 -->
-                <button class="open-folder-btn" @click="openDataFolder" :title="$t('bookmarkManager.openDataFolder')">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path
-                      d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z" />
-                  </svg>
-                </button>
-                <button class="batch-import-btn" @click="showBatchImportConfirm" :title="$t('tokenList.batchImport')">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path
-                      d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z" />
-                  </svg>
-                </button>
-                <button class="batch-delete-btn" @click="handleBatchDelete" :title="$t('tokenList.batchDelete')">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
-                  </svg>
-                </button>
-
-                <!-- 分页信息和每页数量 -->
-                <div v-if="filteredTokens.length > 0" class="pagination-combined">
-                  <span class="pagination-info-text">{{ $t('pagination.page', {
-                    current: currentPage, total:
-                      filteredTokens.length
-                  }) }}</span>
-                  <select v-model.number="pageSize" @change="changePageSize(pageSize)" class="pagination-size-select">
-                    <option v-for="size in pageSizeOptions" :key="size" :value="size">
-                      {{ size }}
-                    </option>
-                  </select>
-                </div>
+              <!-- 批量删除按钮 -->
+              <button
+                class="action-btn batch-delete-btn"
+                @click="handleBatchDelete"
+                :title="$t('tokenList.batchDelete')"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+                </svg>
+              </button>
               </div>
             </div>
 
@@ -441,11 +545,11 @@
                     <tr>
                       <th class="th-checkbox">
                         <div class="header-checkbox" @click="toggleSelectAll">
-                          <div 
-                            class="checkbox-inner" 
-                            :class="{ 
-                              'checked': isAllSelected, 
-                              'indeterminate': isPartialSelected 
+                          <div
+                            class="checkbox-inner"
+                            :class="{
+                              'checked': isAllSelected,
+                              'indeterminate': isPartialSelected
                             }"
                           >
                             <svg v-if="isAllSelected" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
@@ -461,7 +565,7 @@
                       <th class="th-status">{{ $t('tokenList.tableHeaderStatus') }}</th>
                       <th class="th-email">{{ $t('tokenList.tableHeaderEmail') }}</th>
                       <th class="th-balance">{{ $t('tokenList.tableHeaderBalance') }}</th>
-                      <th class="th-expiry">{{ $t('tokenList.tableHeaderExpiry') }}</th>
+                      <th class="th-expiry">{{ $t('tokenList.tableHeaderResetTime') }}</th>
                       <th class="th-actions">{{ $t('tokenList.tableHeaderActions') }}</th>
                     </tr>
                   </thead>
@@ -492,22 +596,17 @@
                 </table>
               </div>
 
-              <!-- 分页导航 -->
-              <div v-if="totalPages > 1" class="pagination-nav">
-                <button class="pagination-btn" :disabled="currentPage === 1" @click="prevPage">
-                  {{ $t('pagination.prev') }}
-                </button>
-
-                <div class="pagination-pages">
-                  <span class="page-current">{{ currentPage }}</span>
-                  <span class="page-separator">/</span>
-                  <span class="page-total">{{ totalPages }}</span>
-                </div>
-
-                <button class="pagination-btn" :disabled="currentPage === totalPages" @click="nextPage">
-                  {{ $t('pagination.next') }}
-                </button>
-              </div>
+              <!-- 分页组件 -->
+              <Pagination
+                v-if="filteredTokens.length > 0"
+                :current-page="currentPage"
+                :total-pages="totalPages"
+                :total-items="filteredTokens.length"
+                :page-size="pageSize"
+                :page-size-options="pageSizeOptions"
+                @update:current-page="handlePageChange"
+                @update:page-size="changePageSize"
+              />
             </template>
 
           </div>
@@ -526,11 +625,11 @@
                   {{ $t('tokenList.selectAllPage') }}
                 </button>
               </div>
-              
+
               <!-- 右侧：操作按钮 -->
               <div class="batch-actions">
                 <!-- 批量刷新状态 -->
-                <button @click="batchRefreshSelected" class="batch-action-btn" 
+                <button @click="batchRefreshSelected" class="batch-action-btn"
                         :disabled="isBatchRefreshing"
                         :title="$t('tokenList.batchRefreshSelected')">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -584,12 +683,6 @@
         </Transition>
       </div>
     </div>
-
-    <!-- Database Config Modal -->
-    <Teleport to="body">
-      <DatabaseConfig v-if="showDatabaseConfig" @close="showDatabaseConfig = false"
-        @config-saved="handleDatabaseConfigSaved" @config-deleted="handleDatabaseConfigDeleted" />
-    </Teleport>
 
     <!-- Token Form Modal -->
     <Teleport to="body">
@@ -874,20 +967,30 @@ import { listen } from '@tauri-apps/api/event'
 import { useI18n } from 'vue-i18n'
 import TokenCard from './TokenCard.vue'
 import TokenTableRow from './TokenTableRow.vue'
-import DatabaseConfig from '../settings/DatabaseConfig.vue'
 import TokenForm from './TokenForm.vue'
 import TagEditorModal from './TagEditorModal.vue'
 import SyncQueueModal from './SyncQueueModal.vue'
+import Pagination from '../common/Pagination.vue'
 
 const { t } = useI18n()
 
-// Props - 移除存储状态相关的props，TokenList自主管理
+// Props
 const props = defineProps({
-  // 如果将来需要其他props可以在这里添加
+  mode: {
+    type: String,
+    default: 'modal', // 'modal' or 'page'
+    validator: (value) => ['modal', 'page'].includes(value)
+  },
+  tokens: {
+    type: Array,
+    default: null // null表示自主管理，非null表示由父组件传入
+  }
 })
 
 // 内部状态管理 - TokenList直接管理tokens和存储状态
-const tokens = ref([])
+// 如果props.tokens不为null，则使用props.tokens，否则自主管理
+const internalTokens = ref([])
+const tokens = computed(() => props.tokens !== null ? props.tokens : internalTokens.value)
 const isLoading = ref(false)
 const isDatabaseAvailable = ref(false)
 const isStorageInitializing = ref(false)
@@ -999,12 +1102,16 @@ let unlistenTokensUpdated = null
 const sortType = ref('time') // 'time' = 按时间排序, 'balance' = 按余额排序, 'tag' = 按标签排序
 const sortOrder = ref('desc') // 'desc' = 最新优先/余额从多到少, 'asc' = 最旧优先/余额从少到多
 const showSortMenu = ref(false) // 排序下拉菜单显示状态
+const showStatusFilterMenu = ref(false) // 状态筛选下拉菜单显示状态
 
 // 视图模式管理
 const viewMode = ref('card') // 'card' = 卡片布局, 'table' = 列表布局
 
 // 邮箱显示模式
 const showRealEmail = ref(true) // false = 脱敏显示, true = 真实邮箱
+
+// 模态框主体容器引用
+const modalBodyRef = ref(null)
 
 // 搜索状态管理
 const searchQuery = ref('')
@@ -1015,6 +1122,11 @@ const selectedStatusFilter = ref(null) // null表示"全部", 其他值为具体
 // 邮箱后缀筛选管理
 const selectedEmailSuffix = ref(null) // null表示"全部", 其他值为具体邮箱后缀
 const showEmailSuffixMenu = ref(false) // 邮箱后缀下拉菜单显示状态
+
+// 标签筛选管理
+const selectedTags = ref(new Set()) // 选中的标签集合
+const tagFilterMode = ref('include') // 'include' = 包含模式, 'exclude' = 排除模式
+const showTagFilterMenu = ref(false) // 标签筛选下拉菜单显示状态
 
 // 分页状态管理
 const currentPage = ref(1)           // 当前页码
@@ -1189,16 +1301,67 @@ const expiredTokensCount = computed(() => {
   return tokens.value.filter(token => token.ban_status === 'EXPIRED').length
 })
 
-// 状态统计计算属性 - 简化为4个类别
+// 基础筛选后的tokens - 包含除状态筛选外的所有筛选（搜索、标签、邮箱后缀）
+// 用于状态统计，确保统计数字反映其他筛选条件
+const baseFilteredTokens = computed(() => {
+  let result = sortedTokens.value
+
+  // 1. 应用邮箱后缀筛选
+  if (selectedEmailSuffix.value !== null) {
+    result = result.filter(token => {
+      const suffix = extractEmailSuffix(token.email_note)
+      return suffix === selectedEmailSuffix.value
+    })
+  }
+
+  // 2. 应用标签筛选（忽略大小写）
+  if (selectedTags.value.size > 0) {
+    const lowerSelectedTags = new Set(
+      Array.from(selectedTags.value).map(tag => tag.toLowerCase())
+    )
+
+    result = result.filter(token => {
+      const tagName = token.tag_name?.trim() || ''
+      const lowerTagName = tagName.toLowerCase()
+
+      if (tagFilterMode.value === 'include') {
+        return tagName && lowerSelectedTags.has(lowerTagName)
+      } else {
+        return !tagName || !lowerSelectedTags.has(lowerTagName)
+      }
+    })
+  }
+
+  // 3. 应用搜索过滤
+  if (searchQuery.value.trim()) {
+    const query = searchQuery.value.toLowerCase().trim()
+    result = result.filter(token => {
+      const matchesOriginalFields = (
+        token.access_token?.toLowerCase().includes(query) ||
+        token.email_note?.toLowerCase().includes(query) ||
+        token.auth_session?.toLowerCase().includes(query) ||
+        token.tag_name?.toLowerCase().includes(query)
+      )
+
+      const matchesStatus = matchStatusKeyword(token.ban_status, query)
+
+      return matchesOriginalFields || matchesStatus
+    })
+  }
+
+  return result
+})
+
+// 状态统计计算属性 - 基于其他筛选条件后的结果
 const statusStatistics = computed(() => {
   const stats = {
     ACTIVE: 0,
     SUSPENDED: 0,
     OTHER: 0,
-    TOTAL: tokens.value.length
+    TOTAL: baseFilteredTokens.value.length
   }
 
-  tokens.value.forEach(token => {
+  baseFilteredTokens.value.forEach(token => {
     const status = token.ban_status
     if (status === 'ACTIVE') {
       stats.ACTIVE++
@@ -1215,7 +1378,7 @@ const statusStatistics = computed(() => {
 
 // 状态筛选后的tokens - 用于邮箱后缀统计
 const statusFilteredTokens = computed(() => {
-  let result = tokens.value
+  let result = baseFilteredTokens.value
 
   // 应用状态筛选
   if (selectedStatusFilter.value !== null) {
@@ -1260,6 +1423,27 @@ const emailSuffixes = computed(() => {
   // 转换为数组并按数量排序(从大到小)
   return Object.keys(stats).sort((a, b) => {
     return stats[b] - stats[a]
+  })
+})
+
+// 提取所有唯一的标签 - 按字母排序（忽略大小写）
+const allTags = computed(() => {
+  const tagMap = new Map() // 使用 Map 来存储小写 -> 原始标签的映射
+
+  statusFilteredTokens.value.forEach(token => {
+    const tagName = token.tag_name?.trim()
+    if (tagName) {
+      const lowerTag = tagName.toLowerCase()
+      // 如果已存在相同的小写标签，保留第一个出现的原始大小写形式
+      if (!tagMap.has(lowerTag)) {
+        tagMap.set(lowerTag, tagName)
+      }
+    }
+  })
+
+  // 转换为数组并按字母排序（忽略大小写）
+  return Array.from(tagMap.values()).sort((a, b) => {
+    return a.toLowerCase().localeCompare(b.toLowerCase(), 'zh-CN')
   })
 })
 
@@ -1341,58 +1525,9 @@ const matchStatusKeyword = (banStatus, query) => {
   return keywords.some(keyword => keyword.includes(lowerQuery))
 }
 
-// 过滤后的tokens计算属性（搜索 + 状态筛选 + 邮箱后缀筛选 + 排序）
+// 过滤后的tokens计算属性 - 直接使用 statusFilteredTokens（已包含所有筛选）
 const filteredTokens = computed(() => {
-  let result = sortedTokens.value
-
-  // 1. 应用状态筛选 - 单选模式
-  if (selectedStatusFilter.value !== null) {
-    result = result.filter(token => {
-      const status = token.ban_status
-
-      if (selectedStatusFilter.value === 'ACTIVE') {
-        return status === 'ACTIVE'
-      } else if (selectedStatusFilter.value === 'SUSPENDED') {
-        return status === 'SUSPENDED'
-      } else if (selectedStatusFilter.value === 'OTHER') {
-        // OTHER包含除ACTIVE和SUSPENDED以外的所有状态
-        return status !== 'ACTIVE' && status !== 'SUSPENDED'
-      }
-
-      return true
-    })
-  }
-
-  // 2. 应用邮箱后缀筛选
-  if (selectedEmailSuffix.value !== null) {
-    result = result.filter(token => {
-      // 使用辅助函数提取邮箱后缀
-      const suffix = extractEmailSuffix(token.email_note)
-      return suffix === selectedEmailSuffix.value
-    })
-  }
-
-  // 3. 应用搜索过滤
-  if (searchQuery.value.trim()) {
-    const query = searchQuery.value.toLowerCase().trim()
-    result = result.filter(token => {
-      // 原有字段搜索
-      const matchesOriginalFields = (
-        token.access_token?.toLowerCase().includes(query) ||
-        token.email_note?.toLowerCase().includes(query) ||
-        token.auth_session?.toLowerCase().includes(query) ||
-        token.tag_name?.toLowerCase().includes(query)
-      )
-
-      // 状态搜索（支持中英文关键词）
-      const matchesStatus = matchStatusKeyword(token.ban_status, query)
-
-      // 任一匹配即返回
-      return matchesOriginalFields || matchesStatus
-    })
-  }
-
-  return result
+  return statusFilteredTokens.value
 })
 
 // 总页数
@@ -1405,18 +1540,6 @@ const paginatedTokens = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
   const end = start + pageSize.value
   return filteredTokens.value.slice(start, end)
-})
-
-// 分页信息
-const paginationInfo = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value + 1
-  const end = Math.min(start + pageSize.value - 1, filteredTokens.value.length)
-  return {
-    start,
-    end,
-    current: currentPage.value,
-    total: filteredTokens.value.length
-  }
 })
 
 // 切换排序方式
@@ -1443,6 +1566,11 @@ const toggleSort = (type = 'time') => {
 // 切换排序菜单显示
 const toggleSortMenu = () => {
   showSortMenu.value = !showSortMenu.value
+}
+
+// 切换状态筛选菜单显示
+const toggleStatusFilterMenu = () => {
+  showStatusFilterMenu.value = !showStatusFilterMenu.value
 }
 
 // 切换视图模式
@@ -1535,7 +1663,45 @@ const extractEmailSuffixes = async () => {
   }
 }
 
-// 处理模态框内容点击 (关闭排序菜单和邮箱后缀菜单)
+// ========== 标签筛选相关函数 ==========
+
+// 切换标签筛选菜单显示
+const toggleTagFilterMenu = () => {
+  showTagFilterMenu.value = !showTagFilterMenu.value
+}
+
+// 切换标签筛选模式
+const toggleTagFilterMode = () => {
+  tagFilterMode.value = tagFilterMode.value === 'include' ? 'exclude' : 'include'
+  // 如果有选中的标签，重置到第一页
+  if (selectedTags.value.size > 0) {
+    currentPage.value = 1
+  }
+}
+
+// 选择/取消选择标签
+const toggleTag = (tagName) => {
+  const newSet = new Set(selectedTags.value)
+
+  if (newSet.has(tagName)) {
+    newSet.delete(tagName)
+  } else {
+    newSet.add(tagName)
+  }
+
+  selectedTags.value = newSet
+  // 重置到第一页
+  currentPage.value = 1
+}
+
+// 清除标签筛选
+const clearTagFilter = () => {
+  selectedTags.value = new Set()
+  showTagFilterMenu.value = false
+  currentPage.value = 1
+}
+
+// 处理模态框内容点击 (关闭所有下拉菜单)
 const handleModalContentClick = (event) => {
   const target = event.target
 
@@ -1547,6 +1713,14 @@ const handleModalContentClick = (event) => {
     }
   }
 
+  // 关闭状态筛选菜单
+  if (showStatusFilterMenu.value) {
+    const statusFilterDropdown = document.querySelector('.status-filter-dropdown')
+    if (statusFilterDropdown && !statusFilterDropdown.contains(target)) {
+      showStatusFilterMenu.value = false
+    }
+  }
+
   // 关闭邮箱后缀菜单
   if (showEmailSuffixMenu.value) {
     const emailSuffixDropdown = document.querySelector('.email-suffix-dropdown')
@@ -1554,33 +1728,36 @@ const handleModalContentClick = (event) => {
       showEmailSuffixMenu.value = false
     }
   }
+
+  // 关闭标签筛选菜单
+  if (showTagFilterMenu.value) {
+    const tagFilterDropdown = document.querySelector('.tag-filter-dropdown')
+    if (tagFilterDropdown && !tagFilterDropdown.contains(target)) {
+      showTagFilterMenu.value = false
+    }
+  }
 }
 
-// 切换页码
-const goToPage = (page) => {
-  if (page < 1 || page > totalPages.value) return
+// 处理页码变化
+const handlePageChange = (page) => {
   currentPage.value = page
   // 滚动到顶部
   nextTick(() => {
-    const container = document.querySelector('.token-grid')
-    if (container) {
-      container.scrollTop = 0
+    // 查找真正的滚动容器（向上遍历 DOM 树）
+    let element = modalBodyRef.value
+    while (element && element !== document.body) {
+      const style = window.getComputedStyle(element)
+      const hasScroll = element.scrollHeight > element.clientHeight
+      const canScroll = style.overflowY === 'auto' || style.overflowY === 'scroll'
+
+      if (hasScroll && canScroll) {
+        element.scrollTop = 0
+        break
+      }
+
+      element = element.parentElement
     }
   })
-}
-
-// 上一页
-const prevPage = () => {
-  if (currentPage.value > 1) {
-    goToPage(currentPage.value - 1)
-  }
-}
-
-// 下一页
-const nextPage = () => {
-  if (currentPage.value < totalPages.value) {
-    goToPage(currentPage.value + 1)
-  }
 }
 
 // 切换每页数量
@@ -2483,7 +2660,6 @@ const executeBatchDelete = async () => {
 const emit = defineEmits(['close'])
 
 // Additional state for new components
-const showDatabaseConfig = ref(false)
 const isSaving = ref(false)
 const isRefreshing = ref(false)
 
@@ -2787,6 +2963,11 @@ const updateTokensFromResults = (results) => {
 }
 
 const loadTokens = async (showSuccessMessage = false) => {
+  // 如果tokens由父组件管理，则不加载
+  if (props.tokens !== null) {
+    return
+  }
+
   isLoading.value = true
   try {
     const jsonString = await invoke('load_tokens_json')
@@ -2795,9 +2976,9 @@ const loadTokens = async (showSuccessMessage = false) => {
     // 确保是数组
     if (Array.isArray(parsedTokens)) {
       // 使用展开运算符创建新数组，确保触发响应式更新
-      tokens.value = [...parsedTokens]
+      internalTokens.value = [...parsedTokens]
     } else {
-      tokens.value = []
+      internalTokens.value = []
     }
 
     if (showSuccessMessage) {
@@ -3282,22 +3463,6 @@ const handleRefresh = async () => {
 
 
 
-const handleDatabaseConfigSaved = async () => {
-  window.$notify.success(t('messages.databaseConfigSaved'))
-  // 重新获取存储状态
-  await getStorageStatus()
-  // 自动执行刷新操作
-  await handleRefresh()
-}
-
-const handleDatabaseConfigDeleted = async () => {
-  window.$notify.info(t('messages.databaseConfigDeleted'))
-  // 重新获取存储状态
-  await getStorageStatus()
-}
-
-
-
 // 自动保存方法（静默保存，不显示提示）
 // 只做本地保存，不触发同步
 const handleSave = async () => {
@@ -3554,6 +3719,7 @@ defineExpose({
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  line-height: 1;
 }
 
 .close-btn:hover {
@@ -3838,19 +4004,15 @@ defineExpose({
   }
 }
 
-/* 工具栏按钮统一样式 */
-.open-folder-btn,
-.batch-delete-btn,
-.batch-import-btn,
-.sort-dropdown .sort-btn,
-.view-toggle-btn {
+/* 排序按钮样式 */
+.sort-dropdown .sort-btn {
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  width: 36px;
   height: 36px;
-  padding: 0 12px;
+  padding: 0;
   border: 1px solid var(--color-border, #e5e7eb);
   border-radius: 6px;
   background: var(--color-background, #ffffff);
@@ -3859,23 +4021,7 @@ defineExpose({
   transition: all 0.2s;
 }
 
-.open-folder-btn:hover {
-  background: var(--color-background-soft, #f9fafb);
-  border-color: var(--color-primary, #2563eb);
-}
-
-.batch-delete-btn:hover:not(:disabled) {
-  background: var(--color-background-soft, #f9fafb);
-  border-color: var(--color-danger, #dc2626);
-  color: var(--color-danger, #dc2626);
-}
-
-.batch-delete-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.batch-import-btn:hover {
+.sort-dropdown .sort-btn:hover {
   background: var(--color-background-soft, #f9fafb);
   border-color: var(--color-primary, #2563eb);
 }
@@ -4746,70 +4892,73 @@ defineExpose({
 .list-toolbar {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
   padding: 12px 16px;
-  background: var(--color-background-soft, #f9fafb);
+  background: var(--bg-surface);
   border-radius: 8px;
 }
 
-/* 搜索框样式 */
-.search-box {
-  position: relative;
+.toolbar-left {
   display: flex;
   align-items: center;
-  flex: 1;
-  max-width: 400px;
-  min-width: 200px;
+  gap: 8px;
 }
 
-.search-icon {
-  position: absolute;
-  left: 10px;
-  color: var(--color-text-secondary, #6b7280);
-  pointer-events: none;
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.search-input {
-  width: 300px;
-  height: 36px;
-  padding: 0 32px;
-  border: 1px solid var(--color-divider, #e1e5e9);
-  border-radius: 6px;
-  font-size: 13px;
-  color: var(--color-text-primary, #374151);
-  background: var(--color-surface, #ffffff);
-  transition: all 0.2s ease;
-}
-
-.search-input:focus {
-  outline: none;
-  border-color: var(--color-primary, #3b82f6);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.search-input::placeholder {
-  color: var(--color-text-secondary, #9ca3af);
-}
-
-.clear-search-btn {
-  position: absolute;
-  right: 6px;
-  padding: 4px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--color-text-secondary, #6b7280);
+/* 操作按钮统一样式 */
+.action-btn {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
-  transition: all 0.2s ease;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 6px;
+  background: var(--color-background, #ffffff);
+  color: var(--color-text, #374151);
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-.clear-search-btn:hover {
-  background: var(--color-hover, #f3f4f6);
-  color: var(--color-text-primary, #374151);
+.action-btn:hover:not(:disabled) {
+  background: var(--color-background-soft, #f9fafb);
+  border-color: var(--color-primary, #2563eb);
 }
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.action-btn.active {
+  background: var(--color-primary-soft, rgba(37, 99, 235, 0.1));
+  border-color: var(--color-primary, #2563eb);
+  color: var(--color-primary, #2563eb);
+}
+
+/* 选择模式提示 */
+.selection-info {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  background: var(--color-primary-soft, rgba(37, 99, 235, 0.1));
+  border: 1px solid var(--color-primary, #2563eb);
+  border-radius: 6px;
+  color: var(--color-primary, #2563eb);
+  font-size: 14px;
+  font-weight: 500;
+  margin-left: auto;
+}
+
+
 
 /* 无搜索结果样式 */
 .no-search-results {
@@ -4893,6 +5042,113 @@ defineExpose({
   height: 1px;
   background: var(--color-border, #e5e7eb);
   margin: 4px 0;
+}
+
+/* 通用筛选按钮样式 */
+.filter-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 6px;
+  background: var(--color-background, #ffffff);
+  color: var(--color-text, #374151);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.filter-btn:hover {
+  background: var(--color-background-soft, #f9fafb);
+  border-color: var(--color-primary, #2563eb);
+}
+
+.filter-btn.active {
+  background: var(--color-primary-soft, rgba(37, 99, 235, 0.1));
+  border-color: var(--color-primary, #2563eb);
+  color: var(--color-primary, #2563eb);
+}
+
+.filter-btn .dropdown-arrow {
+  margin-left: 2px;
+  transition: transform 0.2s;
+}
+
+/* 状态筛选下拉菜单 */
+.status-filter-dropdown {
+  position: relative;
+}
+
+.status-filter-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 280px;
+  background: var(--color-background, #ffffff);
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.status-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: var(--color-text, #374151);
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%;
+  text-align: left;
+  font-size: 14px;
+}
+
+.status-option:hover {
+  background: var(--color-background-soft, #f9fafb);
+}
+
+.status-option.active {
+  background: var(--color-primary-soft, rgba(37, 99, 235, 0.1));
+  color: var(--color-primary, #2563eb);
+}
+
+.status-option .status-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+.status-option span:not(.status-count):not(.check-icon) {
+  flex: 1;
+}
+
+.status-option .status-count {
+  margin-left: auto;
+  padding: 2px 8px;
+  background: var(--color-background-soft, #f3f4f6);
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary, #6b7280);
+}
+
+.status-option.active .status-count {
+  background: var(--color-primary-soft, rgba(37, 99, 235, 0.2));
+  color: var(--color-primary, #2563eb);
+}
+
+.status-option .check-icon {
+  flex-shrink: 0;
+  margin-left: 8px;
 }
 
 /* 邮箱后缀筛选下拉菜单 */
@@ -5066,6 +5322,206 @@ defineExpose({
   color: var(--color-text-muted, #9ca3af);
 }
 
+/* 标签筛选下拉菜单 */
+.tag-filter-dropdown {
+  position: relative;
+}
+
+.tag-filter-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  width: 36px;
+  padding: 0;
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 6px;
+  background: var(--color-background, #ffffff);
+  color: var(--color-text, #374151);
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.tag-filter-btn:hover {
+  background: var(--color-background-soft, #f9fafb);
+  border-color: var(--color-primary, #2563eb);
+}
+
+.tag-filter-btn.active {
+  background: var(--color-primary-soft, rgba(37, 99, 235, 0.1));
+  border-color: var(--color-primary, #2563eb);
+  color: var(--color-primary, #2563eb);
+}
+
+.tag-count-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  background: var(--color-primary, #2563eb);
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* 标签筛选下拉菜单容器 */
+.tag-filter-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 220px;
+  max-width: 300px;
+  background: var(--color-background, #ffffff);
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  overflow: hidden;
+}
+
+/* 标签菜单顶部操作栏 */
+.tag-menu-header {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--color-background-soft, #f9fafb);
+  border-bottom: 1px solid var(--color-border, #e5e7eb);
+}
+
+.tag-option-all {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 筛选模式切换按钮 */
+.tag-mode-toggle-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 6px;
+  background: var(--color-background, #ffffff);
+  color: var(--color-text, #374151);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.tag-mode-toggle-btn:hover {
+  background: var(--color-background-soft, #f9fafb);
+  border-color: var(--color-primary, #2563eb);
+  color: var(--color-primary, #2563eb);
+}
+
+/* 提取按钮样式 */
+.tag-extract-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 6px;
+  background: var(--color-background, #ffffff);
+  color: var(--color-primary, #2563eb);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.tag-extract-btn:hover:not(:disabled) {
+  background: var(--color-primary-soft, rgba(37, 99, 235, 0.1));
+  border-color: var(--color-primary, #2563eb);
+  color: var(--color-primary, #2563eb);
+}
+
+.tag-extract-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.tag-extract-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  color: var(--color-text-muted, #9ca3af);
+}
+
+/* 标签列表容器 */
+.tag-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* 标签选项 */
+.tag-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: var(--color-text, #374151);
+  cursor: pointer;
+  transition: background 0.2s;
+  text-align: left;
+}
+
+.tag-option:hover {
+  background: var(--color-background-soft, #f9fafb);
+}
+
+.tag-option.active {
+  background: var(--color-primary-soft, rgba(37, 99, 235, 0.1));
+  color: var(--color-primary, #2563eb);
+}
+
+.tag-option .tag-text {
+  flex: 1;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag-option .check-icon {
+  color: var(--color-primary, #2563eb);
+}
+
+/* 无标签提示 */
+.no-tag-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  color: var(--color-text-secondary, #6b7280);
+}
+
+.no-tag-hint p {
+  margin-top: 12px;
+  font-size: 14px;
+  color: var(--color-text-muted, #9ca3af);
+}
+
 /* 下拉菜单动画 */
 .dropdown-enter-active,
 .dropdown-leave-active {
@@ -5215,6 +5671,8 @@ defineExpose({
   gap: 6px;
   height: 36px;
   box-sizing: border-box;
+  flex-shrink: 0;
+  line-height: 1;
 }
 
 .btn.secondary {
@@ -5272,12 +5730,99 @@ defineExpose({
 /* Header layout */
 .modal-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 20px 24px;
+  gap: 20px;
+  padding: 16px 24px;
   border-bottom: 1px solid var(--color-border, #e5e7eb);
   background: var(--color-surface-alt, #f9fafb);
-  min-height: 60px;
+}
+
+.modal-header > .status-badge {
+  flex-shrink: 0;
+}
+
+
+
+.modal-header > .header-actions {
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.modal-header .btn {
+  margin: 0;
+}
+
+/* Header 搜索框 */
+.header-search-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 0 16px;
+  height: 32px;
+  border: 1.5px solid var(--color-border, #e5e7eb);
+  border-radius: 8px;
+  background: var(--color-background, #ffffff);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.header-search-box:focus-within {
+  border-color: var(--color-primary, #2563eb);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+}
+
+.header-search-box .search-icon {
+  flex-shrink: 0;
+  color: var(--color-text-secondary, #6b7280);
+  transition: color 0.2s ease;
+}
+
+.header-search-box:focus-within .search-icon {
+  color: var(--color-primary, #2563eb);
+}
+
+.header-search-box .search-input {
+  flex: 1;
+  border: none;
+  outline: none !important;
+  background: transparent;
+  color: #374151;
+  font-size: 14px;
+  box-shadow: none !important;
+  padding: 0;
+  margin: 0;
+  height: 100%;
+  line-height: normal;
+}
+
+.header-search-box .search-input:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.header-search-box .search-input::placeholder {
+  color: var(--color-text-secondary, #9ca3af);
+}
+
+.header-search-box .clear-search-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-background-soft, #f3f4f6);
+  color: var(--color-text-secondary, #6b7280);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.header-search-box .clear-search-btn:hover {
+  background: var(--color-background-muted, #e5e7eb);
+  color: var(--color-text, #374151);
 }
 
 .header-title {
@@ -5300,7 +5845,7 @@ defineExpose({
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
-  flex-wrap: wrap;
+  height: 32px;
 }
 
 
@@ -5310,21 +5855,21 @@ defineExpose({
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 8px;
+  padding: 6px 10px;
   border-radius: 12px;
   font-size: 12px;
   font-weight: 500;
-  height: fit-content;
+  align-self: center;
 }
 
 .status-badge.saved {
-  background-color: var(--color-success-surface, #d1fae5);
-  color: var(--color-success-text, #065f46);
+  background-color: var(--state-success);
+  color: #ffffff;
 }
 
 .status-badge.unsaved {
-  background-color: var(--color-warning-surface, #fef3c7);
-  color: var(--color-warning-text, #92400e);
+  background: var(--state-warning);
+  color: #ffffff;
 }
 
 .status-badge.initializing {
@@ -5486,14 +6031,121 @@ defineExpose({
 }
 
 [data-theme='dark'] .list-toolbar {
+  background: var(--bg-surface);
+}
+
+[data-theme='dark'] .header-search-box {
+  background: var(--color-surface, #1f2937);
+  border-color: var(--color-border, #374151);
+}
+
+[data-theme='dark'] .header-search-box:focus-within {
+  border-color: var(--color-primary, #3b82f6);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+}
+
+[data-theme='dark'] .header-search-box:focus-within .search-icon {
+  color: var(--color-primary, #3b82f6);
+}
+
+[data-theme='dark'] .header-search-box .search-input {
+  color: #f9fafb;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+[data-theme='dark'] .header-search-box .search-input::placeholder {
+  color: #9ca3af;
+}
+
+[data-theme='dark'] .header-search-box .search-input:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+[data-theme='dark'] .header-search-box .search-icon {
+  color: #9ca3af;
+}
+
+[data-theme='dark'] .header-search-box .clear-search-btn {
+  background: var(--color-surface-alt, #111827);
+  color: var(--color-text-secondary, #9ca3af);
+}
+
+[data-theme='dark'] .header-search-box .clear-search-btn:hover {
+  background: var(--color-surface, #1f2937);
+  color: var(--color-text-primary, #f9fafb);
+}
+
+[data-theme='dark'] .action-btn {
+  background: var(--color-surface, #1f2937);
+  border-color: var(--color-border, #374151);
+  color: var(--color-text-primary, #f9fafb);
+}
+
+[data-theme='dark'] .action-btn:hover:not(:disabled) {
+  background: var(--color-surface-alt, #111827);
+  border-color: var(--color-primary, #3b82f6);
+}
+
+[data-theme='dark'] .action-btn.active {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: var(--color-primary, #3b82f6);
+  color: var(--color-primary, #3b82f6);
+}
+
+/* 通用筛选按钮暗色主题 */
+[data-theme='dark'] .filter-btn {
+  background: var(--color-surface, #1f2937);
+  border-color: var(--color-border, #374151);
+  color: var(--color-text-primary, #f9fafb);
+}
+
+[data-theme='dark'] .filter-btn:hover {
+  background: var(--color-surface-alt, #111827);
+  border-color: var(--color-primary, #3b82f6);
+}
+
+[data-theme='dark'] .filter-btn.active {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: var(--color-primary, #3b82f6);
+  color: var(--color-primary, #3b82f6);
+}
+
+/* 状态筛选暗色主题 */
+[data-theme='dark'] .status-filter-menu {
+  background: var(--color-surface, #1f2937);
+  border-color: var(--color-border, #374151);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme='dark'] .status-option {
+  color: var(--color-text-primary, #f9fafb);
+}
+
+[data-theme='dark'] .status-option:hover {
   background: var(--color-surface-alt, #111827);
 }
 
-[data-theme='dark'] .open-folder-btn,
-[data-theme='dark'] .batch-delete-btn,
-[data-theme='dark'] .batch-import-btn,
-[data-theme='dark'] .sort-dropdown .sort-btn,
-[data-theme='dark'] .view-toggle-btn {
+[data-theme='dark'] .status-option.active {
+  background: rgba(59, 130, 246, 0.2);
+  color: var(--color-primary, #3b82f6);
+}
+
+[data-theme='dark'] .status-option .status-count {
+  background: var(--color-surface-alt, #111827);
+  color: var(--color-text-secondary, #9ca3af);
+}
+
+[data-theme='dark'] .status-option.active .status-count {
+  background: rgba(59, 130, 246, 0.3);
+  color: var(--color-primary, #3b82f6);
+}
+
+[data-theme='dark'] .sort-dropdown .sort-btn {
   background: var(--color-surface, #1f2937);
   border-color: var(--color-border, #374151);
   color: var(--color-text-primary, #f9fafb);
@@ -5638,6 +6290,90 @@ defineExpose({
 }
 
 [data-theme='dark'] .suffix-extract-btn:disabled {
+  color: var(--color-text-muted, #6b7280);
+}
+
+/* 标签筛选暗色主题 */
+[data-theme='dark'] .tag-filter-btn {
+  background: var(--color-surface, #1f2937);
+  border-color: var(--color-border, #374151);
+  color: var(--color-text-primary, #f9fafb);
+}
+
+[data-theme='dark'] .tag-filter-btn:hover {
+  background: var(--color-surface-alt, #111827);
+  border-color: var(--color-primary, #3b82f6);
+}
+
+[data-theme='dark'] .tag-filter-btn.active {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: var(--color-primary, #3b82f6);
+  color: var(--color-primary, #3b82f6);
+}
+
+[data-theme='dark'] .tag-filter-menu {
+  background: var(--color-surface, #1f2937);
+  border-color: var(--color-border, #374151);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme='dark'] .tag-option {
+  color: var(--color-text-primary, #f9fafb);
+}
+
+[data-theme='dark'] .tag-option:hover {
+  background: var(--color-surface-alt, #111827);
+}
+
+[data-theme='dark'] .tag-option.active {
+  background: rgba(59, 130, 246, 0.2);
+  color: var(--color-primary, #3b82f6);
+}
+
+[data-theme='dark'] .no-tag-hint {
+  color: var(--color-text-secondary, #9ca3af);
+}
+
+/* 选择模式提示暗色主题 */
+[data-theme='dark'] .selection-info {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: var(--color-primary, #3b82f6);
+  color: var(--color-primary, #3b82f6);
+}
+
+[data-theme='dark'] .no-tag-hint p {
+  color: var(--color-text-muted, #6b7280);
+}
+
+[data-theme='dark'] .tag-menu-header {
+  background: var(--color-surface-alt, #111827);
+  border-bottom-color: var(--color-border, #374151);
+}
+
+[data-theme='dark'] .tag-mode-toggle-btn {
+  background: var(--color-surface, #1f2937);
+  border-color: var(--color-border, #374151);
+  color: var(--color-text-primary, #f9fafb);
+}
+
+[data-theme='dark'] .tag-mode-toggle-btn:hover {
+  background: var(--color-surface-alt, #111827);
+  border-color: var(--color-primary, #3b82f6);
+  color: var(--color-primary, #3b82f6);
+}
+
+[data-theme='dark'] .tag-extract-btn {
+  background: var(--color-surface, #1f2937);
+  border-color: var(--color-border, #374151);
+  color: var(--color-primary, #3b82f6);
+}
+
+[data-theme='dark'] .tag-extract-btn:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: var(--color-primary, #3b82f6);
+}
+
+[data-theme='dark'] .tag-extract-btn:disabled {
   color: var(--color-text-muted, #6b7280);
 }
 
@@ -5798,5 +6534,54 @@ defineExpose({
 .batch-action-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* Page Mode Styles */
+.token-list-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+.page-container {
+  position: static;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+}
+
+.token-list-page .modal-content {
+  position: static;
+  transform: none;
+  max-width: none;
+  max-height: none;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  border: none;
+}
+
+.token-list-page .modal-overlay {
+  position: static;
+  background: transparent;
+}
+
+.token-list-page .modal-header {
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 20px;
+  border-radius: 0;
+}
+
+.token-list-page .modal-body {
+  background: transparent;
+  padding: 0;
 }
 </style>

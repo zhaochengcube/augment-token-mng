@@ -184,14 +184,14 @@ watch(currentTheme, () => {
 
 <style scoped>
 .credit-chart-container {
-  background: linear-gradient(135deg, var(--color-surface) 0%, var(--color-surface-alt) 100%);
+  background: linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-muted) 100%);
   border-radius: 12px;
   padding: 20px;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--border);
   height: 380px;
   display: flex;
   flex-direction: column;
-  box-shadow: var(--color-shadow-elevated);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .chart-header {
@@ -205,7 +205,7 @@ watch(currentTheme, () => {
 .chart-header h3 {
   font-size: 16px;
   font-weight: 600;
-  color: var(--color-text-heading);
+  color: var(--text-strong);
   margin: 0;
 }
 
@@ -224,15 +224,15 @@ watch(currentTheme, () => {
   align-items: center;
   justify-content: center;
   gap: 12px;
-  color: var(--color-text-muted);
+  color: var(--text-muted);
 }
 
 .error {
-  color: var(--color-danger-text);
+  color: #ef4444;
 }
 
 .error svg {
-  color: var(--color-danger-text);
+  color: #ef4444;
   opacity: 0.6;
 }
 
@@ -248,30 +248,14 @@ watch(currentTheme, () => {
 .spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid var(--color-border);
-  border-top-color: var(--color-btn-primary-bg);
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
 
 @keyframes spin {
   to { transform: rotate(360deg); }
-}
-
-[data-theme='dark'] .credit-chart-container {
-  background: linear-gradient(135deg, rgba(17, 24, 39, 0.96) 0%, rgba(15, 23, 42, 0.9) 100%);
-  border-color: rgba(148, 163, 184, 0.35);
-  box-shadow: 0 18px 40px rgba(2, 6, 23, 0.55);
-}
-
-[data-theme='dark'] .loading,
-[data-theme='dark'] .error,
-[data-theme='dark'] .no-data {
-  color: rgba(226, 232, 240, 0.8);
-}
-
-[data-theme='dark'] .error {
-  color: rgba(248, 113, 113, 0.85);
 }
 
 /* 响应式设计 */

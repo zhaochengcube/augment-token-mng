@@ -176,12 +176,16 @@
 import { ref, computed, onMounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from 'vue-i18n'
+import { useSettingsStore } from '../../stores/settings'
 
 // Emits
 const emit = defineEmits(['close', 'config-saved', 'config-deleted'])
 
 // i18n
 const { t } = useI18n()
+
+// Settings store
+const settingsStore = useSettingsStore()
 
 // Reactive data
 const config = ref({
@@ -274,6 +278,9 @@ const isValidUrl = (urlString) => {
 const loadConfig = async () => {
   isLoading.value = true
   try {
+    // 从store加载配置,强制刷新以获取最新数据
+    await settingsStore.loadProxyConfig(true)
+
     // 检查配置文件是否存在
     const configExists = await invoke('proxy_config_exists')
     hasExistingConfig.value = configExists
@@ -316,6 +323,9 @@ const saveConfig = async () => {
       customUrl: config.value.customUrl || null
     })
 
+    // 保存成功后刷新store中的配置
+    await settingsStore.loadProxyConfig(true)
+
     hasExistingConfig.value = true
     window.$notify.success(t('proxyConfig.messages.saveSuccess'))
     emit('config-saved')
@@ -333,6 +343,10 @@ const deleteConfig = async () => {
 
   try {
     await invoke('delete_proxy_config')
+
+    // 删除成功后刷新store中的配置
+    await settingsStore.loadProxyConfig(true)
+
     hasExistingConfig.value = false
     window.$notify.success(t('proxyConfig.messages.deleteSuccess'))
     emit('config-deleted')

@@ -2,12 +2,14 @@ export default {
   common: {
     close: 'Close',
     cancel: 'Cancel',
-    confirm: 'Confirm'
+    confirm: 'Confirm',
+    back: 'Back'
   },
   app: {
     title: 'Augment Token Manager',
     appHome: 'App Home',
     pluginHome: 'Plugin Home',
+    telegramGroup: 'ATM Group Chat',
     viewTokens: 'View Tokens',
     bookmarkManager: 'Bookmark Manager',
     outlookManager: 'Outlook Manager',
@@ -17,9 +19,42 @@ export default {
     switchToDark: 'Switch to Dark Mode',
     switchToEnglish: 'Switch to English',
     switchToChinese: 'Switch to Chinese',
+    lightMode: 'Light Mode',
+    darkMode: 'Dark Mode',
     settings: 'Settings',
+    moreOptions: 'More Options',
     checkForUpdates: 'Check for Updates',
     lockGPTMail: 'Lock GPT Mail Manager'
+  },
+  platforms: {
+    title: 'Select Platform',
+    description: 'Choose the platform you want to manage accounts for',
+    ready: 'Ready',
+    comingSoon: 'Coming Soon'
+  },
+  bookmarks: {
+    pageDescription: 'Manage your bookmarks and frequently used links',
+    placeholder: 'Bookmark Management',
+    placeholderDesc: 'This feature will be implemented in a later phase'
+  },
+  emails: {
+    title: 'Email Management',
+    description: 'Manage Outlook and GPT emails',
+    placeholder: 'Email Management',
+    placeholderDesc: 'This feature will be implemented in a later phase'
+  },
+  settings: {
+    description: 'Application settings and configuration',
+    placeholder: 'Settings',
+    placeholderDesc: 'This feature will be implemented in a later phase',
+    externalLinks: 'External Links',
+    about: 'About',
+    version: 'Version',
+    author: 'Author',
+    repository: 'Repository',
+    links: 'Links',
+    viewDetails: 'View Details',
+    configure: 'Configure'
   },
   update: {
     newVersionAvailable: 'New Version Available',
@@ -38,6 +73,7 @@ export default {
   },
   bookmarkManager: {
     title: 'Bookmark Manager',
+    description: 'Manage your favorite websites and links',
     openDataFolder: 'Open Data Storage Folder',
     addBookmark: 'Add Bookmark',
     editBookmark: 'Edit Bookmark',
@@ -50,6 +86,7 @@ export default {
       url: 'URL',
       description: 'Description (Optional)',
       save: 'Save',
+      update: 'Update',
       cancel: 'Cancel'
     },
     messages: {
@@ -95,6 +132,10 @@ export default {
   },
   databaseConfig: {
     title: 'Database Configuration',
+    location: 'Storage Location',
+    localSqlite: 'Local SQLite',
+    connected: 'Connected',
+    notConfigured: 'Not Configured',
     host: 'Host Address',
     port: 'Port',
     database: 'Database Name',
@@ -154,11 +195,15 @@ export default {
     }
   },
   pagination: {
-    showing: 'Showing {start}-{end} of {total}',
+    showing: 'Showing',
+    of: 'of',
     page: 'Page {current} / {total} items',
     pageSize: 'Items per page',
+    perPage: 'Per page',
     prev: 'Previous',
     next: 'Next',
+    first: 'First',
+    last: 'Last',
     goToPage: 'Go to'
   },
   tokenList: {
@@ -272,7 +317,7 @@ export default {
     tableHeaderStatus: 'Status',
     tableHeaderEmail: 'Email',
     tableHeaderBalance: 'Balance',
-    tableHeaderExpiry: 'Expiry',
+    tableHeaderResetTime: 'Reset Time',
     tableHeaderActions: 'Actions',
     // Tag editing
     clickToEditTag: 'Click to edit tag',
@@ -297,8 +342,9 @@ export default {
     active: 'Active',
     inactive: 'Inactive',
     expired: 'Expired',
-    expiry: 'Expires',
+    resetTime: 'Reset Time',
     balance: 'Balance',
+    noEmailNote: 'No Email Note',
     copyEmailNote: 'Copy Email Note',
     selectEditor: 'Select Editor',
     copyMenu: 'Copy',
@@ -338,7 +384,7 @@ export default {
     accessTokenPlaceholder: 'Please enter access token...',
     portalUrl: 'Portal URL',
     portalUrlPlaceholder: 'https://portal.example.com/',
-    portalUrlHelp: 'Used to view account balance and expiration time',
+    portalUrlHelp: 'Used to view account balance and reset time',
     emailNote: 'Email Note',
     emailNotePlaceholder: 'Please enter email-related notes',
     emailNoteHelp: 'Used to record email information related to this Token',
@@ -351,12 +397,19 @@ export default {
     save: 'Save',
     update: 'Update',
     cancel: 'Cancel',
+    reset: 'Reset',
+    saveToken: 'Save Token',
+    oauthTab: 'OAuth',
     manualTab: 'Manual Input',
     sessionTab: 'Session Import',
     sessionImportTitle: 'Import from Session',
     sessionImportDescription: 'Paste your Augment Session to automatically extract Token information',
     sessionPlaceholder: 'Please paste Session string...',
-    importSession: 'Import'
+    importSession: 'Import',
+    oauthStep1Desc: 'Click the button to generate authorization link',
+    oauthStep2Desc: 'After completing authorization in browser, paste the authorization code below',
+    oauthStep3Desc: 'Token retrieved successfully! Fill in optional information and save',
+    tagColor: 'Tag Color'
   },
   tokenGenerator: {
     title: 'Generate Augment Token',
@@ -596,6 +649,9 @@ export default {
   },
   proxyConfig: {
     title: 'Proxy Settings',
+    status: 'Status',
+    disabled: 'Disabled',
+    enabled: 'Enabled',
     enableProxy: 'Enable Proxy',
     proxyType: 'Proxy Type',
     host: 'Proxy Server',
@@ -725,5 +781,21 @@ export default {
     healthCheck: 'Health Check',
     importSingleSession: 'Import Single Session',
     importMultipleSessions: 'Import Multiple Sessions'
+  },
+  navigation: {
+    platforms: 'Platforms',
+    bookmarks: 'Bookmarks',
+    emails: 'Emails',
+    settings: 'Settings'
+  },
+  platform: {
+    augment: {
+      title: 'Augment Token Manager',
+      subtitle: 'Manage your Augment access tokens'
+    },
+    windsurf: {
+      title: 'Windsurf Token Manager',
+      subtitle: 'Manage your Windsurf access tokens'
+    }
   }
 }

@@ -131,8 +131,8 @@ watch(() => props.creditsBalance, (value) => {
 }
 
 .modal-content {
-  background: var(--color-modal-surface, var(--color-surface, #ffffff));
-  border: 1px solid var(--color-border);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 16px;
   max-width: 800px;
   width: 100%;
@@ -140,7 +140,7 @@ watch(() => props.creditsBalance, (value) => {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: var(--color-shadow-modal, 0 25px 60px rgba(15, 23, 42, 0.3));
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
   animation: slideUp 0.3s ease;
 }
 
@@ -160,7 +160,7 @@ watch(() => props.creditsBalance, (value) => {
   justify-content: space-between;
   align-items: center;
   padding: 24px 28px;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
@@ -171,14 +171,14 @@ watch(() => props.creditsBalance, (value) => {
 }
 
 .header-title svg {
-  color: var(--color-btn-primary-bg);
+  color: var(--accent);
 }
 
 .header-title h2 {
   margin: 0;
   font-size: 20px;
   font-weight: 600;
-  color: var(--color-text-heading);
+  color: var(--text-strong);
 }
 
 .header-actions {
@@ -193,7 +193,7 @@ watch(() => props.creditsBalance, (value) => {
   cursor: pointer;
   padding: 0;
   border-radius: 6px;
-  color: var(--color-text-secondary);
+  color: var(--text-muted);
   transition: all 0.2s;
   display: flex;
   align-items: center;
@@ -208,8 +208,8 @@ watch(() => props.creditsBalance, (value) => {
 }
 
 .refresh-btn:hover:not(:disabled) {
-  background: var(--color-surface-hover);
-  color: var(--color-btn-primary-bg);
+  background: var(--bg-hover);
+  color: var(--accent);
 }
 
 .refresh-btn:disabled {
@@ -220,8 +220,8 @@ watch(() => props.creditsBalance, (value) => {
 .mini-spinner {
   width: 24px;
   height: 24px;
-  border: 2px solid var(--color-border);
-  border-top-color: var(--color-btn-primary-bg);
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -236,7 +236,7 @@ watch(() => props.creditsBalance, (value) => {
   font-size: 28px;
   line-height: 1;
   cursor: pointer;
-  color: var(--color-text-muted);
+  color: var(--text-muted);
   padding: 0;
   width: 32px;
   height: 32px;
@@ -249,8 +249,8 @@ watch(() => props.creditsBalance, (value) => {
 }
 
 .close-btn:hover {
-  background: var(--color-surface-hover);
-  color: var(--color-text-primary);
+  background: var(--bg-hover);
+  color: var(--text);
 }
 
 .modal-body {
@@ -265,17 +265,17 @@ watch(() => props.creditsBalance, (value) => {
 }
 
 .modal-body::-webkit-scrollbar-track {
-  background: var(--color-surface-alt);
+  background: var(--bg-muted);
   border-radius: 4px;
 }
 
 .modal-body::-webkit-scrollbar-thumb {
-  background: var(--color-border-strong);
+  background: var(--border-strong);
   border-radius: 4px;
 }
 
 .modal-body::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-muted);
+  background: var(--text-muted);
 }
 
 /* 响应式设计 */

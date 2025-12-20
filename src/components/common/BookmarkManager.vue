@@ -305,7 +305,7 @@ onMounted(() => {
 }
 
 .modal-content {
-  background: var(--color-surface, #ffffff);
+  background: var(--bg-surface);
   border-radius: 12px;
   width: 100%;
   max-width: 900px;
@@ -321,13 +321,13 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 20px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
 .modal-header h2 {
   margin: 0;
-  color: var(--color-text-heading, #333);
+  color: var(--text-strong);
 }
 
 .header-actions {
@@ -341,7 +341,7 @@ onMounted(() => {
   border: none;
   font-size: 24px;
   cursor: pointer;
-  color: var(--color-text-muted, #666);
+  color: var(--text-muted);
   padding: 0;
   width: 30px;
   height: 30px;
@@ -351,27 +351,27 @@ onMounted(() => {
 }
 
 .close-btn:hover {
-  color: var(--color-text-heading, #333);
+  color: var(--text-strong);
 }
 
 .btn-icon.info {
-  background: var(--color-surface-muted, #f8f9fa);
-  color: var(--color-blue-primary, #007bff);
+  background: var(--bg-muted);
+  color: var(--accent);
 }
 
 .btn-icon.info:hover {
-  background: var(--color-surface-muted, #e9ecef);
-  color: var(--color-blue-primary-hover, #0056b3);
+  background: var(--bg-hover);
+  color: var(--accent-strong);
 }
 
 .btn-icon.add {
-  background: var(--color-surface-muted, #f8f9fa);
-  color: var(--color-success-bg, #28a745);
+  background: var(--bg-muted);
+  color: #28a745;
 }
 
 .btn-icon.add:hover {
-  background: var(--color-surface-muted, #e9ecef);
-  color: var(--color-success-bg-hover, #1e7e34);
+  background: var(--bg-hover);
+  color: #1e7e34;
 }
 
 .modal-body {
@@ -395,9 +395,9 @@ onMounted(() => {
 .bookmark-card {
   position: relative;
   aspect-ratio: 1;
-  border: 1px solid var(--color-divider, #e1e5e9);
+  border: 1px solid var(--border);
   border-radius: 12px;
-  background: var(--color-surface, #ffffff);
+  background: var(--bg-surface);
   transition: all 0.2s;
   overflow: hidden;
   display: flex;
@@ -405,8 +405,8 @@ onMounted(() => {
 }
 
 .bookmark-card:hover {
-  border-color: var(--color-blue-primary, #007bff);
-  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
+  border-color: var(--accent);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 15%, transparent);
   transform: translateY(-2px);
 }
 
@@ -437,13 +437,13 @@ onMounted(() => {
 
 .bookmark-icon {
   margin-bottom: 8px;
-  color: var(--color-blue-primary, #007bff);
+  color: var(--accent);
   opacity: 0.8;
 }
 
 .bookmark-name {
   font-weight: 600;
-  color: var(--color-text-heading, #333);
+  color: var(--text-strong);
   font-size: 13px;
   line-height: 1.3;
   margin-bottom: 4px;
@@ -455,7 +455,7 @@ onMounted(() => {
 }
 
 .bookmark-desc {
-  color: var(--color-text-muted, #666);
+  color: var(--text-muted);
   font-size: 11px;
   line-height: 1.3;
   display: -webkit-box;
@@ -483,15 +483,15 @@ onMounted(() => {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  background: var(--color-blue-primary, #007bff);
-  color: var(--color-text-inverse, #ffffff);
+  background: var(--accent);
+  color: var(--text-contrast);
   min-width: 60px;
 }
 
 .bookmark-open-btn:hover {
-  background: var(--color-blue-primary-hover, #0056b3);
+  background: var(--accent-strong);
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 .btn-small {
@@ -508,21 +508,21 @@ onMounted(() => {
 }
 
 .btn-small.primary {
-  background: var(--color-blue-primary, #007bff);
-  color: var(--color-text-inverse, #ffffff);
+  background: var(--accent);
+  color: var(--text-contrast);
 }
 
 .btn-small.primary:hover {
-  background: var(--color-blue-primary-hover, #0056b3);
+  background: var(--accent-strong);
 }
 
 .btn-small.secondary {
-  background: var(--color-text-muted, #6c757d);
-  color: var(--color-text-inverse, #ffffff);
+  background: var(--text-muted);
+  color: var(--text-contrast);
 }
 
 .btn-small.secondary:hover {
-  background: #545b62;
+  background: color-mix(in srgb, var(--text-muted) 80%, black);
 }
 
 .btn-icon {
@@ -539,33 +539,33 @@ onMounted(() => {
 }
 
 .btn-icon.edit {
-  background: rgba(255, 255, 255, 0.9);
-  color: var(--color-text-muted, #6c757d);
+  background: color-mix(in srgb, var(--bg-surface) 90%, transparent);
+  color: var(--text-muted);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .btn-icon.edit:hover {
-  background: rgba(233, 236, 239, 0.95);
-  color: var(--color-text-secondary, #495057);
+  background: var(--bg-hover);
+  color: var(--text);
   transform: scale(1.1);
 }
 
 .btn-icon.delete {
-  background: rgba(255, 255, 255, 0.9);
-  color: var(--color-danger-bg, #dc3545);
+  background: color-mix(in srgb, var(--bg-surface) 90%, transparent);
+  color: #dc3545;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .btn-icon.delete:hover {
   background: rgba(245, 198, 203, 0.95);
-  color: var(--color-danger-text, #721c24);
+  color: #721c24;
   transform: scale(1.1);
 }
 
 .empty-state {
   text-align: center;
   padding: 40px 20px;
-  color: var(--color-text-muted, #666);
+  color: var(--text-muted);
   grid-column: 1 / -1;
   display: flex;
   flex-direction: column;
@@ -582,7 +582,7 @@ onMounted(() => {
 .empty-state p:first-child {
   font-size: 18px;
   font-weight: 500;
-  color: var(--color-text-heading, #333);
+  color: var(--text-strong);
 }
 
 /* Form Modal Styles */
@@ -600,7 +600,7 @@ onMounted(() => {
 }
 
 .form-content {
-  background: var(--color-surface, #ffffff);
+  background: var(--bg-surface);
   border-radius: 8px;
   width: 90%;
   max-width: 500px;
@@ -615,13 +615,13 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 20px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
 .form-header h3 {
   margin: 0;
-  color: var(--color-text-heading, #333);
+  color: var(--text-strong);
   font-size: 18px;
 }
 
@@ -639,7 +639,7 @@ onMounted(() => {
   display: block;
   margin-bottom: 8px;
   font-weight: 500;
-  color: var(--color-text-heading, #333);
+  color: var(--text);
   font-size: 14px;
 }
 
@@ -647,20 +647,20 @@ onMounted(() => {
 .form-group textarea {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid var(--color-btn-secondary-border, #ddd);
+  border: 1px solid var(--border);
   border-radius: 4px;
   font-size: 14px;
   transition: border-color 0.2s;
   box-sizing: border-box;
-  background: var(--color-surface, #ffffff);
-  color: var(--color-text-primary, #374151);
+  background: var(--bg-surface);
+  color: var(--text);
 }
 
 .form-group input:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: var(--color-blue-primary, #007bff);
-  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .form-group textarea {
@@ -693,21 +693,21 @@ onMounted(() => {
 }
 
 .btn.primary {
-  background: var(--color-blue-primary, #007bff);
-  color: var(--color-text-inverse, #ffffff);
+  background: var(--accent);
+  color: var(--text-contrast);
 }
 
 .btn.primary:hover:not(:disabled) {
-  background: var(--color-blue-primary-hover, #0056b3);
+  background: var(--accent-strong);
 }
 
 .btn.secondary {
-  background: var(--color-text-muted, #6c757d);
-  color: var(--color-text-inverse, #ffffff);
+  background: var(--text-muted);
+  color: var(--text-contrast);
 }
 
 .btn.secondary:hover {
-  background: #545b62;
+  background: color-mix(in srgb, var(--text-muted) 80%, black);
 }
 
 .btn.small {
@@ -728,21 +728,21 @@ onMounted(() => {
 }
 
 .status.info {
-  background: var(--color-info-surface, #d1ecf1);
-  color: var(--color-info-text, #0c5460);
-  border: 1px solid var(--color-info-border, #bee5eb);
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.3);
 }
 
 .status.success {
-  background: var(--color-success-surface, #d4edda);
-  color: var(--color-success-text, #155724);
-  border: 1px solid var(--color-success-border, #c3e6cb);
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.3);
 }
 
 .status.error {
-  background: var(--color-danger-surface, #f8d7da);
-  color: var(--color-danger-text, #721c24);
-  border: 1px solid var(--color-danger-border, #f5c6cb);
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
 /* Responsive Design */
@@ -817,7 +817,7 @@ onMounted(() => {
 }
 
 .portal-dialog {
-  background: var(--color-surface, #ffffff);
+  background: var(--bg-surface);
   border-radius: 12px;
   padding: 24px;
   min-width: 320px;
@@ -828,7 +828,7 @@ onMounted(() => {
 
 .portal-dialog h3 {
   margin: 0 0 20px 0;
-  color: var(--color-text-heading, #333);
+  color: var(--text-strong);
   font-size: 18px;
   font-weight: 600;
 }
@@ -855,43 +855,43 @@ onMounted(() => {
 }
 
 .dialog-btn.copy {
-  background: var(--color-success-bg, #28a745);
-  color: var(--color-text-inverse, #ffffff);
+  background: #28a745;
+  color: #ffffff;
 }
 
 .dialog-btn.copy:hover {
-  background: var(--color-success-bg-hover, #218838);
+  background: #218838;
   transform: translateY(-1px);
 }
 
 .dialog-btn.external {
-  background: var(--color-blue-primary, #007bff);
-  color: var(--color-text-inverse, #ffffff);
+  background: var(--accent);
+  color: var(--text-contrast);
 }
 
 .dialog-btn.external:hover {
-  background: var(--color-blue-primary-hover, #0056b3);
+  background: var(--accent-strong);
   transform: translateY(-1px);
 }
 
 .dialog-btn.internal {
-  background: var(--color-text-muted, #6c757d);
-  color: var(--color-text-inverse, #ffffff);
+  background: var(--text-muted);
+  color: var(--text-contrast);
 }
 
 .dialog-btn.internal:hover {
-  background: #545b62;
+  background: color-mix(in srgb, var(--text-muted) 80%, black);
   transform: translateY(-1px);
 }
 
 .dialog-btn.cancel {
-  background: var(--color-surface-muted, #f8f9fa);
-  color: var(--color-text-muted, #6c757d);
-  border: 1px solid var(--color-border-strong, #dee2e6);
+  background: var(--bg-muted);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
 }
 
 .dialog-btn.cancel:hover {
-  background: var(--color-surface-muted, #e9ecef);
-  color: var(--color-text-secondary, #495057);
+  background: var(--bg-hover);
+  color: var(--text);
 }
 </style>

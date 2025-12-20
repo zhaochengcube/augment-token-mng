@@ -13,6 +13,7 @@
     "@tauri-apps/api": "^2.9.0",
     "@vueuse/core": "^14.0.0",
     "chart.js": "^4.5.1",
+    "pinia": "^3.0.4",
     "vue": "^3.4.0",
     "vue-chartjs": "^5.3.2",
     "vue-i18n": "^9.0.0"

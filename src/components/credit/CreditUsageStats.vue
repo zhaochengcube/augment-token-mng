@@ -386,7 +386,7 @@ watch(currentTheme, () => {
   justify-content: center;
   gap: 12px;
   padding: 40px 20px;
-  color: var(--color-text-muted);
+  color: var(--text-muted);
 }
 
 .no-data svg {
@@ -405,10 +405,10 @@ watch(currentTheme, () => {
 }
 
 .stat-card {
-  background: linear-gradient(135deg, var(--color-surface-alt) 0%, var(--color-surface-soft) 100%);
+  background: linear-gradient(135deg, var(--bg-muted) 0%, var(--bg-surface) 100%);
   border-radius: 10px;
   padding: 20px;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--border);
   display: flex;
   align-items: center;
   gap: 16px;
@@ -418,22 +418,22 @@ watch(currentTheme, () => {
 
 .stat-card:hover {
   transform: translateY(-2px);
-  box-shadow: var(--color-shadow-elevated);
-  border-color: var(--color-border-strong);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: var(--border-strong);
 }
 
 .chart-card {
-  background: linear-gradient(135deg, var(--color-surface) 0%, var(--color-surface-alt) 100%);
+  background: linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-muted) 100%);
   border-radius: 10px;
   padding: 20px;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--border);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .chart-title {
   font-size: 14px;
   font-weight: 600;
-  color: var(--color-text-heading);
+  color: var(--text-strong);
   margin-bottom: 16px;
 }
 
@@ -446,7 +446,7 @@ watch(currentTheme, () => {
   width: 48px;
   height: 48px;
   border-radius: 10px;
-  background: linear-gradient(135deg, var(--color-btn-primary-bg) 0%, var(--color-btn-primary-bg-hover) 100%);
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -478,7 +478,7 @@ watch(currentTheme, () => {
 
 .metric-label {
   font-size: 12px;
-  color: var(--color-text-muted);
+  color: var(--text-muted);
   font-weight: 500;
   text-transform: none;
 }
@@ -486,66 +486,25 @@ watch(currentTheme, () => {
 .metric-value {
   font-size: 28px;
   font-weight: 700;
-  color: var(--color-btn-primary-bg);
+  color: var(--accent);
   line-height: 1;
   letter-spacing: -0.01em;
 }
 
 .metric-unit {
   font-size: 11px;
-  color: var(--color-text-soft);
+  color: var(--text-muted);
   font-weight: 500;
   text-transform: uppercase;
 }
 
 .metric-divider {
   width: 1px;
-  background: var(--color-border);
+  background: var(--border);
   border-radius: 2px;
   opacity: 0.6;
 }
 
-[data-theme='dark'] .credit-stats-container {
-  background: rgba(17, 24, 39, 0.92);
-  border-color: rgba(148, 163, 184, 0.35);
-  box-shadow: 0 18px 40px rgba(2, 6, 23, 0.55);
-}
-
-[data-theme='dark'] .stat-card {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.18) 0%, rgba(15, 23, 42, 0.88) 100%);
-  border-color: rgba(99, 102, 241, 0.35);
-  box-shadow: none;
-}
-
-[data-theme='dark'] .stat-card:hover {
-  box-shadow: 0 18px 36px rgba(99, 102, 241, 0.18);
-}
-
-[data-theme='dark'] .stat-icon {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.85) 0%, rgba(129, 140, 248, 0.95) 100%);
-}
-
-[data-theme='dark'] .metric-value {
-  color: #c7d2fe;
-}
-
-[data-theme='dark'] .metric-label {
-  color: rgba(226, 232, 240, 0.8);
-}
-
-[data-theme='dark'] .metric-unit {
-  color: rgba(148, 163, 184, 0.75);
-}
-
-[data-theme='dark'] .metric-divider {
-  background: rgba(148, 163, 184, 0.35);
-}
-
-[data-theme='dark'] .chart-card {
-  background: linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.9) 100%);
-  border-color: rgba(148, 163, 184, 0.35);
-  box-shadow: none;
-}
 
 /* 响应式设计 */
 @media (max-width: 768px) {

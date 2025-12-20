@@ -306,7 +306,7 @@ const handleClear = () => {
 }
 
 .tag-editor-modal {
-  background: var(--color-surface, #ffffff);
+  background: var(--bg-surface);
   border-radius: 12px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   max-width: 400px;
@@ -319,21 +319,21 @@ const handleClear = () => {
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px 16px;
-  border-bottom: 1px solid var(--color-divider, #e1e5e9);
+  border-bottom: 1px solid var(--border);
 }
 
 .tag-editor-modal .modal-header h3 {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  color: var(--color-text-heading, #333);
+  color: var(--text-strong);
 }
 
 .tag-editor-modal .modal-close {
   background: none;
   border: none;
   font-size: 24px;
-  color: var(--color-text-muted, #666);
+  color: var(--text-muted);
   cursor: pointer;
   width: 32px;
   height: 32px;
@@ -346,8 +346,8 @@ const handleClear = () => {
 }
 
 .tag-editor-modal .modal-close:hover {
-  background: var(--color-surface-muted, #e9ecef);
-  color: var(--color-text-heading, #333);
+  background: var(--bg-hover);
+  color: var(--text);
 }
 
 .tag-editor-modal .modal-content {
@@ -365,7 +365,7 @@ const handleClear = () => {
 .tag-group label {
   font-size: 14px;
   font-weight: 500;
-  color: var(--color-text-primary, #1f2937);
+  color: var(--text);
 }
 
 .tag-input-row {
@@ -382,18 +382,18 @@ const handleClear = () => {
 .tag-name-input {
   width: 100%;
   padding: 10px 32px 10px 12px;
-  border: 1px solid var(--color-divider, #e5e7eb);
+  border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 14px;
-  color: var(--color-text-primary, #1f2937);
-  background: var(--color-surface, #ffffff);
+  color: var(--text);
+  background: var(--bg-surface);
   outline: none;
   transition: border-color 0.15s ease;
   box-sizing: border-box;
 }
 
 .tag-name-input:focus {
-  border-color: var(--color-accent, #3b82f6);
+  border-color: var(--accent);
 }
 
 .tag-clear-btn {
@@ -405,8 +405,8 @@ const handleClear = () => {
   height: 20px;
   padding: 0;
   border: none;
-  background: var(--color-surface-hover, #e5e7eb);
-  color: var(--color-text-muted, #6b7280);
+  background: var(--bg-muted);
+  color: var(--text-muted);
   border-radius: 50%;
   font-size: 14px;
   line-height: 1;
@@ -418,7 +418,7 @@ const handleClear = () => {
 }
 
 .tag-clear-btn:hover {
-  background: var(--color-error, #ef4444);
+  background: #ef4444;
   color: #ffffff;
 }
 
@@ -430,14 +430,14 @@ const handleClear = () => {
 .tag-color-display {
   width: 40px;
   height: 40px;
-  border: 2px solid var(--color-divider, #e5e7eb);
+  border: 2px solid var(--border);
   border-radius: 50%;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .tag-color-display:hover {
-  border-color: var(--color-accent, #3b82f6);
+  border-color: var(--accent);
   transform: scale(1.08);
 }
 
@@ -457,8 +457,8 @@ const handleClear = () => {
   top: 100%;
   left: 0;
   right: 0;
-  background: var(--color-surface, #ffffff);
-  border: 1px solid var(--color-divider, #e5e7eb);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   max-height: 200px;
@@ -478,7 +478,7 @@ const handleClear = () => {
 
 .tag-suggestion-item:hover,
 .tag-suggestion-item.selected {
-  background: var(--color-surface-hover, #f3f4f6);
+  background: var(--bg-hover);
 }
 
 .tag-suggestion-item .tag-preview {
@@ -490,7 +490,7 @@ const handleClear = () => {
 
 .tag-suggestion-name {
   font-size: 14px;
-  color: var(--color-text-primary, #1f2937);
+  color: var(--text);
 }
 
 .tag-preview-row {
@@ -511,10 +511,10 @@ const handleClear = () => {
 .batch-hint {
   margin-top: 12px;
   padding: 10px 12px;
-  background: var(--color-accent-surface, rgba(59, 130, 246, 0.1));
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
   border-radius: 6px;
   font-size: 13px;
-  color: var(--color-accent, #3b82f6);
+  color: var(--accent);
 }
 
 .tag-editor-modal .modal-footer {
@@ -522,8 +522,8 @@ const handleClear = () => {
   justify-content: flex-end;
   gap: 8px;
   padding: 16px 20px;
-  border-top: 1px solid var(--color-divider, #e5e7eb);
-  background: var(--color-surface-secondary, #f9fafb);
+  border-top: 1px solid var(--border);
+  background: var(--bg-muted);
   border-radius: 0 0 12px 12px;
 }
 
@@ -538,102 +538,24 @@ const handleClear = () => {
 }
 
 .tag-editor-modal .btn-primary {
-  background: var(--color-accent, #3b82f6);
-  color: white;
+  background: var(--accent);
+  color: var(--text-contrast);
   border: none;
 }
 
 .tag-editor-modal .btn-primary:hover {
-  background: var(--color-accent-hover, #2563eb);
+  background: color-mix(in srgb, var(--accent) 90%, black);
 }
 
 .tag-editor-modal .btn-secondary {
-  background: var(--color-surface, #ffffff);
-  color: var(--color-text-primary, #374151);
-  border: 1px solid var(--color-divider, #e5e7eb);
+  background: var(--bg-surface);
+  color: var(--text);
+  border: 1px solid var(--border);
 }
 
 .tag-editor-modal .btn-secondary:hover {
-  background: var(--color-surface-hover, #f3f4f6);
+  background: var(--bg-hover);
 }
 
-/* 暗黑模式 */
-[data-theme='dark'] .tag-editor-modal {
-  background: var(--color-surface, #1f2937);
-}
-
-[data-theme='dark'] .tag-editor-modal .modal-header {
-  border-bottom-color: rgba(75, 85, 99, 0.6);
-}
-
-[data-theme='dark'] .tag-editor-modal .modal-header h3 {
-  color: #f9fafb;
-}
-
-[data-theme='dark'] .tag-editor-modal .modal-close:hover {
-  background: rgba(55, 65, 81, 0.6);
-  color: #f9fafb;
-}
-
-[data-theme='dark'] .tag-group label {
-  color: #f9fafb;
-}
-
-[data-theme='dark'] .tag-name-input {
-  background: rgba(55, 65, 81, 0.5);
-  border-color: rgba(75, 85, 99, 0.6);
-  color: #f9fafb;
-}
-
-[data-theme='dark'] .tag-name-input:focus {
-  border-color: var(--color-accent, #3b82f6);
-}
-
-[data-theme='dark'] .tag-color-display {
-  border-color: rgba(75, 85, 99, 0.8);
-}
-
-[data-theme='dark'] .tag-color-display:hover {
-  border-color: var(--color-accent, #3b82f6);
-}
-
-[data-theme='dark'] .tag-clear-btn {
-  background: rgba(75, 85, 99, 0.6);
-  color: #9ca3af;
-}
-
-[data-theme='dark'] .tag-clear-btn:hover {
-  background: var(--color-error, #ef4444);
-  color: #ffffff;
-}
-
-[data-theme='dark'] .tag-suggestions {
-  background: var(--color-surface, #1f2937);
-  border-color: rgba(75, 85, 99, 0.6);
-}
-
-[data-theme='dark'] .tag-suggestion-item:hover,
-[data-theme='dark'] .tag-suggestion-item.selected {
-  background: rgba(55, 65, 81, 0.6);
-}
-
-[data-theme='dark'] .tag-suggestion-name {
-  color: #f9fafb;
-}
-
-[data-theme='dark'] .batch-hint {
-  background: rgba(59, 130, 246, 0.2);
-}
-
-[data-theme='dark'] .tag-editor-modal .modal-footer {
-  background: rgba(17, 24, 39, 0.5);
-  border-top-color: rgba(75, 85, 99, 0.6);
-}
-
-[data-theme='dark'] .tag-editor-modal .btn-secondary {
-  background: rgba(55, 65, 81, 0.5);
-  border-color: rgba(75, 85, 99, 0.6);
-  color: #f9fafb;
-}
 </style>
 

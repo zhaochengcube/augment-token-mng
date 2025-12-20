@@ -182,7 +182,7 @@ const handleMarkAllForSync = () => {
 }
 
 .sync-queue-dialog {
-  background: var(--color-surface, #ffffff);
+  background: var(--bg-surface);
   border-radius: 16px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
   width: 100%;
@@ -198,19 +198,19 @@ const handleMarkAllForSync = () => {
   align-items: center;
   justify-content: space-between;
   padding: 20px 24px;
-  border-bottom: 1px solid var(--color-divider, #e5e7eb);
-  background: var(--color-surface-muted, #f8f9fa);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-muted);
 }
 
 .sync-queue-title {
   display: flex;
   align-items: center;
   gap: 12px;
-  color: var(--color-text-heading, #333);
+  color: var(--text-strong);
 }
 
 .sync-queue-title svg {
-  color: var(--color-primary, #3b82f6);
+  color: var(--accent);
 }
 
 .sync-queue-title h3 {
@@ -225,7 +225,7 @@ const handleMarkAllForSync = () => {
   padding: 6px;
   border-radius: 8px;
   cursor: pointer;
-  color: var(--color-text-muted, #666);
+  color: var(--text-muted);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -233,16 +233,16 @@ const handleMarkAllForSync = () => {
 }
 
 .sync-queue-close:hover {
-  background: var(--color-surface-hover, #e9ecef);
-  color: var(--color-text-heading, #333);
+  background: var(--bg-hover);
+  color: var(--text-strong);
 }
 
 /* Tabs */
 .sync-queue-tabs {
   display: flex;
   padding: 0 24px 0 0;
-  background: var(--color-surface-secondary, #f9fafb);
-  border-bottom: 1px solid var(--color-divider, #e5e7eb);
+  background: var(--bg-muted);
+  border-bottom: 1px solid var(--border);
 }
 
 .tab-btn {
@@ -253,7 +253,7 @@ const handleMarkAllForSync = () => {
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--text-muted);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -262,14 +262,14 @@ const handleMarkAllForSync = () => {
 }
 
 .tab-btn:hover {
-  color: var(--color-text-primary, #374151);
-  background: var(--color-surface-hover, rgba(0, 0, 0, 0.03));
+  color: var(--text);
+  background: var(--bg-hover);
 }
 
 .tab-btn.active {
-  color: var(--color-primary, #3b82f6);
-  border-bottom-color: var(--color-primary, #3b82f6);
-  background: var(--color-surface, #ffffff);
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  background: var(--bg-surface);
 }
 
 .tab-btn svg {
@@ -318,9 +318,9 @@ const handleMarkAllForSync = () => {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: var(--color-surface-secondary, #f9fafb);
+  background: var(--bg-muted);
   border-radius: 10px;
-  color: var(--color-text-muted, #9ca3af);
+  color: var(--text-muted);
   font-size: 13px;
   gap: 8px;
 }
@@ -336,15 +336,15 @@ const handleMarkAllForSync = () => {
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
-  background: var(--color-surface-secondary, #f9fafb);
+  background: var(--bg-muted);
   border-radius: 8px;
-  border: 1px solid var(--color-divider, #e5e7eb);
+  border: 1px solid var(--border);
   transition: all 0.2s;
 }
 
 .sync-queue-item:hover {
-  border-color: var(--color-primary, #3b82f6);
-  background: var(--color-surface, #ffffff);
+  border-color: var(--accent);
+  background: var(--bg-surface);
 }
 
 .sync-queue-item.deletion {
@@ -379,7 +379,7 @@ const handleMarkAllForSync = () => {
 .item-email {
   font-size: 14px;
   font-weight: 500;
-  color: var(--color-text-primary, #374151);
+  color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -388,10 +388,10 @@ const handleMarkAllForSync = () => {
 .item-id {
   font-size: 12px;
   font-family: 'SF Mono', Monaco, monospace;
-  background: var(--color-surface, #ffffff);
+  background: var(--bg-surface);
   padding: 4px 8px;
   border-radius: 4px;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--text-muted);
 }
 
 .sync-queue-footer {
@@ -400,8 +400,8 @@ const handleMarkAllForSync = () => {
   align-items: center;
   gap: 12px;
   padding: 16px 24px;
-  border-top: 1px solid var(--color-divider, #e5e7eb);
-  background: var(--color-surface, #ffffff);
+  border-top: 1px solid var(--border);
+  background: var(--bg-surface);
 }
 
 .footer-right {
@@ -411,10 +411,10 @@ const handleMarkAllForSync = () => {
 
 .btn-close-queue {
   padding: 10px 20px;
-  border: 1px solid var(--color-divider, #e5e7eb);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--color-surface, #ffffff);
-  color: var(--color-text-secondary, #6b7280);
+  background: var(--bg-surface);
+  color: var(--text-muted);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -422,8 +422,8 @@ const handleMarkAllForSync = () => {
 }
 
 .btn-close-queue:hover {
-  background: var(--color-surface-hover, #f3f4f6);
-  border-color: var(--color-border-hover, #9ca3af);
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
 }
 
 .btn-sync-now {
@@ -433,8 +433,8 @@ const handleMarkAllForSync = () => {
   padding: 10px 20px;
   border: none;
   border-radius: 8px;
-  background: var(--color-primary, #3b82f6);
-  color: white;
+  background: var(--accent);
+  color: var(--text-contrast);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -442,8 +442,8 @@ const handleMarkAllForSync = () => {
 }
 
 .btn-sync-now:hover:not(:disabled) {
-  background: var(--color-primary-hover, #2563eb);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  background: var(--accent-strong);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 .btn-sync-now:disabled {
@@ -473,83 +473,4 @@ const handleMarkAllForSync = () => {
   opacity: 0;
 }
 
-/* 暗色模式 */
-[data-theme='dark'] .sync-queue-dialog {
-  background: var(--color-surface, #1f2937);
-}
-
-[data-theme='dark'] .sync-queue-header {
-  background: rgba(31, 41, 55, 0.8);
-  border-bottom-color: rgba(75, 85, 99, 0.6);
-}
-
-[data-theme='dark'] .sync-queue-title {
-  color: var(--color-text-primary, #f9fafb);
-}
-
-[data-theme='dark'] .sync-queue-close {
-  color: var(--color-text-muted, #9ca3af);
-}
-
-[data-theme='dark'] .sync-queue-close:hover {
-  background: rgba(55, 65, 81, 0.6);
-  color: var(--color-text-primary, #f9fafb);
-}
-
-[data-theme='dark'] .sync-queue-tabs {
-  background: rgba(17, 24, 39, 0.5);
-  border-bottom-color: rgba(75, 85, 99, 0.6);
-}
-
-[data-theme='dark'] .tab-btn {
-  color: var(--color-text-secondary, #9ca3af);
-}
-
-[data-theme='dark'] .tab-btn:hover {
-  color: var(--color-text-primary, #f9fafb);
-  background: rgba(55, 65, 81, 0.4);
-}
-
-[data-theme='dark'] .tab-btn.active {
-  color: var(--color-primary, #60a5fa);
-  background: var(--color-surface, #1f2937);
-}
-
-[data-theme='dark'] .sync-queue-empty {
-  background: rgba(17, 24, 39, 0.5);
-}
-
-[data-theme='dark'] .sync-queue-item {
-  background: rgba(17, 24, 39, 0.5);
-  border-color: rgba(75, 85, 99, 0.6);
-}
-
-[data-theme='dark'] .sync-queue-item:hover {
-  background: var(--color-surface, #1f2937);
-  border-color: var(--color-primary, #3b82f6);
-}
-
-[data-theme='dark'] .item-email {
-  color: var(--color-text-primary, #f9fafb);
-}
-
-[data-theme='dark'] .item-id {
-  background: rgba(17, 24, 39, 0.8);
-  color: var(--color-text-secondary, #9ca3af);
-}
-
-[data-theme='dark'] .sync-queue-footer {
-  background: var(--color-surface, #1f2937);
-  border-top-color: rgba(75, 85, 99, 0.6);
-}
-
-[data-theme='dark'] .btn-close-queue {
-  background: rgba(55, 65, 81, 0.5);
-  border-color: rgba(75, 85, 99, 0.6);
-  color: var(--color-text-secondary, #9ca3af);
-}
-
-[data-theme='dark'] .btn-close-queue:hover {
-  background: rgba(55, 65, 81, 0.8);
-}
 </style>

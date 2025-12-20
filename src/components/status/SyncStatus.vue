@@ -245,18 +245,18 @@ onMounted(() => {
 }
 
 .storage-badge.dual {
-  background: var(--color-success-surface, #d1fae5);
-  color: var(--color-success-text, #065f46);
+  background: var(--state-success);
+  color: #ffffff;
 }
 
 .storage-badge.local {
-  background: var(--color-warning-surface, #fef3c7);
-  color: var(--color-warning-text, #92400e);
+  background: var(--state-warning);
+  color: #ffffff;
 }
 
 .storage-badge.database {
-  background: var(--color-info-surface, #dbeafe);
-  color: var(--color-blue-primary-hover, #1e40af);
+  background: var(--accent);
+  color: #ffffff;
 }
 
 

@@ -123,7 +123,7 @@ const handleInternalOpen = async () => {
 }
 
 .portal-dialog {
-  background: var(--color-surface, #ffffff);
+  background: var(--bg-surface);
   border-radius: 12px;
   padding: 24px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
@@ -135,7 +135,7 @@ const handleInternalOpen = async () => {
   margin: 0 0 20px 0;
   font-size: 18px;
   font-weight: 600;
-  color: var(--color-text-heading, #333);
+  color: var(--text-strong);
   text-align: center;
 }
 
@@ -152,8 +152,8 @@ const handleInternalOpen = async () => {
   padding: 12px 16px;
   border: 2px solid transparent;
   border-radius: 8px;
-  background: var(--color-surface-muted, #f8f9fa);
-  color: var(--color-text-secondary, #495057);
+  background: var(--bg-muted);
+  color: var(--text);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -174,91 +174,47 @@ const handleInternalOpen = async () => {
 }
 
 .dialog-btn.copy {
-  background: #faf5ff;
+  background: rgba(124, 58, 237, 0.1);
   color: #7c3aed;
-  border-color: #c4b5fd;
+  border-color: rgba(196, 181, 253, 0.3);
 }
 
 .dialog-btn.copy:hover {
-  background: #ede9fe;
-  border-color: #a78bfa;
+  background: rgba(124, 58, 237, 0.15);
+  border-color: rgba(168, 139, 250, 0.5);
 }
 
 .dialog-btn.external {
-  background: var(--color-blue-soft-bg, #e3f2fd);
-  color: var(--color-blue-soft-text, #1976d2);
-  border-color: var(--color-blue-soft-border, #90caf9);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent-strong);
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 .dialog-btn.external:hover {
-  background: var(--color-blue-soft-bg, #bbdefb);
-  border-color: var(--color-blue-soft-hover, #64b5f6);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
 }
 
 .dialog-btn.internal {
-  background: var(--color-success-surface, #e8f5e8);
-  color: var(--color-success-text, #2e7d32);
-  border-color: var(--color-success-border, #a5d6a7);
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+  border-color: rgba(34, 197, 94, 0.3);
 }
 
 .dialog-btn.internal:hover {
-  background: var(--color-success-surface, #c8e6c9);
-  border-color: var(--color-success-border, #81c784);
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.5);
 }
 
 .dialog-btn.cancel {
-  background: var(--color-rose-surface, #fce4ec);
-  color: var(--color-rose-text, #c2185b);
-  border-color: var(--color-rose-border, #f8bbd9);
+  background: rgba(236, 72, 153, 0.1);
+  color: #ec4899;
+  border-color: rgba(236, 72, 153, 0.3);
 }
 
 .dialog-btn.cancel:hover {
-  background: var(--color-rose-border, #f8bbd9);
-  border-color: var(--color-rose-hover, #f48fb1);
+  background: rgba(236, 72, 153, 0.15);
+  border-color: rgba(236, 72, 153, 0.5);
 }
 
-/* 黑暗主题下的按钮样式 */
-[data-theme='dark'] .dialog-btn.copy {
-  background: rgba(139, 92, 246, 0.2);
-  color: #c4b5fd;
-  border-color: rgba(196, 181, 253, 0.4);
-}
-
-[data-theme='dark'] .dialog-btn.copy:hover {
-  background: rgba(139, 92, 246, 0.3);
-  border-color: rgba(168, 139, 250, 0.6);
-}
-
-[data-theme='dark'] .dialog-btn.external {
-  background: rgba(59, 130, 246, 0.2);
-  color: #93c5fd;
-  border-color: rgba(147, 197, 253, 0.4);
-}
-
-[data-theme='dark'] .dialog-btn.external:hover {
-  background: rgba(59, 130, 246, 0.3);
-  border-color: rgba(96, 165, 250, 0.6);
-}
-
-[data-theme='dark'] .dialog-btn.internal {
-  background: rgba(34, 197, 94, 0.2);
-  color: #86efac;
-  border-color: rgba(134, 239, 172, 0.4);
-}
-
-[data-theme='dark'] .dialog-btn.internal:hover {
-  background: rgba(34, 197, 94, 0.3);
-  border-color: rgba(110, 231, 183, 0.6);
-}
-
-[data-theme='dark'] .dialog-btn.cancel {
-  background: rgba(236, 72, 153, 0.2);
-  color: #f9a8d4;
-  border-color: rgba(249, 168, 212, 0.4);
-}
-
-[data-theme='dark'] .dialog-btn.cancel:hover {
-  background: rgba(236, 72, 153, 0.3);
-  border-color: rgba(244, 114, 182, 0.6);
-}
 </style>

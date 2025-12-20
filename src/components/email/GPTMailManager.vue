@@ -1,12 +1,12 @@
 <template>
-  <div class="modal-overlay">
-    <div class="modal-content gptmail-manager" @click.stop>
-      <div class="modal-header">
+  <div :class="isPageMode ? 'page-container' : 'modal-overlay'">
+    <div :class="isPageMode ? 'page-content gptmail-manager' : 'modal-content gptmail-manager'" @click.stop>
+      <div :class="isPageMode ? 'page-header' : 'modal-header'">
         <h3>{{ $t('gptMailManager.title') }}</h3>
-        <button @click="$emit('close')" class="close-btn">×</button>
+        <button v-if="!isPageMode" @click="$emit('close')" class="close-btn">×</button>
       </div>
 
-      <div class="modal-body">
+      <div :class="isPageMode ? 'page-body' : 'modal-body'">
         <!-- 生成随机邮箱区域 -->
         <div class="generate-email-section">
           <h4>{{ $t('gptMailManager.generateEmail') }}</h4>
@@ -122,6 +122,13 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { invoke } from '@tauri-apps/api/core'
+
+const props = defineProps({
+  isPageMode: {
+    type: Boolean,
+    default: false
+  }
+})
 
 const emit = defineEmits(['close'])
 
@@ -341,6 +348,43 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+/* Page Mode Styles */
+.page-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.page-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-page);
+}
+
+.page-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+  flex-shrink: 0;
+}
+
+.page-header h3 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.page-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+/* Modal Mode Styles */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -356,7 +400,7 @@ onBeforeUnmount(() => {
 }
 
 .modal-content {
-  background: var(--color-surface, #ffffff);
+  background: var(--bg-surface);
   border-radius: 12px;
   width: 100%;
   max-width: 900px;
@@ -371,14 +415,14 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  border-bottom: 1px solid var(--color-border, #e5e7eb);
-  background: var(--color-surface-alt, #f9fafb);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-muted);
   border-radius: 12px 12px 0 0;
 }
 
 .modal-header h3 {
   margin: 0;
-  color: var(--color-text-primary, #374151);
+  color: var(--text-strong);
   font-size: 18px;
   font-weight: 600;
 }
@@ -388,7 +432,7 @@ onBeforeUnmount(() => {
   border: none;
   font-size: 24px;
   cursor: pointer;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--text-muted);
   padding: 0;
   width: 32px;
   height: 32px;
@@ -400,8 +444,8 @@ onBeforeUnmount(() => {
 }
 
 .close-btn:hover {
-  background: var(--color-border, #e5e7eb);
-  color: var(--color-text-primary, #374151);
+  background: var(--bg-hover);
+  color: var(--text);
 }
 
 .gptmail-manager {
@@ -418,7 +462,7 @@ onBeforeUnmount(() => {
 
 .generate-email-section,
 .fetch-emails-section {
-  background: var(--color-surface-muted, #f8f9fa);
+  background: var(--bg-muted);
   border-radius: 8px;
   padding: 20px;
   margin-bottom: 24px;
@@ -427,7 +471,7 @@ onBeforeUnmount(() => {
 .generate-email-section h4,
 .fetch-emails-section h4 {
   margin: 0 0 16px 0;
-  color: var(--color-text-heading, #333);
+  color: var(--text-strong);
   font-size: 16px;
   font-weight: 600;
 }
@@ -440,31 +484,31 @@ onBeforeUnmount(() => {
   display: block;
   margin-bottom: 6px;
   font-weight: 500;
-  color: var(--color-text-primary, #374151);
+  color: var(--text);
   font-size: 14px;
 }
 
 .form-input {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid var(--color-border-strong, #d1d5db);
+  border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 14px;
   transition: border-color 0.2s ease;
   box-sizing: border-box;
-  background: var(--color-surface, #ffffff);
-  color: var(--color-text-primary, #374151);
+  background: var(--bg-surface);
+  color: var(--text);
 }
 
 .form-input:focus {
   outline: none;
-  border-color: var(--color-accent, #3b82f6);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .form-input:read-only {
-  background-color: var(--color-surface-muted, #f8f9fa);
-  color: var(--color-text-muted, #6c757d);
+  background-color: var(--bg-muted);
+  color: var(--text-muted);
 }
 
 .form-actions {
@@ -477,7 +521,7 @@ onBeforeUnmount(() => {
 .input-hint {
   margin-top: 6px;
   font-size: 12px;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--text-muted);
   font-style: italic;
 }
 
@@ -489,7 +533,7 @@ onBeforeUnmount(() => {
   display: block;
   margin-bottom: 8px;
   font-weight: 500;
-  color: var(--color-text-primary, #374151);
+  color: var(--text);
   font-size: 14px;
 }
 
@@ -731,41 +775,41 @@ onBeforeUnmount(() => {
 }
 
 .btn.primary {
-  background: var(--color-accent, #3b82f6);
-  color: var(--color-text-inverse, #ffffff);
+  background: var(--accent);
+  color: var(--text-contrast);
 }
 
 .btn.primary:hover:not(:disabled) {
-  background: var(--color-accent-hover, #2563eb);
+  background: var(--accent-strong);
   transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 2px 4px color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 .btn.secondary {
-  background: var(--color-text-muted, #6b7280);
-  color: var(--color-text-inverse, #ffffff);
+  background: var(--text-muted);
+  color: var(--text-contrast);
 }
 
 .btn.secondary:hover:not(:disabled) {
-  background: var(--color-text-secondary, #4b5563);
+  background: color-mix(in srgb, var(--text-muted) 80%, black);
 }
 
 .btn.danger {
-  background: var(--color-danger-bg, #dc2626);
-  color: var(--color-text-inverse, #ffffff);
+  background: #dc2626;
+  color: #ffffff;
 }
 
 .btn.danger:hover:not(:disabled) {
-  background: var(--color-danger-bg-hover, #b91c1c);
+  background: #b91c1c;
 }
 
 .btn.success {
-  background: var(--color-success-bg, #10b981);
-  color: var(--color-text-inverse, #ffffff);
+  background: #10b981;
+  color: #ffffff;
 }
 
 .btn.success:hover:not(:disabled) {
-  background: var(--color-success-bg-hover, #059669);
+  background: #059669;
 }
 
 .btn.small {
@@ -783,14 +827,14 @@ onBeforeUnmount(() => {
 .empty-state {
   text-align: center;
   padding: 40px 20px;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--text-muted);
 }
 
 .spinner {
   width: 32px;
   height: 32px;
-  border: 3px solid var(--color-surface-hover, #f3f3f3);
-  border-top: 3px solid var(--color-accent, #3b82f6);
+  border: 3px solid var(--bg-muted);
+  border-top: 3px solid var(--accent);
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin: 0 auto 16px;
@@ -842,29 +886,4 @@ onBeforeUnmount(() => {
   }
 }
 
-/* 深色主题样式 */
-[data-theme='dark'] .polling-indicator {
-  background: rgba(59, 130, 246, 0.15);
-  border-color: rgba(59, 130, 246, 0.4);
-  color: #60a5fa;
-}
-
-[data-theme='dark'] .polling-dot {
-  background: #60a5fa;
-}
-
-[data-theme='dark'] .verification-code-display {
-  background: rgba(16, 185, 129, 0.15);
-  border-color: rgba(16, 185, 129, 0.4);
-}
-
-[data-theme='dark'] .verification-code-display label {
-  color: #6ee7b7;
-}
-
-[data-theme='dark'] .code-value {
-  color: #6ee7b7;
-  background: var(--color-surface, #1e293b);
-  border-color: rgba(16, 185, 129, 0.4);
-}
 </style>

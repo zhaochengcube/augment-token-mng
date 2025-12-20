@@ -48,33 +48,40 @@
 
     <div class="card-main">
       <div class="token-info">
-        <h3 class="tenant-name">{{ displayUrl }}</h3>
+        <!-- 第一行：邮箱备注 -->
+        <div class="email-note-header">
+          <div
+            v-if="token.email_note"
+            class="email-note-container"
+            @click.stop="copyEmailNote"
+            :title="token.email_note"
+          >
+            <span class="email-note">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" class="email-icon">
+                <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.89 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+              </svg>
+              {{ showRealEmail ? token.email_note : maskedEmail }}
+            </span>
+            <span class="copy-hint">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+              </svg>
+            </span>
+          </div>
+          <span v-else class="no-email-note">{{ $t('tokenCard.noEmailNote') }}</span>
+        </div>
+
         <div class="token-meta">
-          <!-- 第一行：创建日期 -->
+          <!-- 第二行：创建日期 -->
           <div class="meta-row">
             <span class="created-date">{{ formatDate(token.created_at) }}</span>
           </div>
-          <!-- 第二行：邮箱备注（如果有） -->
-          <div v-if="token.email_note" class="meta-row email-row">
-            <div class="email-note-container">
-              <span class="email-note">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" class="email-icon">
-                  <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.89 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
-                </svg>
-                {{ showRealEmail ? token.email_note : maskedEmail }}
-              </span>
-              <button @click="copyEmailNote" class="copy-email-btn" :title="$t('tokenCard.copyEmailNote')">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-          <!-- 第二行：Portal信息 -->
+
+          <!-- 第三行：重置时间和余额 -->
           <template v-if="token.portal_url || portalInfo.data">
             <div class="meta-row portal-row">
               <template v-if="portalInfo.data">
-                <span v-if="portalInfo.data.expiry_date" class="portal-meta expiry">{{ $t('tokenCard.expiry') }}: {{ formatExpiryDate(portalInfo.data.expiry_date) }}</span>
+                <span v-if="portalInfo.data.expiry_date" class="portal-meta expiry">{{ $t('tokenCard.resetTime') }}: {{ formatExpiryDate(portalInfo.data.expiry_date) }}</span>
               </template>
               <!-- 余额显示：无论是否有数据都显示 -->
               <span
@@ -701,14 +708,14 @@ defineExpose({
 
 <style scoped>
 .token-card {
-  background: var(--color-surface, #ffffff);
-  border: 1px solid var(--color-divider, #e1e5e9);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   transition: all 0.2s ease;
   height: fit-content;
-  min-height: 120px;
+  min-height: 150px;
   position: relative; /* 为状态指示器定位 */
   z-index: 1;
 }
@@ -737,8 +744,8 @@ defineExpose({
 
 /* 选中状态样式 */
 .token-card.selected {
-  border-color: var(--color-accent, #3b82f6);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2), 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent), 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 /* 选择框样式 */
@@ -762,8 +769,8 @@ defineExpose({
   width: 20px;
   height: 20px;
   border-radius: 4px;
-  border: 2px solid var(--color-divider, #d1d5db);
-  background: var(--color-surface, #ffffff);
+  border: 2px solid var(--border);
+  background: var(--bg-surface);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -772,23 +779,23 @@ defineExpose({
 }
 
 .checkbox-inner:hover {
-  border-color: var(--color-accent, #3b82f6);
-  background: var(--color-surface-soft, #f8fafc);
+  border-color: var(--accent);
+  background: var(--bg-muted);
 }
 
 .checkbox-inner.checked {
-  background: var(--color-accent, #3b82f6);
-  border-color: var(--color-accent, #3b82f6);
-  color: white;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-contrast);
 }
 
 .checkbox-inner.checked svg {
-  color: white;
+  color: var(--text-contrast);
 }
 
 .status-indicator {
   position: absolute;
-  top: 8px;
+  top: 12px;
   right: 8px;
   z-index: 10;
   display: flex;
@@ -817,27 +824,27 @@ defineExpose({
 }
 
 .status-badge.active {
-  background: var(--color-success-surface, #d4edda);
-  color: var(--color-success-text, #155724);
-  border: 1px solid var(--color-success-border, #c3e6cb);
+  background: var(--state-success);
+  color: #ffffff;
+  border: 1px solid var(--state-success);
 }
 
 .status-badge.inactive {
-  background: var(--color-danger-surface, #f8d7da);
-  color: var(--color-danger-text, #721c24);
-  border: 1px solid var(--color-danger-border, #f5c6cb);
+  background: var(--state-danger);
+  color: #ffffff;
+  border: 1px solid var(--state-danger);
 }
 
 .status-badge.banned {
-  background: var(--color-danger-surface, #f8d7da);
-  color: var(--color-danger-text, #721c24);
-  border: 1px solid var(--color-danger-border, #f5c6cb);
+  background: var(--state-danger);
+  color: #ffffff;
+  border: 1px solid var(--state-danger);
 }
 
 .status-badge.invalid {
-  background: var(--color-warning-surface, #fff3cd);
-  color: var(--color-warning-text, #856404);
-  border: 1px solid var(--color-warning-border, #ffeaa7);
+  background: var(--state-warning);
+  color: #ffffff;
+  border: 1px solid var(--state-warning);
 }
 
 .tag-badge {
@@ -849,7 +856,7 @@ defineExpose({
 
 .token-card:hover {
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-  border-color: var(--color-accent, #3b82f6);
+  border-color: var(--accent);
   transform: translateY(-2px);
 }
 
@@ -858,6 +865,7 @@ defineExpose({
   flex-direction: column;
   gap: 16px;
   height: 100%;
+  margin-top: 16px;
 }
 
 .token-info {
@@ -865,13 +873,27 @@ defineExpose({
   min-width: 0;
 }
 
-.tenant-name {
-  margin: 0 0 6px 0;
-  font-size: 16px;
+.email-note-header {
+  margin: 0 0 8px 0;
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+}
+
+.email-note-header .email-note-container {
+  width: 100%;
+}
+
+.email-note-header .email-note {
+  font-size: 14px;
   font-weight: 600;
-  color: var(--color-text-heading, #333);
-  word-break: break-all;
-  line-height: 1.3;
+}
+
+.no-email-note {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-style: italic;
 }
 
 .token-meta {
@@ -897,11 +919,11 @@ defineExpose({
 
 .credit-stats-btn {
   background: transparent;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--border);
   border-radius: 6px;
   padding: 4px 6px;
   cursor: pointer;
-  color: var(--color-btn-primary-bg);
+  color: var(--accent);
   transition: background-color 0.2s, border-color 0.2s;
   display: inline-flex;
   align-items: center;
@@ -911,8 +933,8 @@ defineExpose({
 }
 
 .credit-stats-btn:hover {
-  background: var(--color-surface-hover);
-  border-color: var(--color-btn-primary-bg);
+  background: var(--bg-hover);
+  border-color: var(--accent);
 }
 
 .credit-stats-btn svg {
@@ -922,7 +944,7 @@ defineExpose({
 
 .created-date {
   font-size: 12px;
-  color: var(--color-text-muted, #666);
+  color: var(--text-muted);
 }
 
 /* 邮箱行样式 */
@@ -931,36 +953,37 @@ defineExpose({
 }
 
 .email-note-container {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  width: 100%;
+  gap: 4px;
+  cursor: pointer;
+  max-width: 100%;
+  position: relative;
 }
 
 .email-note {
   font-size: 12px;
-  color: var(--color-link-visited, #4f46e5);
+  color: var(--accent);
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: var(--color-info-surface, #f0f9ff);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
   padding: 2px 6px;
   border-radius: 4px;
-  border: 1px solid var(--color-info-surface, #e0f2fe);
-  cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
   user-select: none;
   /* 固定高度避免悬浮时抖动 */
   min-height: 22px;
   /* 限制最大宽度,超出显示省略号 */
-  max-width: calc(100% - 30px);
+  max-width: fit-content;
   overflow: hidden;
-  /* 不使用 transition,避免尺寸变化时的动画导致抖动 */
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.email-note:hover {
-  background: var(--color-info-surface, #e0f2fe);
-  border-color: var(--color-info-border, #bae6fd);
-  /* 移除 transform 避免抖动 */
+.email-note-container:hover .email-note {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 /* 邮箱图标固定尺寸,避免抖动 */
@@ -968,177 +991,20 @@ defineExpose({
   flex-shrink: 0;
   width: 12px;
   height: 12px;
-}
-
-/* 黑暗模式下的邮箱样式优化 */
-[data-theme='dark'] .email-note {
-  background: rgba(56, 189, 248, 0.2);
-  color: #93c5fd;
-  border-color: rgba(56, 189, 248, 0.4);
-}
-
-[data-theme='dark'] .email-note:hover {
-  background: rgba(56, 189, 248, 0.3);
-  border-color: rgba(56, 189, 248, 0.6);
-  color: #bfdbfe;
-}
-
-/* 黑暗模式下的按钮样式优化 */
-[data-theme='dark'] .btn-action {
-  background: rgba(51, 65, 85, 0.5);
-  border-color: rgba(71, 85, 105, 0.6);
-  color: #cbd5e1;
-}
-
-[data-theme='dark'] .btn-action:hover {
-  background: rgba(71, 85, 105, 0.6);
-  border-color: rgba(100, 116, 139, 0.7);
-}
-
-[data-theme='dark'] .btn-action.delete {
-  color: #fca5a5;
-}
-
-[data-theme='dark'] .btn-action.delete:hover {
-  background: rgba(220, 38, 38, 0.2);
-  border-color: rgba(220, 38, 38, 0.4);
-}
-
-[data-theme='dark'] .btn-action.portal {
-  color: #93c5fd;
-}
-
-[data-theme='dark'] .btn-action.portal:hover {
-  background: rgba(59, 130, 246, 0.2);
-  border-color: rgba(59, 130, 246, 0.4);
-}
-
-[data-theme='dark'] .btn-action.edit {
-  color: #86efac;
-}
-
-[data-theme='dark'] .btn-action.edit:hover {
-  background: rgba(34, 197, 94, 0.2);
-  border-color: rgba(34, 197, 94, 0.4);
-}
-
-[data-theme='dark'] .btn-action.vscode {
-  color: #7dd3fc;
-}
-
-[data-theme='dark'] .btn-action.vscode:hover {
-  background: rgba(14, 165, 233, 0.2);
-  border-color: rgba(14, 165, 233, 0.4);
-}
-
-[data-theme='dark'] .btn-action.status-check {
-  color: #fcd34d;
-}
-
-[data-theme='dark'] .btn-action.status-check:hover {
-  background: rgba(245, 158, 11, 0.2);
-  border-color: rgba(245, 158, 11, 0.4);
-}
-
-[data-theme='dark'] .btn-action.copy {
-  color: #93c5fd;
-}
-
-[data-theme='dark'] .btn-action.copy:hover {
-  background: rgba(59, 130, 246, 0.2);
-  border-color: rgba(59, 130, 246, 0.4);
-}
-
-[data-theme='dark'] .btn-action.export {
-  color: #c4b5fd;
-}
-
-[data-theme='dark'] .btn-action.export:hover {
-  background: rgba(124, 58, 237, 0.2);
-  border-color: rgba(124, 58, 237, 0.4);
-}
-
-[data-theme='dark'] .copy-dropdown {
-  background: var(--color-surface, #1f2937);
-  border-color: rgba(75, 85, 99, 0.6);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-}
-
-[data-theme='dark'] .copy-menu-item {
-  color: var(--color-text-primary, #e5e7eb);
-}
-
-[data-theme='dark'] .copy-menu-item:hover {
-  background: rgba(55, 65, 81, 0.6);
-}
-
-/* 暗黑模式下的余额颜色 */
-[data-theme='dark'] .portal-meta.balance.color-green {
-  color: #86efac;
-  background: rgba(34, 197, 94, 0.2);
-}
-
-[data-theme='dark'] .portal-meta.balance.color-green:hover {
-  background: rgba(34, 197, 94, 0.3);
-}
-
-[data-theme='dark'] .portal-meta.balance.color-blue {
-  color: #f9a8d4;
-  background: rgba(236, 72, 153, 0.2);
-}
-
-[data-theme='dark'] .portal-meta.balance.color-blue:hover {
-  background: rgba(236, 72, 153, 0.3);
-}
-
-[data-theme='dark'] .portal-meta.balance.exhausted {
-  color: #fca5a5;
-  background: rgba(220, 38, 38, 0.2);
-}
-
-[data-theme='dark'] .credit-stats-btn {
-  border-color: rgba(148, 163, 184, 0.35);
-  color: #a78bfa;
-}
-
-[data-theme='dark'] .credit-stats-btn:hover {
-  background: rgba(124, 58, 237, 0.2);
-  border-color: rgba(124, 58, 237, 0.4);
-}
-
-.email-icon {
-  flex-shrink: 0;
   opacity: 0.7;
 }
 
-.copy-email-btn {
-  background: none;
-  border: none;
-  padding: 2px;
-  cursor: pointer;
-  color: var(--color-text-muted, #6b7280);
-  border-radius: 3px;
-  transition: background 0.2s ease, color 0.2s ease;
+.copy-hint {
+  color: var(--text-muted);
+  opacity: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
-  /* 固定尺寸避免抖动 */
-  width: 20px;
-  height: 20px;
   flex-shrink: 0;
+  transition: opacity 0.2s ease;
 }
 
-.copy-email-btn:hover {
-  background: var(--color-surface-hover, #f3f4f6);
-  color: var(--color-link-visited, #4f46e5);
-}
-
-.copy-email-btn:active {
-  transform: scale(0.95);
-}
-
-.copy-email-btn svg {
-  flex-shrink: 0;
+.email-note-container:hover .copy-hint {
+  opacity: 1;
 }
 
 .portal-meta {
@@ -1149,18 +1015,18 @@ defineExpose({
 }
 
 .portal-meta.loading {
-  color: var(--color-text-muted, #6c757d);
+  color: var(--text-muted);
   font-style: italic;
 }
 
 .portal-meta.error {
-  color: var(--color-danger-bg, #dc3545);
-  background: var(--color-danger-surface, #f8d7da);
+  color: #dc2626;
+  background: color-mix(in srgb, #dc2626 15%, transparent);
 }
 
 .portal-meta.expiry {
-  color: var(--color-warning-text, #856404);
-  background: var(--color-warning-surface, #fff3cd);
+  color: #ffffff;
+  background: var(--state-warning);
 }
 
 .portal-meta.balance {
@@ -1170,28 +1036,28 @@ defineExpose({
 
 /* 绿色模式（默认） */
 .portal-meta.balance.color-green {
-  color: var(--color-success-text, #155724);
-  background: var(--color-success-surface, #d4edda);
+  color: var(--state-success);
+  background: color-mix(in srgb, var(--state-success) 15%, transparent);
 }
 
 .portal-meta.balance.color-green:hover {
-  background: #c3e6cb;
+  background: color-mix(in srgb, var(--state-success) 20%, transparent);
 }
 
 /* 粉色模式 */
 .portal-meta.balance.color-blue {
-  color: #be185d;
-  background: #fce7f3;
+  color: #ec4899;
+  background: color-mix(in srgb, #ec4899 15%, transparent);
 }
 
 .portal-meta.balance.color-blue:hover {
-  background: #fbcfe8;
+  background: color-mix(in srgb, #ec4899 20%, transparent);
 }
 
 /* 异常状态（红色，不可切换） */
 .portal-meta.balance.exhausted {
-  color: var(--color-danger-text, #721c24);
-  background: var(--color-danger-surface, #f8d7da);
+  color: #ffffff;
+  background: var(--state-danger);
   cursor: default !important;
 }
 
@@ -1209,12 +1075,12 @@ defineExpose({
 }
 
 .btn-action {
-  background: rgba(148, 163, 184, 0.15);
-  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: var(--bg-muted);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 8px;
   cursor: pointer;
-  color: #64748b;
+  color: var(--text-muted);
   transition: all 0.2s;
   display: flex;
   align-items: center;
@@ -1233,77 +1099,21 @@ defineExpose({
 }
 
 .btn-action:hover {
-  background: rgba(148, 163, 184, 0.25);
-  border-color: rgba(148, 163, 184, 0.5);
+  background: var(--bg-hover);
+  border-color: var(--accent);
+  color: var(--text);
   transform: translateY(-1px);
 }
 
-.btn-action.delete {
-  color: #dc2626;
-}
-
 .btn-action.delete:hover {
-  background: rgba(220, 38, 38, 0.15);
-  border-color: rgba(220, 38, 38, 0.3);
-}
-
-.btn-action.portal {
-  color: #2563eb;
-}
-
-.btn-action.portal:hover {
-  background: rgba(37, 99, 235, 0.15);
-  border-color: rgba(37, 99, 235, 0.3);
-}
-
-.btn-action.edit {
-  color: #16a34a;
-}
-
-.btn-action.edit:hover {
-  background: rgba(22, 163, 74, 0.15);
-  border-color: rgba(22, 163, 74, 0.3);
-}
-
-.btn-action.vscode {
-  color: #0284c7;
-}
-
-.btn-action.vscode:hover {
-  background: rgba(2, 132, 199, 0.15);
-  border-color: rgba(2, 132, 199, 0.3);
-}
-
-.btn-action.status-check {
-  color: #ca8a04;
-}
-
-.btn-action.status-check:hover {
-  background: rgba(202, 138, 4, 0.15);
-  border-color: rgba(202, 138, 4, 0.3);
+  background: color-mix(in srgb, #dc2626 15%, transparent);
+  border-color: #dc2626;
+  color: #dc2626;
 }
 
 .btn-action.status-check.loading {
   opacity: 0.7;
   cursor: not-allowed;
-}
-
-.btn-action.export {
-  color: #7c3aed;
-}
-
-.btn-action.export:hover {
-  background: rgba(124, 58, 237, 0.15);
-  border-color: rgba(124, 58, 237, 0.3);
-}
-
-.btn-action.copy {
-  color: #2563eb;
-}
-
-.btn-action.copy:hover {
-  background: rgba(37, 99, 235, 0.15);
-  border-color: rgba(37, 99, 235, 0.3);
 }
 
 .loading-spinner {
@@ -1340,8 +1150,8 @@ defineExpose({
   position: absolute;
   top: calc(100% + 4px);
   right: 0;
-  background: var(--color-surface, #ffffff);
-  border: 1px solid var(--color-divider, #e1e5e9);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   min-width: 180px;
@@ -1359,14 +1169,14 @@ defineExpose({
   background: none;
   cursor: pointer;
   font-size: 14px;
-  color: var(--color-text-primary, #374151);
+  color: var(--text);
   transition: background 0.2s ease;
   text-align: left;
   font-family: inherit;
 }
 
 .copy-menu-item:hover {
-  background: var(--color-surface-hover, #f3f4f6);
+  background: var(--bg-hover);
 }
 
 .copy-menu-item svg {
@@ -1396,8 +1206,8 @@ defineExpose({
   position: absolute;
   top: calc(100% + 4px);
   right: 0;
-  background: var(--color-surface, #ffffff);
-  border: 1px solid var(--color-divider, #e1e5e9);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   min-width: 180px;
@@ -1415,14 +1225,14 @@ defineExpose({
   background: none;
   cursor: pointer;
   font-size: 14px;
-  color: var(--color-text-primary, #374151);
+  color: var(--text);
   transition: background 0.2s ease;
   text-align: left;
   font-family: inherit;
 }
 
 .check-menu-item:hover {
-  background: var(--color-surface-hover, #f3f4f6);
+  background: var(--bg-hover);
 }
 
 .check-menu-item svg {
@@ -1441,8 +1251,9 @@ defineExpose({
 }
 
 .btn-action.status-check.disabled:hover {
-  background: rgba(148, 163, 184, 0.15);
-  border-color: rgba(148, 163, 184, 0.3);
+  background: var(--bg-muted);
+  border-color: var(--border);
+  color: var(--text-muted);
   transform: none;
 }
 
@@ -1486,8 +1297,12 @@ defineExpose({
     gap: 12px;
   }
 
-  .tenant-name {
-    font-size: 14px;
+  .email-note-header .email-note {
+    font-size: 13px;
+  }
+
+  .no-email-note {
+    font-size: 13px;
   }
 
   .actions {
@@ -1599,7 +1414,7 @@ defineExpose({
 }
 
 .suspensions-modal {
-  background: var(--color-surface, #ffffff);
+  background: var(--bg-surface);
   border-radius: 12px;
   max-width: 600px;
   width: 100%;
@@ -1615,14 +1430,14 @@ defineExpose({
   align-items: center;
   justify-content: space-between;
   padding: 20px 24px;
-  border-bottom: 1px solid var(--color-divider, #e1e5e9);
+  border-bottom: 1px solid var(--border);
 }
 
 .suspensions-modal .modal-header h3 {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  color: var(--color-text-primary, #374151);
+  color: var(--text-strong);
 }
 
 .suspensions-modal .modal-close {
@@ -1630,7 +1445,7 @@ defineExpose({
   border: none;
   padding: 4px;
   cursor: pointer;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--text-muted);
   border-radius: 4px;
   transition: all 0.2s;
   display: flex;
@@ -1639,8 +1454,8 @@ defineExpose({
 }
 
 .suspensions-modal .modal-close:hover {
-  background: var(--color-surface-hover, #f3f4f6);
-  color: var(--color-text-primary, #374151);
+  background: var(--bg-hover);
+  color: var(--text);
 }
 
 .suspensions-modal .modal-body {
@@ -1656,8 +1471,8 @@ defineExpose({
 }
 
 .suspension-item {
-  background: var(--color-surface-secondary, #f9fafb);
-  border: 1px solid var(--color-divider, #e1e5e9);
+  background: var(--bg-muted);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 16px;
 }
@@ -1673,13 +1488,13 @@ defineExpose({
 }
 
 .suspension-field strong {
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--text-muted);
   font-size: 14px;
   min-width: 80px;
 }
 
 .suspension-value {
-  color: var(--color-text-primary, #374151);
+  color: var(--text);
   font-size: 14px;
   word-break: break-word;
 }
@@ -1687,12 +1502,12 @@ defineExpose({
 .no-suspensions {
   text-align: center;
   padding: 40px 20px;
-  color: var(--color-text-muted, #9ca3af);
+  color: var(--text-muted);
 }
 
 .raw-json {
   margin-top: 20px;
-  border-top: 1px solid var(--color-divider, #e1e5e9);
+  border-top: 1px solid var(--border);
   padding-top: 16px;
 }
 
@@ -1700,40 +1515,25 @@ defineExpose({
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--text-muted);
   padding: 8px 0;
   user-select: none;
 }
 
 .raw-json summary:hover {
-  color: var(--color-text-primary, #374151);
+  color: var(--text);
 }
 
 .raw-json pre {
-  background: var(--color-surface-secondary, #f9fafb);
-  border: 1px solid var(--color-divider, #e1e5e9);
+  background: var(--bg-muted);
+  border: 1px solid var(--border);
   border-radius: 6px;
   padding: 12px;
   margin: 8px 0 0 0;
   overflow-x: auto;
   font-size: 12px;
   line-height: 1.5;
-  color: var(--color-text-primary, #374151);
-}
-
-/* 黑暗模式 */
-[data-theme='dark'] .suspensions-modal {
-  background: var(--color-surface, #1f2937);
-}
-
-[data-theme='dark'] .suspension-item {
-  background: rgba(55, 65, 81, 0.5);
-  border-color: rgba(75, 85, 99, 0.6);
-}
-
-[data-theme='dark'] .raw-json pre {
-  background: rgba(55, 65, 81, 0.5);
-  border-color: rgba(75, 85, 99, 0.6);
+  color: var(--text);
 }
 
 /* 添加标签按钮样式 */
@@ -1744,8 +1544,8 @@ defineExpose({
   width: 24px;
   height: 24px;
   border-radius: 4px;
-  border: 1px dashed var(--color-divider, #d1d5db);
-  color: var(--color-text-muted, #9ca3af);
+  border: 1px dashed var(--border);
+  color: var(--text-muted);
   cursor: pointer;
   transition: all 0.15s ease;
   opacity: 0;
@@ -1756,9 +1556,9 @@ defineExpose({
 }
 
 .add-tag-btn:hover {
-  border-color: var(--color-accent, #3b82f6);
-  color: var(--color-accent, #3b82f6);
-  background: var(--color-accent-surface, rgba(59, 130, 246, 0.1));
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .status-badge.tag-badge.editable {
@@ -1768,18 +1568,6 @@ defineExpose({
 .status-badge.tag-badge.editable:hover {
   transform: scale(1.05);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-}
-
-/* 暗黑模式 - 添加标签按钮 */
-[data-theme='dark'] .add-tag-btn {
-  border-color: rgba(75, 85, 99, 0.6);
-  color: #9ca3af;
-}
-
-[data-theme='dark'] .add-tag-btn:hover {
-  border-color: var(--color-accent, #3b82f6);
-  color: var(--color-accent, #3b82f6);
-  background: rgba(59, 130, 246, 0.2);
 }
 
 </style>

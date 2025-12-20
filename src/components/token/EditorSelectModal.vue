@@ -390,7 +390,7 @@ const handleTraeVersionSelect = async (version) => {
 }
 
 .editor-modal {
-  background: var(--color-surface, #ffffff);
+  background: var(--bg-surface);
   border-radius: 12px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   max-width: 700px;
@@ -408,14 +408,14 @@ const handleTraeVersionSelect = async (version) => {
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px 16px;
-  border-bottom: 1px solid var(--color-divider, #e1e5e9);
+  border-bottom: 1px solid var(--border);
 }
 
 .modal-header h3 {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  color: var(--color-text-heading, #333);
+  color: var(--text-strong);
 }
 
 .modal-close {
@@ -423,7 +423,7 @@ const handleTraeVersionSelect = async (version) => {
   border: none;
   padding: 4px;
   cursor: pointer;
-  color: var(--color-text-muted, #666);
+  color: var(--text-muted);
   border-radius: 4px;
   transition: all 0.2s ease;
   display: flex;
@@ -432,8 +432,8 @@ const handleTraeVersionSelect = async (version) => {
 }
 
 .modal-close:hover {
-  background: var(--color-surface-hover, #f3f4f6);
-  color: var(--color-text-heading, #333);
+  background: var(--bg-hover);
+  color: var(--text);
 }
 
 .modal-content {
@@ -471,9 +471,9 @@ const handleTraeVersionSelect = async (version) => {
   align-items: center;
   gap: 16px;
   padding: 16px;
-  border: 2px solid var(--color-divider, #e1e5e9);
+  border: 2px solid var(--border);
   border-radius: 8px;
-  background: var(--color-surface, #ffffff);
+  background: var(--bg-surface);
   cursor: pointer;
   transition: all 0.15s ease;
   text-align: left;
@@ -487,18 +487,18 @@ const handleTraeVersionSelect = async (version) => {
 }
 
 .editor-option:hover {
-  border-color: var(--color-accent, #3b82f6);
-  background: var(--color-surface-soft, #f8fafc);
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.12);
+  border-color: var(--accent);
+  background: var(--bg-hover);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 .editor-option:active {
-  background: var(--color-surface-soft, #f1f5f9);
-  box-shadow: 0 1px 4px rgba(59, 130, 246, 0.08);
+  background: var(--bg-muted);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
 .editor-option:focus {
-  outline: 2px solid var(--color-accent, #3b82f6);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
@@ -510,8 +510,8 @@ const handleTraeVersionSelect = async (version) => {
   align-items: center;
   justify-content: center;
   border-radius: 8px;
-  background: var(--color-surface-muted, #f8f9fa);
-  border: 1px solid var(--color-surface-muted, #e9ecef);
+  background: var(--bg-muted);
+  border: 1px solid var(--border);
 }
 
 .editor-icon img {
@@ -544,8 +544,8 @@ const handleTraeVersionSelect = async (version) => {
 .rider-option .editor-icon,
 .rubymine-option .editor-icon,
 .aqua-option .editor-icon {
-  background: var(--color-info-surface, #f0f9ff);
-  border-color: var(--color-info-surface, #e0f2fe);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
 .editor-info {
@@ -558,7 +558,7 @@ const handleTraeVersionSelect = async (version) => {
 .editor-name {
   font-size: 16px;
   font-weight: 600;
-  color: var(--color-text-heading, #333);
+  color: var(--text-strong);
 }
 
 /* Trae 版本选择对话框样式 */
@@ -577,7 +577,7 @@ const handleTraeVersionSelect = async (version) => {
 }
 
 .trae-version-modal {
-  background: var(--color-surface, #ffffff);
+  background: var(--bg-surface);
   border-radius: 12px;
   max-width: 500px;
   width: 100%;
@@ -593,14 +593,14 @@ const handleTraeVersionSelect = async (version) => {
   align-items: center;
   justify-content: space-between;
   padding: 20px 24px;
-  border-bottom: 1px solid var(--color-divider, #e1e5e9);
+  border-bottom: 1px solid var(--border);
 }
 
 .trae-version-modal .modal-header h3 {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  color: var(--color-text-primary, #374151);
+  color: var(--text-strong);
 }
 
 .trae-version-modal .modal-body {
@@ -620,9 +620,9 @@ const handleTraeVersionSelect = async (version) => {
   align-items: center;
   gap: 16px;
   padding: 20px;
-  border: 2px solid var(--color-divider, #e1e5e9);
+  border: 2px solid var(--border);
   border-radius: 12px;
-  background: var(--color-surface, #ffffff);
+  background: var(--bg-surface);
   cursor: pointer;
   transition: all 0.2s ease;
   width: 100%;
@@ -631,9 +631,9 @@ const handleTraeVersionSelect = async (version) => {
 }
 
 .version-option:hover {
-  border-color: var(--color-accent, #3b82f6);
-  background: var(--color-surface-soft, #f8fafc);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  border-color: var(--accent);
+  background: var(--bg-hover);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 15%, transparent);
   transform: translateY(-2px);
 }
 
@@ -649,14 +649,14 @@ const handleTraeVersionSelect = async (version) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-surface-muted, #f8f9fa);
+  background: var(--bg-muted);
   border-radius: 8px;
 }
 
 .version-name {
   font-size: 16px;
   font-weight: 600;
-  color: var(--color-text-heading, #333);
+  color: var(--text-strong);
 }
 
 /* 响应式处理 */
@@ -708,37 +708,5 @@ const handleTraeVersionSelect = async (version) => {
   }
 }
 
-/* 黑暗模式 */
-[data-theme='dark'] .editor-modal {
-  background: var(--color-surface, #1f2937);
-}
-
-[data-theme='dark'] .trae-version-modal {
-  background: var(--color-surface, #1f2937);
-}
-
-[data-theme='dark'] .version-option {
-  background: rgba(55, 65, 81, 0.5);
-  border-color: rgba(75, 85, 99, 0.6);
-}
-
-[data-theme='dark'] .version-option:hover {
-  background: rgba(55, 65, 81, 0.7);
-  border-color: rgba(59, 130, 246, 0.6);
-}
-
-[data-theme='dark'] .version-icon {
-  background: rgba(55, 65, 81, 0.8);
-}
-
-[data-theme='dark'] .editor-option {
-  background: rgba(51, 65, 85, 0.5);
-  border-color: rgba(71, 85, 105, 0.6);
-}
-
-[data-theme='dark'] .editor-option:hover {
-  background: rgba(71, 85, 105, 0.6);
-  border-color: var(--color-accent, #3b82f6);
-}
 </style>
 

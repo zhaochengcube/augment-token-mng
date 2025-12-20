@@ -143,6 +143,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from 'vue-i18n'
+import { useSettingsStore } from '../../stores/settings'
 
 // Props
 const props = defineProps({
@@ -157,6 +158,9 @@ const emit = defineEmits(['close', 'config-saved', 'config-deleted'])
 
 // i18n
 const { t } = useI18n()
+
+// Settings store
+const settingsStore = useSettingsStore()
 
 // Reactive data
 const config = ref({
@@ -194,7 +198,10 @@ const canSave = computed(() => {
 const loadConfig = async () => {
   isLoading.value = true
   try {
-    const loadedConfig = await invoke('load_database_config')
+    // 从store加载配置,强制刷新以获取最新数据
+    await settingsStore.loadDatabaseConfig(true)
+    const loadedConfig = settingsStore.databaseConfig
+
     if (loadedConfig && loadedConfig.enabled) {
       config.value = {
         host: loadedConfig.host || 'localhost',
@@ -242,7 +249,7 @@ const testConnection = async () => {
 
 const saveConfig = async () => {
   isSaving.value = true
-  
+
   try {
     await invoke('save_database_config', {
       host: config.value.host,
@@ -252,7 +259,10 @@ const saveConfig = async () => {
       password: config.value.password,
       ssl_mode: config.value.sslMode
     })
-    
+
+    // 保存成功后刷新store中的配置
+    await settingsStore.loadDatabaseConfig(true)
+
     window.$notify.success(t('databaseConfig.messages.saveSuccess'))
     emit('config-saved')
     emit('close')
@@ -270,10 +280,13 @@ const deleteConfig = () => {
 const confirmDeleteConfig = async () => {
   showConfirmDelete.value = false
   isDeleting.value = true
-  
+
   try {
     await invoke('delete_database_config')
-    
+
+    // 删除成功后刷新store中的配置
+    await settingsStore.loadDatabaseConfig(true)
+
     window.$notify.success(t('databaseConfig.messages.deleteSuccess'))
     emit('config-deleted')
     emit('close')
@@ -295,6 +308,7 @@ watch(config, () => {
 
 // Lifecycle
 onMounted(() => {
+  // 从store加载配置,如果store中已有数据则不会重复请求
   loadConfig()
 })
 </script>

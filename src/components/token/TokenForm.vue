@@ -11,6 +11,16 @@
           <!-- Tab Navigation (只在添加模式显示) -->
           <div v-if="!isEditing" class="tab-navigation">
             <button
+              :class="['tab-btn', { active: activeTab === 'oauth' }]"
+              @click="activeTab = 'oauth'"
+              type="button"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" />
+              </svg>
+              {{ $t('tokenForm.oauthTab') }}
+            </button>
+            <button
               :class="['tab-btn', { active: activeTab === 'manual' }]"
               @click="activeTab = 'manual'"
               type="button"
@@ -26,7 +36,7 @@
               type="button"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+                <path d="M20 6h-2.18c.11-.31.18-.65.18-1 0-1.66-1.34-3-3-3-1.05 0-1.96.54-2.5 1.35l-.5.67-.5-.68C10.96 2.54 10.05 2 9 2 7.34 2 6 3.34 6 5c0 .35.07.69.18 1H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-5-2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM9 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm11 15H4v-2h16v2zm0-5H4V8h5.08L7 10.83 8.62 12 11 8.76l1-1.36 1 1.36L15.38 12 17 10.83 14.92 8H20v6z"/>
               </svg>
               {{ $t('tokenForm.sessionTab') }}
             </button>
@@ -171,6 +181,144 @@
             </div>
           </form>
 
+          <!-- OAuth Tab -->
+          <div v-if="activeTab === 'oauth'" class="tab-content oauth-tab">
+            <!-- Step 1: Generate Authorization URL -->
+            <div class="oauth-section">
+              <h3>{{ $t('tokenGenerator.step1') }}</h3>
+              <p class="section-description">{{ $t('tokenForm.oauthStep1Desc') }}</p>
+              <button
+                type="button"
+                @click="generateAuthUrl"
+                :class="['btn', 'primary', { loading: isGeneratingAuth }]"
+                :disabled="isGeneratingAuth"
+              >
+                {{ $t('tokenGenerator.generateUrl') }}
+              </button>
+
+              <div v-if="oauthData.authUrl" class="url-section">
+                <label>{{ $t('tokenGenerator.authUrlLabel') }}</label>
+                <div class="input-with-copy">
+                  <input type="text" :value="oauthData.authUrl" readonly class="readonly-input">
+                  <button type="button" @click="copyAuthUrl" class="copy-icon-btn" :title="$t('tokenGenerator.copyUrl')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                    </svg>
+                  </button>
+                </div>
+                <div class="button-container">
+                  <button type="button" @click="openAuthUrl" class="btn secondary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
+                    </svg>
+                    {{ $t('tokenGenerator.openAuthUrl') }}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 2: Input Authorization Code -->
+            <div v-if="oauthData.authUrl" class="oauth-section">
+              <h3>{{ $t('tokenGenerator.step2') }}</h3>
+              <p class="section-description">{{ $t('tokenForm.oauthStep2Desc') }}</p>
+              <textarea
+                v-model="oauthData.authCode"
+                :placeholder="$t('tokenGenerator.authCodePlaceholder')"
+                rows="4"
+                :disabled="isGettingToken"
+              ></textarea>
+              <div class="button-container">
+                <button
+                  type="button"
+                  @click="getAccessToken"
+                  :class="['btn', 'primary', { loading: isGettingToken }]"
+                  :disabled="!canGetToken || isGettingToken"
+                >
+                  {{ $t('tokenGenerator.getToken') }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Step 3: Token Result and Save -->
+            <div v-if="oauthData.tokenResult" class="oauth-section">
+              <h3>{{ $t('tokenGenerator.step3') }}</h3>
+              <p class="section-description">{{ $t('tokenForm.oauthStep3Desc') }}</p>
+
+              <div class="token-result">
+                <div class="result-item">
+                  <label>{{ $t('tokenForm.accessToken') }}</label>
+                  <div class="input-with-copy">
+                    <input type="text" :value="oauthData.tokenResult.access_token" readonly class="readonly-input">
+                    <button type="button" @click="copyAccessToken" class="copy-icon-btn">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="result-item">
+                  <label>{{ $t('tokenForm.tenantUrl') }}</label>
+                  <input type="text" :value="oauthData.tokenResult.tenant_url" readonly class="readonly-input">
+                </div>
+
+                <!-- Optional Fields -->
+                <div class="form-group">
+                  <label for="oauth-portalUrl">{{ $t('tokenForm.portalUrl') }} ({{ $t('tokenForm.optional') }})</label>
+                  <input
+                    id="oauth-portalUrl"
+                    v-model="oauthData.portalUrl"
+                    type="url"
+                    :placeholder="$t('tokenForm.portalUrlPlaceholder')"
+                  >
+                </div>
+
+                <div class="form-group">
+                  <label for="oauth-emailNote">{{ $t('tokenForm.emailNote') }} ({{ $t('tokenForm.optional') }})</label>
+                  <input
+                    id="oauth-emailNote"
+                    v-model="oauthData.emailNote"
+                    type="text"
+                    :placeholder="$t('tokenForm.emailNotePlaceholder')"
+                  >
+                </div>
+
+                <div class="form-group tag-group">
+                  <label for="oauth-tagName">{{ $t('tokenForm.tagLabel') }} ({{ $t('tokenForm.optional') }})</label>
+                  <div class="tag-input-row">
+                    <div class="tag-autocomplete-wrapper">
+                      <input
+                        id="oauth-tagName"
+                        v-model="oauthData.tagName"
+                        type="text"
+                        class="tag-name-input"
+                        :placeholder="$t('tokenForm.tagPlaceholder')"
+                      >
+                    </div>
+                    <input
+                      type="color"
+                      v-model="oauthData.tagColor"
+                      class="tag-color-input"
+                      :title="$t('tokenForm.tagColor')"
+                    >
+                  </div>
+                </div>
+              </div>
+
+              <div class="button-container">
+                <button type="button" @click="saveOAuthToken" class="btn primary">
+                  {{ $t('tokenForm.saveToken') }}
+                </button>
+                <button type="button" @click="resetOAuthForm" class="btn secondary">
+                  {{ $t('tokenForm.reset') }}
+                </button>
+                <button type="button" @click="handleCancel" class="btn secondary">
+                  {{ $t('tokenForm.cancel') }}
+                </button>
+              </div>
+            </div>
+          </div>
+
           <!-- Session Import Tab -->
           <div v-else-if="activeTab === 'session'" class="tab-content">
             <div class="session-section">
@@ -276,7 +424,20 @@ const errors = ref({
 const isLoading = ref(false)
 
 // Tab state
-const activeTab = ref(props.token ? 'manual' : 'session')
+const activeTab = ref(props.token ? 'manual' : 'oauth')
+
+// OAuth data
+const oauthData = ref({
+  authUrl: '',
+  authCode: '',
+  tokenResult: null,
+  portalUrl: '',
+  emailNote: '',
+  tagName: '',
+  tagColor: defaultTagColor
+})
+const isGeneratingAuth = ref(false)
+const isGettingToken = ref(false)
 
 // Session import data
 const sessionInput = ref('')
@@ -335,6 +496,11 @@ const filteredTagSuggestions = computed(() => {
   return existingTags.value.filter(tag =>
     tag.name.toLowerCase().includes(input)
   )
+})
+
+// OAuth computed properties
+const canGetToken = computed(() => {
+  return oauthData.value.authUrl && oauthData.value.authCode.trim().length > 0
 })
 
 // Watch for token prop changes (for editing)
@@ -452,6 +618,92 @@ const handleSubmit = async () => {
 const handleCancel = () => {
   emit('close')
 }
+
+// ========== OAuth Methods ==========
+const generateAuthUrl = async () => {
+  isGeneratingAuth.value = true
+  try {
+    const url = await invoke('generate_augment_auth_url')
+    oauthData.value.authUrl = url
+  } catch (error) {
+    console.error('Failed to generate auth URL:', error)
+    // TODO: Show error message
+  } finally {
+    isGeneratingAuth.value = false
+  }
+}
+
+const copyAuthUrl = async () => {
+  try {
+    await navigator.clipboard.writeText(oauthData.value.authUrl)
+    // TODO: Show success message
+  } catch (error) {
+    console.error('Failed to copy auth URL:', error)
+  }
+}
+
+const openAuthUrl = () => {
+  if (oauthData.value.authUrl) {
+    window.open(oauthData.value.authUrl, '_blank')
+  }
+}
+
+const getAccessToken = async () => {
+  isGettingToken.value = true
+  try {
+    const result = await invoke('get_augment_token', { code: oauthData.value.authCode })
+    oauthData.value.tokenResult = result
+    // Auto-fill email if returned
+    if (result.email) {
+      oauthData.value.emailNote = result.email
+    }
+  } catch (error) {
+    console.error('Failed to get access token:', error)
+    // TODO: Show error message
+  } finally {
+    isGettingToken.value = false
+  }
+}
+
+const copyAccessToken = async () => {
+  try {
+    await navigator.clipboard.writeText(oauthData.value.tokenResult.access_token)
+    // TODO: Show success message
+  } catch (error) {
+    console.error('Failed to copy access token:', error)
+  }
+}
+
+const saveOAuthToken = async () => {
+  if (!oauthData.value.tokenResult) return
+
+  const tagName = oauthData.value.tagName ? oauthData.value.tagName.trim() : ''
+  const tokenData = {
+    tenantUrl: oauthData.value.tokenResult.tenant_url,
+    accessToken: oauthData.value.tokenResult.access_token,
+    portalUrl: oauthData.value.portalUrl.trim(),
+    emailNote: oauthData.value.emailNote.trim(),
+    tagName: tagName,
+    tagColor: tagName ? oauthData.value.tagColor : null
+  }
+
+  emit('add-token', tokenData)
+  resetOAuthForm()
+  emit('close')
+}
+
+const resetOAuthForm = () => {
+  oauthData.value = {
+    authUrl: '',
+    authCode: '',
+    tokenResult: null,
+    portalUrl: '',
+    emailNote: '',
+    tagName: '',
+    tagColor: defaultTagColor
+  }
+}
+// ========== OAuth Methods End ==========
 
 const openTagColorPicker = () => {
   if (isLoading.value) {
@@ -689,7 +941,7 @@ onUnmounted(() => {
 }
 
 .modal-content {
-  background: var(--color-surface, #ffffff);
+  background: var(--bg-surface);
   border-radius: 12px;
   width: 100%;
   max-width: 500px;
@@ -703,15 +955,15 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  border-bottom: 1px solid var(--color-divider, #e1e5e9);
-  background: var(--color-surface-muted, #f8f9fa);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-muted);
 }
 
 .modal-header h2 {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  color: var(--color-text-heading, #333);
+  color: var(--text-strong);
 }
 
 .close-btn {
@@ -749,7 +1001,7 @@ onUnmounted(() => {
   display: block;
   margin-bottom: 6px;
   font-weight: 500;
-  color: var(--color-text-heading, #333);
+  color: var(--text-strong);
   font-size: 14px;
 }
 
@@ -757,25 +1009,26 @@ onUnmounted(() => {
 .form-group textarea {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid var(--color-btn-secondary-border, #ddd);
+  border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 14px;
   transition: border-color 0.2s;
   box-sizing: border-box;
-  background: var(--color-surface, #ffffff);
+  background: var(--bg-surface);
+  color: var(--text);
 }
 
 .form-group input:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: var(--color-accent, #3b82f6);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .form-group input:disabled,
 .form-group textarea:disabled {
-  background: var(--color-btn-tertiary-bg, #f5f5f5);
-  color: var(--color-text-muted, #666);
+  background: var(--bg-muted);
+  color: var(--text-muted);
   cursor: not-allowed;
 }
 
@@ -807,7 +1060,7 @@ onUnmounted(() => {
   transform: translateY(-50%);
   background: none;
   border: none;
-  color: var(--color-text-muted, #666);
+  color: var(--text-muted);
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
@@ -822,8 +1075,8 @@ onUnmounted(() => {
 }
 
 .tag-clear-btn:hover {
-  background: var(--color-surface-hover, #f3f4f6);
-  color: var(--color-text-heading, #333);
+  background: var(--bg-hover);
+  color: var(--text);
 }
 
 .tag-clear-btn:disabled {
@@ -836,8 +1089,8 @@ onUnmounted(() => {
   top: calc(100% + 4px);
   left: 0;
   right: 0;
-  background: var(--color-surface, #ffffff);
-  border: 1px solid var(--color-border-strong, #d1d5db);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   max-height: 200px;
@@ -855,28 +1108,28 @@ onUnmounted(() => {
 }
 
 .tag-suggestion-item:hover {
-  background: var(--color-surface-hover, #f3f4f6);
+  background: var(--bg-hover);
 }
 
 .tag-suggestion-item.selected {
-  background: var(--color-accent, #3b82f6);
+  background: var(--accent);
 }
 
 .tag-suggestion-item.selected .tag-suggestion-name {
-  color: #ffffff;
+  color: var(--text-contrast);
 }
 
 .tag-preview {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  border: 1px solid var(--color-border-strong, #d1d5db);
+  border: 1px solid var(--border);
   flex-shrink: 0;
 }
 
 .tag-suggestion-name {
   font-size: 14px;
-  color: var(--color-text-primary, #374151);
+  color: var(--text);
 }
 
 .tag-color-wrapper {
@@ -888,7 +1141,7 @@ onUnmounted(() => {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  border: 1px solid var(--color-border-strong, #d1d5db);
+  border: 1px solid var(--border);
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   padding: 0;
@@ -936,7 +1189,7 @@ onUnmounted(() => {
 }
 
 .error-message {
-  color: var(--color-danger-bg, #dc3545);
+  color: #dc2626;
   font-size: 12px;
   margin-top: 4px;
 }
@@ -947,7 +1200,7 @@ onUnmounted(() => {
   justify-content: flex-end;
   margin-top: 16px;
   padding-top: 16px;
-  border-top: 1px solid var(--color-divider, #e1e5e9);
+  border-top: 1px solid var(--border);
 }
 
 .btn {
@@ -1011,7 +1264,7 @@ onUnmounted(() => {
   justify-content: center;
   margin-bottom: 16px;
   padding-bottom: 12px;
-  border-bottom: 1px solid var(--color-divider, #e1e5e9);
+  border-bottom: 1px solid var(--border);
 }
 
 .tab-btn {
@@ -1025,9 +1278,9 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: var(--color-surface-hover, #f3f4f6);
-  color: var(--color-text-primary, #374151);
-  border: 1px solid var(--color-border-strong, #d1d5db);
+  background: var(--bg-muted);
+  color: var(--text);
+  border: 1px solid var(--border);
 }
 
 .tab-btn svg {
@@ -1036,19 +1289,19 @@ onUnmounted(() => {
 }
 
 .tab-btn:hover {
-  background: var(--color-border, #e5e7eb);
-  border-color: var(--color-border-hover, #9ca3af);
+  background: var(--bg-hover);
+  border-color: var(--accent);
 }
 
 .tab-btn.active {
-  background: var(--color-blue-soft-bg, #e3f2fd);
-  color: var(--color-blue-soft-text, #1976d2);
-  border: 1px solid var(--color-blue-soft-border, #90caf9);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 .tab-btn.active:hover {
-  background: var(--color-blue-soft-bg, #bbdefb);
-  border-color: var(--color-blue-soft-hover, #64b5f6);
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  border-color: var(--accent);
 }
 
 .tab-btn svg {
@@ -1087,25 +1340,26 @@ onUnmounted(() => {
   margin: 0;
   font-size: 15px;
   font-weight: 600;
-  color: var(--color-text-primary, #374151);
+  color: var(--text-strong);
 }
 
 .section-description {
   margin: 4px 0 12px 0;
   font-size: 13px;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--text-muted);
   line-height: 1.4;
 }
 
 .session-textarea {
   width: 100%;
   padding: 10px;
-  border: 1px solid var(--color-border-strong, #d1d5db);
+  border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 13px;
   font-family: monospace;
   resize: vertical;
-  background: var(--color-surface, #ffffff);
+  background: var(--bg-surface);
+  color: var(--text);
   min-height: 100px;
   margin-bottom: 12px;
   box-sizing: border-box;
@@ -1113,13 +1367,13 @@ onUnmounted(() => {
 
 .session-textarea:focus {
   outline: none;
-  border-color: var(--color-accent, #3b82f6);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .session-textarea:disabled {
-  background: var(--color-btn-tertiary-bg, #f5f5f5);
-  color: var(--color-text-muted, #666);
+  background: var(--bg-muted);
+  color: var(--text-muted);
   cursor: not-allowed;
 }
 
@@ -1136,16 +1390,16 @@ onUnmounted(() => {
   gap: 12px;
   padding: 16px;
   margin-top: 12px;
-  background: var(--color-surface-hover, #f8f9fa);
+  background: var(--bg-muted);
   border-radius: 8px;
-  border: 1px solid var(--color-border, #e5e7eb);
+  border: 1px solid var(--border);
 }
 
 .session-spinner {
   width: 20px;
   height: 20px;
-  border: 2px solid var(--color-border, #e5e7eb);
-  border-top-color: var(--color-accent, #3b82f6);
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   flex-shrink: 0;
@@ -1153,30 +1407,100 @@ onUnmounted(() => {
 
 .session-loading span {
   font-size: 14px;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--text-muted);
 }
 
-/* Dark theme support for tabs */
-[data-theme='dark'] .tab-btn {
-  background: rgba(148, 163, 184, 0.2);
-  color: #cbd5e1;
-  border: 1px solid rgba(148, 163, 184, 0.4);
+/* OAuth Tab Styles */
+.oauth-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
-[data-theme='dark'] .tab-btn:hover {
-  background: rgba(148, 163, 184, 0.3);
-  border-color: rgba(148, 163, 184, 0.6);
+.oauth-section {
+  padding: 20px;
+  background: var(--bg-muted);
+  border-radius: 8px;
+  border: 1px solid var(--border);
 }
 
-[data-theme='dark'] .tab-btn.active {
-  background: rgba(59, 130, 246, 0.2);
-  color: #93c5fd;
-  border: 1px solid rgba(147, 197, 253, 0.4);
+.oauth-section h3 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-strong);
 }
 
-[data-theme='dark'] .tab-btn.active:hover {
-  background: rgba(59, 130, 246, 0.3);
-  border-color: rgba(96, 165, 250, 0.6);
+.oauth-section .section-description {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.url-section {
+  margin-top: 16px;
+}
+
+.url-section label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.input-with-copy {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.readonly-input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  font-size: 14px;
+  font-family: monospace;
+}
+
+.copy-icon-btn {
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.copy-icon-btn:hover {
+  background: var(--bg-muted);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.token-result {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.result-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.result-item label {
+  font-weight: 500;
+  color: var(--text);
+  font-size: 14px;
 }
 
 </style>

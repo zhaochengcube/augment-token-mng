@@ -2,12 +2,14 @@ export default {
   common: {
     close: '关闭',
     cancel: '取消',
-    confirm: '确认'
+    confirm: '确认',
+    back: '返回'
   },
   app: {
     title: 'Augment Token Manager',
     appHome: 'App主页',
     pluginHome: '插件主页',
+    telegramGroup: 'ATM群聊',
     viewTokens: '查看Token',
     bookmarkManager: '书签管理',
     outlookManager: '邮箱管理',
@@ -17,9 +19,42 @@ export default {
     switchToDark: '切换到夜间模式',
     switchToEnglish: '切换到英文',
     switchToChinese: '切换到中文',
+    lightMode: '浅色模式',
+    darkMode: '深色模式',
     settings: '设置',
+    moreOptions: '更多选项',
     checkForUpdates: '检查更新',
     lockGPTMail: '锁定GPT邮箱管理器'
+  },
+  platforms: {
+    title: '选择平台',
+    description: '选择你要管理帐号的平台',
+    ready: '可用',
+    comingSoon: '即将推出'
+  },
+  bookmarks: {
+    pageDescription: '管理你的书签和常用链接',
+    placeholder: '书签管理',
+    placeholderDesc: '此功能将在后续阶段实现'
+  },
+  emails: {
+    title: '邮箱管理',
+    description: '管理Outlook和GPT邮箱',
+    placeholder: '邮箱管理',
+    placeholderDesc: '此功能将在后续阶段实现'
+  },
+  settings: {
+    description: '应用设置和配置',
+    placeholder: '设置',
+    placeholderDesc: '此功能将在后续阶段实现',
+    externalLinks: '外部链接',
+    about: '关于',
+    version: '版本',
+    author: '作者',
+    repository: '仓库',
+    links: '相关链接',
+    viewDetails: '查看详情',
+    configure: '配置'
   },
   update: {
     newVersionAvailable: '新版本可用',
@@ -38,6 +73,7 @@ export default {
   },
   bookmarkManager: {
     title: '书签管理',
+    description: '管理你的常用网站和链接',
     openDataFolder: '打开数据存储文件夹',
     addBookmark: '添加书签',
     editBookmark: '编辑书签',
@@ -50,6 +86,7 @@ export default {
       url: '网址',
       description: '描述（可选）',
       save: '保存',
+      update: '更新',
       cancel: '取消'
     },
     messages: {
@@ -95,6 +132,10 @@ export default {
   },
   databaseConfig: {
     title: '数据库配置',
+    location: '存储位置',
+    localSqlite: '本地 SQLite',
+    connected: '已连接',
+    notConfigured: '未配置',
     host: '主机地址',
     port: '端口',
     database: '数据库名',
@@ -154,11 +195,15 @@ export default {
     }
   },
   pagination: {
-    showing: '第 {start}-{end} 条,共 {total} 条',
+    showing: '显示',
+    of: '共',
     page: '第 {current} 页 / 共 {total} 条',
     pageSize: '每页显示',
+    perPage: '每页',
     prev: '上一页',
     next: '下一页',
+    first: '首页',
+    last: '末页',
     goToPage: '跳转'
   },
   tokenList: {
@@ -272,7 +317,7 @@ export default {
     tableHeaderStatus: '状态',
     tableHeaderEmail: '邮箱',
     tableHeaderBalance: '剩余次数',
-    tableHeaderExpiry: '过期时间',
+    tableHeaderResetTime: '重置时间',
     tableHeaderActions: '操作',
     // 标签编辑
     clickToEditTag: '点击编辑标签',
@@ -297,8 +342,9 @@ export default {
     active: '正常',
     inactive: '失效',
     expired: '已过期',
-    expiry: '过期',
+    resetTime: '重置时间',
     balance: '剩余',
+    noEmailNote: '无邮箱备注',
     copyEmailNote: '复制邮箱备注',
     selectEditor: '选择编辑器',
     copyMenu: '复制',
@@ -338,7 +384,7 @@ export default {
     accessTokenPlaceholder: '请输入访问令牌...',
     portalUrl: 'Portal URL',
     portalUrlPlaceholder: 'https://portal.example.com/',
-    portalUrlHelp: '用于查看账户余额和过期时间',
+    portalUrlHelp: '用于查看账户余额和重置时间',
     emailNote: '邮箱备注',
     emailNotePlaceholder: '请输入邮箱相关备注',
     emailNoteHelp: '用于记录与此Token相关的邮箱信息',
@@ -351,12 +397,19 @@ export default {
     save: '保存',
     update: '更新',
     cancel: '取消',
+    reset: '重置',
+    saveToken: '保存Token',
+    oauthTab: 'OAuth 授权',
     manualTab: '手动输入',
     sessionTab: 'Session 导入',
     sessionImportTitle: '从 Session 导入',
     sessionImportDescription: '粘贴你的 Augment Session 来自动提取 Token 信息',
     sessionPlaceholder: '请粘贴 Session 字符串...',
-    importSession: '导入'
+    importSession: '导入',
+    oauthStep1Desc: '点击按钮生成授权链接',
+    oauthStep2Desc: '在浏览器中完成授权后，将授权码粘贴到下方',
+    oauthStep3Desc: 'Token获取成功！填写可选信息后保存',
+    tagColor: '标签颜色'
   },
   tokenGenerator: {
     title: '生成Augment Token',
@@ -600,6 +653,9 @@ export default {
   },
   proxyConfig: {
     title: '代理设置',
+    status: '状态',
+    disabled: '未启用',
+    enabled: '已启用',
     enableProxy: '启用代理',
     proxyType: '代理类型',
     host: '代理服务器',
@@ -727,5 +783,21 @@ export default {
     healthCheck: '健康检查',
     importSingleSession: '导入单个Session',
     importMultipleSessions: '批量导入Sessions'
+  },
+  navigation: {
+    platforms: '平台选择',
+    bookmarks: '书签管理',
+    emails: '邮箱管理',
+    settings: '设置'
+  },
+  platform: {
+    augment: {
+      title: 'Augment Token 管理',
+      subtitle: '管理你的 Augment 访问令牌'
+    },
+    windsurf: {
+      title: 'Windsurf Token 管理',
+      subtitle: '管理你的 Windsurf 访问令牌'
+    }
   }
 }

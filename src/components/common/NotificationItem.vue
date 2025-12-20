@@ -92,8 +92,8 @@ const handleMouseLeave = () => {
   max-width: 480px;
   padding: 16px;
   border-radius: 8px;
-  background: var(--color-surface, #ffffff);
-  border: 1px solid var(--color-border, #e5e7eb);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   overflow: hidden;
   pointer-events: auto;
@@ -153,7 +153,7 @@ const handleMouseLeave = () => {
 .notification-message {
   font-size: 14px;
   line-height: 1.5;
-  color: var(--color-text-primary, #374151);
+  color: var(--text);
   word-wrap: break-word;
 }
 
@@ -167,15 +167,15 @@ const handleMouseLeave = () => {
   height: 24px;
   border: none;
   background: none;
-  color: var(--color-text-muted, #9ca3af);
+  color: var(--text-muted);
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .notification-close:hover {
-  background: var(--color-surface-hover, #f3f4f6);
-  color: var(--color-text-primary, #374151);
+  background: var(--bg-hover);
+  color: var(--text);
 }
 
 /* 进度条 */
@@ -202,30 +202,6 @@ const handleMouseLeave = () => {
   to {
     width: 0%;
   }
-}
-
-/* 深色主题 */
-[data-theme='dark'] .notification-item {
-  background: var(--color-surface, #1f2937);
-  border-color: var(--color-border, #374151);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-[data-theme='dark'] .notification-item:hover {
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-}
-
-[data-theme='dark'] .notification-message {
-  color: var(--color-text-primary, #f9fafb);
-}
-
-[data-theme='dark'] .notification-close {
-  color: var(--color-text-muted, #9ca3af);
-}
-
-[data-theme='dark'] .notification-close:hover {
-  background: var(--color-surface-hover, #374151);
-  color: var(--color-text-primary, #f9fafb);
 }
 
 /* 响应式设计 */

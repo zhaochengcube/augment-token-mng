@@ -130,8 +130,8 @@ const copyCommand = async (command) => {
   left: 20px;
   max-width: 350px;
   width: auto;
-  background: var(--color-surface, #ffffff);
-  border: 1px solid var(--color-border, #e5e7eb);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 12px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
   z-index: 999;
@@ -169,15 +169,15 @@ const copyCommand = async (command) => {
   cursor: pointer;
   padding: 2px;
   border-radius: 4px;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--text-muted);
   transition: all 0.2s;
   margin-left: auto;
   flex-shrink: 0;
 }
 
 .close-btn:hover {
-  background: var(--color-surface-hover, #f3f4f6);
-  color: var(--color-text-primary, #374151);
+  background: var(--bg-hover);
+  color: var(--text);
 }
 
 .update-header {
@@ -192,11 +192,11 @@ const copyCommand = async (command) => {
 }
 
 .update-header:hover {
-  background: var(--color-surface-hover, #f3f4f6);
+  background: var(--bg-hover);
 }
 
 .update-icon {
-  color: var(--color-primary, #3b82f6);
+  color: var(--accent);
   flex-shrink: 0;
 }
 
@@ -204,7 +204,7 @@ const copyCommand = async (command) => {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
-  color: var(--color-text-primary, #374151);
+  color: var(--text);
   flex: 1;
   white-space: nowrap;
 }
@@ -231,7 +231,7 @@ const copyCommand = async (command) => {
   gap: 8px;
   margin-bottom: 20px;
   padding: 12px;
-  background: var(--color-surface-secondary, #f9fafb);
+  background: var(--bg-muted);
   border-radius: 8px;
 }
 
@@ -243,25 +243,25 @@ const copyCommand = async (command) => {
 
 .version-label {
   font-size: 14px;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--text-muted);
 }
 
 .version-value {
   font-size: 14px;
   font-weight: 600;
-  color: var(--color-text-primary, #374151);
+  color: var(--text);
   font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
 }
 
 .version-value.highlight {
-  color: var(--color-primary, #3b82f6);
+  color: var(--accent);
 }
 
 .install-methods h4 {
   margin: 0 0 12px 0;
   font-size: 14px;
   font-weight: 600;
-  color: var(--color-text-primary, #374151);
+  color: var(--text);
 }
 
 .method-item {
@@ -275,7 +275,7 @@ const copyCommand = async (command) => {
 .method-label {
   display: block;
   font-size: 12px;
-  color: var(--color-text-muted, #9ca3af);
+  color: var(--text-muted);
   margin-bottom: 6px;
   font-weight: 500;
 }
@@ -286,9 +286,9 @@ const copyCommand = async (command) => {
   gap: 8px;
   width: 100%;
   padding: 10px 14px;
-  background: var(--color-blue-soft-bg, #e3f2fd);
-  color: var(--color-blue-soft-text, #1976d2);
-  border: 1px solid var(--color-blue-soft-border, #90caf9);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent-strong);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
   border-radius: 6px;
   font-size: 14px;
   font-weight: 500;
@@ -297,10 +297,10 @@ const copyCommand = async (command) => {
 }
 
 .method-btn:hover {
-  background: var(--color-blue-soft-bg, #bbdefb);
-  border-color: var(--color-blue-soft-hover, #64b5f6);
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
   transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(25, 118, 210, 0.4);
+  box-shadow: 0 2px 4px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
 .command-box {
@@ -308,15 +308,15 @@ const copyCommand = async (command) => {
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  background: var(--color-surface-secondary, #f3f4f6);
-  border: 1px solid var(--color-border, #e5e7eb);
+  background: var(--bg-muted);
+  border: 1px solid var(--border);
   border-radius: 6px;
 }
 
 .command-box code {
   font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
   font-size: 13px;
-  color: var(--color-text-primary, #374151);
+  color: var(--text);
   flex: 1;
 }
 
@@ -326,50 +326,15 @@ const copyCommand = async (command) => {
   cursor: pointer;
   padding: 4px;
   border-radius: 4px;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--text-muted);
   transition: all 0.2s;
   flex-shrink: 0;
 }
 
 .copy-btn:hover {
-  background: var(--color-surface-hover, #e5e7eb);
-  color: var(--color-text-primary, #374151);
+  background: var(--bg-hover);
+  color: var(--text);
 }
 
-/* Dark mode */
-[data-theme='dark'] .update-banner {
-  background: var(--color-surface, #1e293b);
-  border-color: rgba(148, 163, 184, 0.2);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-}
-
-[data-theme='dark'] .update-header:hover {
-  background: rgba(148, 163, 184, 0.05);
-}
-
-[data-theme='dark'] .close-btn:hover {
-  background: rgba(148, 163, 184, 0.1);
-}
-
-[data-theme='dark'] .version-info {
-  background: rgba(148, 163, 184, 0.05);
-}
-
-[data-theme='dark'] .command-box {
-  background: #0f172a;
-}
-
-[data-theme='dark'] .method-btn {
-  background: rgba(59, 130, 246, 0.2);
-  color: #93c5fd;
-  border: 1px solid rgba(147, 197, 253, 0.4);
-}
-
-[data-theme='dark'] .method-btn:hover {
-  background: rgba(59, 130, 246, 0.3);
-  border-color: rgba(96, 165, 250, 0.6);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.4);
-}
 </style>
 
