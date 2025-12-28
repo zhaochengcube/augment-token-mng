@@ -47,7 +47,7 @@ async-trait = "0.1"
 quick-xml = { version = "0.38.3", features = ["serialize"] }
 arboard = "3"
 # Antigravity 功能依赖
-rusqlite = "0.32"
+rusqlite = { version = "0.32", features = ["bundled"] }
 sysinfo = "0.32"
 
 [dev-dependencies]
