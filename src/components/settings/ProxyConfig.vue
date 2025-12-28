@@ -3,7 +3,7 @@
     <div class="modal-content proxy-config-modal">
       <div class="modal-header">
         <h3>{{ $t('proxyConfig.title') }}</h3>
-        <button @click="$emit('close')" class="close-btn" :title="$t('common.close')">×</button>
+        <button @click="$emit('close')" class="modal-close" :title="$t('common.close')">×</button>
       </div>
       
       <div class="modal-body">
@@ -392,28 +392,9 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-}
-
-.modal-content {
-  background: var(--color-surface, #ffffff);
-  border-radius: 12px;
-  max-width: 90vw;
-  max-height: 95vh;
-  overflow: hidden;
-  position: relative;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-}
+/* ============================================
+   ProxyConfig - Modern Tech Style
+   ============================================ */
 
 .proxy-config-modal {
   max-width: 600px;
@@ -422,112 +403,23 @@ onMounted(() => {
   flex-direction: column;
 }
 
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--color-border, #e5e7eb);
-  background: var(--color-surface-alt, #f9fafb);
-  border-radius: 12px 12px 0 0;
-  flex-shrink: 0;
-}
-
-.modal-header h3 {
-  margin: 0;
-  color: var(--color-text-primary, #374151);
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  color: var(--color-text-muted, #6b7280);
-  padding: 0;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  transition: all 0.2s;
-}
-
-.close-btn:hover {
-  background: var(--color-border, #e5e7eb);
-  color: var(--color-text-primary, #374151);
-}
-
-.modal-body {
-  padding: 24px;
+.proxy-config-modal .modal-body {
+  padding: 26px;
   overflow-y: auto;
   flex: 1;
-  background: var(--color-surface, #ffffff);
+  background: transparent;
 }
 
 .config-form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 22px;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-}
-
-.form-group label {
-  font-weight: 500;
-  color: var(--color-text-primary, #374151);
-  font-size: 14px;
-}
-
-.form-group input[type="text"],
-.form-group input[type="number"],
-.form-group input[type="password"],
-.form-group select {
-  padding: 10px 12px;
-  border: 1px solid var(--color-border, #e5e7eb);
-  border-radius: 6px;
-  font-size: 14px;
-  background: var(--color-surface, #ffffff);
-  color: var(--color-text-primary, #374151);
-  transition: all 0.2s;
-}
-
-.form-group select {
-  padding-right: 36px;
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23374151' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  background-size: 12px;
-  cursor: pointer;
-}
-
-.form-group select:disabled {
-  cursor: not-allowed;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
-}
-
-.form-group input:focus,
-.form-group select:focus {
-  outline: none;
-  border-color: var(--color-primary, #3b82f6);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.form-group input:disabled,
-.form-group select:disabled {
-  background: var(--color-surface-alt, #f9fafb);
-  color: var(--color-text-muted, #6b7280);
-  cursor: not-allowed;
+  gap: 10px;
 }
 
 .checkbox-group {
@@ -539,7 +431,7 @@ onMounted(() => {
   align-items: center;
   cursor: pointer;
   font-weight: 500;
-  color: var(--color-text-primary, #374151);
+  color: var(--text);
 }
 
 .checkbox-group input[type="checkbox"] {
@@ -547,6 +439,7 @@ onMounted(() => {
   width: 18px;
   height: 18px;
   cursor: pointer;
+  accent-color: var(--accent);
 }
 
 .checkbox-group input[type="checkbox"]:disabled {
@@ -555,32 +448,34 @@ onMounted(() => {
 
 .help-text {
   display: block;
-  margin-top: 4px;
+  margin-top: 6px;
   font-size: 12px;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--text-muted);
   font-style: italic;
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 .optional {
   font-size: 12px;
-  color: var(--color-text-muted, #9ca3af);
+  color: var(--text-muted);
   font-weight: normal;
+  opacity: 0.7;
 }
 
+/* 底部按钮区 */
 .modal-footer {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   justify-content: flex-end;
   align-items: center;
-  padding: 16px 24px;
-  border-top: 1px solid var(--color-border, #e5e7eb);
-  background: var(--color-surface-alt, #f9fafb);
+  padding: 18px 26px;
+  border-top: 1px solid var(--tech-glass-border);
+  background: color-mix(in srgb, var(--bg-muted) 30%, transparent);
 }
 
 .footer-left {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   align-items: flex-start;
   margin-right: auto;
 }
@@ -589,259 +484,101 @@ onMounted(() => {
   margin-right: 0;
 }
 
+/* 延迟徽章 - 科技风 */
 .latency-badge {
-  padding: 6px 12px;
-  border-radius: 6px;
+  padding: 7px 14px;
+  border-radius: 10px;
   font-size: 13px;
   font-weight: 600;
+  font-family: var(--tech-mono-font);
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   white-space: nowrap;
-  transition: all 0.2s;
-}
-
-.status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background-color: currentColor;
-  display: inline-block;
-  flex-shrink: 0;
+  transition: all 0.2s ease;
 }
 
 .latency-badge.excellent {
-  background: #d1fae5;
-  color: #065f46;
-  border: 1px solid #a7f3d0;
+  background: color-mix(in srgb, #10b981 15%, transparent);
+  color: #10b981;
+  border: 1px solid color-mix(in srgb, #10b981 30%, transparent);
 }
 
 .latency-badge.good {
-  background: #dbeafe;
-  color: #1e40af;
-  border: 1px solid #93c5fd;
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 .latency-badge.fair {
-  background: #fef3c7;
-  color: #92400e;
-  border: 1px solid #fcd34d;
+  background: color-mix(in srgb, #f59e0b 15%, transparent);
+  color: #f59e0b;
+  border: 1px solid color-mix(in srgb, #f59e0b 30%, transparent);
 }
 
 .latency-badge.poor {
-  background: #fee2e2;
-  color: #991b1b;
-  border: 1px solid #fca5a5;
+  background: color-mix(in srgb, #ef4444 15%, transparent);
+  color: #ef4444;
+  border: 1px solid color-mix(in srgb, #ef4444 30%, transparent);
 }
 
 .latency-badge.failed {
-  background: #f3f4f6;
-  color: #6b7280;
-  border: 1px solid #d1d5db;
+  background: color-mix(in srgb, var(--text-muted) 15%, transparent);
+  color: var(--text-muted);
+  border: 1px solid var(--tech-glass-border);
 }
 
+/* Footer button sizing */
 .modal-footer .btn {
   min-width: 100px;
-  padding: 10px 16px;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  border: 1px solid transparent;
 }
 
-.modal-footer .btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.modal-footer .btn.primary {
-  background: var(--color-primary, #3b82f6);
-  color: white;
-}
-
-.modal-footer .btn.primary:hover:not(:disabled) {
-  background: var(--color-primary-dark, #2563eb);
-}
-
-.modal-footer .btn.secondary {
-  background: var(--color-surface, #ffffff);
-  color: var(--color-text-primary, #374151);
-  border-color: var(--color-border, #e5e7eb);
-}
-
-.modal-footer .btn.secondary:hover:not(:disabled) {
-  background: var(--color-surface-alt, #f9fafb);
-}
-
-.modal-footer .btn.danger {
-  background: #ef4444;
-  color: white;
-}
-
-.modal-footer .btn.danger:hover:not(:disabled) {
-  background: #dc2626;
-}
-
-.modal-footer .btn.loading {
-  opacity: 0.7;
-  pointer-events: none;
-}
-
+/* 确认对话框 - 科技风 */
 .confirm-dialog-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.65);
   display: flex;
   align-items: center;
   justify-content: center;
+  backdrop-filter: blur(4px);
   z-index: 3000;
 }
 
 .confirm-dialog {
-  background: var(--color-surface, #ffffff);
-  border-radius: 12px;
-  padding: 24px;
+  background: var(--tech-glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 16px;
+  padding: 26px;
   max-width: 400px;
   width: 90%;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35), var(--tech-border-glow);
 }
 
 .confirm-dialog h3 {
-  margin: 0 0 12px 0;
-  color: var(--color-text-primary, #374151);
+  margin: 0 0 14px 0;
+  color: var(--text-strong);
   font-size: 18px;
   font-weight: 600;
 }
 
 .confirm-dialog p {
-  margin: 0 0 20px 0;
-  color: var(--color-text-secondary, #6b7280);
+  margin: 0 0 22px 0;
+  color: var(--text-muted);
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 .confirm-dialog-buttons {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   justify-content: flex-end;
 }
 
-/* Dark theme support */
-[data-theme='dark'] .modal-content {
-  background: var(--color-surface, #1f2937);
-}
-
-[data-theme='dark'] .modal-header {
-  background: var(--color-surface-alt, #111827);
-  border-bottom-color: var(--color-border, #374151);
-}
-
-[data-theme='dark'] .modal-header h3 {
-  color: var(--color-text-primary, #f9fafb);
-}
-
-[data-theme='dark'] .close-btn {
-  color: var(--color-text-muted, #9ca3af);
-}
-
-[data-theme='dark'] .close-btn:hover {
-  background: var(--color-border, #374151);
-  color: var(--color-text-primary, #f9fafb);
-}
-
-[data-theme='dark'] .modal-body {
-  background: var(--color-surface, #1f2937);
-}
-
-[data-theme='dark'] .modal-footer {
-  background: var(--color-surface-alt, #111827);
-  border-top-color: var(--color-border, #374151);
-}
-
-[data-theme='dark'] .form-group label {
-  color: var(--color-text-primary, #f9fafb);
-}
-
-[data-theme='dark'] .form-group input {
-  background: var(--color-surface, #1f2937);
-  color: var(--color-text-primary, #f9fafb);
-  border-color: var(--color-border, #374151);
-}
-
-[data-theme='dark'] .form-group select {
-  background-color: var(--color-surface, #1f2937);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23f9fafb' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  background-size: 12px;
-  color: var(--color-text-primary, #f9fafb);
-  border-color: var(--color-border, #374151);
-}
-
-[data-theme='dark'] .form-group input:disabled {
-  background: var(--color-surface-alt, #111827);
-  color: var(--color-text-muted, #9ca3af);
-}
-
-[data-theme='dark'] .form-group select:disabled {
-  background-color: var(--color-surface-alt, #111827);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239ca3af' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  background-size: 12px;
-  color: var(--color-text-muted, #9ca3af);
-}
-
-[data-theme='dark'] .confirm-dialog {
-  background: var(--color-surface, #1f2937);
-}
-
-[data-theme='dark'] .confirm-dialog h3 {
-  color: var(--color-text-primary, #f9fafb);
-}
-
-[data-theme='dark'] .confirm-dialog p {
-  color: var(--color-text-secondary, #9ca3af);
-}
-
-/* Dark theme latency badge styles */
-[data-theme='dark'] .latency-badge.excellent {
-  background: rgba(16, 185, 129, 0.2);
-  color: #6ee7b7;
-  border-color: rgba(110, 231, 183, 0.4);
-}
-
-[data-theme='dark'] .latency-badge.good {
-  background: rgba(59, 130, 246, 0.2);
-  color: #93c5fd;
-  border-color: rgba(147, 197, 253, 0.4);
-}
-
-[data-theme='dark'] .latency-badge.fair {
-  background: rgba(245, 158, 11, 0.2);
-  color: #fbbf24;
-  border-color: rgba(251, 191, 36, 0.4);
-}
-
-[data-theme='dark'] .latency-badge.poor {
-  background: rgba(239, 68, 68, 0.2);
-  color: #fca5a5;
-  border-color: rgba(252, 165, 165, 0.4);
-}
-
-[data-theme='dark'] .latency-badge.failed {
-  background: rgba(107, 114, 128, 0.2);
-  color: #9ca3af;
-  border-color: rgba(156, 163, 175, 0.4);
-}
+/* 暗黑模式样式已通过 CSS 变量自动适配 */
 </style>
-

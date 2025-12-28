@@ -3,7 +3,7 @@
     <div class="modal-content api-server-modal">
       <div class="modal-header">
         <h2>{{ $t('apiServer.title') }}</h2>
-        <button @click="$emit('close')" class="close-btn" :aria-label="$t('common.close')">
+        <button @click="$emit('close')" class="modal-close" :aria-label="$t('common.close')">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -90,7 +90,7 @@
             v-else
             @click="stopServer"
             :disabled="isLoading"
-            class="btn danger"
+            class="btn primary"
           >
             {{ isLoading ? $t('apiServer.stopping') : $t('apiServer.stopServer') }}
           </button>
@@ -226,197 +226,143 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-}
-
-.modal-content {
-  background: var(--color-surface, #ffffff);
-  border-radius: 12px;
-  max-width: 90vw;
-  max-height: 95vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-}
+/* ============================================
+   ApiServerStatus - Modern Tech Style
+   ============================================ */
 
 .api-server-modal {
-  width: 600px;
+  width: 620px;
   max-width: 90vw;
 }
 
-.modal-header {
+.api-server-modal.modal-content {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--color-border, #e5e7eb);
-  background: var(--color-surface-alt, #f9fafb);
-  border-radius: 12px 12px 0 0;
-  flex-shrink: 0;
+  flex-direction: column;
 }
 
-.modal-header h2 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--color-text-heading, #333);
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px;
-  color: var(--color-text-muted, #666);
-  transition: color 0.2s;
-}
-
-.close-btn:hover {
-  color: var(--color-text-primary, #333);
-}
-
-.modal-body {
-  padding: 24px;
+.api-server-modal .modal-body {
+  padding: 26px;
   overflow-y: auto;
   flex: 1;
-  background: var(--color-surface, #ffffff);
 }
 
 .status-section {
-  margin-bottom: 24px;
+  margin-bottom: 26px;
 }
 
 .status-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 14px;
+  margin-bottom: 18px;
 }
 
 .label {
-  font-weight: 500;
-  color: var(--color-text-primary, #374151);
+  font-weight: 600;
+  color: var(--text);
 }
 
+/* 状态指示器 - 科技风 */
 .status-indicator {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  border-radius: 6px;
-  background: var(--color-surface-muted, #f3f4f6);
-  color: var(--color-text-muted, #6b7280);
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  border: 1px solid var(--tech-glass-border);
+  color: var(--text-muted);
   font-size: 14px;
 }
 
 .status-indicator.running {
-  background: var(--color-success-surface, #d1fae5);
-  color: var(--color-success-text, #065f46);
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--color-text-muted, #9ca3af);
-}
-
-.status-indicator.running .status-dot {
-  background: var(--color-success, #10b981);
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  background: color-mix(in srgb, #10b981 12%, transparent);
+  border-color: color-mix(in srgb, #10b981 35%, transparent);
+  color: #10b981;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);
 }
 
 .info-rows {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .info-row {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   font-size: 14px;
 }
 
 .value {
-  font-family: monospace;
-  color: var(--color-text-primary, #374151);
+  font-family: var(--tech-mono-font);
+  color: var(--text);
 }
 
 .endpoints-section,
 .examples-section {
-  margin-bottom: 24px;
+  margin-bottom: 26px;
 }
 
 .endpoints-section h3,
 .examples-section h3 {
-  margin: 0 0 12px 0;
+  margin: 0 0 14px 0;
   font-size: 16px;
   font-weight: 600;
-  color: var(--color-text-heading, #333);
+  color: var(--text-strong);
 }
 
 .endpoint-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
+/* 端点项 - 科技风 */
 .endpoint-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
-  background: var(--color-surface-muted, #f8f9fa);
-  border-radius: 6px;
+  gap: 14px;
+  padding: 10px 14px;
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 10px;
   font-size: 14px;
 }
 
+/* 方法标签 - 科技风 */
 .method {
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-weight: 600;
-  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 11px;
   text-transform: uppercase;
 }
 
 .method.get {
-  background: var(--color-blue-soft-bg, #dbeafe);
-  color: var(--color-blue-soft-text, #1e40af);
+  background: color-mix(in srgb, #3b82f6 15%, transparent);
+  color: #3b82f6;
+  border: 1px solid color-mix(in srgb, #3b82f6 30%, transparent);
 }
 
 .method.post {
-  background: var(--color-success-surface, #d1fae5);
-  color: var(--color-success-text, #065f46);
+  background: color-mix(in srgb, #10b981 15%, transparent);
+  color: #10b981;
+  border: 1px solid color-mix(in srgb, #10b981 30%, transparent);
 }
 
 .path {
-  font-family: monospace;
-  color: var(--color-text-primary, #374151);
+  font-family: var(--tech-mono-font);
+  color: var(--text);
 }
 
+/* 代码示例框 - 科技风 */
 .example-box {
   position: relative;
-  background: var(--color-surface-muted, #f8f9fa);
-  border: 1px solid var(--color-divider, #e1e5e9);
-  border-radius: 8px;
-  padding: 16px;
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 12px;
+  padding: 18px;
 }
 
 .example-box pre {
@@ -425,45 +371,49 @@ onMounted(() => {
 }
 
 .example-box code {
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-family: var(--tech-mono-font);
   font-size: 13px;
   line-height: 1.6;
-  color: var(--color-text-primary, #374151);
+  color: var(--text);
 }
 
+/* 复制按钮 - 科技风 */
 .copy-btn {
   position: absolute;
-  top: 12px;
-  right: 12px;
+  top: 14px;
+  right: 14px;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background: var(--color-surface, #ffffff);
-  border: 1px solid var(--color-divider, #e1e5e9);
-  border-radius: 6px;
+  gap: 8px;
+  padding: 8px 14px;
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 8px;
   cursor: pointer;
   font-size: 13px;
-  color: var(--color-text-primary, #374151);
-  transition: all 0.2s;
+  color: var(--text);
+  transition: all 0.2s ease;
 }
 
 .copy-btn:hover {
-  background: var(--color-blue-soft-bg, #dbeafe);
-  border-color: var(--color-blue-soft-hover, #93c5fd);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
+/* 自动启动区域 - 科技风 */
 .auto-start-section {
-  margin-bottom: 24px;
-  padding: 12px;
-  background: var(--color-surface-muted, #f8f9fa);
-  border-radius: 8px;
+  margin-bottom: 26px;
+  padding: 14px;
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 12px;
 }
 
 .checkbox-label {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   cursor: pointer;
   user-select: none;
 }
@@ -472,165 +422,38 @@ onMounted(() => {
   width: 18px;
   height: 18px;
   cursor: pointer;
+  accent-color: var(--accent);
 }
 
 .control-buttons {
   display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 14px;
+  margin-bottom: 18px;
 }
 
-.btn {
-  flex: 1;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn.primary {
-  background: var(--color-btn-primary-bg, #3b82f6);
-  color: var(--color-btn-primary-text, #ffffff);
-}
-
-.btn.primary:hover:not(:disabled) {
-  background: var(--color-btn-primary-hover, #2563eb);
-}
-
-.btn.danger {
-  background: var(--color-danger, #ef4444);
-  color: #ffffff;
-}
-
-.btn.danger:hover:not(:disabled) {
-  background: var(--color-danger-hover, #dc2626);
-}
-
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
+/* 状态消息 - 科技风 */
 .status-message {
-  padding: 12px;
-  border-radius: 6px;
+  padding: 14px;
+  border-radius: 10px;
   font-size: 14px;
   text-align: center;
 }
 
 .status-message.success {
-  background: var(--color-success-surface, #d1fae5);
-  color: var(--color-success-text, #065f46);
+  background: color-mix(in srgb, #10b981 12%, transparent);
+  color: #10b981;
+  border: 1px solid color-mix(in srgb, #10b981 35%, transparent);
 }
 
 .status-message.error {
-  background: var(--color-danger-surface, #fee2e2);
-  color: var(--color-danger-text, #991b1b);
+  background: color-mix(in srgb, #ef4444 12%, transparent);
+  color: #ef4444;
+  border: 1px solid color-mix(in srgb, #ef4444 35%, transparent);
 }
 
 .status-message.info {
-  background: var(--color-blue-soft-bg, #dbeafe);
-  color: var(--color-blue-soft-text, #1e40af);
-}
-
-/* Dark theme support */
-[data-theme='dark'] .modal-content {
-  background: var(--color-surface, #1f2937);
-}
-
-[data-theme='dark'] .modal-header {
-  background: var(--color-surface-alt, #111827);
-  border-bottom-color: var(--color-border, #374151);
-}
-
-[data-theme='dark'] .modal-header h2 {
-  color: var(--color-text-heading, #f9fafb);
-}
-
-[data-theme='dark'] .close-btn {
-  color: var(--color-text-muted, #9ca3af);
-}
-
-[data-theme='dark'] .close-btn:hover {
-  background: var(--color-border, #374151);
-  color: var(--color-text-primary, #f9fafb);
-}
-
-[data-theme='dark'] .modal-body {
-  background: var(--color-surface, #1f2937);
-}
-
-[data-theme='dark'] .label {
-  color: var(--color-text-primary, #f9fafb);
-}
-
-[data-theme='dark'] .value {
-  color: var(--color-text-primary, #f9fafb);
-}
-
-[data-theme='dark'] .status-indicator {
-  background: var(--color-surface-alt, #111827);
-  color: var(--color-text-muted, #9ca3af);
-}
-
-[data-theme='dark'] .status-indicator.running {
-  background: rgba(16, 185, 129, 0.2);
-  color: #6ee7b7;
-}
-
-[data-theme='dark'] .endpoints-section h3,
-[data-theme='dark'] .examples-section h3 {
-  color: var(--color-text-heading, #f9fafb);
-}
-
-[data-theme='dark'] .endpoint-item {
-  background: var(--color-surface-alt, #111827);
-}
-
-[data-theme='dark'] .path {
-  color: var(--color-text-primary, #f9fafb);
-}
-
-[data-theme='dark'] .example-box {
-  background: var(--color-surface-alt, #111827);
-  border-color: var(--color-border, #374151);
-}
-
-[data-theme='dark'] .example-box code {
-  color: var(--color-text-primary, #f9fafb);
-}
-
-[data-theme='dark'] .copy-btn {
-  background: var(--color-surface, #1f2937);
-  border-color: var(--color-border, #374151);
-  color: var(--color-text-primary, #f9fafb);
-}
-
-[data-theme='dark'] .copy-btn:hover {
-  background: var(--color-surface-alt, #111827);
-  border-color: var(--color-border, #4b5563);
-}
-
-[data-theme='dark'] .auto-start-section {
-  background: var(--color-surface-alt, #111827);
-}
-
-[data-theme='dark'] .status-message.success {
-  background: rgba(16, 185, 129, 0.2);
-  color: #6ee7b7;
-}
-
-[data-theme='dark'] .status-message.error {
-  background: rgba(239, 68, 68, 0.2);
-  color: #fca5a5;
-}
-
-[data-theme='dark'] .status-message.info {
-  background: rgba(59, 130, 246, 0.2);
-  color: #93c5fd;
+  background: color-mix(in srgb, #3b82f6 12%, transparent);
+  color: #3b82f6;
+  border: 1px solid color-mix(in srgb, #3b82f6 35%, transparent);
 }
 </style>
-

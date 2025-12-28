@@ -163,3 +163,69 @@ impl BookmarkManager {
         Ok(storage.bookmarks)
     }
 }
+
+// Bookmark management commands
+#[tauri::command]
+pub async fn add_bookmark(
+    name: String,
+    url: String,
+    description: Option<String>,
+    category: String,
+    app: tauri::AppHandle,
+) -> Result<String, String> {
+    let bookmark_manager = BookmarkManager::new(&app)
+        .map_err(|e| format!("Failed to initialize bookmark manager: {}", e))?;
+
+    bookmark_manager.add_bookmark(name, url, description, category)
+        .map_err(|e| format!("Failed to add bookmark: {}", e))
+}
+
+#[tauri::command]
+pub async fn update_bookmark(
+    id: String,
+    name: String,
+    url: String,
+    description: Option<String>,
+    app: tauri::AppHandle,
+) -> Result<bool, String> {
+    let bookmark_manager = BookmarkManager::new(&app)
+        .map_err(|e| format!("Failed to initialize bookmark manager: {}", e))?;
+
+    bookmark_manager.update_bookmark(&id, name, url, description)
+        .map_err(|e| format!("Failed to update bookmark: {}", e))
+}
+
+#[tauri::command]
+pub async fn delete_bookmark(
+    id: String,
+    app: tauri::AppHandle,
+) -> Result<bool, String> {
+    let bookmark_manager = BookmarkManager::new(&app)
+        .map_err(|e| format!("Failed to initialize bookmark manager: {}", e))?;
+
+    bookmark_manager.remove_bookmark(&id)
+        .map_err(|e| format!("Failed to delete bookmark: {}", e))
+}
+
+#[tauri::command]
+pub async fn get_bookmarks(
+    category: String,
+    app: tauri::AppHandle,
+) -> Result<Vec<Bookmark>, String> {
+    let bookmark_manager = BookmarkManager::new(&app)
+        .map_err(|e| format!("Failed to initialize bookmark manager: {}", e))?;
+
+    bookmark_manager.get_bookmarks_by_category(&category)
+        .map_err(|e| format!("Failed to get bookmarks: {}", e))
+}
+
+#[tauri::command]
+pub async fn get_all_bookmarks(
+    app: tauri::AppHandle,
+) -> Result<Vec<Bookmark>, String> {
+    let bookmark_manager = BookmarkManager::new(&app)
+        .map_err(|e| format!("Failed to initialize bookmark manager: {}", e))?;
+
+    bookmark_manager.get_all_bookmarks()
+        .map_err(|e| format!("Failed to get all bookmarks: {}", e))
+}

@@ -4,6 +4,8 @@ use imap::Session;
 use native_tls::TlsStream;
 use std::net::TcpStream;
 use crate::http_client;
+use tauri::State;
+use crate::AppState;
 
 // XOAUTH2 认证器
 struct XOAuth2 {
@@ -88,6 +90,96 @@ struct TokenResponse {
 // 简化的邮件管理器
 pub struct OutlookManager {
     credentials: HashMap<String, OutlookCredentials>,
+}
+
+// Outlook 邮箱管理命令
+#[tauri::command]
+pub async fn outlook_save_credentials(
+    email: String,
+    refresh_token: String,
+    client_id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let credentials = OutlookCredentials {
+        email,
+        refresh_token,
+        client_id,
+        created_at: chrono::Utc::now(),
+    };
+
+    let mut manager = state.outlook_manager.lock().unwrap();
+    manager.save_credentials(credentials)
+}
+
+#[tauri::command]
+pub async fn outlook_get_all_accounts(
+    state: State<'_, AppState>,
+) -> Result<Vec<String>, String> {
+    let manager = state.outlook_manager.lock().unwrap();
+    manager.get_all_accounts()
+}
+
+#[tauri::command]
+pub async fn outlook_get_all_accounts_info(
+    state: State<'_, AppState>,
+) -> Result<Vec<AccountInfo>, String> {
+    let manager = state.outlook_manager.lock().unwrap();
+    manager.get_all_accounts_info()
+}
+
+#[tauri::command]
+pub async fn outlook_delete_account(
+    email: String,
+    state: State<'_, AppState>,
+) -> Result<bool, String> {
+    let mut manager = state.outlook_manager.lock().unwrap();
+    manager.delete_account(&email)
+}
+
+#[tauri::command]
+pub async fn outlook_check_account_status(
+    email: String,
+    state: State<'_, AppState>,
+) -> Result<AccountStatus, String> {
+    let credentials = {
+        let manager = state.outlook_manager.lock().unwrap();
+        manager.get_credentials(&email)?
+    };
+
+    let temp_manager = OutlookManager::new();
+    temp_manager.check_account_status_with_credentials(&credentials).await
+}
+
+#[tauri::command]
+pub async fn outlook_get_emails(
+    email: String,
+    folder: String,
+    page: i32,
+    page_size: i32,
+    state: State<'_, AppState>,
+) -> Result<EmailListResponse, String> {
+    let credentials = {
+        let manager = state.outlook_manager.lock().unwrap();
+        manager.get_credentials(&email)?
+    };
+
+    let temp_manager = OutlookManager::new();
+    temp_manager.get_emails_with_credentials(&credentials, &folder, page, page_size).await
+}
+
+#[tauri::command]
+pub async fn outlook_get_email_details(
+    email: String,
+    message_id: String,
+    state: State<'_, AppState>,
+) -> Result<EmailDetailsResponse, String> {
+    let credentials = {
+        let manager = state.outlook_manager.lock().unwrap();
+        manager.get_credentials(&email)?
+    };
+
+    let temp_manager = OutlookManager::new();
+    temp_manager.get_email_details_with_credentials(&credentials, &message_id).await
 }
 
 impl OutlookManager {

@@ -28,8 +28,8 @@ impl TokenStorage for PostgreSQLStorage {
         // 因此在 UPDATE 时显式设置 updated_at，触发器会被这个值覆盖
         client.execute(
             r#"
-            INSERT INTO tokens (id, tenant_url, access_token, created_at, updated_at, portal_url, email_note, tag_name, tag_color, ban_status, portal_info, auth_session, suspensions, balance_color_mode, skip_check)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+            INSERT INTO tokens (id, tenant_url, access_token, created_at, updated_at, portal_url, email_note, tag_name, tag_color, ban_status, portal_info, auth_session, suspensions, balance_color_mode, skip_check, session_updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
             ON CONFLICT (id) DO UPDATE SET
                 tenant_url = EXCLUDED.tenant_url,
                 access_token = EXCLUDED.access_token,
@@ -43,7 +43,8 @@ impl TokenStorage for PostgreSQLStorage {
                 auth_session = EXCLUDED.auth_session,
                 suspensions = EXCLUDED.suspensions,
                 balance_color_mode = EXCLUDED.balance_color_mode,
-                skip_check = EXCLUDED.skip_check
+                skip_check = EXCLUDED.skip_check,
+                session_updated_at = EXCLUDED.session_updated_at
             "#,
             &[
                 &token.id,
@@ -61,6 +62,7 @@ impl TokenStorage for PostgreSQLStorage {
                 &token.suspensions,
                 &token.balance_color_mode,
                 &token.skip_check,
+                &token.session_updated_at,
             ],
         ).await?;
 
@@ -72,7 +74,7 @@ impl TokenStorage for PostgreSQLStorage {
         let client = pool.get().await?;
 
         let rows = client.query(
-            "SELECT id, tenant_url, access_token, created_at, updated_at, portal_url, email_note, tag_name, tag_color, ban_status, portal_info, auth_session, suspensions, balance_color_mode, skip_check, COALESCE(version, 0) as version FROM tokens WHERE deleted IS NOT TRUE ORDER BY created_at DESC",
+            "SELECT id, tenant_url, access_token, created_at, updated_at, portal_url, email_note, tag_name, tag_color, ban_status, portal_info, auth_session, suspensions, balance_color_mode, skip_check, session_updated_at, COALESCE(version, 0) as version FROM tokens WHERE deleted IS NOT TRUE ORDER BY created_at DESC",
             &[],
         ).await?;
 
@@ -94,7 +96,8 @@ impl TokenStorage for PostgreSQLStorage {
                 suspensions: row.get(12),
                 balance_color_mode: row.get(13),
                 skip_check: row.get(14),
-                version: row.get(15),
+                session_updated_at: row.get(15),
+                version: row.get(16),
             };
             tokens.push(token);
         }
@@ -123,7 +126,8 @@ impl TokenStorage for PostgreSQLStorage {
                 auth_session = $11,
                 suspensions = $12,
                 balance_color_mode = $13,
-                skip_check = $14
+                skip_check = $14,
+                session_updated_at = $15
             WHERE id = $1
             "#,
             &[
@@ -141,6 +145,7 @@ impl TokenStorage for PostgreSQLStorage {
                 &token.suspensions,
                 &token.balance_color_mode,
                 &token.skip_check,
+                &token.session_updated_at,
             ],
         ).await?;
 
@@ -162,7 +167,7 @@ impl TokenStorage for PostgreSQLStorage {
         let client = pool.get().await?;
 
         let rows = client.query(
-            "SELECT id, tenant_url, access_token, created_at, updated_at, portal_url, email_note, tag_name, tag_color, ban_status, portal_info, auth_session, suspensions, balance_color_mode, skip_check, COALESCE(version, 0) as version FROM tokens WHERE id = $1 AND deleted IS NOT TRUE",
+            "SELECT id, tenant_url, access_token, created_at, updated_at, portal_url, email_note, tag_name, tag_color, ban_status, portal_info, auth_session, suspensions, balance_color_mode, skip_check, session_updated_at, COALESCE(version, 0) as version FROM tokens WHERE id = $1 AND deleted IS NOT TRUE",
             &[&token_id],
         ).await?;
 
@@ -183,7 +188,8 @@ impl TokenStorage for PostgreSQLStorage {
                 suspensions: row.get(12),
                 balance_color_mode: row.get(13),
                 skip_check: row.get(14),
-                version: row.get(15),
+                session_updated_at: row.get(15),
+                version: row.get(16),
             };
             Ok(Some(token))
         } else {
@@ -223,7 +229,7 @@ impl PostgreSQLStorage {
 
         // 使用 LOWER() 进行不区分大小写的比较
         let rows = client.query(
-            "SELECT id, tenant_url, access_token, created_at, updated_at, portal_url, email_note, tag_name, tag_color, ban_status, portal_info, auth_session, suspensions, balance_color_mode, skip_check, COALESCE(version, 0) as version FROM tokens WHERE LOWER(TRIM(email_note)) = LOWER($1) AND id != $2 AND deleted IS NOT TRUE",
+            "SELECT id, tenant_url, access_token, created_at, updated_at, portal_url, email_note, tag_name, tag_color, ban_status, portal_info, auth_session, suspensions, balance_color_mode, skip_check, session_updated_at, COALESCE(version, 0) as version FROM tokens WHERE LOWER(TRIM(email_note)) = LOWER($1) AND id != $2 AND deleted IS NOT TRUE",
             &[&email, &exclude_token_id],
         ).await?;
 
@@ -245,7 +251,8 @@ impl PostgreSQLStorage {
                 suspensions: row.get(12),
                 balance_color_mode: row.get(13),
                 skip_check: row.get(14),
-                version: row.get(15),
+                session_updated_at: row.get(15),
+                version: row.get(16),
             };
             tokens.push(token);
         }
@@ -277,7 +284,7 @@ impl PostgreSQLStorage {
         let client = pool.get().await?;
 
         let rows = client.query(
-            "SELECT id, tenant_url, access_token, created_at, updated_at, portal_url, email_note, tag_name, tag_color, ban_status, portal_info, auth_session, suspensions, balance_color_mode, skip_check, version FROM tokens WHERE version > $1 AND deleted IS NOT TRUE ORDER BY version",
+            "SELECT id, tenant_url, access_token, created_at, updated_at, portal_url, email_note, tag_name, tag_color, ban_status, portal_info, auth_session, suspensions, balance_color_mode, skip_check, session_updated_at, version FROM tokens WHERE version > $1 AND deleted IS NOT TRUE ORDER BY version",
             &[&since_version],
         ).await?;
 
@@ -299,7 +306,8 @@ impl PostgreSQLStorage {
                 suspensions: row.get(12),
                 balance_color_mode: row.get(13),
                 skip_check: row.get(14),
-                version: row.get(15),
+                session_updated_at: row.get(15),
+                version: row.get(16),
             };
             tokens.push(token);
         }
@@ -354,8 +362,8 @@ impl PostgreSQLStorage {
 
         client.execute(
             r#"
-            INSERT INTO tokens (id, tenant_url, access_token, created_at, updated_at, portal_url, email_note, tag_name, tag_color, ban_status, portal_info, auth_session, suspensions, balance_color_mode, skip_check, deleted, version)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+            INSERT INTO tokens (id, tenant_url, access_token, created_at, updated_at, portal_url, email_note, tag_name, tag_color, ban_status, portal_info, auth_session, suspensions, balance_color_mode, skip_check, session_updated_at, deleted, version)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
             ON CONFLICT (id) DO UPDATE SET
                 tenant_url = EXCLUDED.tenant_url,
                 access_token = EXCLUDED.access_token,
@@ -370,6 +378,7 @@ impl PostgreSQLStorage {
                 suspensions = EXCLUDED.suspensions,
                 balance_color_mode = EXCLUDED.balance_color_mode,
                 skip_check = EXCLUDED.skip_check,
+                session_updated_at = EXCLUDED.session_updated_at,
                 deleted = FALSE,
                 version = EXCLUDED.version
             "#,
@@ -389,6 +398,7 @@ impl PostgreSQLStorage {
                 &token.suspensions,
                 &token.balance_color_mode,
                 &token.skip_check,
+                &token.session_updated_at,
                 &deleted,
                 &new_version,
             ],

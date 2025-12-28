@@ -1,10 +1,13 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tokio::sync::{oneshot, Semaphore};
 use warp::{Filter, Reply, Rejection};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use tauri::Emitter;
 use crate::storage::{TokenData, TokenStorage};
+use crate::features::mail::outlook::OutlookManager;
+use crate::AppState;
+use tauri::State;
 
 // ==================== 数据结构定义 ====================
 
@@ -71,6 +74,67 @@ pub struct ApiServerStatus {
     pub running: bool,
     pub port: Option<u16>,
     pub address: Option<String>,
+}
+
+// API 服务器管理命令
+#[tauri::command]
+pub async fn get_api_server_status(state: State<'_, AppState>) -> Result<ApiServerStatus, String> {
+    let server_guard = state.api_server.lock().unwrap();
+
+    if let Some(server) = server_guard.as_ref() {
+        let port = server.get_port();
+        Ok(ApiServerStatus {
+            running: true,
+            port: Some(port),
+            address: Some(format!("http://127.0.0.1:{}", port)),
+        })
+    } else {
+        Ok(ApiServerStatus {
+            running: false,
+            port: None,
+            address: None,
+        })
+    }
+}
+
+#[tauri::command]
+pub async fn start_api_server_cmd(state: State<'_, AppState>) -> Result<(), String> {
+    {
+        let server_guard = state.api_server.lock().unwrap();
+        if server_guard.is_some() {
+            return Err("API server is already running".to_string());
+        }
+    }
+
+    let server = start_api_server(
+        Arc::new(AppState {
+            augment_oauth_state: Mutex::new(None),
+            api_server: Mutex::new(None),
+            outlook_manager: Mutex::new(OutlookManager::new()),
+            storage_manager: state.storage_manager.clone(),
+            database_manager: state.database_manager.clone(),
+            app_session_cache: state.app_session_cache.clone(),
+            app_handle: state.app_handle.clone(),
+        }),
+        8766,
+    ).await?;
+
+    *state.api_server.lock().unwrap() = Some(server);
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn stop_api_server(state: State<'_, AppState>) -> Result<(), String> {
+    let mut server_guard = state.api_server.lock().unwrap();
+
+    if let Some(mut server) = server_guard.take() {
+        server.shutdown();
+        println!("🛑 API Server stopped");
+        Ok(())
+    } else {
+        Err("API server is not running".to_string())
+    }
 }
 
 /// 简化导入响应
@@ -172,7 +236,7 @@ async fn import_session_handler(
     }
 
     // 调用内部函数导入
-    match crate::add_token_from_session_internal_with_cache(&request.session, &state).await {
+    match crate::platforms::augment::oauth::add_token_from_session_internal_with_cache(&request.session, &state).await {
         Ok(response) => {
             // 检查重复 email（与前端逻辑保持一致）
             if let Some(ref email_note) = response.email {
@@ -218,12 +282,13 @@ async fn import_session_handler(
             let id = Uuid::new_v4().to_string();
 
             // 构造 TokenData（与前端逻辑保持一致）
+            let now = chrono::Utc::now();
             let token_data = TokenData {
                 id,
                 tenant_url: response.tenant_url.clone(),
                 access_token: response.access_token.clone(),
-                created_at: chrono::Utc::now(),
-                updated_at: chrono::Utc::now(),
+                created_at: now,
+                updated_at: now,
                 portal_url: None,  // Session 导入不再获取 portal_url
                 email_note: response.email.clone(),
                 tag_name: None,
@@ -234,6 +299,7 @@ async fn import_session_handler(
                 suspensions: None,  // Session 导入不再获取 suspensions
                 balance_color_mode: None,
                 skip_check: Some(false),  // 与前端保持一致，默认不跳过检测
+                session_updated_at: Some(now),  // 设置 session 初始更新时间
                 version: 0,  // 本地创建时版本号为0，由数据库分配
             };
 
@@ -365,7 +431,7 @@ async fn import_sessions_handler(
             }
 
             // 导入 session
-            match crate::add_token_from_session_internal_with_cache(&session, &state).await {
+            match crate::platforms::augment::oauth::add_token_from_session_internal_with_cache(&session, &state).await {
                 Ok(response) => {
                     // 检查重复 email（与前端逻辑保持一致）
                     if let Some(ref email_note) = response.email {
@@ -408,12 +474,13 @@ async fn import_sessions_handler(
                     // 使用 UUID 生成唯一 ID（与前端逻辑保持一致）
                     let id = Uuid::new_v4().to_string();
 
+                    let now = chrono::Utc::now();
                     let token_data = TokenData {
                         id,
                         tenant_url: response.tenant_url.clone(),
                         access_token: response.access_token.clone(),
-                        created_at: chrono::Utc::now(),
-                        updated_at: chrono::Utc::now(),
+                        created_at: now,
+                        updated_at: now,
                         portal_url: None,  // Session 导入不再获取 portal_url
                         email_note: response.email.clone(),
                         tag_name: None,
@@ -424,6 +491,7 @@ async fn import_sessions_handler(
                         suspensions: None,  // Session 导入不再获取 suspensions
                         balance_color_mode: None,
                         skip_check: Some(false),  // 与前端保持一致，默认不跳过检测
+                        session_updated_at: Some(now),  // 设置 session 初始更新时间
                         version: 0,  // 本地创建时版本号为0，由数据库分配
                     };
 
@@ -648,4 +716,3 @@ async fn handle_rejection(err: Rejection) -> Result<impl Reply, Rejection> {
         ))
     }
 }
-

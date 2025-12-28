@@ -3,7 +3,7 @@
     <div class="modal-content email-viewer" @click.stop>
       <div class="modal-header">
         <h3>{{ $t('emailViewer.title') }} - {{ email }}</h3>
-        <button @click="$emit('close')" class="close-btn">×</button>
+        <button @click="$emit('close')" class="modal-close">×</button>
       </div>
 
       <div class="modal-body">
@@ -21,7 +21,7 @@
             <button
               @click="previousPage"
               :disabled="currentPage <= 1 || isLoading"
-              class="btn secondary small"
+              class="btn primary small"
             >
               {{ $t('emailViewer.previousPage') }}
             </button>
@@ -31,7 +31,7 @@
             <button
               @click="nextPage"
               :disabled="currentPage >= totalPages || isLoading"
-              class="btn secondary small"
+              class="btn primary small"
             >
               {{ $t('emailViewer.nextPage') }}
             </button>
@@ -233,118 +233,70 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-}
-
-.modal-content {
-  background: var(--color-surface, #ffffff);
-  border-radius: 12px;
-  max-width: 90vw;
-  max-height: 95vh;
-  overflow-y: auto;
-  position: relative;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--color-border, #e5e7eb);
-  background: var(--color-surface-alt, #f9fafb);
-  border-radius: 12px 12px 0 0;
-}
-
-.modal-header h3 {
-  margin: 0;
-  color: var(--color-text-primary, #374151);
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  color: var(--color-text-muted, #6b7280);
-  padding: 0;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  transition: all 0.2s;
-}
-
-.close-btn:hover {
-  background: var(--color-border, #e5e7eb);
-  color: var(--color-text-primary, #374151);
-}
+/* ============================================
+   EmailViewer - Modern Tech Style
+   ============================================ */
 
 .email-viewer {
   width: 95vw;
-  max-width: 1000px;
+  max-width: 1020px;
   max-height: 90vh;
 }
 
-.modal-body {
-  padding: 20px;
-  overflow-y: auto;
-}
-
+/* 控制区域 - 科技风 */
 .controls-section {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding: 16px;
-  background: var(--color-surface-muted, #f8f9fa);
-  border-radius: 8px;
+  margin-bottom: 22px;
+  padding: 18px;
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 14px;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 14px;
 }
 
 .folder-selector {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .folder-selector label {
-  font-weight: 500;
-  color: var(--color-text-primary, #374151);
+  font-weight: 600;
+  color: var(--text);
 }
 
+/* 下拉选择 - 科技风 */
 .folder-select {
-  padding: 6px 12px;
-  border: 1px solid var(--color-border-strong, #d1d5db);
-  border-radius: 4px;
+  padding: 8px 14px;
+  border: 1px solid var(--tech-glass-border);
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  color: var(--text);
+  border-radius: 10px;
   font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.folder-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent),
+              0 0 12px var(--tech-glow-primary);
 }
 
 .page-controls {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
 .page-info {
   font-size: 14px;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--text-muted);
   white-space: nowrap;
+  font-family: var(--tech-mono-font);
 }
 
 .emails-section {
@@ -354,48 +306,53 @@ onMounted(() => {
 .emails-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
+/* 邮件项 - 科技风 */
 .email-item {
   display: flex;
   align-items: center;
-  padding: 16px;
-  background: var(--color-surface, #ffffff);
-  border: 1px solid var(--color-border, #e5e7eb);
-  border-radius: 8px;
+  padding: 18px;
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 12px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .email-item:hover {
-  background: var(--color-surface-alt, #f9fafb);
-  border-color: var(--color-border-strong, #d1d5db);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  transform: translateX(4px);
 }
 
 .email-item.selected {
-  background: var(--color-accent-muted, #eff6ff);
-  border-color: var(--color-accent, #3b82f6);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-color: var(--accent);
+  box-shadow: 0 0 15px var(--tech-glow-primary);
 }
 
 .email-sender {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   min-width: 200px;
 }
 
+/* 头像 - 科技风渐变 */
 .sender-avatar {
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
-  background: var(--color-accent, #3b82f6);
-  color: var(--color-text-inverse, #ffffff);
+  background: var(--accent);
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 16px;
+  box-shadow: 0 0 12px var(--tech-glow-primary);
 }
 
 .sender-info {
@@ -404,8 +361,8 @@ onMounted(() => {
 }
 
 .sender-name {
-  font-weight: 500;
-  color: var(--color-text-primary, #374151);
+  font-weight: 600;
+  color: var(--text-strong);
   font-size: 14px;
   white-space: nowrap;
   overflow: hidden;
@@ -414,130 +371,98 @@ onMounted(() => {
 
 .email-date {
   font-size: 12px;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--text-muted);
+  font-family: var(--tech-mono-font);
 }
 
 .email-content {
   flex: 1;
-  margin: 0 16px;
+  margin: 0 18px;
   min-width: 0;
 }
 
 .email-actions {
-  margin-right: 12px;
+  margin-right: 14px;
 }
 
 .email-subject {
-  font-weight: 500;
-  color: var(--color-text-strong, #111827);
-  margin-bottom: 4px;
+  font-weight: 600;
+  color: var(--text-strong);
+  margin-bottom: 6px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+/* 文件夹标签 - 科技风 */
 .email-folder {
-  font-size: 12px;
-  color: var(--color-text-muted, #6b7280);
-  background: var(--color-surface-hover, #f3f4f6);
-  padding: 2px 8px;
-  border-radius: 12px;
+  font-size: 11px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  padding: 3px 10px;
+  border-radius: 20px;
   display: inline-block;
+  font-weight: 600;
 }
 
 .email-status {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .unread-indicator {
-  color: var(--color-accent, #3b82f6);
+  color: var(--accent);
   font-size: 12px;
+  filter: drop-shadow(0 0 4px var(--tech-glow-primary));
 }
 
 .attachment-indicator {
   font-size: 14px;
+  color: var(--text-muted);
 }
 
+/* 分页信息 - 科技风 */
 .pagination-info {
   text-align: center;
-  margin-top: 20px;
-  padding: 16px;
-  background: var(--color-surface-muted, #f8f9fa);
-  border-radius: 8px;
+  margin-top: 22px;
+  padding: 18px;
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 12px;
 }
 
 .pagination-info p {
   margin: 0;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--text-muted);
   font-size: 14px;
-}
-
-.btn {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.2s;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  text-decoration: none;
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  pointer-events: none;
-}
-
-.btn.primary {
-  background: var(--color-accent, #3b82f6);
-  color: var(--color-text-inverse, #ffffff);
-}
-
-.btn.primary:hover:not(:disabled) {
-  background: var(--color-accent-hover, #2563eb);
-}
-
-.btn.secondary {
-  background: var(--color-text-muted, #6b7280);
-  color: var(--color-text-inverse, #ffffff);
-}
-
-.btn.secondary:hover:not(:disabled) {
-  background: var(--color-text-secondary, #4b5563);
-}
-
-.btn.small {
-  padding: 6px 12px;
-  font-size: 12px;
 }
 
 .loading-state,
 .empty-state {
   text-align: center;
-  padding: 60px 20px;
-  color: var(--color-text-muted, #6b7280);
+  padding: 65px 22px;
+  color: var(--text-muted);
 }
 
 .empty-hint {
   font-size: 12px;
-  color: var(--color-text-soft, #9ca3af);
-  margin-top: 8px;
+  color: var(--text-muted);
+  margin-top: 10px;
+  opacity: 0.7;
 }
 
+/* 加载动画 - 科技风 */
 .spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid var(--color-surface-hover, #f3f3f3);
-  border-top: 4px solid var(--color-accent, #3b82f6);
+  width: 42px;
+  height: 42px;
+  border: 3px solid var(--tech-glass-border);
+  border-top-color: var(--accent);
   border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 20px;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 22px;
+  box-shadow: 0 0 15px var(--tech-glow-primary);
 }
 
 @keyframes spin {
@@ -550,17 +475,17 @@ onMounted(() => {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .email-item {
     flex-direction: column;
     align-items: stretch;
-    gap: 12px;
+    gap: 14px;
   }
-  
+
   .email-sender {
     min-width: auto;
   }
-  
+
   .email-content {
     margin: 0;
   }

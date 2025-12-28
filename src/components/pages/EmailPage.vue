@@ -7,49 +7,69 @@
       </div>
 
       <div class="email-grid">
-        <!-- Outlook Manager Card -->
-        <div class="email-card" @click="openOutlookManager">
+        <div 
+          v-for="service in availableServices" 
+          :key="service.id"
+          class="email-card" 
+          @click="openManager(service.id)"
+        >
           <div class="email-icon">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
+              <path :d="service.icon" />
             </svg>
           </div>
-          <h3 class="email-name">{{ $t('outlookManager.title') }}</h3>
-        </div>
-
-        <!-- GPTMail Manager Card -->
-        <div class="email-card" @click="openGPTMailManager">
-          <div class="email-icon">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
-            </svg>
-          </div>
-          <h3 class="email-name">{{ $t('gptMailManager.title') }}</h3>
+          <h3 class="email-name">{{ $t(service.nameKey) }}</h3>
         </div>
       </div>
     </div>
 
     <!-- Email Manager Detail View -->
     <div v-else class="email-detail-view">
-      <OutlookManager v-if="currentEmailManager === 'outlook'" @close="backToList" :is-page-mode="true" />
-      <GPTMailManager v-if="currentEmailManager === 'gptmail'" @close="backToList" :is-page-mode="true" />
+      <component 
+        :is="currentServiceComponent" 
+        @close="backToList" 
+        :is-page-mode="true" 
+      />
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import OutlookManager from '../email/OutlookManager.vue'
 import GPTMailManager from '../email/GPTMailManager.vue'
 
+// Email service configuration
+const services = [
+  {
+    id: 'outlook',
+    nameKey: 'outlookManager.title',
+    icon: 'M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z',
+    component: OutlookManager,
+    enabled: false
+  },
+  {
+    id: 'gptmail',
+    nameKey: 'gptMailManager.title',
+    icon: 'M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z',
+    component: GPTMailManager,
+    enabled: false
+  }
+]
+
 const currentEmailManager = ref(null)
 
-const openOutlookManager = () => {
-  currentEmailManager.value = 'outlook'
-}
+const availableServices = computed(() => {
+  return services.filter(service => service.enabled)
+})
 
-const openGPTMailManager = () => {
-  currentEmailManager.value = 'gptmail'
+const currentServiceComponent = computed(() => {
+  const service = services.find(s => s.id === currentEmailManager.value)
+  return service ? service.component : null
+})
+
+const openManager = (id) => {
+  currentEmailManager.value = id
 }
 
 const backToList = () => {
@@ -58,6 +78,10 @@ const backToList = () => {
 </script>
 
 <style scoped>
+/* ============================================
+   EmailPage - Modern Tech Style
+   ============================================ */
+
 .email-page {
   height: 100%;
   display: flex;
@@ -68,7 +92,7 @@ const backToList = () => {
 .email-list-view {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 26px;
   width: 100%;
 }
 
@@ -80,60 +104,94 @@ const backToList = () => {
 }
 
 .page-header {
-  margin-bottom: 24px;
+  margin-bottom: 28px;
   flex-shrink: 0;
 }
 
 .page-header h2 {
   font-size: 28px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-strong);
   margin: 0;
+  letter-spacing: -0.5px;
 }
 
 .email-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 16px;
-  max-width: 500px;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 18px;
+  max-width: 520px;
 }
 
+/* 邮箱卡片 - 科技风 */
 .email-card {
   position: relative;
-  background: var(--bg-surface);
-  border: 2px solid var(--border);
-  border-radius: 10px;
-  padding: 16px;
+  background: var(--tech-card-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 14px;
+  padding: 18px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 14px;
   aspect-ratio: 1;
+  overflow: hidden;
+}
+
+/* 顶部发光边线 */
+.email-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 20%;
+  right: 20%;
+  height: 2px;
+  background: var(--accent);
+  opacity: 0;
+  transition: all 0.3s ease;
+  border-radius: 0 0 2px 2px;
+}
+
+.email-card:hover::before {
+  opacity: 1;
+  left: 10%;
+  right: 10%;
+  box-shadow: 0 0 15px var(--tech-glow-primary);
 }
 
 .email-card:hover {
-  border-color: var(--accent);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
-  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent),
+              0 8px 32px -8px rgba(0, 0, 0, 0.2),
+              0 0 30px -10px var(--tech-glow-primary);
+  transform: translateY(-4px);
 }
 
 .email-icon {
-  width: 48px;
-  height: 48px;
+  width: 52px;
+  height: 52px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  color: var(--primary);
+  color: var(--accent);
+  transition: transform 0.3s ease;
+}
+
+.email-card:hover .email-icon {
+  transform: scale(1.1);
 }
 
 .email-icon svg {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  filter: drop-shadow(0 0 8px var(--tech-glow-primary));
 }
 
 .email-name {

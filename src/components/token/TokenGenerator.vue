@@ -1,10 +1,10 @@
 <template>
   <div class="token-generator">
     <div class="modal-overlay">
-      <div class="modal-content" @click.stop>
+    <div class="modal-content token-generator-modal" @click.stop>
         <div class="modal-header">
           <h2>生成Augment Token</h2>
-          <button class="close-btn" @click="$emit('close')">×</button>
+          <button class="modal-close" @click="$emit('close')">×</button>
         </div>
         
         <div class="modal-body">
@@ -30,8 +30,8 @@
                 >
               </div>
               <div class="url-buttons">
-                <button @click="copyAuthUrl" class="btn secondary">复制</button>
-                <button @click="openAuthUrl" class="btn secondary" title="在系统浏览器中打开">
+                <button @click="copyAuthUrl" class="btn primary">复制</button>
+                <button @click="openAuthUrl" class="btn primary" title="在系统浏览器中打开">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
                   </svg>
@@ -79,7 +79,7 @@
                     readonly
                     ref="accessTokenInput"
                   >
-                  <button @click="copyAccessToken" class="btn secondary">复制</button>
+                  <button @click="copyAccessToken" class="btn primary">复制</button>
                 </div>
               </div>
               <div class="result-container">
@@ -91,7 +91,7 @@
                     readonly
                     ref="tenantUrlInput"
                   >
-                  <button @click="copyTenantUrl" class="btn secondary">复制</button>
+                  <button @click="copyTenantUrl" class="btn primary">复制</button>
                 </div>
               </div>
 
@@ -118,7 +118,7 @@
               </div>
 
               <div class="button-container">
-                <button @click="saveAndClose" class="btn success">保存并关闭</button>
+                <button @click="saveAndClose" class="btn primary">保存并关闭</button>
               </div>
             </div>
           </div>
@@ -281,262 +281,187 @@ const saveAndClose = async () => {
 </script>
 
 <style scoped>
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-}
+/* ============================================
+   TokenGenerator - Modern Tech Style
+   ============================================ */
 
-.modal-content {
-  background: var(--color-surface, #ffffff);
-  border-radius: 8px;
+.token-generator-modal {
   width: 90%;
-  max-width: 600px;
+  max-width: 620px;
   max-height: 95vh;
-  overflow-y: auto;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 }
 
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px;
-  border-bottom: 1px solid #eee;
-}
-
-.modal-header h2 {
-  margin: 0;
-  color: var(--color-text-heading, #333);
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  color: var(--color-text-muted, #666);
-  padding: 0;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.close-btn:hover {
-  color: var(--color-text-heading, #333);
-}
-
-.modal-body {
-  padding: 20px;
+.token-generator-modal .modal-body {
+  padding: 26px;
 }
 
 .section {
-  margin-bottom: 30px;
+  margin-bottom: 32px;
 }
 
 .section h3 {
-  margin: 0 0 15px 0;
-  color: var(--color-text-heading, #333);
+  margin: 0 0 18px 0;
+  color: var(--text-strong);
   font-size: 18px;
-}
-
-.btn {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
-}
-
-.btn.primary {
-  background: var(--color-blue-primary, #007bff);
-  color: var(--color-text-inverse, #ffffff);
-}
-
-.btn.primary:hover:not(:disabled) {
-  background: var(--color-blue-primary-hover, #0056b3);
-}
-
-.btn.secondary {
-  background: var(--color-text-muted, #6c757d);
-  color: var(--color-text-inverse, #ffffff);
-}
-
-.btn.secondary:hover {
-  background: #545b62;
-}
-
-.btn.success {
-  background: var(--color-success-bg, #28a745);
-  color: var(--color-text-inverse, #ffffff);
-}
-
-.btn.success:hover {
-  background: var(--color-success-bg-hover, #1e7e34);
-}
-
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.btn.loading {
-  position: relative;
-}
-
-.btn.loading::after {
-  content: '';
-  position: absolute;
-  width: 16px;
-  height: 16px;
-  margin: auto;
-  border: 2px solid transparent;
-  border-top-color: var(--color-surface, #ffffff);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  font-weight: 600;
 }
 
 .url-section, .token-section {
-  margin-top: 15px;
+  margin-top: 18px;
   padding: 0;
   background: transparent;
-  border-radius: 4px;
+  border-radius: 10px;
   text-align: left;
 }
 
 .url-section p, .token-section p {
-  margin: 0 0 10px 0;
+  margin: 0 0 12px 0;
   text-align: left;
-  font-weight: 500;
-  color: var(--color-text-heading, #333);
+  font-weight: 600;
+  color: var(--text-strong);
 }
 
 .url-input-container {
-  margin-top: 10px;
+  margin-top: 12px;
 }
 
+/* 输入框 - 科技风 */
 .url-input-container input {
   width: 100%;
-  padding: 8px 12px;
-  border: 1px solid var(--color-btn-secondary-border, #ddd);
-  border-radius: 4px;
-  font-family: monospace;
+  padding: 10px 14px;
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 10px;
+  font-family: var(--tech-mono-font);
   font-size: 12px;
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  color: var(--text);
+  transition: all 0.2s ease;
+}
+
+.url-input-container input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent),
+              0 0 12px var(--tech-glow-primary);
 }
 
 .url-buttons {
   display: flex;
-  gap: 10px;
-  margin-top: 10px;
+  gap: 12px;
+  margin-top: 12px;
   justify-content: flex-start;
 }
 
 .url-buttons .btn {
-  padding: 8px 16px;
+  padding: 10px 18px;
   font-size: 14px;
-  min-width: 80px;
+  min-width: 90px;
 }
 
 .token-container {
   display: flex;
-  gap: 8px;
-  margin-top: 10px;
+  gap: 10px;
+  margin-top: 12px;
   align-items: center;
 }
 
 .token-container input {
   flex: 1;
-  padding: 8px 10px;
-  border: 1px solid var(--color-btn-secondary-border, #ddd);
-  border-radius: 4px;
-  font-family: monospace;
+  padding: 10px 12px;
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 10px;
+  font-family: var(--tech-mono-font);
   font-size: 11px;
   min-width: 0;
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  color: var(--text);
+}
+
+.token-container input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
 }
 
 .token-container .btn {
   flex-shrink: 0;
-  padding: 8px 12px;
+  padding: 10px 14px;
   font-size: 12px;
   white-space: nowrap;
 }
 
 .result-container {
-  margin-bottom: 15px;
+  margin-bottom: 18px;
 }
 
 .result-container label {
   display: block;
-  margin-bottom: 5px;
-  font-weight: bold;
-  color: var(--color-text-heading, #333);
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: var(--text-strong);
 }
 
 textarea {
   width: 100%;
-  padding: 10px;
-  border: 1px solid var(--color-btn-secondary-border, #ddd);
-  border-radius: 4px;
-  font-family: monospace;
+  padding: 12px;
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 10px;
+  font-family: var(--tech-mono-font);
   font-size: 12px;
   resize: vertical;
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  color: var(--text);
+}
+
+textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
 }
 
 .additional-fields {
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid var(--color-divider, #e1e5e9);
+  margin-top: 22px;
+  padding-top: 22px;
+  border-top: 1px solid var(--tech-glass-border);
 }
 
 .field-container {
-  margin-bottom: 15px;
+  margin-bottom: 18px;
 }
 
 .field-container label {
   display: block;
-  margin-bottom: 5px;
-  font-weight: 500;
-  color: var(--color-text-primary, #374151);
-  font-size: 14px;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .field-input {
   width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--color-border-strong, #d1d5db);
-  border-radius: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 10px;
   font-size: 14px;
-  transition: border-color 0.2s ease;
+  transition: all 0.2s ease;
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  color: var(--text);
 }
 
 .field-input:focus {
   outline: none;
-  border-color: var(--color-accent, #3b82f6);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent),
+              0 0 12px var(--tech-glow-primary);
 }
 
 .field-input::placeholder {
-  color: var(--color-text-soft, #9ca3af);
+  color: var(--text-muted);
 }
 
 .button-container {
-  margin-top: 15px;
+  margin-top: 18px;
 }
-
-
 </style>

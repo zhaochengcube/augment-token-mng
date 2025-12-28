@@ -178,15 +178,19 @@ const handlePageSizeChange = (event) => {
 </script>
 
 <style scoped>
+/* ============================================
+   Pagination - Modern Tech Style
+   ============================================ */
+
 .pagination-container {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  padding: 16px 20px;
-  background: var(--bg-surface);
-  border-top: 1px solid var(--border);
-  border-radius: 0 0 8px 8px;
+  gap: 22px;
+  padding: 18px 22px;
+  background: color-mix(in srgb, var(--bg-muted) 30%, transparent);
+  border-top: 1px solid var(--tech-glass-border);
+  border-radius: 0 0 14px 14px;
 }
 
 .pagination-info {
@@ -196,82 +200,87 @@ const handlePageSizeChange = (event) => {
 .info-text {
   font-size: 14px;
   color: var(--text-muted);
+  font-family: var(--tech-mono-font);
 }
 
 .info-text strong {
-  color: var(--text);
-  font-weight: 600;
+  color: var(--accent);
+  font-weight: 700;
 }
 
 .pagination-nav {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   flex: 1;
   justify-content: center;
 }
 
+/* 导航按钮 - 科技风 */
 .nav-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--border);
-  background: var(--bg-surface);
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--tech-glass-border);
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
   color: var(--text);
-  border-radius: 6px;
+  border-radius: 10px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .nav-btn:hover:not(:disabled) {
-  background: var(--bg-hover);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
   border-color: var(--accent);
   color: var(--accent);
+  box-shadow: 0 0 12px var(--tech-glow-primary);
 }
 
 .nav-btn:disabled {
-  opacity: 0.4;
+  opacity: 0.3;
   cursor: not-allowed;
 }
 
 .page-numbers {
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin: 0 8px;
+  gap: 6px;
+  margin: 0 10px;
 }
 
+/* 页码按钮 - 科技风 */
 .page-btn {
-  min-width: 32px;
-  height: 32px;
-  padding: 0 8px;
-  border: 1px solid var(--border);
-  background: var(--bg-surface);
+  min-width: 34px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--tech-glass-border);
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
   color: var(--text);
-  border-radius: 6px;
+  border-radius: 10px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
+  font-family: var(--tech-mono-font);
 }
 
 .page-btn:hover {
-  background: var(--bg-hover);
-  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
   color: var(--accent);
 }
 
 .page-btn.active {
   background: var(--accent);
-  border-color: var(--accent);
-  color: var(--text-contrast);
-  font-weight: 600;
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 0 15px var(--tech-glow-primary);
 }
 
 .page-ellipsis {
-  padding: 0 4px;
+  padding: 0 6px;
   color: var(--text-muted);
   font-size: 14px;
 }
@@ -279,7 +288,7 @@ const handlePageSizeChange = (event) => {
 .pagination-size {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex-shrink: 0;
 }
 
@@ -289,25 +298,28 @@ const handlePageSizeChange = (event) => {
   white-space: nowrap;
 }
 
+/* 下拉选择 - 科技风 */
 .size-select {
-  padding: 6px 10px;
-  border: 1px solid var(--border);
-  background: var(--bg-surface);
+  padding: 8px 12px;
+  border: 1px solid var(--tech-glass-border);
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
   color: var(--text);
-  border-radius: 6px;
+  border-radius: 10px;
   font-size: 14px;
+  font-family: var(--tech-mono-font);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .size-select:hover {
-  border-color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
 }
 
 .size-select:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 10%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent),
+              0 0 12px var(--tech-glow-primary);
 }
 </style>
 

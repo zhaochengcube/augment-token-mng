@@ -3,7 +3,26 @@ export default {
     close: '关闭',
     cancel: '取消',
     confirm: '确认',
-    back: '返回'
+    back: '返回',
+    loading: '加载中...',
+    refresh: '刷新',
+    refreshing: '刷新中...',
+    clear: '清除',
+    search: '搜索',
+    sort: '排序',
+    sortByTime: '按时间排序',
+    filter: '筛选',
+    today: '今天',
+    yesterday: '昨天',
+    daysAgo: '{days} 天前',
+    selected: '已选择 {count} 项',
+    selectAllPage: '选择当前页全部',
+    cancelSelection: '取消选择',
+    batchDelete: '批量删除',
+    noSearchResults: '未找到匹配结果',
+    openDataFolder: '打开数据文件夹',
+    switchToTable: '切换到列表视图',
+    switchToCard: '切换到卡片视图'
   },
   app: {
     title: 'Augment Token Manager',
@@ -104,7 +123,7 @@ export default {
     }
   },
   outlookManager: {
-    title: 'Outlook 邮箱管理',
+    title: 'Outlook',
     addAccount: '添加邮箱账户',
     sessionNotice: '账户信息仅在当前会话中有效，关闭应用后需要重新添加',
     accountInfo: '账户信息',
@@ -220,6 +239,12 @@ export default {
     syncTooltip: '执行双向同步（本地 ↔ 数据库）',
     showRealEmail: '显示真实邮箱',
     hideRealEmail: '隐藏真实邮箱',
+    sessionExpiring: '{count} 个 Session 即将过期',
+    sessionRefreshTitle: 'Session 即将过期',
+    noExpiringSession: '没有即将过期的 Session',
+    daysRemaining: '天后过期',
+    refreshAllSessions: '批量刷新 Session',
+    refreshing: '刷新中...',
     sort: '排序',
     sortByTime: '按时间',
     sortByBalance: '按余额',
@@ -227,7 +252,8 @@ export default {
     // 状态统计和筛选
     statusStats: '状态统计',
     allStatus: '全部',
-    activeStatus: '活跃',
+    activeStatus: '可用',
+    depleteStatus: '用尽',
     suspendedStatus: '封禁',
     expiredStatus: '过期',
     invalidStatus: '失效',
@@ -316,8 +342,8 @@ export default {
     tableHeaderTag: '标签',
     tableHeaderStatus: '状态',
     tableHeaderEmail: '邮箱',
-    tableHeaderBalance: '剩余次数',
-    tableHeaderResetTime: '重置时间',
+    tableHeaderBalance: '剩余积分',
+    tableHeaderDates: '创建/重置时间',
     tableHeaderActions: '操作',
     // 标签编辑
     clickToEditTag: '点击编辑标签',
@@ -371,8 +397,40 @@ export default {
     suspensionType: '封禁类型',
     reason: '原因',
     date: '日期',
+    createdAt: '创建时间',
+    resetAt: '重置时间',
+    sessionUpdatedAt: 'Session更新时间',
     noSuspensionData: '暂无封禁数据',
-    rawData: '原始数据'
+    rawData: '原始数据',
+    team: '团队',
+    manageTeam: '管理团队'
+  },
+  team: {
+    title: '团队管理',
+    teamInfo: '团队信息',
+    teamName: '团队名称',
+    seats: '席位数',
+    usedSeats: '已用席位',
+    updateSeats: '修改席位',
+    save: '保存',
+    members: '成员列表',
+    invitations: '待处理邀请',
+    inviteMembers: '邀请成员',
+    emailPlaceholder: '输入邮箱地址，多个邮箱用逗号或换行分隔',
+    invite: '发送邀请',
+    deleteMember: '删除成员',
+    deleteInvitation: '删除邀请',
+    confirmDelete: '确认删除',
+    confirmDeleteMember: '确定要删除成员 {email} 吗？',
+    confirmDeleteInvitation: '确定要删除邀请 {email} 吗？',
+    loading: '加载中...',
+    refreshing: '刷新中...',
+    noMembers: '暂无成员',
+    noInvitations: '暂无待处理邀请',
+    seatsUpdated: '席位数已更新',
+    invitationsSent: '邀请已发送',
+    memberDeleted: '成员已删除',
+    invitationDeleted: '邀请已删除'
   },
   tokenForm: {
     title: '添加/编辑Token',
@@ -516,6 +574,10 @@ export default {
     getTokenError: '获取Token失败',
     syncComplete: '双向同步完成',
     syncFailed: '同步失败',
+    noExpiringSession: '没有即将过期的 Session',
+    sessionRefreshSuccess: '成功刷新 {count} 个 Session',
+    sessionRefreshPartialFail: '刷新完成：成功 {success} 个，失败 {fail} 个',
+    sessionRefreshFailed: 'Session 刷新失败',
     databaseDetected: '数据库连接检测成功，已切换到双重存储模式',
     databaseNotDetected: '未检测到数据库连接，仍为本地存储模式',
     openAppHomeFailed: '打开应用主页失败',
@@ -620,6 +682,7 @@ export default {
     sessionErrorOrAccountBanned: 'Session错误或账号已被封禁',
     tagUpdated: '标签已更新',
     tagCleared: '标签已清除',
+    comingSoon: '即将推出'
   },
   validation: {
     required: '此字段为必填项',
@@ -726,7 +789,7 @@ export default {
     percentage: '占比'
   },
   gptMailManager: {
-    title: 'GPTMail管理',
+    title: 'GPTMail',
     generateEmail: '生成随机邮箱',
     generateBtn: '生成邮箱',
     generating: '生成中...',
@@ -798,6 +861,90 @@ export default {
     windsurf: {
       title: 'Windsurf Token 管理',
       subtitle: '管理你的 Windsurf 访问令牌'
+    },
+    antigravity: {
+      title: 'Antigravity 账号管理',
+      subtitle: '管理你的 Antigravity 账号和配额',
+      accountCount: '{count} 个账号',
+      refreshQuota: '刷新配额',
+      addAccount: '添加账号',
+      currentAccount: '当前账号',
+      switching: '切换中...',
+      switch: '切换',
+      refresh: '刷新',
+      refreshing: '刷新中...',
+      delete: '删除',
+      lastUsed: '最后使用',
+      noAccounts: '暂无账号',
+      noAccountsHint: '点击"添加账号"按钮开始',
+      quotaForbidden: '无权限访问配额',
+      noQuotaData: '暂无配额数据',
+      searchPlaceholder: '搜索邮箱...',
+      sortByQuota: '按配额排序',
+      batchRefresh: '批量刷新',
+      filter: {
+        all: '全部',
+        available: '可用',
+        low: '配额低',
+        forbidden: '已禁用'
+      },
+      status: {
+        current: '当前',
+        available: '可用',
+        low: '配额低',
+        forbidden: '已禁用'
+      },
+      table: {
+        email: '邮箱',
+        status: '状态',
+        quota: '配额',
+        dates: '日期',
+        actions: '操作'
+      },
+      actions: {
+        switch: '切换账号',
+        refresh: '刷新配额',
+        delete: '删除账号'
+      },
+      addAccountDialog: {
+        title: '添加 Antigravity 账号',
+        oauthMethod: 'OAuth 授权',
+        manualMethod: '手动添加',
+        oauthInfo: '点击下方按钮将打开 Google 授权页面，授权完成后自动添加账号',
+        googleLogin: '使用 Google 账号登录',
+        email: '邮箱地址',
+        emailPlaceholder: "your-email{'@'}example.com",
+        refreshToken: 'Refresh Token',
+        refreshTokenPlaceholder: '粘贴你的 Refresh Token...',
+        refreshTokenHint: '从 Antigravity 的数据库或网络请求中获取 refresh_token',
+        adding: '添加中...',
+        add: '添加账号'
+      },
+      messages: {
+        switchSuccess: '账号切换成功',
+        switchFailed: '切换失败: {error}',
+        refreshSuccess: '配额刷新成功',
+        refreshFailed: '刷新配额失败: {error}',
+        addSuccess: '账号添加成功',
+        addFailed: '添加账号失败: {error}',
+        deleteConfirm: '确定要删除这个账号吗？',
+        deleteSuccess: '账号删除成功',
+        deleteFailed: '删除失败: {error}',
+        batchDeleteConfirm: '确定要删除选中的 {count} 个账号吗？',
+        noSelection: '请先选择要操作的账号'
+      },
+      quota: {
+        gemini: 'Gemini',
+        claude: 'Claude',
+        resetTime: '重置: {time}',
+        percentage: '{value}%',
+        timeAgo: {
+          justNow: '刚刚',
+          minutesAgo: '{count} 分钟前',
+          hoursAgo: '{count} 小时前',
+          daysAgo: '{count} 天前'
+        }
+      }
     }
   }
 }

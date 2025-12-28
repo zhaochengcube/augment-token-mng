@@ -159,29 +159,36 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* ============================================
+   SyncStatus - Modern Tech Style
+   ============================================ */
+
 .sync-status-component {
-  background: var(--color-surface, #ffffff);
-  border-radius: 6px;
-  padding: 10px 5px;
-  border: 1px solid var(--color-border, #e5e7eb);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background: var(--tech-card-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 12px;
+  padding: 12px 8px;
+  border: 1px solid var(--tech-glass-border);
+  box-shadow: var(--tech-border-glow);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   height: fit-content;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.25s ease;
   text-align: left;
   width: 100%;
 }
 
 .sync-status-component:hover:not(:disabled) {
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-  border-color: var(--color-border-strong, #d1d5db);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2), var(--tech-border-glow);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
 }
 
 .sync-status-component:disabled {
-  opacity: 0.6;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
@@ -195,18 +202,15 @@ onMounted(() => {
 .header-content {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .status-header h3 {
   margin: 0;
   font-size: 13px;
   font-weight: 600;
-  color: var(--color-text-primary, #374151);
+  color: var(--text-strong);
 }
-
-
-
 
 
 .spinning {
@@ -221,7 +225,7 @@ onMounted(() => {
 .storage-info {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .storage-mode {
@@ -229,42 +233,44 @@ onMounted(() => {
   justify-content: center;
 }
 
+/* 存储徽章 - 科技风 */
 .storage-badge {
   font-size: 11px;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 8px;
   white-space: nowrap;
 }
 
 .sync-hint {
   font-size: 10px;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--text-muted);
   text-align: center;
   font-weight: 500;
 }
 
 .storage-badge.dual {
-  background: var(--state-success);
-  color: #ffffff;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #fff;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
 }
 
 .storage-badge.local {
-  background: var(--state-warning);
-  color: #ffffff;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #fff;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
 }
 
 .storage-badge.database {
   background: var(--accent);
-  color: #ffffff;
+  color: #fff;
+  box-shadow: 0 0 10px var(--tech-glow-primary);
 }
-
-
 
 @media (max-width: 768px) {
   .sync-status-component {
-    padding: 8px 10px;
-    gap: 6px;
+    padding: 10px 12px;
+    gap: 8px;
   }
 
   .status-header h3 {
@@ -273,7 +279,7 @@ onMounted(() => {
 
   .storage-badge {
     font-size: 10px;
-    padding: 2px 6px;
+    padding: 3px 8px;
   }
 
   .sync-hint {

@@ -1,6 +1,6 @@
 <template>
   <div class="augment-token-manager">
-    <TokenList mode="page" />
+    <TokenList />
   </div>
 </template>
 
@@ -17,4 +17,3 @@ import TokenList from '../token/TokenList.vue'
   overflow: hidden;
 }
 </style>
-

@@ -81,8 +81,8 @@ impl ProxyConfig {
     /// 创建配置了代理的 reqwest 客户端
     pub fn create_client(&self) -> Result<reqwest::Client, String> {
         let mut builder = reqwest::Client::builder()
-            .timeout(Duration::from_secs(30))
-            .connect_timeout(Duration::from_secs(10));
+            .timeout(Duration::from_secs(60))
+            .connect_timeout(Duration::from_secs(15));
 
         if self.enabled {
             match self.proxy_type {
@@ -371,3 +371,87 @@ pub async fn test_proxy_connection(config: &ProxyConfig) -> Result<(), String> {
     }
 }
 
+// 代理配置相关命令
+#[tauri::command(rename = "save_proxy_config")]
+pub async fn save_proxy_config_cmd(
+    app: tauri::AppHandle,
+    proxy_type: String,
+    enabled: bool,
+    host: Option<String>,
+    port: Option<u16>,
+    username: Option<String>,
+    password: Option<String>,
+    custom_url: Option<String>,
+) -> Result<(), String> {
+    let proxy_type = match proxy_type.as_str() {
+        "system" => ProxyType::System,
+        "http" => ProxyType::Http,
+        "https" => ProxyType::Https,
+        "socks5" => ProxyType::Socks5,
+        "custom_url" => ProxyType::CustomUrl,
+        _ => return Err(format!("Unknown proxy type: {}", proxy_type)),
+    };
+
+    let config = ProxyConfig {
+        enabled,
+        proxy_type,
+        host: host.unwrap_or_default(),
+        port: port.unwrap_or(7890),
+        username,
+        password,
+        custom_url,
+    };
+
+    save_proxy_config(&app, &config)
+        .map_err(|e| format!("Failed to save proxy config: {}", e))
+}
+
+#[tauri::command(rename = "load_proxy_config")]
+pub async fn load_proxy_config_cmd(app: tauri::AppHandle) -> Result<ProxyConfig, String> {
+    load_proxy_config(&app)
+        .map_err(|e| format!("Failed to load proxy config: {}", e))
+}
+
+#[tauri::command(rename = "test_proxy_config")]
+pub async fn test_proxy_config_cmd(
+    proxy_type: String,
+    enabled: bool,
+    host: Option<String>,
+    port: Option<u16>,
+    username: Option<String>,
+    password: Option<String>,
+    custom_url: Option<String>,
+) -> Result<(), String> {
+    let proxy_type = match proxy_type.as_str() {
+        "system" => ProxyType::System,
+        "http" => ProxyType::Http,
+        "https" => ProxyType::Https,
+        "socks5" => ProxyType::Socks5,
+        "custom_url" => ProxyType::CustomUrl,
+        _ => return Err(format!("Unknown proxy type: {}", proxy_type)),
+    };
+
+    let config = ProxyConfig {
+        enabled,
+        proxy_type,
+        host: host.unwrap_or_default(),
+        port: port.unwrap_or(7890),
+        username,
+        password,
+        custom_url,
+    };
+
+    test_proxy_connection(&config).await
+}
+
+#[tauri::command(rename = "delete_proxy_config")]
+pub async fn delete_proxy_config_cmd(app: tauri::AppHandle) -> Result<(), String> {
+    delete_proxy_config(&app)
+        .map_err(|e| format!("Failed to delete proxy config: {}", e))
+}
+
+#[tauri::command(rename = "proxy_config_exists")]
+pub async fn proxy_config_exists_cmd(app: tauri::AppHandle) -> Result<bool, String> {
+    proxy_config_exists(&app)
+        .map_err(|e| format!("Failed to check proxy config: {}", e))
+}

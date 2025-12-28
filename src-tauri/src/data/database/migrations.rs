@@ -309,6 +309,30 @@ pub async fn add_new_fields_if_not_exist(client: &Client) -> Result<(), Box<dyn 
         }
     }
 
+    // 检查 session_updated_at 字段是否存在
+    let session_updated_at_exists = client.query(
+        r#"
+        SELECT EXISTS (
+            SELECT FROM information_schema.columns
+            WHERE table_schema = 'public'
+            AND table_name = 'tokens'
+            AND column_name = 'session_updated_at'
+        )
+        "#,
+        &[],
+    ).await?;
+
+    if let Some(row) = session_updated_at_exists.first() {
+        let exists: bool = row.get(0);
+        if !exists {
+            client.execute(
+                "ALTER TABLE tokens ADD COLUMN session_updated_at TIMESTAMP WITH TIME ZONE",
+                &[],
+            ).await?;
+            println!("Added session_updated_at column to tokens table");
+        }
+    }
+
     // 删除旧的 sync_status 表
     client.execute(
         "DROP TABLE IF EXISTS sync_status CASCADE",

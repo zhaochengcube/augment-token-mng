@@ -9,8 +9,14 @@ import { useI18n } from 'vue-i18n'
 export function useTokenActions(props, emit) {
   const { t } = useI18n()
 
+  const resolveCssVar = (name, fallback) => {
+    if (typeof window === 'undefined') return fallback
+    const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+    return value || fallback
+  }
+
   // ========== 常量定义 ==========
-  const DEFAULT_TAG_COLOR = '#f97316'
+  const DEFAULT_TAG_COLOR = resolveCssVar('--tag-default', '#f97316')
 
   // ========== 响应式状态 ==========
   const isCheckingStatus = ref(false)
@@ -30,14 +36,16 @@ export function useTokenActions(props, emit) {
   }
 
   const getContrastingTextColor = (hex) => {
+    const lightText = resolveCssVar('--text-inverse', '#ffffff')
+    const darkText = resolveCssVar('--text', '#1f2937')
     if (!/^#[0-9a-fA-F]{6}$/.test(hex)) {
-      return '#ffffff'
+      return lightText
     }
     const r = parseInt(hex.slice(1, 3), 16)
     const g = parseInt(hex.slice(3, 5), 16)
     const b = parseInt(hex.slice(5, 7), 16)
     const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
-    return luminance > 0.6 ? '#1f2937' : '#ffffff'
+    return luminance > 0.6 ? darkText : lightText
   }
 
   const tagBadgeStyle = computed(() => {
@@ -46,9 +54,7 @@ export function useTokenActions(props, emit) {
     }
     const color = normalizeHexColor(props.token.tag_color || DEFAULT_TAG_COLOR)
     return {
-      backgroundColor: color,
-      borderColor: color,
-      color: getContrastingTextColor(color)
+      '--tag-color': color
     }
   })
 
@@ -68,6 +74,19 @@ export function useTokenActions(props, emit) {
   })
 
   // ========== 工具方法 ==========
+  // 判断 session 是否需要刷新（25-30天）
+  const shouldRefreshSession = (token) => {
+    if (!token.auth_session || !token.created_at) return false
+
+    // 使用 session_updated_at（如果存在）或 created_at 来判断
+    const referenceTime = token.session_updated_at || token.created_at
+    const referenceDate = new Date(referenceTime)
+    const now = new Date()
+    const daysSinceReference = Math.floor((now - referenceDate) / (1000 * 60 * 60 * 24))
+
+    return daysSinceReference >= 25 && daysSinceReference < 30
+  }
+
   const formatDate = (dateString) => {
     const date = new Date(dateString)
     return date.toLocaleString('zh-CN', {
@@ -397,7 +416,8 @@ export function useTokenActions(props, emit) {
           tenant_url: props.token.tenant_url,
           portal_url: props.token.portal_url || null,
           auth_session: props.token.auth_session || null,
-          email_note: props.token.email_note || null
+          email_note: props.token.email_note || null,
+          should_refresh_session: shouldRefreshSession(props.token)  // 前端判断是否需要刷新 session
         }]
       })
 
@@ -449,6 +469,7 @@ export function useTokenActions(props, emit) {
         if (result.portal_info) {
           const newPortalInfo = {
             credits_balance: result.portal_info.credits_balance,
+            credit_total: result.portal_info.credit_total,
             expiry_date: result.portal_info.expiry_date
           }
 
@@ -474,6 +495,13 @@ export function useTokenActions(props, emit) {
         // 比对并更新 email_note
         if (result.email_note && props.token.email_note !== result.email_note) {
           props.token.email_note = result.email_note
+          hasChanges = true
+        }
+
+        // 比对并更新 auth_session（如果后端刷新了 session）
+        if (result.auth_session && props.token.auth_session !== result.auth_session) {
+          props.token.auth_session = result.auth_session
+          props.token.session_updated_at = new Date().toISOString()  // 设置 session 更新时间
           hasChanges = true
         }
 
@@ -564,6 +592,7 @@ export function useTokenActions(props, emit) {
       portalInfo.value = {
         data: {
           credits_balance: props.token.portal_info.credits_balance,
+          credit_total: props.token.portal_info.credit_total,
           expiry_date: props.token.portal_info.expiry_date
         },
         error: null

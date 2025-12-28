@@ -83,59 +83,73 @@ const handleMouseLeave = () => {
 </script>
 
 <style scoped>
+/* ============================================
+   NotificationItem - Modern Tech Style
+   ============================================ */
+
 .notification-item {
   position: relative;
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  min-width: 320px;
-  max-width: 480px;
-  padding: 16px;
-  border-radius: 8px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  gap: 14px;
+  min-width: 340px;
+  max-width: 500px;
+  padding: 18px;
+  border-radius: 14px;
+  background: var(--tech-glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--tech-glass-border);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25), var(--tech-border-glow);
   overflow: hidden;
   pointer-events: auto;
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
 }
 
 .notification-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3), var(--tech-border-glow);
 }
 
-/* 通知类型样式 */
+/* 通知类型样式 - 科技风发光边框 */
 .notification-item.success {
   border-left: 4px solid #10b981;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25), 0 0 15px rgba(16, 185, 129, 0.3);
 }
 
 .notification-item.success .notification-icon {
   color: #10b981;
+  filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.5));
 }
 
 .notification-item.error {
   border-left: 4px solid #ef4444;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25), 0 0 15px var(--tech-glow-danger);
 }
 
 .notification-item.error .notification-icon {
   color: #ef4444;
+  filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.5));
 }
 
 .notification-item.warning {
   border-left: 4px solid #f59e0b;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25), 0 0 15px var(--tech-glow-warning);
 }
 
 .notification-item.warning .notification-icon {
   color: #f59e0b;
+  filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.5));
 }
 
 .notification-item.info {
   border-left: 4px solid #3b82f6;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25), 0 0 15px rgba(59, 130, 246, 0.3);
 }
 
 .notification-item.info .notification-icon {
   color: #3b82f6;
+  filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.5));
 }
 
 /* 图标样式 */
@@ -152,47 +166,49 @@ const handleMouseLeave = () => {
 
 .notification-message {
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.6;
   color: var(--text);
   word-wrap: break-word;
 }
 
-/* 关闭按钮 */
+/* 关闭按钮 - 科技风 */
 .notification-close {
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  border: none;
-  background: none;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--tech-glass-border);
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
   color: var(--text-muted);
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .notification-close:hover {
-  background: var(--bg-hover);
-  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
-/* 进度条 */
+/* 进度条 - 科技风发光 */
 .notification-progress {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
   height: 3px;
-  background: rgba(0, 0, 0, 0.1);
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
 }
 
 .progress-bar {
   height: 100%;
   background: currentColor;
-  opacity: 0.6;
+  opacity: 0.8;
   animation: progress linear forwards;
+  box-shadow: 0 0 8px currentColor;
 }
 
 @keyframes progress {
@@ -211,6 +227,7 @@ const handleMouseLeave = () => {
     max-width: unset;
     width: 100%;
     margin: 0 10px;
+    border-radius: 12px;
   }
 }
 </style>

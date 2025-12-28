@@ -4,7 +4,7 @@
       <div class="modal-content" @click.stop>
         <div class="modal-header">
           <h2>{{ isEditing ? $t('tokenForm.editTitle') : $t('tokenForm.addTitle') }}</h2>
-          <button class="close-btn" @click="handleCancel">×</button>
+          <button class="modal-close" @click="handleCancel">×</button>
         </div>
 
         <div class="modal-body">
@@ -200,14 +200,14 @@
                 <label>{{ $t('tokenGenerator.authUrlLabel') }}</label>
                 <div class="input-with-copy">
                   <input type="text" :value="oauthData.authUrl" readonly class="readonly-input">
-                  <button type="button" @click="copyAuthUrl" class="copy-icon-btn" :title="$t('tokenGenerator.copyUrl')">
+                  <button type="button" @click="copyAuthUrl" class="btn-icon copy-icon" :title="$t('tokenGenerator.copyUrl')">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
                     </svg>
                   </button>
                 </div>
                 <div class="button-container">
-                  <button type="button" @click="openAuthUrl" class="btn secondary">
+                  <button type="button" @click="openAuthUrl" class="btn primary">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
                     </svg>
@@ -249,7 +249,7 @@
                   <label>{{ $t('tokenForm.accessToken') }}</label>
                   <div class="input-with-copy">
                     <input type="text" :value="oauthData.tokenResult.access_token" readonly class="readonly-input">
-                    <button type="button" @click="copyAccessToken" class="copy-icon-btn">
+                    <button type="button" @click="copyAccessToken" class="btn-icon copy-icon">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
                       </svg>
@@ -309,7 +309,7 @@
                 <button type="button" @click="saveOAuthToken" class="btn primary">
                   {{ $t('tokenForm.saveToken') }}
                 </button>
-                <button type="button" @click="resetOAuthForm" class="btn secondary">
+                <button type="button" @click="resetOAuthForm" class="btn primary">
                   {{ $t('tokenForm.reset') }}
                 </button>
                 <button type="button" @click="handleCancel" class="btn secondary">
@@ -347,7 +347,7 @@
                 <button
                   type="button"
                   @click="openInternalBrowserForAutoImport"
-                  class="btn secondary"
+                  class="btn primary"
                   :disabled="isImportingSession || isOpeningBrowser"
                 >
                   {{ $t('tokenGenerator.autoImportSession') }}
@@ -385,6 +385,12 @@ import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 
+const resolveCssVar = (name, fallback) => {
+  if (typeof window === 'undefined') return fallback
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+  return value || fallback
+}
+
 // Props
 const props = defineProps({
   token: {
@@ -401,7 +407,7 @@ const props = defineProps({
 const emit = defineEmits(['close', 'success', 'update-token', 'add-token', 'manual-import-completed'])
 
 // Reactive data
-const defaultTagColor = '#f97316'
+const defaultTagColor = resolveCssVar('--tag-default', '#f97316')
 
 const tagColorInput = ref(null)
 
@@ -918,6 +924,10 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* ============================================
+   TokenForm - Modern Tech Style
+   ============================================ */
+
 .token-form-modal {
   position: fixed;
   top: 0;
@@ -927,114 +937,22 @@ onUnmounted(() => {
   z-index: 3000;
 }
 
-.modal-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.token-form-modal .modal-overlay {
   padding: 20px;
 }
 
-.modal-content {
-  background: var(--bg-surface);
-  border-radius: 12px;
+.token-form-modal .modal-content {
   width: 100%;
-  max-width: 500px;
+  max-width: 520px;
   max-height: 98vh;
   overflow: hidden;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35), var(--tech-border-glow);
 }
 
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-muted);
-}
-
-.modal-header h2 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-strong);
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 24px;
-  color: var(--color-text-muted, #666);
-  cursor: pointer;
-  padding: 0;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  transition: all 0.2s;
-}
-
-.close-btn:hover {
-  background: var(--color-surface-muted, #e9ecef);
-  color: var(--color-text-heading, #333);
-}
-
-.modal-body {
-  padding: 24px;
+.token-form-modal .modal-body {
+  padding: 26px;
   max-height: calc(98vh - 120px);
   overflow-y: auto;
-}
-
-.form-group {
-  margin-bottom: 16px;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 6px;
-  font-weight: 500;
-  color: var(--text-strong);
-  font-size: 14px;
-}
-
-.form-group input,
-.form-group textarea {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 14px;
-  transition: border-color 0.2s;
-  box-sizing: border-box;
-  background: var(--bg-surface);
-  color: var(--text);
-}
-
-.form-group input:focus,
-.form-group textarea:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
-}
-
-.form-group input:disabled,
-.form-group textarea:disabled {
-  background: var(--bg-muted);
-  color: var(--text-muted);
-  cursor: not-allowed;
-}
-
-.form-group textarea {
-  resize: vertical;
-  min-height: 80px;
 }
 
 .tag-input-row {
@@ -1184,64 +1102,31 @@ onUnmounted(() => {
 
 .help-text {
   font-size: 12px;
-  color: var(--color-text-muted, #666);
-  margin-top: 4px;
+  color: var(--text-muted);
+  margin-top: 6px;
+  line-height: 1.5;
 }
 
 .error-message {
-  color: #dc2626;
+  color: #ef4444;
   font-size: 12px;
-  margin-top: 4px;
+  margin-top: 6px;
 }
 
+/* 底部按钮区 */
 .form-actions {
   display: flex;
-  gap: 12px;
+  gap: 14px;
   justify-content: flex-end;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--tech-glass-border);
 }
 
-.btn {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 80px;
+.form-actions .btn {
+  min-width: 90px;
   justify-content: center;
 }
-
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.btn.primary {
-  background: var(--color-accent, #3b82f6);
-  color: var(--color-text-inverse, #ffffff);
-}
-
-.btn.primary:hover:not(:disabled) {
-  background: var(--color-accent-hover, #2563eb);
-}
-
-.btn.secondary {
-  background: var(--color-surface-muted, #f8f9fa);
-  color: var(--color-text-secondary, #495057);
-  border: 1px solid var(--color-border-strong, #dee2e6);
-}
-
-.btn.secondary:hover:not(:disabled) {
-  background: var(--color-surface-muted, #e9ecef);
-}
-
 .loading-spinner {
   width: 14px;
   height: 14px;
@@ -1257,30 +1142,29 @@ onUnmounted(() => {
   }
 }
 
-/* Tab Navigation Styles */
+/* Tab 导航 - 科技风 */
 .tab-navigation {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   justify-content: center;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border);
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--tech-glass-border);
 }
 
 .tab-btn {
-  padding: 6px 14px;
-  border: none;
-  border-radius: 6px;
+  padding: 8px 16px;
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 10px;
   cursor: pointer;
   font-size: 13px;
-  font-weight: 500;
-  transition: all 0.2s;
+  font-weight: 600;
+  transition: all 0.2s ease;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  background: var(--bg-muted);
+  gap: 8px;
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
   color: var(--text);
-  border: 1px solid var(--border);
 }
 
 .tab-btn svg {
@@ -1289,19 +1173,20 @@ onUnmounted(() => {
 }
 
 .tab-btn:hover {
-  background: var(--bg-hover);
-  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  color: var(--accent);
 }
 
 .tab-btn.active {
-  background: color-mix(in srgb, var(--accent) 15%, transparent);
-  color: var(--accent);
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  background: var(--accent);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 0 15px var(--tech-glow-primary);
 }
 
 .tab-btn.active:hover {
-  background: color-mix(in srgb, var(--accent) 20%, transparent);
-  border-color: var(--accent);
+  filter: brightness(1.1);
 }
 
 .tab-btn svg {
@@ -1466,7 +1351,7 @@ onUnmounted(() => {
   font-family: monospace;
 }
 
-.copy-icon-btn {
+.btn-icon.copy-icon {
   padding: 10px;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -1479,7 +1364,7 @@ onUnmounted(() => {
   justify-content: center;
 }
 
-.copy-icon-btn:hover {
+.btn-icon.copy-icon:hover {
   background: var(--bg-muted);
   border-color: var(--accent);
   color: var(--accent);

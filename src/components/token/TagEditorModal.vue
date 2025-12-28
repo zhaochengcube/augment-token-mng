@@ -27,7 +27,7 @@
                   <button
                     v-if="editingTagName"
                     type="button"
-                    class="tag-clear-btn"
+                    class="tag-clear-btn modal-close"
                     :title="$t('tokenForm.clearTag')"
                     @click="editingTagName = ''"
                   >
@@ -67,7 +67,7 @@
                 </div>
               </div>
               <div v-if="editingTagName" class="tag-preview-row">
-                <span class="tag-badge-preview" :style="{ backgroundColor: editingTagColor, color: getContrastColor(editingTagColor) }">
+                <span class="status-badge editable" :style="{ '--tag-color': editingTagColor }">
                   {{ editingTagName }}
                 </span>
               </div>
@@ -78,13 +78,13 @@
             </div>
           </div>
           <div class="modal-footer">
-            <button @click="handleClear" class="btn-secondary" v-if="showClearButton">
+            <button @click="handleClear" class="btn primary" v-if="showClearButton">
               {{ $t('tokenForm.clearTag') }}
             </button>
-            <button @click="handleClose" class="btn-secondary">
+            <button @click="handleClose" class="btn secondary">
               {{ $t('common.cancel') }}
             </button>
-            <button @click="handleSave" class="btn-primary">
+            <button @click="handleSave" class="btn primary">
               {{ $t('common.confirm') }}
             </button>
           </div>
@@ -99,6 +99,12 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
+
+const resolveCssVar = (name, fallback) => {
+  if (typeof window === 'undefined') return fallback
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+  return value || fallback
+}
 
 const props = defineProps({
   visible: {
@@ -125,8 +131,9 @@ const props = defineProps({
 const emit = defineEmits(['update:visible', 'save', 'clear'])
 
 // 编辑状态
+const defaultTagColor = resolveCssVar('--tag-default', '#f97316')
 const editingTagName = ref('')
-const editingTagColor = ref('#f97316')
+const editingTagColor = ref(defaultTagColor)
 const showTagSuggestions = ref(false)
 const tagNameInputRef = ref(null)
 const tagColorInputRef = ref(null)
@@ -189,11 +196,11 @@ watch(() => props.visible, (newVal) => {
     if (isBatchMode.value) {
       // 批量模式：使用默认值
       editingTagName.value = ''
-      editingTagColor.value = '#f97316'
+      editingTagColor.value = defaultTagColor
     } else if (props.token) {
       // 单个模式：使用当前 token 的值
       editingTagName.value = props.token.tag_name || ''
-      editingTagColor.value = props.token.tag_color || '#f97316'
+      editingTagColor.value = props.token.tag_color || defaultTagColor
     }
     showTagSuggestions.value = false
   }
@@ -201,12 +208,14 @@ watch(() => props.visible, (newVal) => {
 
 // 获取对比色
 const getContrastColor = (hex) => {
-  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return '#ffffff'
+  const lightText = resolveCssVar('--text-inverse', '#ffffff')
+  const darkText = resolveCssVar('--text', '#1f2937')
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return lightText
   const r = parseInt(hex.slice(1, 3), 16)
   const g = parseInt(hex.slice(3, 5), 16)
   const b = parseInt(hex.slice(5, 7), 16)
   const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
-  return luminance > 0.6 ? '#1f2937' : '#ffffff'
+  return luminance > 0.6 ? darkText : lightText
 }
 
 // 处理标签输入
@@ -255,10 +264,14 @@ const handleClear = () => {
 </script>
 
 <style scoped>
+/* ============================================
+   TagEditorModal - Modern Tech Style
+   ============================================ */
+
 /* Modal 过渡动画 */
 .modal-enter-active,
 .modal-leave-active {
-  transition: opacity 0.2s ease;
+  transition: opacity 0.25s ease;
 }
 
 .modal-enter-from,
@@ -268,27 +281,27 @@ const handleClear = () => {
 
 .modal-enter-active .tag-editor-modal,
 .modal-leave-active .tag-editor-modal {
-  transition: transform 0.2s ease;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .modal-enter-from .tag-editor-modal,
 .modal-leave-to .tag-editor-modal {
-  transform: scale(0.95);
+  transform: scale(0.92) translateY(10px);
 }
 
 /* Dropdown 过渡动画 */
 .dropdown-enter-active,
 .dropdown-leave-active {
-  transition: all 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .dropdown-enter-from,
 .dropdown-leave-to {
   opacity: 0;
-  transform: translateY(-8px);
+  transform: translateY(-10px) scale(0.95);
 }
 
-/* 标签编辑器样式 */
+/* 标签编辑器遮罩 */
 .tag-editor-overlay {
   position: fixed;
   top: 0;
@@ -297,19 +310,23 @@ const handleClear = () => {
   bottom: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 10000;
-  backdrop-filter: blur(2px);
+  backdrop-filter: blur(4px);
 }
 
+/* 模态框 - 磨砂玻璃 */
 .tag-editor-modal {
-  background: var(--bg-surface);
-  border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  max-width: 400px;
+  background: var(--tech-glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 18px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35), var(--tech-border-glow);
+  max-width: 420px;
   width: 90%;
   overflow: visible;
 }
@@ -318,8 +335,8 @@ const handleClear = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 24px 16px;
-  border-bottom: 1px solid var(--border);
+  padding: 22px 26px 18px;
+  border-bottom: 1px solid var(--tech-glass-border);
 }
 
 .tag-editor-modal .modal-header h3 {
@@ -329,48 +346,31 @@ const handleClear = () => {
   color: var(--text-strong);
 }
 
-.tag-editor-modal .modal-close {
-  background: none;
-  border: none;
-  font-size: 24px;
-  color: var(--text-muted);
-  cursor: pointer;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  transition: all 0.2s;
-  line-height: 1;
-}
-
-.tag-editor-modal .modal-close:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-}
 
 .tag-editor-modal .modal-content {
-  padding: 20px 24px;
+  padding: 22px 26px;
   overflow: visible;
+  border-radius: 0;
 }
 
 .tag-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   overflow: visible;
 }
 
 .tag-group label {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .tag-input-row {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   align-items: center;
 }
 
@@ -379,21 +379,24 @@ const handleClear = () => {
   position: relative;
 }
 
+/* 输入框 - 科技风 */
 .tag-name-input {
   width: 100%;
-  padding: 10px 32px 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  padding: 12px 36px 12px 14px;
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 10px;
   font-size: 14px;
   color: var(--text);
-  background: var(--bg-surface);
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
   outline: none;
-  transition: border-color 0.15s ease;
+  transition: all 0.2s ease;
   box-sizing: border-box;
 }
 
 .tag-name-input:focus {
-  border-color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent),
+              0 0 15px var(--tech-glow-primary);
 }
 
 .tag-clear-btn {
@@ -401,25 +404,6 @@ const handleClear = () => {
   right: 8px;
   top: 50%;
   transform: translateY(-50%);
-  width: 20px;
-  height: 20px;
-  padding: 0;
-  border: none;
-  background: var(--bg-muted);
-  color: var(--text-muted);
-  border-radius: 50%;
-  font-size: 14px;
-  line-height: 1;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
-}
-
-.tag-clear-btn:hover {
-  background: #ef4444;
-  color: #ffffff;
 }
 
 .tag-color-wrapper {
@@ -428,17 +412,19 @@ const handleClear = () => {
 }
 
 .tag-color-display {
-  width: 40px;
-  height: 40px;
-  border: 2px solid var(--border);
+  width: 42px;
+  height: 42px;
+  border: 2px solid var(--tech-glass-border);
   border-radius: 50%;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .tag-color-display:hover {
   border-color: var(--accent);
-  transform: scale(1.08);
+  transform: scale(1.1);
+  box-shadow: 0 0 15px var(--tech-glow-primary);
 }
 
 .hidden-color-input {
@@ -452,40 +438,46 @@ const handleClear = () => {
   pointer-events: none;
 }
 
+/* 建议下拉 - 磨砂玻璃 */
 .tag-suggestions {
   position: absolute;
   top: 100%;
   left: 0;
   right: 0;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background: var(--tech-glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), var(--tech-border-glow);
   max-height: 200px;
   overflow-y: auto;
   z-index: 1000;
-  margin-top: 4px;
+  margin-top: 6px;
+  padding: 6px;
 }
 
 .tag-suggestion-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
+  gap: 10px;
+  padding: 10px 14px;
   cursor: pointer;
-  transition: background-color 0.15s ease;
+  transition: all 0.2s ease;
+  border-radius: 8px;
 }
 
 .tag-suggestion-item:hover,
 .tag-suggestion-item.selected {
-  background: var(--bg-hover);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
 }
 
 .tag-suggestion-item .tag-preview {
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
   flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
 .tag-suggestion-name {
@@ -496,66 +488,32 @@ const handleClear = () => {
 .tag-preview-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.tag-badge-preview {
-  display: inline-block;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 4px 12px;
-  border-radius: 12px;
+  gap: 10px;
+  margin-top: 14px;
 }
 
 .batch-hint {
-  margin-top: 12px;
-  padding: 10px 12px;
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
-  border-radius: 6px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+  border-radius: 10px;
   font-size: 13px;
   color: var(--accent);
 }
 
+/* 底部按钮区 */
 .tag-editor-modal .modal-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
-  padding: 16px 20px;
-  border-top: 1px solid var(--border);
-  background: var(--bg-muted);
-  border-radius: 0 0 12px 12px;
+  gap: 10px;
+  padding: 18px 22px;
+  border-top: 1px solid var(--tech-glass-border);
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  border-radius: 0 0 18px 18px;
 }
 
-.tag-editor-modal .btn-primary,
-.tag-editor-modal .btn-secondary {
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s ease;
+.tag-editor-modal .btn {
+  margin: 0;
 }
-
-.tag-editor-modal .btn-primary {
-  background: var(--accent);
-  color: var(--text-contrast);
-  border: none;
-}
-
-.tag-editor-modal .btn-primary:hover {
-  background: color-mix(in srgb, var(--accent) 90%, black);
-}
-
-.tag-editor-modal .btn-secondary {
-  background: var(--bg-surface);
-  color: var(--text);
-  border: 1px solid var(--border);
-}
-
-.tag-editor-modal .btn-secondary:hover {
-  background: var(--bg-hover);
-}
-
 </style>
-

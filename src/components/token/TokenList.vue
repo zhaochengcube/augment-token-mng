@@ -1,12 +1,12 @@
 <template>
-  <div :class="mode === 'modal' ? 'token-list-modal' : 'token-list-page'">
-    <div :class="mode === 'modal' ? 'modal-overlay' : 'page-container'">
-      <div class="modal-content" @click.stop="handleModalContentClick">
-        <div class="modal-header">
+  <div class="token-list-page">
+    <div class="page-container">
+      <div class="page-content" @click.stop="handlePageContentClick">
+        <div class="page-header">
           <!-- 左侧：存储状态 -->
           <div
             :class="['status-badge', storageStatusClass, { clickable: isDatabaseAvailable }]"
-            :title="isDatabaseAvailable ? $t('tokenList.viewSyncQueueTooltip') : ''"
+            v-tooltip="isDatabaseAvailable ? $t('tokenList.viewSyncQueueTooltip') : ''"
             @click="isDatabaseAvailable && openSyncQueue()"
           >
             <span :class="['status-dot', storageStatusClass]"></span>
@@ -21,7 +21,7 @@
             </svg>
             <input type="text" v-model="searchQuery" :placeholder="$t('tokenList.searchPlaceholder')"
               class="search-input" />
-            <button v-if="searchQuery.trim()" @click="searchQuery = ''" class="clear-search-btn" title="清空搜索">
+            <button v-if="searchQuery.trim()" @click="searchQuery = ''" class="modal-close clear-search-btn" v-tooltip="'清空搜索'">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                 <path
                   d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
@@ -32,8 +32,8 @@
           <!-- 右侧：操作按钮 -->
           <div class="header-actions">
             <!-- 同步按钮 - 仅双向存储模式显示 -->
-            <button v-if="isDatabaseAvailable" @click="handleBidirectionalSync" class="btn info small"
-              :disabled="isSyncing" :title="$t('tokenList.syncTooltip')">
+            <button v-if="isDatabaseAvailable" @click="handleBidirectionalSync" class="btn primary small"
+              :disabled="isSyncing" v-tooltip="$t('tokenList.syncTooltip')">
               <svg v-if="!isSyncing" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                 <path
                   d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" />
@@ -46,11 +46,10 @@
               </svg>
               {{ $t('tokenList.addToken') }}
             </button>
-            <button v-if="mode === 'modal'" class="close-btn" @click="handleClose">×</button>
           </div>
         </div>
 
-        <div ref="modalBodyRef" class="modal-body">
+        <div ref="pageBodyRef" class="page-body">
           <!-- Loading State -->
           <div v-if="isLoading" class="loading-state">
             <div class="spinner"></div>
@@ -66,7 +65,7 @@
               </svg>
             </div>
             <h3>{{ $t('tokenList.empty') }}</h3>
-            <button class="batch-import-btn-empty" @click="showBatchImportConfirm" :title="$t('tokenList.batchImport')">
+            <button class="batch-import-btn-empty" @click="showBatchImportConfirm" v-tooltip="$t('tokenList.batchImport')">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path
                   d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z" />
@@ -88,6 +87,9 @@
                     <!-- 状态图标 -->
                     <svg v-if="selectedStatusFilter === 'ACTIVE'" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="status-icon active">
                       <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                    </svg>
+                    <svg v-else-if="selectedStatusFilter === 'DEPLETE'" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="status-icon deplete">
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z" />
                     </svg>
                     <svg v-else-if="selectedStatusFilter === 'SUSPENDED'" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="status-icon suspended">
                       <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 11c-.55 0-1-.45-1-1V8c0-.55.45-1 1-1s1 .45 1 1v4c0 .55-.45 1-1 1zm1 4h-2v-2h2v2z" />
@@ -134,6 +136,19 @@
                         </svg>
                       </button>
 
+                      <button :class="['status-option', 'deplete-status', { active: selectedStatusFilter === 'DEPLETE' }]"
+                        @click="selectStatusFilter('DEPLETE')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="status-icon deplete">
+                          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z" />
+                        </svg>
+                        <span>{{ $t('tokenList.depleteStatus') }}</span>
+                        <span class="status-count">{{ statusStatistics.DEPLETE }}</span>
+                        <svg v-if="selectedStatusFilter === 'DEPLETE'" width="16" height="16" viewBox="0 0 24 24"
+                          fill="currentColor" class="check-icon">
+                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                        </svg>
+                      </button>
+
                       <button :class="['status-option', 'suspended-status', { active: selectedStatusFilter === 'SUSPENDED' }]"
                         @click="selectStatusFilter('SUSPENDED')">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="status-icon suspended">
@@ -165,8 +180,8 @@
 
                 <!-- 标签筛选下拉菜单 -->
                 <div class="tag-filter-dropdown">
-                  <button class="tag-filter-btn" @click.stop="toggleTagFilterMenu"
-                    :title="selectedTags.size > 0 ? `${tagFilterMode === 'include' ? '包含' : '排除'}: ${Array.from(selectedTags).join(', ')}` : '按标签筛选'"
+                  <button class="btn-icon tag-filter-btn" @click.stop="toggleTagFilterMenu"
+                    v-tooltip="selectedTags.size > 0 ? `${tagFilterMode === 'include' ? '包含' : '排除'}: ${Array.from(selectedTags).join(', ')}` : '按标签筛选'"
                     :class="{ 'active': selectedTags.size > 0 }">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"/>
@@ -196,7 +211,7 @@
 
                         <!-- 筛选模式切换按钮 -->
                         <button class="tag-mode-toggle-btn" @click="toggleTagFilterMode"
-                          :title="tagFilterMode === 'include' ? '切换到排除模式' : '切换到包含模式'">
+                          v-tooltip="tagFilterMode === 'include' ? '切换到排除模式' : '切换到包含模式'">
                           <svg v-if="tagFilterMode === 'include'" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
                           </svg>
@@ -240,8 +255,8 @@
 
                 <!-- 邮箱后缀筛选下拉菜单 -->
                 <div class="email-suffix-dropdown">
-                  <button class="email-suffix-btn" @click.stop="toggleEmailSuffixMenu"
-                    :title="selectedEmailSuffix ? `筛选: ${selectedEmailSuffix}` : '按邮箱后缀筛选'"
+                  <button class="btn-icon" @click.stop="toggleEmailSuffixMenu"
+                    v-tooltip="selectedEmailSuffix ? `筛选: ${selectedEmailSuffix}` : '按邮箱后缀筛选'"
                     :class="{ 'active': selectedEmailSuffix }">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                       <path
@@ -273,7 +288,7 @@
                         <!-- 提取按钮 -->
                         <button class="suffix-extract-btn" @click="extractEmailSuffixes"
                           :disabled="emailSuffixes.length === 0"
-                          :title="emailSuffixes.length === 0 ? '暂无邮箱后缀可提取' : '复制所有邮箱后缀到剪贴板'">
+                          v-tooltip="emailSuffixes.length === 0 ? '暂无邮箱后缀可提取' : '复制所有邮箱后缀到剪贴板'">
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                             <path
                               d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
@@ -316,8 +331,8 @@
 
                 <!-- 排序下拉菜单 -->
                 <div class="sort-dropdown">
-                <button class="sort-btn" @click.stop="toggleSortMenu" :title="$t('tokenList.sort')">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                <button class="btn-icon" @click.stop="toggleSortMenu" v-tooltip="$t('tokenList.sort')">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                     stroke-linecap="round">
                     <!-- 左边向上箭头 -->
                     <path d="M7 16V6M4 9l3-3 3 3" />
@@ -432,17 +447,17 @@
 
                 <!-- 布局切换按钮 -->
                 <button
-                  class="action-btn view-toggle-btn"
+                  class="btn-icon"
                   @click="toggleViewMode"
-                  :title="viewMode === 'card' ? $t('tokenList.switchToTable') : $t('tokenList.switchToCard')"
+                  v-tooltip="viewMode === 'card' ? $t('tokenList.switchToTable') : $t('tokenList.switchToCard')"
                   :class="{ 'active': viewMode === 'table' }"
                 >
                   <!-- 卡片图标 -->
-                  <svg v-if="viewMode === 'table'" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <svg v-if="viewMode === 'table'" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M4 11h5V5H4v6zm0 7h5v-6H4v6zm6 0h5v-6h-5v6zm6 0h5v-6h-5v6zm-6-7h5V5h-5v6zm6-6v6h5V5h-5z"/>
                   </svg>
                   <!-- 列表图标 -->
-                  <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M3 14h4v-4H3v4zm0 5h4v-4H3v4zM3 9h4V5H3v4zm5 5h13v-4H8v4zm0 5h13v-4H8v4zM8 5v4h13V5H8z"/>
                   </svg>
                 </button>
@@ -450,12 +465,25 @@
 
               <!-- 右侧：其他操作按钮 -->
               <div class="toolbar-right">
+                <!-- Session 即将过期警告按钮 -->
+                <button
+                  v-if="expiringSessionTokens.length > 0"
+                  class="btn-icon warning"
+                  @click="openSessionRefreshModal"
+                  v-tooltip="$t('tokenList.sessionExpiring', { count: expiringSessionTokens.length })"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+                  </svg>
+                  <span class="warning-badge">{{ expiringSessionTokens.length }}</span>
+                </button>
+
                 <!-- 邮箱显示切换按钮 -->
               <button
-                class="action-btn email-visibility-btn"
+                  class="btn-icon"
                 @click="showRealEmail = !showRealEmail"
                 :class="{ 'active': showRealEmail }"
-                :title="showRealEmail ? $t('tokenList.hideRealEmail') : $t('tokenList.showRealEmail')"
+                v-tooltip="showRealEmail ? $t('tokenList.hideRealEmail') : $t('tokenList.showRealEmail')"
               >
                 <svg v-if="showRealEmail" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
@@ -467,10 +495,10 @@
 
               <!-- 刷新按钮 -->
               <button
-                class="action-btn refresh-btn"
+                class="btn-icon"
                 @click="handleRefresh"
                 :disabled="isRefreshing"
-                :title="$t('tokenList.refresh')"
+                v-tooltip="$t('tokenList.refresh')"
               >
                 <svg v-if="!isRefreshing" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
@@ -482,9 +510,9 @@
 
               <!-- 打开文件夹按钮 -->
               <button
-                class="action-btn open-folder-btn"
+                class="btn-icon"
                 @click="openDataFolder"
-                :title="$t('bookmarkManager.openDataFolder')"
+                v-tooltip="$t('bookmarkManager.openDataFolder')"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z" />
@@ -493,9 +521,9 @@
 
               <!-- 批量导入按钮 -->
               <button
-                class="action-btn batch-import-btn"
+                class="btn-icon"
                 @click="showBatchImportConfirm"
-                :title="$t('tokenList.batchImport')"
+                v-tooltip="$t('tokenList.batchImport')"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z" />
@@ -504,9 +532,9 @@
 
               <!-- 批量删除按钮 -->
               <button
-                class="action-btn batch-delete-btn"
+                class="btn-icon"
                 @click="handleBatchDelete"
-                :title="$t('tokenList.batchDelete')"
+                v-tooltip="$t('tokenList.batchDelete')"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
@@ -565,7 +593,7 @@
                       <th class="th-status">{{ $t('tokenList.tableHeaderStatus') }}</th>
                       <th class="th-email">{{ $t('tokenList.tableHeaderEmail') }}</th>
                       <th class="th-balance">{{ $t('tokenList.tableHeaderBalance') }}</th>
-                      <th class="th-expiry">{{ $t('tokenList.tableHeaderResetTime') }}</th>
+                      <th class="th-dates">{{ $t('tokenList.tableHeaderDates') }}</th>
                       <th class="th-actions">{{ $t('tokenList.tableHeaderActions') }}</th>
                     </tr>
                   </thead>
@@ -611,10 +639,13 @@
 
           </div>
         </div>
+      </div>
+    </div>
 
-        <!-- 批量操作工具栏 -->
-        <Transition name="slide-up">
-          <div v-if="isSelectionMode" class="batch-toolbar">
+    <!-- 批量操作工具栏 - 使用 Teleport 确保正确定位 -->
+    <Teleport to="body">
+      <Transition name="slide-up">
+        <div v-if="isSelectionMode" class="batch-toolbar">
             <div class="batch-toolbar-content">
               <!-- 左侧：选中数量 -->
               <div class="batch-info">
@@ -629,50 +660,50 @@
               <!-- 右侧：操作按钮 -->
               <div class="batch-actions">
                 <!-- 批量刷新状态 -->
-                <button @click="batchRefreshSelected" class="batch-action-btn"
+                <button @click="batchRefreshSelected" class="btn-icon"
                         :disabled="isBatchRefreshing"
-                        :title="$t('tokenList.batchRefreshSelected')">
+                        v-tooltip="$t('tokenList.batchRefreshSelected')">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
                   </svg>
                 </button>
-                
+
                 <!-- 批量导出 -->
-                <button @click="batchExportSelected" class="batch-action-btn"
-                        :title="$t('tokenList.batchExportSelected')">
+                <button @click="batchExportSelected" class="btn-icon"
+                        v-tooltip="$t('tokenList.batchExportSelected')">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/>
                   </svg>
                 </button>
-                
+
                 <!-- 批量获取绑卡链接 -->
-                <button @click="batchFetchPaymentLinks" class="batch-action-btn"
+                <button @click="batchFetchPaymentLinks" class="btn-icon"
                         :disabled="isBatchFetchingPaymentLinks"
-                        :title="$t('tokenList.batchFetchPaymentLinks')">
+                        v-tooltip="$t('tokenList.batchFetchPaymentLinks')">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
                   </svg>
                 </button>
 
                 <!-- 批量编辑标签 -->
-                <button @click="showBatchTagEditor = true" class="batch-action-btn"
-                        :title="$t('tokenList.batchEditTag')">
+                <button @click="showBatchTagEditor = true" class="btn-icon"
+                        v-tooltip="$t('tokenList.batchEditTag')">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"/>
                   </svg>
                 </button>
 
                 <!-- 批量删除 -->
-                <button @click="showBatchDeleteSelectedConfirm" class="batch-action-btn danger"
-                        :title="$t('tokenList.batchDeleteSelected')">
+                <button @click="showBatchDeleteSelectedConfirm" class="btn-icon danger"
+                        v-tooltip="$t('tokenList.batchDeleteSelected')">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
                   </svg>
                 </button>
-                
+
                 <!-- 取消选择 -->
-                <button @click="clearSelection" class="batch-action-btn close"
-                        :title="$t('tokenList.cancelSelection')">
+                <button @click="clearSelection" class="btn-icon close"
+                        v-tooltip="$t('tokenList.cancelSelection')">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
                   </svg>
@@ -681,8 +712,7 @@
             </div>
           </div>
         </Transition>
-      </div>
-    </div>
+      </Teleport>
 
     <!-- Token Form Modal -->
     <Teleport to="body">
@@ -702,14 +732,23 @@
       @mark-all-for-sync="handleMarkAllForSync"
     />
 
+    <!-- Session Refresh Modal -->
+    <SessionRefreshModal
+      v-model:visible="showSessionRefreshModal"
+      :expiring-tokens="expiringSessionTokens"
+      :refreshing="isRefreshingSessions"
+      @refresh="handleBatchRefreshSessions"
+      @refresh-single="handleSingleRefreshSession"
+    />
+
     <!-- Batch Import Dialog -->
     <Teleport to="body">
       <Transition name="modal" appear>
-        <div v-if="showBatchImportDialog" class="batch-import-overlay" @click="showBatchImportDialog = false">
-          <div class="batch-import-dialog" @click.stop>
-            <div class="dialog-header">
+        <div v-if="showBatchImportDialog" class="modal-overlay batch-import-overlay" @click="showBatchImportDialog = false">
+          <div class="modal-content batch-import-modal" @click.stop>
+            <div class="modal-header">
               <h3>{{ $t('tokenList.batchImportTitle') }}</h3>
-              <button @click="showBatchImportDialog = false" class="dialog-close">
+              <button @click="showBatchImportDialog = false" class="modal-close">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                   <path
                     d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
@@ -736,10 +775,10 @@
               </button>
             </div>
 
-            <div class="dialog-body">
+            <div class="modal-body">
               <!-- Session Tab Content -->
               <div v-if="batchImportTab === 'session'" class="tab-content">
-                <p class="dialog-message">{{ $t('tokenList.sessionImportMessage') }}</p>
+                <p class="modal-message">{{ $t('tokenList.sessionImportMessage') }}</p>
 
                 <!-- Session 动态输入框列表 -->
                 <div class="session-inputs-container">
@@ -748,7 +787,7 @@
                     <input v-model="input.value" type="text" :placeholder="$t('tokenList.sessionInputPlaceholder')"
                       class="session-input-field" />
                     <button @click="removeSessionInput(input.id)" class="session-input-delete"
-                      :title="$t('tokenList.deleteInput')" :disabled="sessionInputs.length <= 1">
+                      v-tooltip="$t('tokenList.deleteInput')" :disabled="sessionInputs.length <= 1">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
                       </svg>
@@ -768,7 +807,7 @@
 
               <!-- Token Tab Content -->
               <div v-else-if="batchImportTab === 'token'" class="tab-content">
-                <p class="dialog-message">{{ $t('tokenList.tokenImportMessage') }}</p>
+                <p class="modal-message">{{ $t('tokenList.tokenImportMessage') }}</p>
 
                 <!-- 格式说明和填充按钮 -->
                 <div class="format-option-single">
@@ -813,11 +852,11 @@
               </div>
             </div>
 
-            <div class="dialog-footer">
-              <button @click="showBatchImportDialog = false" class="btn-cancel">
+            <div class="modal-footer">
+              <button @click="showBatchImportDialog = false" class="btn secondary">
                 {{ $t('tokenList.cancel') }}
               </button>
-              <button @click="executeBatchImport" class="btn-confirm"
+              <button @click="executeBatchImport" class="btn primary"
                 :disabled="isImporting || (batchImportTab === 'session' ? validSessionCount === 0 : importPreview.length === 0)">
                 <template v-if="isImporting">
                   {{ $t('tokenList.importing') }}
@@ -876,19 +915,19 @@
     <!-- Batch Delete Confirmation Dialog -->
     <Teleport to="body">
       <Transition name="modal" appear>
-        <div v-if="showBatchDeleteDialog" class="batch-delete-overlay" @click="showBatchDeleteDialog = false">
-          <div class="batch-delete-dialog" @click.stop>
-            <div class="dialog-header">
+        <div v-if="showBatchDeleteDialog" class="modal-overlay batch-delete-overlay" @click="showBatchDeleteDialog = false">
+          <div class="modal-content batch-delete-modal" @click.stop>
+            <div class="modal-header">
               <h3>{{ $t('tokenList.batchDeleteConfirm') }}</h3>
-              <button @click="showBatchDeleteDialog = false" class="dialog-close">
+              <button @click="showBatchDeleteDialog = false" class="modal-close">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                   <path
                     d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
                 </svg>
               </button>
             </div>
-            <div class="dialog-body">
-              <p class="dialog-message">{{ $t('tokenList.batchDeleteMessage') }}</p>
+            <div class="modal-body">
+              <p class="modal-message">{{ $t('tokenList.batchDeleteMessage') }}</p>
               <div class="delete-stats">
                 <div class="stat-item">
                   <span class="stat-label">{{ $t('tokenList.bannedCount') }}:</span>
@@ -903,10 +942,10 @@
                   <span class="stat-value">{{ deletableTokensCount }} {{ $t('tokenList.items') }}</span>
                 </div>
               </div>
-              <p class="dialog-warning">{{ $t('tokenList.cannotUndo') }}</p>
+              <p class="modal-warning">{{ $t('tokenList.cannotUndo') }}</p>
             </div>
-            <div class="dialog-footer">
-              <button @click="executeBatchDelete" class="btn btn-danger" :disabled="isDeleting">
+            <div class="modal-footer">
+              <button @click="executeBatchDelete" class="btn danger" :disabled="isDeleting">
                 {{ isDeleting ? $t('tokenList.deleting') : $t('tokenList.confirmDelete') }}
               </button>
             </div>
@@ -918,28 +957,28 @@
     <!-- Selected Tokens Delete Confirmation Dialog -->
     <Teleport to="body">
       <Transition name="modal" appear>
-        <div v-if="showSelectedDeleteDialog" class="batch-delete-overlay" @click="showSelectedDeleteDialog = false">
-          <div class="batch-delete-dialog" @click.stop>
-            <div class="dialog-header">
+        <div v-if="showSelectedDeleteDialog" class="modal-overlay batch-delete-overlay" @click="showSelectedDeleteDialog = false">
+          <div class="modal-content batch-delete-modal" @click.stop>
+            <div class="modal-header">
               <h3>{{ $t('tokenList.batchDeleteConfirm') }}</h3>
-              <button @click="showSelectedDeleteDialog = false" class="dialog-close">
+              <button @click="showSelectedDeleteDialog = false" class="modal-close">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
                 </svg>
               </button>
             </div>
-            <div class="dialog-body">
-              <p class="dialog-message">{{ $t('tokenList.selectedDeleteMessage') }}</p>
+            <div class="modal-body">
+              <p class="modal-message">{{ $t('tokenList.selectedDeleteMessage') }}</p>
               <div class="delete-stats">
                 <div class="stat-item total">
                   <span class="stat-label">{{ $t('tokenList.selectedCount') }}:</span>
                   <span class="stat-value">{{ selectedTokenIds.size }} {{ $t('tokenList.items') }}</span>
                 </div>
               </div>
-              <p class="dialog-warning">{{ $t('tokenList.cannotUndo') }}</p>
+              <p class="modal-warning">{{ $t('tokenList.cannotUndo') }}</p>
             </div>
-            <div class="dialog-footer">
-              <button @click="executeBatchDeleteSelected" class="btn btn-danger">
+            <div class="modal-footer">
+              <button @click="executeBatchDeleteSelected" class="btn danger">
                 {{ $t('tokenList.confirmDelete') }}
               </button>
             </div>
@@ -970,17 +1009,13 @@ import TokenTableRow from './TokenTableRow.vue'
 import TokenForm from './TokenForm.vue'
 import TagEditorModal from './TagEditorModal.vue'
 import SyncQueueModal from './SyncQueueModal.vue'
+import SessionRefreshModal from './SessionRefreshModal.vue'
 import Pagination from '../common/Pagination.vue'
 
 const { t } = useI18n()
 
 // Props
 const props = defineProps({
-  mode: {
-    type: String,
-    default: 'modal', // 'modal' or 'page'
-    validator: (value) => ['modal', 'page'].includes(value)
-  },
   tokens: {
     type: Array,
     default: null // null表示自主管理，非null表示由父组件传入
@@ -1001,6 +1036,10 @@ const isReady = ref(false)
 // 同步状态标记 - 用于防止同步时触发自动保存
 const isSyncing = ref(false)
 const isLoadingFromSync = ref(false)
+
+// Session 刷新相关状态
+const showSessionRefreshModal = ref(false)
+const isRefreshingSessions = ref(false)
 
 // 同步需求标记 - 标识本地有未同步到数据库的更改
 const isSyncNeeded = ref(false)
@@ -1111,7 +1150,7 @@ const viewMode = ref('card') // 'card' = 卡片布局, 'table' = 列表布局
 const showRealEmail = ref(true) // false = 脱敏显示, true = 真实邮箱
 
 // 模态框主体容器引用
-const modalBodyRef = ref(null)
+const pageBodyRef = ref(null)
 
 // 搜索状态管理
 const searchQuery = ref('')
@@ -1356,6 +1395,7 @@ const baseFilteredTokens = computed(() => {
 const statusStatistics = computed(() => {
   const stats = {
     ACTIVE: 0,
+    DEPLETE: 0,
     SUSPENDED: 0,
     OTHER: 0,
     TOTAL: baseFilteredTokens.value.length
@@ -1363,8 +1403,17 @@ const statusStatistics = computed(() => {
 
   baseFilteredTokens.value.forEach(token => {
     const status = token.ban_status
+    const portalInfo = token.portal_info
+    const creditTotal = portalInfo?.credit_total
+    const creditsBalance = portalInfo?.credits_balance
+
     if (status === 'ACTIVE') {
-      stats.ACTIVE++
+      // 判断是否用尽：credit_total 不为空/不为null 且 credits_balance === 0
+      if (creditTotal && creditsBalance === 0) {
+        stats.DEPLETE++
+      } else {
+        stats.ACTIVE++
+      }
     } else if (status === 'SUSPENDED') {
       stats.SUSPENDED++
     } else {
@@ -1384,9 +1433,16 @@ const statusFilteredTokens = computed(() => {
   if (selectedStatusFilter.value !== null) {
     result = result.filter(token => {
       const status = token.ban_status
+      const portalInfo = token.portal_info
+      const creditTotal = portalInfo?.credit_total
+      const creditsBalance = portalInfo?.credits_balance
 
       if (selectedStatusFilter.value === 'ACTIVE') {
-        return status === 'ACTIVE'
+        // 可用状态：ban_status === 'ACTIVE' 且余额大于0（排除用尽状态）
+        return status === 'ACTIVE' && !(creditTotal && creditsBalance === 0)
+      } else if (selectedStatusFilter.value === 'DEPLETE') {
+        // 用尽状态：ban_status === 'ACTIVE' 且 credit_total 不为空/不为null 且 credits_balance === 0
+        return status === 'ACTIVE' && creditTotal && creditsBalance === 0
       } else if (selectedStatusFilter.value === 'SUSPENDED') {
         return status === 'SUSPENDED'
       } else if (selectedStatusFilter.value === 'OTHER') {
@@ -1423,6 +1479,37 @@ const emailSuffixes = computed(() => {
   // 转换为数组并按数量排序(从大到小)
   return Object.keys(stats).sort((a, b) => {
     return stats[b] - stats[a]
+  })
+})
+
+// 辅助函数：判断 session 是否需要刷新（25-30天）
+const shouldRefreshSession = (token) => {
+  if (!token.auth_session || !token.created_at) return false
+
+  // 使用 session_updated_at（如果存在）或 created_at 来判断
+  const referenceTime = token.session_updated_at || token.created_at
+  const referenceDate = new Date(referenceTime)
+  const now = new Date()
+  const daysSinceReference = Math.floor((now - referenceDate) / (1000 * 60 * 60 * 24))
+
+  return daysSinceReference >= 25 && daysSinceReference < 30
+}
+
+// 计算即将过期的 session tokens（25-30天，且状态为正常）
+// 按剩余天数从少到多排序（最紧急的排在前面）
+const expiringSessionTokens = computed(() => {
+  const filtered = tokens.value.filter(token => {
+    // 必须有 auth_session 和 created_at
+    if (!token.auth_session || !token.created_at) return false
+
+    return shouldRefreshSession(token)
+  })
+
+  // 按剩余天数排序（从少到多，最紧急的在前）
+  return filtered.sort((a, b) => {
+    const daysA = Math.floor((new Date() - new Date(a.created_at)) / (1000 * 60 * 60 * 24))
+    const daysB = Math.floor((new Date() - new Date(b.created_at)) / (1000 * 60 * 60 * 24))
+    return daysB - daysA // 天数大的在前（剩余天数少的在前）
   })
 })
 
@@ -1566,11 +1653,23 @@ const toggleSort = (type = 'time') => {
 // 切换排序菜单显示
 const toggleSortMenu = () => {
   showSortMenu.value = !showSortMenu.value
+  // 关闭其他菜单
+  if (showSortMenu.value) {
+    showStatusFilterMenu.value = false
+    showEmailSuffixMenu.value = false
+    showTagFilterMenu.value = false
+  }
 }
 
 // 切换状态筛选菜单显示
 const toggleStatusFilterMenu = () => {
   showStatusFilterMenu.value = !showStatusFilterMenu.value
+  // 关闭其他菜单
+  if (showStatusFilterMenu.value) {
+    showSortMenu.value = false
+    showEmailSuffixMenu.value = false
+    showTagFilterMenu.value = false
+  }
 }
 
 // 切换视图模式
@@ -1614,11 +1713,19 @@ const selectStatusFilter = (status) => {
   }
   // 重置到第一页
   currentPage.value = 1
+  // 关闭菜单
+  showStatusFilterMenu.value = false
 }
 
 // 切换邮箱后缀筛选菜单显示
 const toggleEmailSuffixMenu = () => {
   showEmailSuffixMenu.value = !showEmailSuffixMenu.value
+  // 关闭其他菜单
+  if (showEmailSuffixMenu.value) {
+    showSortMenu.value = false
+    showStatusFilterMenu.value = false
+    showTagFilterMenu.value = false
+  }
 }
 
 // 选择邮箱后缀筛选
@@ -1668,6 +1775,12 @@ const extractEmailSuffixes = async () => {
 // 切换标签筛选菜单显示
 const toggleTagFilterMenu = () => {
   showTagFilterMenu.value = !showTagFilterMenu.value
+  // 关闭其他菜单
+  if (showTagFilterMenu.value) {
+    showSortMenu.value = false
+    showStatusFilterMenu.value = false
+    showEmailSuffixMenu.value = false
+  }
 }
 
 // 切换标签筛选模式
@@ -1701,8 +1814,8 @@ const clearTagFilter = () => {
   currentPage.value = 1
 }
 
-// 处理模态框内容点击 (关闭所有下拉菜单)
-const handleModalContentClick = (event) => {
+// 处理页面内容点击 (关闭所有下拉菜单)
+const handlePageContentClick = (event) => {
   const target = event.target
 
   // 关闭排序菜单
@@ -1744,7 +1857,7 @@ const handlePageChange = (page) => {
   // 滚动到顶部
   nextTick(() => {
     // 查找真正的滚动容器（向上遍历 DOM 树）
-    let element = modalBodyRef.value
+    let element = pageBodyRef.value
     while (element && element !== document.body) {
       const style = window.getComputedStyle(element)
       const hasScroll = element.scrollHeight > element.clientHeight
@@ -2078,25 +2191,25 @@ const showBatchDeleteSelectedConfirm = () => {
 // 执行批量删除选中项
 const executeBatchDeleteSelected = async () => {
   if (selectedTokenIds.value.size === 0) return
-  
+
   const selectedIds = Array.from(selectedTokenIds.value)
   let deletedCount = 0
-  
+
   for (const tokenId of selectedIds) {
-    const index = tokens.value.findIndex(t => t.id === tokenId)
+    const index = internalTokens.value.findIndex(t => t.id === tokenId)
     if (index !== -1) {
-      const tokenToDelete = tokens.value[index]
+      const tokenToDelete = internalTokens.value[index]
       const emailNote = tokenToDelete?.email_note || null
-      
+
       // 检查是否是仅在本地新增但从未同步过的 token
       const wasOnlyLocal = pendingUpserts.value.has(tokenId)
-      
-      tokens.value.splice(index, 1)
+
+      internalTokens.value.splice(index, 1)
       deletedCount++
-      
+
       // 从待更新队列中移除
       pendingUpserts.value.delete(tokenId)
-      
+
       // 只有已同步到服务器的 token 才需要记录到待删除队列
       if (!wasOnlyLocal) {
         pendingDeletions.value.set(tokenId, { id: tokenId, email_note: emailNote })
@@ -2130,13 +2243,13 @@ const handleBatchTagSave = async ({ tagName, tagColor }) => {
   let updatedCount = 0
 
   for (const tokenId of selectedIds) {
-    const token = tokens.value.find(t => t.id === tokenId)
+    const token = internalTokens.value.find(t => t.id === tokenId)
     if (token) {
       token.tag_name = tagName
       token.tag_color = tagColor
       token.updated_at = new Date().toISOString()
       updatedCount++
-      
+
       // 添加到待更新队列
       pendingUpserts.value.set(tokenId, token)
       pendingDeletions.value.delete(tokenId)
@@ -2604,7 +2717,7 @@ const executeBatchDelete = async () => {
 
   try {
     // 获取要删除的 tokens
-    const tokensToDelete = tokens.value.filter(token =>
+    const tokensToDelete = internalTokens.value.filter(token =>
       token.ban_status === 'SUSPENDED' || token.ban_status === 'EXPIRED'
     )
 
@@ -2613,20 +2726,20 @@ const executeBatchDelete = async () => {
     for (const token of tokensToDelete) {
       const tokenId = token.id
       const emailNote = token.email_note || null
-      
+
       // 检查是否是仅在本地新增但从未同步过的 token
       const wasOnlyLocal = pendingUpserts.value.has(tokenId)
-      
+
       // 从本地列表移除
-      const index = tokens.value.findIndex(t => t.id === tokenId)
+      const index = internalTokens.value.findIndex(t => t.id === tokenId)
       if (index !== -1) {
-        tokens.value.splice(index, 1)
+        internalTokens.value.splice(index, 1)
         deletedCount++
       }
-      
+
       // 从待更新队列中移除
       pendingUpserts.value.delete(tokenId)
-      
+
       // 只有已同步到服务器的 token 才需要记录到待删除队列
       if (!wasOnlyLocal) {
         pendingDeletions.value.set(tokenId, { id: tokenId, email_note: emailNote })
@@ -2657,7 +2770,6 @@ const executeBatchDelete = async () => {
   }
 }
 
-const emit = defineEmits(['close'])
 
 // Additional state for new components
 const isSaving = ref(false)
@@ -2683,6 +2795,98 @@ const openSyncQueue = () => {
 
 const closeSyncQueue = () => {
   showSyncQueueModal.value = false
+}
+
+// 打开 Session 刷新 Modal
+const openSessionRefreshModal = () => {
+  showSessionRefreshModal.value = true
+}
+
+// 单个刷新 session
+const handleSingleRefreshSession = async ({ tokenId, newSession, updatedAt }) => {
+  try {
+    // 在 tokens 数组中查找对应的 token
+    const token = tokens.value.find(t => t.id === tokenId)
+    if (token) {
+      token.auth_session = newSession
+      token.session_updated_at = updatedAt
+      token.updated_at = updatedAt
+
+      // 保存更新后的 tokens
+      await saveTokens()
+    }
+  } catch (error) {
+    console.error('Failed to save token after session refresh:', error)
+    window.$notify?.error(t('messages.saveTokenFailed'))
+  }
+}
+
+// 批量刷新 sessions
+const handleBatchRefreshSessions = async () => {
+  if (expiringSessionTokens.value.length === 0) {
+    window.$notify.warning(t('messages.noExpiringSession'))
+    return
+  }
+
+  isRefreshingSessions.value = true
+
+  try {
+    // 构建请求列表：{ id, session }
+    const requests = expiringSessionTokens.value
+      .filter(token => token.auth_session)
+      .map(token => ({
+        id: token.id,
+        session: token.auth_session
+      }))
+
+    if (requests.length === 0) {
+      window.$notify.warning(t('messages.noExpiringSession'))
+      return
+    }
+
+    // 调用后端刷新接口
+    const results = await invoke('batch_refresh_sessions', { requests })
+
+    let successCount = 0
+    let failCount = 0
+
+    // 更新 tokens（使用 token_id 匹配）
+    const now = new Date().toISOString()
+    results.forEach(result => {
+      if (result.success && result.new_session) {
+        successCount++
+        // 在 tokens 数组中查找对应的 token
+        const token = tokens.value.find(t => t.id === result.token_id)
+        if (token) {
+          token.auth_session = result.new_session
+          token.session_updated_at = now  // 设置 session 更新时间
+          token.updated_at = now
+        }
+      } else {
+        failCount++
+        console.error(`Failed to refresh session for token ${result.token_id}:`, result.error)
+      }
+    })
+
+    // 保存更新后的 tokens（由前端统一处理双向存储）
+    await saveTokens()
+
+    // 显示结果
+    if (successCount > 0) {
+      window.$notify.success(t('messages.sessionRefreshSuccess', { count: successCount }))
+    }
+    if (failCount > 0) {
+      window.$notify.warning(t('messages.sessionRefreshPartialFail', { success: successCount, fail: failCount }))
+    }
+
+    // 关闭 Modal
+    showSessionRefreshModal.value = false
+  } catch (error) {
+    console.error('Failed to refresh sessions:', error)
+    window.$notify.error(t('messages.sessionRefreshFailed'))
+  } finally {
+    isRefreshingSessions.value = false
+  }
 }
 
 // 标记所有 token 为待同步
@@ -2853,7 +3057,8 @@ const checkAllAccountStatus = async () => {
       tenant_url: token.tenant_url,
       portal_url: token.portal_url || null,
       auth_session: token.auth_session || null,
-      email_note: token.email_note || null
+      email_note: token.email_note || null,
+      should_refresh_session: shouldRefreshSession(token)  // 前端判断是否需要刷新 session
     }))
 
     // 单次批量API调用
@@ -2929,6 +3134,7 @@ const updateTokensFromResults = (results) => {
       if (result.portal_info) {
         const newPortalInfo = {
           credits_balance: result.portal_info.credits_balance,
+          credit_total: result.portal_info.credit_total,
           expiry_date: result.portal_info.expiry_date
         }
 
@@ -2986,7 +3192,7 @@ const loadTokens = async (showSuccessMessage = false) => {
     }
   } catch (error) {
     window.$notify.error(`${t('messages.tokenLoadFailed')}: ${error}`)
-    tokens.value = []
+    internalTokens.value = []
   } finally {
     isLoading.value = false
   }
@@ -3007,21 +3213,21 @@ const saveTokens = async (showSuccessMessage = false) => {
 
 // 删除token - 使用新的增量同步协议，不再直接调用后端删除
 const deleteToken = async (tokenId) => {
-  const tokenIndex = tokens.value.findIndex(token => token.id === tokenId)
+  const tokenIndex = internalTokens.value.findIndex(token => token.id === tokenId)
   if (tokenIndex === -1) {
     window.$notify.error(t('messages.tokenNotFound'))
     return
   }
 
   // 获取要删除的 token 信息（用于记录邮箱）
-  const tokenToDelete = tokens.value[tokenIndex]
+  const tokenToDelete = internalTokens.value[tokenIndex]
   const emailNote = tokenToDelete?.email_note || null
 
   // 检查是否是仅在本地新增但从未同步过的 token
   const wasOnlyLocal = pendingUpserts.value.has(tokenId)
 
   // 从内存中删除
-  tokens.value = tokens.value.filter(token => token.id !== tokenId)
+  internalTokens.value = internalTokens.value.filter(token => token.id !== tokenId)
   window.$notify.success(t('messages.tokenDeleted'))
 
   // 从待更新队列中移除
@@ -3032,13 +3238,13 @@ const deleteToken = async (tokenId) => {
   if (!wasOnlyLocal) {
     pendingDeletions.value.set(tokenId, { id: tokenId, email_note: emailNote })
   }
-  
+
   // 标记需要同步（如果还有待同步内容）
   isSyncNeeded.value = pendingUpserts.value.size > 0 || pendingDeletions.value.size > 0
 
   // 持久化待同步队列
   savePendingChanges()
-  
+
   // 保存到本地文件
   await saveTokens()
 }
@@ -3079,14 +3285,14 @@ const handleTokenFormSuccess = () => {
 }
 
 const handleUpdateToken = async (updatedTokenData) => {
-  const index = tokens.value.findIndex(token => token.id === updatedTokenData.id)
+  const index = internalTokens.value.findIndex(token => token.id === updatedTokenData.id)
   if (index !== -1) {
     const tagName = updatedTokenData.tagName ? updatedTokenData.tagName.trim() : ''
     const tagColor = updatedTokenData.tagColor || DEFAULT_TAG_COLOR
 
     // Update the token in the list
     const updatedToken = {
-      ...tokens.value[index],
+      ...internalTokens.value[index],
       tenant_url: updatedTokenData.tenantUrl,
       access_token: updatedTokenData.accessToken,
       portal_url: updatedTokenData.portalUrl || null,
@@ -3095,8 +3301,8 @@ const handleUpdateToken = async (updatedTokenData) => {
       tag_color: tagName ? tagColor : null,
       updated_at: new Date().toISOString()  // 更新 updated_at 时间戳
     }
-    tokens.value[index] = updatedToken
-    
+    internalTokens.value[index] = updatedToken
+
     // 记录到待更新集合
     pendingUpserts.value.set(updatedToken.id, updatedToken)
     pendingDeletions.value.delete(updatedToken.id)
@@ -3106,7 +3312,7 @@ const handleUpdateToken = async (updatedTokenData) => {
 
     // 持久化待同步队列
     savePendingChanges()
-    
+
     // 保存到本地文件
     await saveTokens()
   }
@@ -3190,11 +3396,12 @@ const addToken = async (tokenData) => {
     suspensions: tokenData.suspensions || null,  // 添加 suspensions 字段
     skip_check: false,  // 默认不跳过检测
     balance_color_mode: null,  // 默认为 null，将使用绿色
+    session_updated_at: tokenData.authSession ? now : null,  // 如果有 session，设置初始更新时间
     version: 0  // 本地创建时版本号为0，由数据库分配
   }
 
-  tokens.value.push(newToken)
-  
+  internalTokens.value.push(newToken)
+
   // 记录到待更新集合
   pendingUpserts.value.set(newToken.id, newToken)
   pendingDeletions.value.delete(newToken.id)
@@ -3202,10 +3409,10 @@ const addToken = async (tokenData) => {
 
   // 持久化待同步队列
   savePendingChanges()
-  
+
   // 保存到本地文件
   await saveTokens()
-  
+
   return { success: true, token: newToken }
 }
 
@@ -3290,12 +3497,6 @@ const openDataFolder = async () => {
   }
 }
 
-// 处理关闭事件
-const handleClose = () => {
-  // 防抖自动保存会处理保存,直接关闭即可
-  emit('close')
-}
-
 // ========== 公共批量检测方法 ==========
 // 批量检测指定 tokens 的状态（公共方法）
 const batchCheckTokensStatus = async (tokensToCheck) => {
@@ -3311,7 +3512,8 @@ const batchCheckTokensStatus = async (tokensToCheck) => {
       tenant_url: token.tenant_url,
       portal_url: token.portal_url || null,
       auth_session: token.auth_session || null,
-      email_note: token.email_note || null
+      email_note: token.email_note || null,
+      should_refresh_session: shouldRefreshSession(token)  // 前端判断是否需要刷新 session
     }))
 
     // 单次批量API调用检测所有tokens
@@ -3370,6 +3572,7 @@ const batchCheckTokensStatus = async (tokensToCheck) => {
         if (result.portal_info) {
           const newPortalInfo = {
             credits_balance: result.portal_info.credits_balance,
+            credit_total: result.portal_info.credit_total,
             expiry_date: result.portal_info.expiry_date
           }
 
@@ -3390,6 +3593,13 @@ const batchCheckTokensStatus = async (tokensToCheck) => {
         // 比对并更新 email_note（如果有）
         if (result.email_note && token.email_note !== result.email_note) {
           token.email_note = result.email_note
+          tokenHasChanges = true
+        }
+
+        // 比对并更新 auth_session（如果后端刷新了 session）
+        if (result.auth_session && token.auth_session !== result.auth_session) {
+          token.auth_session = result.auth_session
+          token.session_updated_at = new Date().toISOString()  // 设置 session 更新时间
           tokenHasChanges = true
         }
 
@@ -3506,19 +3716,19 @@ const handleSync = async () => {
 
     // 应用服务器的 upserts
     for (const serverToken of res.upserts) {
-      const idx = tokens.value.findIndex(t => t.id === serverToken.id)
+      const idx = internalTokens.value.findIndex(t => t.id === serverToken.id)
       if (idx !== -1) {
-        tokens.value[idx] = serverToken
+        internalTokens.value[idx] = serverToken
       } else {
-        tokens.value.push(serverToken)
+        internalTokens.value.push(serverToken)
       }
     }
 
     // 应用服务器 deletions
     for (const id of res.deletions) {
-      const idx = tokens.value.findIndex(t => t.id === id)
+      const idx = internalTokens.value.findIndex(t => t.id === id)
       if (idx !== -1) {
-        tokens.value.splice(idx, 1)
+        internalTokens.value.splice(idx, 1)
       }
     }
 
@@ -3666,186 +3876,116 @@ defineExpose({
 </script>
 
 <style scoped>
-.token-list-modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 2000;
-}
+/* ============================================
+   TokenList - Modern Tech Style
+   ============================================ */
 
-.modal-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-
-.modal-content {
-  background: var(--color-surface, #ffffff);
-  border-radius: 12px;
-  width: 95vw;
-  /* 使用视口宽度的 95%,自适应屏幕大小 */
-  max-width: none;
-  /* 移除固定最大宽度限制 */
-  height: 90vh;
-  overflow: hidden;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-}
-
-/* 移除旧的 modal-header 样式，使用新的样式 */
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  color: var(--color-text-muted, #6b7280);
-  padding: 4px;
-  border-radius: 4px;
-  transition: all 0.2s;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  line-height: 1;
-}
-
-.close-btn:hover {
-  background: var(--color-surface-hover, #f3f4f6);
-  color: var(--color-text-primary, #374151);
-}
-
-.modal-body {
-  padding: 24px;
-  flex: 1;
-  overflow-y: auto;
-}
-
+/* 空状态 - 科技风 */
 .empty-state {
   text-align: center;
-  padding: 40px 20px;
+  padding: 50px 24px;
 }
 
 .empty-icon {
-  color: var(--color-border-strong, #d1d5db);
-  margin-bottom: 16px;
+  color: var(--text-muted);
+  margin-bottom: 18px;
+  opacity: 0.6;
 }
 
 .empty-state h3 {
-  color: var(--color-text-primary, #374151);
-  margin: 0 0 8px 0;
+  color: var(--text-strong);
+  margin: 0 0 10px 0;
   font-size: 1.25rem;
+  font-weight: 600;
 }
 
 .empty-state p {
-  color: var(--color-text-muted, #6b7280);
-  margin: 0 0 24px 0;
+  color: var(--text-muted);
+  margin: 0 0 28px 0;
 }
 
-/* 空状态下的批量导入按钮 */
+/* 空状态下的批量导入按钮 - 科技风 */
 .batch-import-btn-empty {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 24px;
-  background: var(--color-primary, #2563eb);
-  color: #ffffff;
+  gap: 10px;
+  padding: 14px 28px;
+  background: var(--accent);
+  color: #fff;
   border: none;
-  border-radius: 8px;
+  border-radius: 12px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
   font-size: 14px;
-  font-weight: 500;
-  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+  font-weight: 600;
+  box-shadow: 0 4px 15px var(--tech-glow-primary);
 }
 
 .batch-import-btn-empty:hover {
-  background: var(--color-primary-hover, #1d4ed8);
-  box-shadow: 0 4px 8px rgba(37, 99, 235, 0.3);
-  transform: translateY(-1px);
+  filter: brightness(1.1);
+  box-shadow: 0 6px 20px var(--tech-glow-primary);
+  transform: translateY(-2px);
 }
 
 .batch-import-btn-empty:active {
   transform: translateY(0);
-  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
 }
 
 .batch-import-btn-empty svg {
   flex-shrink: 0;
 }
 
+/* 加载状态 - 科技风 */
 .loading-state {
   text-align: center;
-  padding: 40px 20px;
+  padding: 50px 24px;
 }
 
 .spinner {
-  width: 32px;
-  height: 32px;
-  border: 3px solid var(--color-border, #e5e7eb);
-  border-top: 3px solid var(--color-accent, #3b82f6);
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--tech-glass-border);
+  border-top: 3px solid var(--accent);
   border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 16px;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 18px;
+  box-shadow: 0 0 15px var(--tech-glow-primary);
 }
 
 @keyframes spin {
   0% {
     transform: rotate(0deg);
   }
-
   100% {
     transform: rotate(360deg);
   }
 }
 
 .loading-state p {
-  color: var(--color-text-muted, #6b7280);
+  color: var(--text-muted);
   margin: 0;
 }
+
+/* ============================================
+   Token Grid & Table - Modern Tech Style
+   ============================================ */
 
 .token-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
-  gap: 16px;
-  padding: 4px;
+  gap: 18px;
+  padding: 6px;
 }
 
-/* 视图切换按钮 - 额外样式 */
-.view-toggle-btn {
-  padding: 0 10px;
-}
-
-.view-toggle-btn:hover {
-  background: var(--color-background-soft, #f9fafb);
-  border-color: var(--color-primary, #2563eb);
-  color: var(--color-primary, #2563eb);
-}
-
-.view-toggle-btn.active {
-  background: var(--color-primary-soft, #eff6ff);
-  border-color: var(--color-primary, #2563eb);
-  color: var(--color-primary, #2563eb);
-}
-
-/* 表格布局样式 */
+/* 表格容器 - 磨砂玻璃 */
 .token-table-wrapper {
-  overflow-x: hidden;
-  background: var(--color-surface, #ffffff);
-  border: 1px solid var(--color-divider, #e5e7eb);
-  border-radius: 8px;
+  overflow-x: auto;
+  background: var(--tech-card-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 14px;
+  box-shadow: var(--tech-border-glow);
 }
 
 .token-table {
@@ -3855,53 +3995,58 @@ defineExpose({
 }
 
 .token-table thead {
-  background: var(--color-surface-secondary, #f9fafb);
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
   position: sticky;
   top: 0;
   z-index: 10;
 }
 
 .token-table th {
-  padding: 12px 8px;
+  padding: 14px 10px;
   text-align: left;
   font-weight: 600;
-  color: var(--color-text-secondary, #6b7280);
-  border-bottom: 2px solid var(--color-divider, #e5e7eb);
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--tech-glass-border);
   white-space: nowrap;
-  font-size: 12px;
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.8px;
+}
+
+.token-table th:first-child {
+  padding-left: 16px;
 }
 
 .token-table .th-checkbox {
-  width: 40px;
+  width: 44px;
   text-align: center;
 }
 
 .token-table .th-tag {
-  width: 80px;
-  max-width: 80px;
+  width: 85px;
+  max-width: 85px;
 }
 
 .token-table .th-status {
-  width: 80px;
+  width: 85px;
 }
 
 .token-table .th-email {
-  min-width: 140px;
+  min-width: 150px;
 }
 
 .token-table .th-balance {
-  width: 80px;
+  width: 85px;
   text-align: center;
 }
 
-.token-table .th-expiry {
-  width: 100px;
+.token-table .th-dates {
+  width: 140px;
+  min-width: 140px;
 }
 
 .token-table .th-actions {
-  width: 220px;
+  width: 230px;
   text-align: center;
 }
 
@@ -3914,50 +4059,35 @@ defineExpose({
 .header-checkbox .checkbox-inner {
   width: 18px;
   height: 18px;
-  border-radius: 4px;
-  border: 2px solid var(--color-divider, #d1d5db);
-  background: var(--color-surface, #ffffff);
+  border-radius: 5px;
+  border: 1.5px solid var(--border);
+  background: var(--bg-surface);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s ease;
+  transition: all 0.2s ease;
 }
 
 .header-checkbox .checkbox-inner:hover {
-  border-color: var(--color-accent, #3b82f6);
+  border-color: var(--accent);
+  box-shadow: 0 0 8px var(--tech-glow-primary);
 }
 
 .header-checkbox .checkbox-inner.checked {
-  background: var(--color-accent, #3b82f6);
-  border-color: var(--color-accent, #3b82f6);
-  color: white;
+  background: var(--accent);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 0 10px var(--tech-glow-primary);
 }
 
 .header-checkbox .checkbox-inner.indeterminate {
-  background: var(--color-accent, #3b82f6);
-  border-color: var(--color-accent, #3b82f6);
-  color: white;
+  background: var(--accent);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 0 10px var(--tech-glow-primary);
 }
 
-/* 暗黑模式 - 表格 */
-[data-theme='dark'] .token-table-wrapper {
-  background: var(--color-surface, #1f2937);
-  border-color: rgba(75, 85, 99, 0.6);
-}
-
-[data-theme='dark'] .token-table thead {
-  background: rgba(55, 65, 81, 0.5);
-}
-
-[data-theme='dark'] .token-table th {
-  color: #9ca3af;
-  border-bottom-color: rgba(75, 85, 99, 0.6);
-}
-
-[data-theme='dark'] .header-checkbox .checkbox-inner {
-  background: rgba(51, 65, 85, 0.5);
-  border-color: rgba(71, 85, 105, 0.6);
-}
+/* 暗黑模式下样式已通过 CSS 变量自动适配 */
 
 /* 响应式处理 */
 
@@ -3972,16 +4102,11 @@ defineExpose({
 
 /* 中等屏幕 */
 @media (max-width: 768px) {
-  .modal-content {
-    margin: 10px;
-    width: calc(100vw - 20px);
-  }
-
-  .modal-header {
+  .token-list-page .page-header {
     padding: 16px;
   }
 
-  .modal-body {
+  .token-list-page .page-body {
     padding: 16px;
   }
 
@@ -4004,46 +4129,13 @@ defineExpose({
   }
 }
 
-/* 排序按钮样式 */
-.sort-dropdown .sort-btn {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border: 1px solid var(--color-border, #e5e7eb);
-  border-radius: 6px;
-  background: var(--color-background, #ffffff);
-  color: var(--color-text, #374151);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.sort-dropdown .sort-btn:hover {
-  background: var(--color-background-soft, #f9fafb);
-  border-color: var(--color-primary, #2563eb);
-}
-
 /* 批量导入对话框 */
 .batch-import-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10000;
   padding: 20px;
+  z-index: 3000;
 }
 
-.batch-import-dialog {
-  background: var(--color-surface, #ffffff);
-  border-radius: 12px;
+.batch-import-modal {
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
   max-width: 896px;
   /* 2xl: 56rem = 896px */
@@ -4054,53 +4146,21 @@ defineExpose({
   overflow: hidden;
 }
 
-.batch-import-dialog .dialog-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--color-divider, #e1e5e9);
-}
-
-.batch-import-dialog .dialog-header h3 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--color-text-primary, #374151);
-}
-
-.batch-import-dialog .dialog-close {
-  background: none;
-  border: none;
-  padding: 4px;
-  cursor: pointer;
-  color: var(--color-text-muted, #6b7280);
-  border-radius: 4px;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.batch-import-dialog .dialog-close:hover {
-  background: var(--color-surface-hover, #f3f4f6);
-  color: var(--color-text-primary, #374151);
-}
 
 /* Tab Navigation */
 .batch-import-tabs {
   display: flex;
   gap: 0;
   padding: 0 24px;
-  border-bottom: 1px solid var(--color-divider, #e1e5e9);
-  background: var(--color-surface-alt, #f9fafb);
+  border-bottom: 1px solid var(--divider, #e1e5e9);
+  background: var(--bg-surface-alt, #f9fafb);
 }
 
 .batch-import-tab {
   padding: 12px 20px;
   border: none;
   background: transparent;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--text-secondary, #6b7280);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -4113,21 +4173,20 @@ defineExpose({
 }
 
 .batch-import-tab:hover {
-  color: var(--color-text-primary, #374151);
-  background: var(--color-surface-hover, #f3f4f6);
+  color: var(--text, #374151);
+  background: var(--bg-hover, #f3f4f6);
 }
 
 .batch-import-tab.active {
-  color: var(--color-primary, #2563eb);
-  border-bottom-color: var(--color-primary, #2563eb);
+  color: var(--accent, #2563eb);
+  border-bottom-color: var(--accent, #2563eb);
 }
 
 .batch-import-tab svg {
   flex-shrink: 0;
 }
 
-.batch-import-dialog .dialog-body {
-  padding: 24px;
+.batch-import-modal .modal-body {
   overflow-y: auto;
   flex: 1;
 }
@@ -4148,74 +4207,37 @@ defineExpose({
   }
 }
 
-.batch-import-dialog .dialog-footer {
+.batch-import-modal .modal-footer {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  padding: 16px 24px;
-  border-top: 1px solid var(--color-divider, #e1e5e9);
-  background: var(--color-surface, #ffffff);
 }
 
-.batch-import-dialog .btn-cancel {
-  padding: 8px 16px;
-  border: 1px solid var(--color-divider, #e1e5e9);
-  border-radius: 6px;
-  background: var(--color-surface, #ffffff);
-  color: var(--color-text-primary, #374151);
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.batch-import-dialog .btn-cancel:hover {
-  background: var(--color-surface-hover, #f3f4f6);
-  border-color: var(--color-border-hover, #9ca3af);
-}
-
-.batch-import-dialog .btn-confirm {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 6px;
-  background: var(--color-primary, #2563eb);
-  color: #ffffff;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.batch-import-dialog .btn-confirm:hover:not(:disabled) {
-  background: var(--color-primary-hover, #1d4ed8);
-}
-
-.batch-import-dialog .btn-confirm:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.batch-import-modal .btn {
+  margin: 0;
 }
 
 .import-textarea {
   width: 100%;
   padding: 12px;
-  border: 1px solid var(--color-divider, #e1e5e9);
+  border: 1px solid var(--divider, #e1e5e9);
   border-radius: 8px;
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-size: 13px;
   line-height: 1.5;
   resize: vertical;
-  background: var(--color-surface, #ffffff);
-  color: var(--color-text-primary, #374151);
+  background: var(--bg-surface, #ffffff);
+  color: var(--text, #374151);
   transition: border-color 0.2s ease;
 }
 
 .import-textarea:focus {
   outline: none;
-  border-color: var(--color-primary, #2563eb);
+  border-color: var(--accent, #2563eb);
 }
 
 .import-textarea::placeholder {
-  color: var(--color-text-muted, #9ca3af);
+  color: var(--text-muted, #9ca3af);
 }
 
 .format-options {
@@ -4227,17 +4249,17 @@ defineExpose({
 
 .format-option-single {
   padding: 16px;
-  border: 1px solid var(--color-divider, #e1e5e9);
+  border: 1px solid var(--divider, #e1e5e9);
   border-radius: 8px;
-  background: var(--color-surface-secondary, #f9fafb);
+  background: var(--bg-surface-secondary, #f9fafb);
   margin-bottom: 16px;
 }
 
 .format-option {
   padding: 16px;
-  border: 1px solid var(--color-divider, #e1e5e9);
+  border: 1px solid var(--divider, #e1e5e9);
   border-radius: 8px;
-  background: var(--color-surface-alt, #f9fafb);
+  background: var(--bg-surface-alt, #f9fafb);
 }
 
 .format-header {
@@ -4247,12 +4269,12 @@ defineExpose({
 .format-title {
   font-size: 14px;
   font-weight: 600;
-  color: var(--color-text-primary, #374151);
+  color: var(--text, #374151);
 }
 
 .format-desc {
   font-size: 13px;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--text-secondary, #6b7280);
   margin: 0 0 12px 0;
   line-height: 1.5;
 }
@@ -4260,10 +4282,10 @@ defineExpose({
 .btn-fill-template {
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid var(--color-primary, #2563eb);
+  border: 1px solid var(--accent, #2563eb);
   border-radius: 6px;
-  background: var(--color-surface, #ffffff);
-  color: var(--color-primary, #2563eb);
+  background: var(--accent-soft, #e8efff);
+  color: var(--accent, #2563eb);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -4271,8 +4293,8 @@ defineExpose({
 }
 
 .btn-fill-template:hover {
-  background: var(--color-primary, #2563eb);
-  color: #ffffff;
+  background: var(--accent, #2563eb);
+  color: var(--text-inverse, #ffffff);
 }
 
 .import-input-section {
@@ -4282,8 +4304,8 @@ defineExpose({
 .import-errors {
   margin-top: 16px;
   padding: 12px;
-  background: var(--color-danger-light, #fee2e2);
-  border: 1px solid var(--color-danger, #dc2626);
+  background: var(--state-danger-soft, #fee2e2);
+  border: 1px solid var(--state-danger, #dc2626);
   border-radius: 8px;
 }
 
@@ -4291,7 +4313,7 @@ defineExpose({
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--color-danger, #dc2626);
+  color: var(--state-danger, #dc2626);
   font-weight: 600;
   margin-bottom: 8px;
 }
@@ -4299,7 +4321,7 @@ defineExpose({
 .import-errors .error-list {
   margin: 0;
   padding-left: 24px;
-  color: var(--color-danger, #dc2626);
+  color: var(--state-danger, #dc2626);
   font-size: 13px;
 }
 
@@ -4310,8 +4332,8 @@ defineExpose({
 .import-preview {
   margin-top: 16px;
   padding: 12px;
-  background: var(--color-success-light, #d1fae5);
-  border: 1px solid var(--color-success, #10b981);
+  background: var(--state-success-soft, #d1fae5);
+  border: 1px solid var(--state-success, #10b981);
   border-radius: 8px;
 }
 
@@ -4319,7 +4341,7 @@ defineExpose({
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--color-success, #10b981);
+  color: var(--state-success, #10b981);
   font-weight: 600;
 }
 
@@ -4340,7 +4362,7 @@ defineExpose({
   width: 24px;
   font-size: 14px;
   font-weight: 600;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--text-secondary, #6b7280);
   text-align: right;
 }
 
@@ -4348,23 +4370,23 @@ defineExpose({
   flex: 1;
   height: 40px;
   padding: 0 12px;
-  border: 1px solid var(--color-divider, #e1e5e9);
+  border: 1px solid var(--divider, #e1e5e9);
   border-radius: 6px;
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-size: 13px;
-  background: var(--color-surface, #ffffff);
-  color: var(--color-text-primary, #374151);
+  background: var(--bg-surface, #ffffff);
+  color: var(--text, #374151);
   transition: all 0.2s;
 }
 
 .session-input-field:focus {
   outline: none;
-  border-color: var(--color-primary, #2563eb);
+  border-color: var(--accent, #2563eb);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 .session-input-field::placeholder {
-  color: var(--color-text-muted, #9ca3af);
+  color: var(--text-muted, #9ca3af);
 }
 
 .session-input-delete {
@@ -4372,10 +4394,10 @@ defineExpose({
   width: 40px;
   height: 40px;
   padding: 0;
-  border: 1px solid var(--color-divider, #e1e5e9);
+  border: 1px solid var(--divider, #e1e5e9);
   border-radius: 6px;
-  background: var(--color-surface, #ffffff);
-  color: var(--color-text-muted, #6b7280);
+  background: var(--bg-surface, #ffffff);
+  color: var(--text-muted, #6b7280);
   cursor: pointer;
   transition: all 0.2s;
   display: flex;
@@ -4384,9 +4406,9 @@ defineExpose({
 }
 
 .session-input-delete:hover:not(:disabled) {
-  background: var(--color-danger-light, #fee2e2);
-  border-color: var(--color-danger, #dc2626);
-  color: var(--color-danger, #dc2626);
+  background: var(--state-danger-soft, #fee2e2);
+  border-color: var(--state-danger, #dc2626);
+  color: var(--state-danger, #dc2626);
 }
 
 .session-input-delete:disabled {
@@ -4397,10 +4419,10 @@ defineExpose({
 .add-more-btn {
   width: 100%;
   padding: 10px 16px;
-  border: 2px dashed var(--color-divider, #e1e5e9);
+  border: 2px dashed var(--divider, #e1e5e9);
   border-radius: 6px;
   background: transparent;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--text-secondary, #6b7280);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -4412,8 +4434,8 @@ defineExpose({
 }
 
 .add-more-btn:hover {
-  border-color: var(--color-primary, #2563eb);
-  color: var(--color-primary, #2563eb);
+  border-color: var(--accent, #2563eb);
+  color: var(--accent, #2563eb);
   background: rgba(37, 99, 235, 0.05);
 }
 
@@ -4433,8 +4455,8 @@ defineExpose({
 
 .context-menu {
   position: fixed;
-  background: var(--color-surface, #ffffff);
-  border: 1px solid var(--color-divider, #e1e5e9);
+  background: var(--bg-surface, #ffffff);
+  border: 1px solid var(--divider, #e1e5e9);
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   z-index: 20001;
@@ -4446,22 +4468,22 @@ defineExpose({
   padding: 8px 12px;
   font-size: 12px;
   font-weight: 600;
-  color: var(--color-text-muted, #6b7280);
-  background: var(--color-surface-hover, #f3f4f6);
-  border-bottom: 1px solid var(--color-divider, #e1e5e9);
+  color: var(--text-muted, #6b7280);
+  background: var(--bg-hover, #f3f4f6);
+  border-bottom: 1px solid var(--divider, #e1e5e9);
 }
 
 .context-menu-item {
   padding: 8px 16px;
   cursor: pointer;
-  color: var(--color-text-primary, #374151);
+  color: var(--text, #374151);
   transition: background 0.2s ease;
   font-size: 14px;
 }
 
 .context-menu-item:hover {
-  background: var(--color-primary-light, #e0f2fe);
-  color: var(--color-primary, #0ea5e9);
+  background: var(--accent-light, #e0f2fe);
+  color: var(--accent, #0ea5e9);
 }
 
 /* 右键菜单操作项样式 */
@@ -4469,12 +4491,12 @@ defineExpose({
   display: flex;
   align-items: center;
   font-weight: 500;
-  color: var(--color-primary, #0ea5e9);
+  color: var(--accent, #0ea5e9);
 }
 
 .context-menu-action:hover {
-  background: var(--color-primary-light, #e0f2fe);
-  color: var(--color-primary-dark, #0284c7);
+  background: var(--accent-light, #e0f2fe);
+  color: var(--accent-dark, #0284c7);
 }
 
 .context-menu-action svg {
@@ -4483,7 +4505,7 @@ defineExpose({
 
 .context-menu-divider {
   height: 1px;
-  background: var(--color-divider, #e1e5e9);
+  background: var(--divider, #e1e5e9);
   margin: 4px 0;
 }
 
@@ -4497,26 +4519,26 @@ defineExpose({
 .custom-count-input {
   flex: 1;
   padding: 6px 8px;
-  border: 1px solid var(--color-divider, #e1e5e9);
+  border: 1px solid var(--divider, #e1e5e9);
   border-radius: 4px;
   font-size: 14px;
-  color: var(--color-text-primary, #374151);
-  background: var(--color-surface, #ffffff);
+  color: var(--text, #374151);
+  background: var(--bg-surface, #ffffff);
   outline: none;
   transition: border-color 0.2s ease;
 }
 
 .custom-count-input:focus {
-  border-color: var(--color-primary, #0ea5e9);
+  border-color: var(--accent, #0ea5e9);
 }
 
 .custom-count-input::placeholder {
-  color: var(--color-text-muted, #9ca3af);
+  color: var(--text-muted, #9ca3af);
 }
 
 .btn-custom-fill {
   padding: 6px 12px;
-  background: var(--color-primary, #0ea5e9);
+  background: var(--accent, #0ea5e9);
   color: white;
   border: none;
   border-radius: 4px;
@@ -4528,81 +4550,30 @@ defineExpose({
 }
 
 .btn-custom-fill:hover {
-  background: var(--color-primary-dark, #0284c7);
+  background: var(--accent-dark, #0284c7);
 }
 
 /* 批量删除对话框 */
 .batch-delete-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 3000;
   padding: 20px;
+  z-index: 3000;
 }
 
-.batch-delete-dialog {
-  background: var(--color-surface, #ffffff);
-  border-radius: 12px;
+.batch-delete-modal {
   max-width: 500px;
   width: 100%;
   overflow: hidden;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
 }
 
-.batch-delete-dialog .dialog-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--color-divider, #e1e5e9);
-}
 
-.batch-delete-dialog .dialog-header h3 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--color-text-primary, #374151);
-}
-
-.batch-delete-dialog .dialog-close {
-  background: none;
-  border: none;
-  padding: 4px;
-  cursor: pointer;
-  color: var(--color-text-muted, #6b7280);
-  border-radius: 4px;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.batch-delete-dialog .dialog-close:hover {
-  background: var(--color-surface-hover, #f3f4f6);
-  color: var(--color-text-primary, #374151);
-}
-
-.batch-delete-dialog .dialog-body {
+.batch-delete-modal .modal-body {
   padding: 24px;
 }
 
-.dialog-message {
-  margin: 0 0 16px 0;
-  color: var(--color-text-secondary, #6b7280);
-  font-size: 14px;
-  white-space: pre-line;
-  line-height: 1.6;
-}
 
 .delete-stats {
-  background: var(--color-surface-secondary, #f9fafb);
-  border: 1px solid var(--color-divider, #e1e5e9);
+  background: var(--bg-surface-secondary, #f9fafb);
+  border: 1px solid var(--divider, #e1e5e9);
   border-radius: 8px;
   padding: 16px;
   margin-bottom: 16px;
@@ -4616,112 +4587,42 @@ defineExpose({
 }
 
 .stat-item:not(:last-child) {
-  border-bottom: 1px solid var(--color-divider, #e1e5e9);
+  border-bottom: 1px solid var(--divider, #e1e5e9);
 }
 
 .stat-item.total {
   font-weight: 600;
-  color: var(--color-text-primary, #374151);
+  color: var(--text, #374151);
 }
 
 .stat-label {
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--text-secondary, #6b7280);
   font-size: 14px;
 }
 
 .stat-value {
-  color: var(--color-text-primary, #374151);
+  color: var(--text, #374151);
   font-size: 14px;
   font-weight: 500;
 }
 
-.dialog-warning {
-  margin: 0;
-  color: var(--color-warning-text, #92400e);
-  background: var(--color-warning-surface, #fef3c7);
-  border: 1px solid var(--color-warning-border, #fde68a);
-  border-radius: 6px;
-  padding: 12px;
-  font-size: 13px;
-}
 
-.batch-delete-dialog .dialog-footer {
+.batch-delete-modal .modal-footer {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  padding: 16px 24px;
-  border-top: 1px solid var(--color-divider, #e1e5e9);
-  background: var(--color-surface, #ffffff);
 }
-
-.btn-danger {
-  background: var(--color-danger, #dc2626);
-  color: white;
-  border: 1px solid var(--color-danger, #dc2626);
-}
-
-.btn-danger:hover:not(:disabled) {
-  background: var(--color-danger-hover, #b91c1c);
-  border-color: var(--color-danger-hover, #b91c1c);
-}
-
-.btn-danger:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-/* 黑暗模式 */
-[data-theme='dark'] .batch-import-dialog {
-  background: var(--color-surface, #1f2937);
-}
-
-[data-theme='dark'] .batch-import-dialog .dialog-footer {
-  background: var(--color-surface, #1f2937);
-}
-
-[data-theme='dark'] .batch-delete-dialog {
-  background: var(--color-surface, #1f2937);
-}
-
-[data-theme='dark'] .delete-stats {
-  background: rgba(55, 65, 81, 0.5);
-  border-color: rgba(75, 85, 99, 0.6);
-}
-
-[data-theme='dark'] .dialog-warning {
-  background: rgba(245, 158, 11, 0.2);
-  border-color: rgba(245, 158, 11, 0.4);
-  color: #fbbf24;
-}
-
-[data-theme='dark'] .format-option,
-[data-theme='dark'] .format-option-single {
-  background: rgba(55, 65, 81, 0.3);
-  border-color: rgba(75, 85, 99, 0.6);
-}
-
-[data-theme='dark'] .btn-fill-template {
-  background: rgba(37, 99, 235, 0.1);
-  border-color: var(--color-primary, #3b82f6);
-  color: var(--color-primary, #3b82f6);
-}
-
-[data-theme='dark'] .btn-fill-template:hover {
-  background: var(--color-primary, #3b82f6);
-  color: #ffffff;
+.batch-delete-modal .btn {
+  margin: 0;
 }
 
 @media (max-width: 480px) {
-  .modal-overlay {
+  .batch-import-overlay {
     padding: 10px;
   }
 
-  .modal-content {
-    max-height: 95vh;
-  }
-
-  .modal-header h2 {
-    font-size: 1.25rem;
+  .batch-delete-overlay {
+    padding: 10px;
   }
 
   .empty-state {
@@ -4732,18 +4633,10 @@ defineExpose({
     font-size: 1.125rem;
   }
 
-  .btn.small {
-    padding: 4px 8px;
-    font-size: 11px;
-  }
-
   .sync-actions {
     flex-direction: column;
   }
 
-  .btn.sync-btn {
-    min-width: auto;
-  }
 }
 
 /* 状态统计栏样式 */
@@ -4766,7 +4659,7 @@ defineExpose({
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  background: var(--color-background-soft, #f9fafb);
+  background: var(--bg-page-soft, #f9fafb);
   border: 2px solid transparent;
   border-radius: 8px;
   cursor: pointer;
@@ -4775,14 +4668,14 @@ defineExpose({
 }
 
 .status-stat-card:hover {
-  background: var(--color-background-mute, #f3f4f6);
+  background: var(--bg-hover, #f3f4f6);
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .status-stat-card.selected {
-  border-color: var(--color-primary, #3b82f6);
-  background: var(--color-primary-soft, #eff6ff);
+  border-color: var(--accent, #3b82f6);
+  background: var(--accent-soft, #eff6ff);
   box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
 }
 
@@ -4841,7 +4734,7 @@ defineExpose({
 
 .stat-label {
   font-size: 12px;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--text-muted, #6b7280);
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -4851,7 +4744,7 @@ defineExpose({
 .stat-value {
   font-size: 20px;
   font-weight: 700;
-  color: var(--color-text, #1f2937);
+  color: var(--text, #1f2937);
   line-height: 1;
 }
 
@@ -4860,17 +4753,17 @@ defineExpose({
   align-items: center;
   justify-content: space-between;
   padding: 8px 16px;
-  background: var(--color-primary-soft, #eff6ff);
-  border: 1px solid var(--color-primary, #3b82f6);
+  background: var(--accent-soft, #eff6ff);
+  border: 1px solid var(--accent, #3b82f6);
   border-radius: 6px;
   font-size: 13px;
-  color: var(--color-primary, #3b82f6);
+  color: var(--accent, #3b82f6);
   font-weight: 500;
 }
 
 .clear-filter-btn {
   padding: 4px 12px;
-  background: var(--color-primary, #3b82f6);
+  background: var(--accent, #3b82f6);
   color: white;
   border: none;
   border-radius: 4px;
@@ -4881,7 +4774,7 @@ defineExpose({
 }
 
 .clear-filter-btn:hover {
-  background: var(--color-primary-hover, #2563eb);
+  background: var(--accent-hover, #2563eb);
   transform: scale(1.05);
 }
 
@@ -4889,59 +4782,34 @@ defineExpose({
   margin-bottom: 16px;
 }
 
+/* 工具栏 - 科技风 */
 .list-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 12px 16px;
-  background: var(--bg-surface);
-  border-radius: 8px;
+  gap: 14px;
+  padding: 14px 18px;
+  background: var(--tech-card-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 14px;
+  box-shadow: var(--tech-border-glow);
+  position: relative;
+  z-index: 100;
+  margin-bottom: 16px;
 }
 
 .toolbar-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .toolbar-right {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-/* 操作按钮统一样式 */
-.action-btn {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border: 1px solid var(--color-border, #e5e7eb);
-  border-radius: 6px;
-  background: var(--color-background, #ffffff);
-  color: var(--color-text, #374151);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.action-btn:hover:not(:disabled) {
-  background: var(--color-background-soft, #f9fafb);
-  border-color: var(--color-primary, #2563eb);
-}
-
-.action-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.action-btn.active {
-  background: var(--color-primary-soft, rgba(37, 99, 235, 0.1));
-  border-color: var(--color-primary, #2563eb);
-  color: var(--color-primary, #2563eb);
+  gap: 10px;
 }
 
 /* 选择模式提示 */
@@ -4949,10 +4817,10 @@ defineExpose({
   display: flex;
   align-items: center;
   padding: 6px 12px;
-  background: var(--color-primary-soft, rgba(37, 99, 235, 0.1));
-  border: 1px solid var(--color-primary, #2563eb);
+  background: var(--accent-soft, rgba(37, 99, 235, 0.1));
+  border: 1px solid var(--accent, #2563eb);
   border-radius: 6px;
-  color: var(--color-primary, #2563eb);
+  color: var(--accent, #2563eb);
   font-size: 14px;
   font-weight: 500;
   margin-left: auto;
@@ -4967,7 +4835,7 @@ defineExpose({
   align-items: center;
   justify-content: center;
   padding: 60px 20px;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--text-secondary, #6b7280);
 }
 
 .no-search-results p {
@@ -4975,52 +4843,53 @@ defineExpose({
   font-size: 14px;
 }
 
-/* 排序下拉菜单 */
+/* 排序下拉菜单 - 科技风 */
 .sort-dropdown {
   position: relative;
 }
 
-.sort-dropdown .sort-btn:hover {
-  background: var(--color-background-soft, #f9fafb);
-  border-color: var(--color-primary, #2563eb);
-}
-
-/* 下拉菜单容器 */
+/* 下拉菜单容器 - 科技风 */
 .sort-menu {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 6px);
   left: 0;
   min-width: 200px;
-  background: var(--color-background, #ffffff);
-  border: 1px solid var(--color-border, #e5e7eb);
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
+  background: color-mix(in srgb, var(--bg-surface) 92%, var(--tech-card-bg));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), var(--tech-border-glow);
+  z-index: 1100;
   overflow: hidden;
+  padding: 6px;
 }
 
-/* 下拉菜单选项 */
+/* 下拉菜单选项 - 科技风 */
 .sort-option {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
-  padding: 10px 12px;
+  padding: 10px 14px;
   border: none;
   background: transparent;
-  color: var(--color-text, #374151);
+  color: var(--text);
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s ease;
   text-align: left;
+  font-family: inherit;
+  border-radius: 8px;
 }
 
 .sort-option:hover {
-  background: var(--color-background-soft, #f9fafb);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
 }
 
 .sort-option.active {
-  background: var(--color-primary-soft, rgba(37, 99, 235, 0.1));
-  color: var(--color-primary, #2563eb);
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  color: var(--accent);
 }
 
 .sort-option span {
@@ -5030,21 +4899,27 @@ defineExpose({
 
 .sort-option .arrow-down,
 .sort-option .arrow-up {
-  opacity: 0.5;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.sort-option:hover .arrow-down,
+.sort-option:hover .arrow-up {
+  opacity: 1;
 }
 
 .sort-option .check-icon {
-  color: var(--color-primary, #2563eb);
+  color: var(--accent);
 }
 
-/* 分隔线 */
+/* 分隔线 - 科技风 */
 .sort-divider {
   height: 1px;
-  background: var(--color-border, #e5e7eb);
-  margin: 4px 0;
+  background: var(--tech-glass-border);
+  margin: 4px 6px;
 }
 
-/* 通用筛选按钮样式 */
+/* 通用筛选按钮样式 - 科技风 */
 .filter-btn {
   flex-shrink: 0;
   display: flex;
@@ -5052,30 +4927,51 @@ defineExpose({
   justify-content: center;
   gap: 6px;
   height: 36px;
-  padding: 0 12px;
-  border: 1px solid var(--color-border, #e5e7eb);
-  border-radius: 6px;
-  background: var(--color-background, #ffffff);
-  color: var(--color-text, #374151);
+  padding: 0 14px;
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  color: var(--text);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
   font-size: 14px;
   font-weight: 500;
 }
 
 .filter-btn:hover {
-  background: var(--color-background-soft, #f9fafb);
-  border-color: var(--color-primary, #2563eb);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-color: var(--accent);
+  box-shadow: 0 0 12px var(--tech-glow-primary);
 }
 
 .filter-btn.active {
-  background: var(--color-primary-soft, rgba(37, 99, 235, 0.1));
-  border-color: var(--color-primary, #2563eb);
-  color: var(--color-primary, #2563eb);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 12px var(--tech-glow-primary);
 }
 
 .filter-btn .dropdown-arrow {
   margin-left: 2px;
+  transition: transform 0.2s;
+  opacity: 0.7;
+}
+
+.filter-label {
+  font-weight: 500;
+}
+
+.filter-count {
+  padding: 2px 6px;
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.dropdown-arrow {
+  color: var(--text-muted);
   transition: transform 0.2s;
 }
 
@@ -5086,45 +4982,56 @@ defineExpose({
 
 .status-filter-menu {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 6px);
   left: 0;
   min-width: 280px;
-  background: var(--color-background, #ffffff);
-  border: 1px solid var(--color-border, #e5e7eb);
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
+  background: color-mix(in srgb, var(--bg-surface) 92%, var(--tech-card-bg));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), var(--tech-border-glow);
+  z-index: 1100;
   overflow: hidden;
+  padding: 6px;
 }
 
 .status-option {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
+  gap: 10px;
+  padding: 10px 14px;
   border: none;
   background: transparent;
-  color: var(--color-text, #374151);
+  color: var(--text);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
   width: 100%;
   text-align: left;
   font-size: 14px;
+  font-family: inherit;
+  border-radius: 8px;
 }
 
 .status-option:hover {
-  background: var(--color-background-soft, #f9fafb);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
 }
 
 .status-option.active {
-  background: var(--color-primary-soft, rgba(37, 99, 235, 0.1));
-  color: var(--color-primary, #2563eb);
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  color: var(--accent);
 }
 
 .status-option .status-icon {
   flex-shrink: 0;
   width: 16px;
   height: 16px;
+  opacity: 0.8;
+}
+
+.status-option:hover .status-icon {
+  opacity: 1;
 }
 
 .status-option span:not(.status-count):not(.check-icon) {
@@ -5134,77 +5041,53 @@ defineExpose({
 .status-option .status-count {
   margin-left: auto;
   padding: 2px 8px;
-  background: var(--color-background-soft, #f3f4f6);
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
   border-radius: 12px;
   font-size: 12px;
   font-weight: 600;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--text-muted);
 }
 
 .status-option.active .status-count {
-  background: var(--color-primary-soft, rgba(37, 99, 235, 0.2));
-  color: var(--color-primary, #2563eb);
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+  color: var(--accent);
 }
 
 .status-option .check-icon {
   flex-shrink: 0;
   margin-left: 8px;
+  color: var(--accent);
 }
 
-/* 邮箱后缀筛选下拉菜单 */
+/* 邮箱后缀筛选下拉菜单 - 科技风 */
 .email-suffix-dropdown {
   position: relative;
 }
 
-.email-suffix-btn {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 36px;
-  width: 36px;
-  padding: 0;
-  border: 1px solid var(--color-border, #e5e7eb);
-  border-radius: 6px;
-  background: var(--color-background, #ffffff);
-  color: var(--color-text, #374151);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.email-suffix-btn:hover {
-  background: var(--color-background-soft, #f9fafb);
-  border-color: var(--color-primary, #2563eb);
-}
-
-.email-suffix-btn.active {
-  background: var(--color-primary-soft, rgba(37, 99, 235, 0.1));
-  border-color: var(--color-primary, #2563eb);
-  color: var(--color-primary, #2563eb);
-}
-
-/* 邮箱后缀下拉菜单容器 */
+/* 邮箱后缀下拉菜单容器 - 科技风 */
 .email-suffix-menu {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 6px);
   left: 0;
   min-width: 220px;
   max-width: 300px;
-  background: var(--color-background, #ffffff);
-  border: 1px solid var(--color-border, #e5e7eb);
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
+  background: color-mix(in srgb, var(--bg-surface) 92%, var(--tech-card-bg));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), var(--tech-border-glow);
+  z-index: 1100;
   overflow: hidden;
 }
 
-/* 邮箱后缀菜单顶部操作栏 */
+/* 邮箱后缀菜单顶部操作栏 - 科技风 */
 .suffix-menu-header {
   display: flex;
   gap: 4px;
-  padding: 4px;
-  background: var(--color-background-soft, #f9fafb);
-  border-bottom: 1px solid var(--color-border, #e5e7eb);
+  padding: 6px;
+  background: color-mix(in srgb, var(--bg-muted) 30%, transparent);
+  border-bottom: 1px solid var(--tech-glass-border);
 }
 
 .suffix-option-all {
@@ -5212,7 +5095,7 @@ defineExpose({
   min-width: 0;
 }
 
-/* 提取按钮样式 */
+/* 提取按钮样式 - 科技风 */
 .suffix-extract-btn {
   flex-shrink: 0;
   display: flex;
@@ -5221,21 +5104,21 @@ defineExpose({
   gap: 4px;
   height: 36px;
   padding: 0 12px;
-  border: 1px solid var(--color-border, #e5e7eb);
-  border-radius: 6px;
-  background: var(--color-background, #ffffff);
-  color: var(--color-primary, #2563eb);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  color: var(--accent);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
   white-space: nowrap;
 }
 
 .suffix-extract-btn:hover:not(:disabled) {
-  background: var(--color-primary-soft, rgba(37, 99, 235, 0.1));
-  border-color: var(--color-primary, #2563eb);
-  color: var(--color-primary, #2563eb);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-color: var(--accent);
+  box-shadow: 0 0 8px var(--tech-glow-primary);
 }
 
 .suffix-extract-btn:active:not(:disabled) {
@@ -5245,37 +5128,41 @@ defineExpose({
 .suffix-extract-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  color: var(--color-text-muted, #9ca3af);
+  color: var(--text-muted);
 }
 
-/* 邮箱后缀列表容器 */
+/* 邮箱后缀列表容器 - 科技风 */
 .suffix-list {
   max-height: 300px;
   overflow-y: auto;
+  padding: 6px;
 }
 
-/* 邮箱后缀选项 */
+/* 邮箱后缀选项 - 科技风 */
 .suffix-option {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
-  padding: 10px 12px;
+  padding: 10px 14px;
   border: none;
   background: transparent;
-  color: var(--color-text, #374151);
+  color: var(--text);
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s ease;
   text-align: left;
+  font-family: inherit;
+  border-radius: 8px;
 }
 
 .suffix-option:hover {
-  background: var(--color-background-soft, #f9fafb);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
 }
 
 .suffix-option.active {
-  background: var(--color-primary-soft, rgba(37, 99, 235, 0.1));
-  color: var(--color-primary, #2563eb);
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  color: var(--accent);
 }
 
 .suffix-option .suffix-text {
@@ -5288,8 +5175,8 @@ defineExpose({
 
 .suffix-option .suffix-count {
   font-size: 12px;
-  color: var(--color-text-secondary, #6b7280);
-  background: var(--color-background-soft, #f3f4f6);
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
   padding: 2px 8px;
   border-radius: 12px;
   font-weight: 600;
@@ -5298,61 +5185,37 @@ defineExpose({
 }
 
 .suffix-option.active .suffix-count {
-  background: var(--color-primary-soft, rgba(37, 99, 235, 0.2));
-  color: var(--color-primary, #2563eb);
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+  color: var(--accent);
 }
 
 .suffix-option .check-icon {
-  color: var(--color-primary, #2563eb);
+  color: var(--accent);
 }
 
-/* 无邮箱后缀提示 */
+/* 无邮箱后缀提示 - 科技风 */
 .no-suffix-hint {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 32px 16px;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--text-muted);
 }
 
 .no-suffix-hint p {
   margin-top: 12px;
   font-size: 14px;
-  color: var(--color-text-muted, #9ca3af);
+  color: var(--text-muted);
 }
 
-/* 标签筛选下拉菜单 */
+/* 标签筛选下拉菜单 - 科技风 */
 .tag-filter-dropdown {
   position: relative;
 }
 
 .tag-filter-btn {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 36px;
-  width: 36px;
-  padding: 0;
-  border: 1px solid var(--color-border, #e5e7eb);
-  border-radius: 6px;
-  background: var(--color-background, #ffffff);
-  color: var(--color-text, #374151);
-  cursor: pointer;
-  transition: all 0.2s;
   position: relative;
-}
-
-.tag-filter-btn:hover {
-  background: var(--color-background-soft, #f9fafb);
-  border-color: var(--color-primary, #2563eb);
-}
-
-.tag-filter-btn.active {
-  background: var(--color-primary-soft, rgba(37, 99, 235, 0.1));
-  border-color: var(--color-primary, #2563eb);
-  color: var(--color-primary, #2563eb);
 }
 
 .tag-count-badge {
@@ -5362,7 +5225,7 @@ defineExpose({
   min-width: 18px;
   height: 18px;
   padding: 0 4px;
-  background: var(--color-primary, #2563eb);
+  background: var(--accent);
   color: white;
   font-size: 11px;
   font-weight: 600;
@@ -5370,31 +5233,33 @@ defineExpose({
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px var(--tech-glow-primary);
 }
 
-/* 标签筛选下拉菜单容器 */
+/* 标签筛选下拉菜单容器 - 科技风 */
 .tag-filter-menu {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 6px);
   left: 0;
   min-width: 220px;
   max-width: 300px;
-  background: var(--color-background, #ffffff);
-  border: 1px solid var(--color-border, #e5e7eb);
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
+  background: color-mix(in srgb, var(--bg-surface) 92%, var(--tech-card-bg));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), var(--tech-border-glow);
+  z-index: 1100;
   overflow: hidden;
 }
 
-/* 标签菜单顶部操作栏 */
+/* 标签菜单顶部操作栏 - 科技风 */
 .tag-menu-header {
   display: flex;
   gap: 4px;
-  padding: 4px;
-  background: var(--color-background-soft, #f9fafb);
-  border-bottom: 1px solid var(--color-border, #e5e7eb);
+  padding: 6px;
+  background: color-mix(in srgb, var(--bg-muted) 30%, transparent);
+  border-bottom: 1px solid var(--tech-glass-border);
 }
 
 .tag-option-all {
@@ -5402,7 +5267,7 @@ defineExpose({
   min-width: 0;
 }
 
-/* 筛选模式切换按钮 */
+/* 筛选模式切换按钮 - 科技风 */
 .tag-mode-toggle-btn {
   flex-shrink: 0;
   display: flex;
@@ -5411,24 +5276,24 @@ defineExpose({
   gap: 4px;
   height: 36px;
   padding: 0 12px;
-  border: 1px solid var(--color-border, #e5e7eb);
-  border-radius: 6px;
-  background: var(--color-background, #ffffff);
-  color: var(--color-text, #374151);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  color: var(--text);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
   white-space: nowrap;
 }
 
 .tag-mode-toggle-btn:hover {
-  background: var(--color-background-soft, #f9fafb);
-  border-color: var(--color-primary, #2563eb);
-  color: var(--color-primary, #2563eb);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
-/* 提取按钮样式 */
+/* 提取按钮样式 - 科技风 */
 .tag-extract-btn {
   flex-shrink: 0;
   display: flex;
@@ -5437,21 +5302,21 @@ defineExpose({
   gap: 4px;
   height: 36px;
   padding: 0 12px;
-  border: 1px solid var(--color-border, #e5e7eb);
-  border-radius: 6px;
-  background: var(--color-background, #ffffff);
-  color: var(--color-primary, #2563eb);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  color: var(--accent);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
   white-space: nowrap;
 }
 
 .tag-extract-btn:hover:not(:disabled) {
-  background: var(--color-primary-soft, rgba(37, 99, 235, 0.1));
-  border-color: var(--color-primary, #2563eb);
-  color: var(--color-primary, #2563eb);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-color: var(--accent);
+  box-shadow: 0 0 8px var(--tech-glow-primary);
 }
 
 .tag-extract-btn:active:not(:disabled) {
@@ -5461,37 +5326,41 @@ defineExpose({
 .tag-extract-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  color: var(--color-text-muted, #9ca3af);
+  color: var(--text-muted);
 }
 
-/* 标签列表容器 */
+/* 标签列表容器 - 科技风 */
 .tag-list {
   max-height: 300px;
   overflow-y: auto;
+  padding: 6px;
 }
 
-/* 标签选项 */
+/* 标签选项 - 科技风 */
 .tag-option {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
-  padding: 10px 12px;
+  padding: 10px 14px;
   border: none;
   background: transparent;
-  color: var(--color-text, #374151);
+  color: var(--text);
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s ease;
   text-align: left;
+  font-family: inherit;
+  border-radius: 8px;
 }
 
 .tag-option:hover {
-  background: var(--color-background-soft, #f9fafb);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
 }
 
 .tag-option.active {
-  background: var(--color-primary-soft, rgba(37, 99, 235, 0.1));
-  color: var(--color-primary, #2563eb);
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  color: var(--accent);
 }
 
 .tag-option .tag-text {
@@ -5503,23 +5372,23 @@ defineExpose({
 }
 
 .tag-option .check-icon {
-  color: var(--color-primary, #2563eb);
+  color: var(--accent);
 }
 
-/* 无标签提示 */
+/* 无标签提示 - 科技风 */
 .no-tag-hint {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 32px 16px;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--text-muted);
 }
 
 .no-tag-hint p {
   margin-top: 12px;
   font-size: 14px;
-  color: var(--color-text-muted, #9ca3af);
+  color: var(--text-muted);
 }
 
 /* 下拉菜单动画 */
@@ -5544,14 +5413,14 @@ defineExpose({
   justify-content: space-between;
   align-items: center;
   padding: 12px 16px;
-  background: var(--color-background-soft, #f9fafb);
+  background: var(--bg-page-soft, #f9fafb);
   border-radius: 8px;
   margin-bottom: 16px;
 }
 
 .pagination-info {
   font-size: 14px;
-  color: var(--color-text, #374151);
+  color: var(--text, #374151);
 }
 
 .pagination-size {
@@ -5562,15 +5431,15 @@ defineExpose({
 
 .pagination-size label {
   font-size: 14px;
-  color: var(--color-text, #374151);
+  color: var(--text, #374151);
 }
 
 .pagination-size select {
   padding: 4px 8px;
-  border: 1px solid var(--color-border, #e5e7eb);
+  border: 1px solid var(--border, #e5e7eb);
   border-radius: 4px;
-  background: var(--color-background, #ffffff);
-  color: var(--color-text, #374151);
+  background: var(--bg-page, #ffffff);
+  color: var(--text, #374151);
   cursor: pointer;
 }
 
@@ -5586,17 +5455,17 @@ defineExpose({
 
 .pagination-btn {
   padding: 8px 16px;
-  border: 1px solid var(--color-border, #e5e7eb);
+  border: 1px solid var(--border, #e5e7eb);
   border-radius: 4px;
-  background: var(--color-background, #ffffff);
-  color: var(--color-text, #374151);
+  background: var(--bg-page, #ffffff);
+  color: var(--text, #374151);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .pagination-btn:hover:not(:disabled) {
-  background: var(--color-background-soft, #f9fafb);
-  border-color: var(--color-primary, #2563eb);
+  background: var(--bg-page-soft, #f9fafb);
+  border-color: var(--accent, #2563eb);
 }
 
 .pagination-btn:disabled {
@@ -5609,12 +5478,12 @@ defineExpose({
   align-items: center;
   gap: 8px;
   font-size: 14px;
-  color: var(--color-text, #374151);
+  color: var(--text, #374151);
 }
 
 .page-current {
   font-weight: 600;
-  color: var(--color-primary, #2563eb);
+  color: var(--accent, #2563eb);
 }
 
 /* 工具栏内联分页信息和选择器 */
@@ -5624,161 +5493,89 @@ defineExpose({
   gap: 12px;
   height: 36px;
   padding: 0 12px;
-  background: var(--color-background, #ffffff);
-  border: 1px solid var(--color-border, #e5e7eb);
+  background: var(--bg-page, #ffffff);
+  border: 1px solid var(--border, #e5e7eb);
   border-radius: 6px;
 }
 
 .pagination-info-text {
   font-size: 13px;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--text-secondary, #6b7280);
   white-space: nowrap;
 }
 
 .pagination-size-select {
   height: 28px;
-  padding: 0 8px;
-  border: 1px solid var(--color-border, #e5e7eb);
-  border-radius: 4px;
-  background: var(--color-background, #ffffff);
-  color: var(--color-text, #374151);
   font-size: 13px;
-  cursor: pointer;
-  transition: all 0.2s;
+  background: var(--bg-page, #ffffff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 4px;
+  color: var(--text, #374151);
 }
 
 .pagination-size-select:hover {
-  border-color: var(--color-primary, #2563eb);
+  border-color: var(--accent, #3b82f6);
 }
 
 .pagination-size-select:focus {
   outline: none;
-  border-color: var(--color-primary, #2563eb);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.btn {
-  padding: 8px 16px;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 36px;
-  box-sizing: border-box;
-  flex-shrink: 0;
-  line-height: 1;
-}
-
-.btn.secondary {
-  background: var(--color-surface-hover, #f3f4f6);
-  color: var(--color-text-primary, #374151);
-  border: 1px solid var(--color-border-strong, #d1d5db);
-}
-
-.btn.secondary:hover {
-  background: var(--color-border, #e5e7eb);
-  border-color: var(--color-border-hover, #9ca3af);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(55, 65, 81, 0.2);
-}
-
-.btn.success {
-  background: var(--color-success-surface, #d1fae5);
-  color: var(--color-success-text, #065f46);
-  border: 1px solid var(--color-success-border, #a7f3d0);
-}
-
-.btn.success:hover:not(:disabled) {
-  background: var(--color-success-surface, #a7f3d0);
-  border-color: var(--color-success-border, #6ee7b7);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(6, 95, 70, 0.3);
-}
-
-.btn.success:disabled {
-  background: var(--color-border-strong, #d1d5db);
-  color: var(--color-text-soft, #9ca3af);
-  border-color: var(--color-border-strong, #d1d5db);
-  cursor: not-allowed;
-}
-
-.btn.info {
-  background: var(--color-info-surface, #dbeafe);
-  color: var(--color-info-text, #1e40af);
-  border: 1px solid var(--color-info-border, #93c5fd);
-}
-
-.btn.info:hover:not(:disabled) {
-  background: var(--color-info-surface, #bfdbfe);
-  border-color: var(--color-info-border, #60a5fa);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(30, 64, 175, 0.3);
-}
-
-.btn.small {
-  padding: 6px 12px;
-  font-size: 12px;
-  height: 32px;
+  border-color: var(--accent, #3b82f6);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
 }
 
 /* Header layout */
-.modal-header {
+.token-list-page .page-header {
   display: flex;
   align-items: center;
   gap: 20px;
   padding: 16px 24px;
-  border-bottom: 1px solid var(--color-border, #e5e7eb);
-  background: var(--color-surface-alt, #f9fafb);
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  background: var(--bg-surface-alt, #f9fafb);
 }
 
-.modal-header > .status-badge {
+.token-list-page .page-header > .status-badge {
   flex-shrink: 0;
 }
 
-
-
-.modal-header > .header-actions {
+.token-list-page .page-header > .header-actions {
   flex-shrink: 0;
   align-self: center;
 }
 
-.modal-header .btn {
+.token-list-page .page-header .btn {
   margin: 0;
 }
 
-/* Header 搜索框 */
+/* Header 搜索框 - 科技风 */
 .header-search-box {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   width: 100%;
   padding: 0 16px;
-  height: 32px;
-  border: 1.5px solid var(--color-border, #e5e7eb);
-  border-radius: 8px;
-  background: var(--color-background, #ffffff);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  height: 36px;
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: all 0.25s ease;
 }
 
 .header-search-box:focus-within {
-  border-color: var(--color-primary, #2563eb);
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent),
+              0 0 20px var(--tech-glow-primary);
 }
 
 .header-search-box .search-icon {
   flex-shrink: 0;
-  color: var(--color-text-secondary, #6b7280);
-  transition: color 0.2s ease;
+  color: var(--text-muted);
+  transition: all 0.2s ease;
 }
 
 .header-search-box:focus-within .search-icon {
-  color: var(--color-primary, #2563eb);
+  color: var(--accent);
 }
 
 .header-search-box .search-input {
@@ -5786,7 +5583,7 @@ defineExpose({
   border: none;
   outline: none !important;
   background: transparent;
-  color: #374151;
+  color: var(--text);
   font-size: 14px;
   box-shadow: none !important;
   padding: 0;
@@ -5801,28 +5598,14 @@ defineExpose({
 }
 
 .header-search-box .search-input::placeholder {
-  color: var(--color-text-secondary, #9ca3af);
+  color: var(--text-muted);
+  opacity: 0.6;
 }
 
 .header-search-box .clear-search-btn {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
+  min-width: 22px;
+  min-height: 22px;
   padding: 0;
-  border: none;
-  border-radius: 50%;
-  background: var(--color-background-soft, #f3f4f6);
-  color: var(--color-text-secondary, #6b7280);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.header-search-box .clear-search-btn:hover {
-  background: var(--color-background-muted, #e5e7eb);
-  color: var(--color-text, #374151);
 }
 
 .header-title {
@@ -5834,7 +5617,7 @@ defineExpose({
 
 .header-title h2 {
   margin: 0;
-  color: var(--color-text-strong, #111827);
+  color: var(--text-strong, #111827);
   font-size: 1.25rem;
   font-weight: 600;
   line-height: 1.2;
@@ -5850,78 +5633,10 @@ defineExpose({
 
 
 
-/* Status badge styles */
-.status-badge {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 500;
-  align-self: center;
-}
-
-.status-badge.saved {
-  background-color: var(--state-success);
-  color: #ffffff;
-}
-
-.status-badge.unsaved {
-  background: var(--state-warning);
-  color: #ffffff;
-}
-
-.status-badge.initializing {
-  background-color: var(--color-info-surface, #dbeafe);
-  color: var(--color-info-text, #1e40af);
-}
-
-.status-badge.clickable {
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.status-badge.clickable:hover {
-  filter: brightness(0.95);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  display: inline-block;
-}
-
-.status-dot.saved {
-  background-color: var(--color-success-bg, #10b981);
-}
-
-.status-dot.unsaved {
-  background-color: var(--color-warning-bg, #f59e0b);
-}
-
-.status-dot.initializing {
-  background-color: var(--color-info-bg, #3b82f6);
-  animation: pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes pulse {
-
-  0%,
-  100% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0.5;
-  }
-}
-
 .status-text {
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: 0.3px;
 }
 
 
@@ -5936,498 +5651,19 @@ defineExpose({
   }
 }
 
-.btn.loading {
-  opacity: 0.7;
-  pointer-events: none;
-}
-
-/* 浅色主题按钮样式统一 */
-.btn.primary {
-  background: var(--color-blue-soft-bg, #e3f2fd);
-  color: var(--color-blue-soft-text, #1976d2);
-  border: 1px solid var(--color-blue-soft-border, #90caf9);
-}
-
-.btn.primary:hover {
-  background: var(--color-blue-soft-bg, #bbdefb);
-  border-color: var(--color-blue-soft-hover, #64b5f6);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(25, 118, 210, 0.3);
-}
-
-/* 黑暗主题下的按钮样式 */
-[data-theme='dark'] .btn.secondary {
-  background: rgba(148, 163, 184, 0.2);
-  color: #cbd5e1;
-  border: 1px solid rgba(148, 163, 184, 0.4);
-}
-
-[data-theme='dark'] .btn.secondary:hover {
-  background: rgba(148, 163, 184, 0.3);
-  border-color: rgba(148, 163, 184, 0.6);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(148, 163, 184, 0.4);
-}
-
-[data-theme='dark'] .btn.success {
-  background: rgba(34, 197, 94, 0.2);
-  color: #86efac;
-  border: 1px solid rgba(134, 239, 172, 0.4);
-}
-
-[data-theme='dark'] .btn.success:hover:not(:disabled) {
-  background: rgba(34, 197, 94, 0.3);
-  border-color: rgba(110, 231, 183, 0.6);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(34, 197, 94, 0.4);
-}
-
-[data-theme='dark'] .btn.success:disabled {
-  background: rgba(100, 116, 139, 0.2);
-  color: rgba(148, 163, 184, 0.6);
-  border-color: rgba(100, 116, 139, 0.4);
-  cursor: not-allowed;
-}
-
-[data-theme='dark'] .btn.info {
-  background: rgba(14, 165, 233, 0.2);
-  color: #7dd3fc;
-  border: 1px solid rgba(125, 211, 252, 0.4);
-}
-
-[data-theme='dark'] .btn.info:hover:not(:disabled) {
-  background: rgba(14, 165, 233, 0.3);
-  border-color: rgba(56, 189, 248, 0.6);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(14, 165, 233, 0.4);
-}
-
-[data-theme='dark'] .btn.primary {
-  background: rgba(59, 130, 246, 0.2);
-  color: #93c5fd;
-  border: 1px solid rgba(147, 197, 253, 0.4);
-}
-
-[data-theme='dark'] .btn.primary:hover {
-  background: rgba(59, 130, 246, 0.3);
-  border-color: rgba(96, 165, 250, 0.6);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.4);
-}
-
-[data-theme='dark'] .search-input {
-  background: var(--color-surface, #1f2937);
-  border-color: var(--color-divider, #374151);
-  color: var(--color-text-primary, #f3f4f6);
-}
-
-[data-theme='dark'] .search-input:focus {
-  border-color: var(--color-primary, #3b82f6);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
-}
-
-[data-theme='dark'] .clear-search-btn:hover {
-  background: var(--color-hover, #374151);
-}
-
-[data-theme='dark'] .list-toolbar {
-  background: var(--bg-surface);
-}
-
-[data-theme='dark'] .header-search-box {
-  background: var(--color-surface, #1f2937);
-  border-color: var(--color-border, #374151);
-}
-
-[data-theme='dark'] .header-search-box:focus-within {
-  border-color: var(--color-primary, #3b82f6);
-  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
-}
-
-[data-theme='dark'] .header-search-box:focus-within .search-icon {
-  color: var(--color-primary, #3b82f6);
-}
-
-[data-theme='dark'] .header-search-box .search-input {
-  color: #f9fafb;
-  background: transparent !important;
-  border: none !important;
-  padding: 0 !important;
-  margin: 0 !important;
-}
-
-[data-theme='dark'] .header-search-box .search-input::placeholder {
-  color: #9ca3af;
-}
-
-[data-theme='dark'] .header-search-box .search-input:focus {
-  outline: none !important;
-  box-shadow: none !important;
-  border: none !important;
-}
-
-[data-theme='dark'] .header-search-box .search-icon {
-  color: #9ca3af;
-}
-
-[data-theme='dark'] .header-search-box .clear-search-btn {
-  background: var(--color-surface-alt, #111827);
-  color: var(--color-text-secondary, #9ca3af);
-}
-
-[data-theme='dark'] .header-search-box .clear-search-btn:hover {
-  background: var(--color-surface, #1f2937);
-  color: var(--color-text-primary, #f9fafb);
-}
-
-[data-theme='dark'] .action-btn {
-  background: var(--color-surface, #1f2937);
-  border-color: var(--color-border, #374151);
-  color: var(--color-text-primary, #f9fafb);
-}
-
-[data-theme='dark'] .action-btn:hover:not(:disabled) {
-  background: var(--color-surface-alt, #111827);
-  border-color: var(--color-primary, #3b82f6);
-}
-
-[data-theme='dark'] .action-btn.active {
-  background: rgba(59, 130, 246, 0.2);
-  border-color: var(--color-primary, #3b82f6);
-  color: var(--color-primary, #3b82f6);
-}
-
-/* 通用筛选按钮暗色主题 */
-[data-theme='dark'] .filter-btn {
-  background: var(--color-surface, #1f2937);
-  border-color: var(--color-border, #374151);
-  color: var(--color-text-primary, #f9fafb);
-}
-
-[data-theme='dark'] .filter-btn:hover {
-  background: var(--color-surface-alt, #111827);
-  border-color: var(--color-primary, #3b82f6);
-}
-
-[data-theme='dark'] .filter-btn.active {
-  background: rgba(59, 130, 246, 0.2);
-  border-color: var(--color-primary, #3b82f6);
-  color: var(--color-primary, #3b82f6);
-}
-
-/* 状态筛选暗色主题 */
-[data-theme='dark'] .status-filter-menu {
-  background: var(--color-surface, #1f2937);
-  border-color: var(--color-border, #374151);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-}
-
-[data-theme='dark'] .status-option {
-  color: var(--color-text-primary, #f9fafb);
-}
-
-[data-theme='dark'] .status-option:hover {
-  background: var(--color-surface-alt, #111827);
-}
-
-[data-theme='dark'] .status-option.active {
-  background: rgba(59, 130, 246, 0.2);
-  color: var(--color-primary, #3b82f6);
-}
-
-[data-theme='dark'] .status-option .status-count {
-  background: var(--color-surface-alt, #111827);
-  color: var(--color-text-secondary, #9ca3af);
-}
-
-[data-theme='dark'] .status-option.active .status-count {
-  background: rgba(59, 130, 246, 0.3);
-  color: var(--color-primary, #3b82f6);
-}
-
-[data-theme='dark'] .sort-dropdown .sort-btn {
-  background: var(--color-surface, #1f2937);
-  border-color: var(--color-border, #374151);
-  color: var(--color-text-primary, #f9fafb);
-}
-
-[data-theme='dark'] .open-folder-btn:hover,
-[data-theme='dark'] .batch-import-btn:hover,
-[data-theme='dark'] .sort-dropdown .sort-btn:hover,
-[data-theme='dark'] .view-toggle-btn:hover {
-  background: var(--color-surface-alt, #111827);
-  border-color: var(--color-primary, #3b82f6);
-}
-
-[data-theme='dark'] .view-toggle-btn.active {
-  background: rgba(59, 130, 246, 0.2);
-  border-color: var(--color-primary, #3b82f6);
-  color: var(--color-primary, #3b82f6);
-}
-
-[data-theme='dark'] .batch-delete-btn:hover:not(:disabled) {
-  background: var(--color-surface-alt, #111827);
-  border-color: var(--color-danger, #ef4444);
-  color: var(--color-danger, #ef4444);
-}
-
-[data-theme='dark'] .pagination-combined {
-  background: var(--color-surface, #1f2937);
-  border-color: var(--color-border, #374151);
-}
-
-[data-theme='dark'] .pagination-info-text {
-  color: var(--color-text-primary, #f9fafb);
-}
-
-[data-theme='dark'] .pagination-size-select {
-  background: var(--color-surface, #1f2937);
-  border-color: var(--color-border, #374151);
-  color: var(--color-text-primary, #f9fafb);
-}
-
-[data-theme='dark'] .pagination-size-select:hover {
-  border-color: var(--color-primary, #3b82f6);
-}
-
-[data-theme='dark'] .pagination-size-select:focus {
-  border-color: var(--color-primary, #3b82f6);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
-}
-
-[data-theme='dark'] .sort-menu {
-  background: var(--color-surface, #1f2937);
-  border-color: var(--color-border, #374151);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-}
-
-[data-theme='dark'] .sort-option {
-  color: var(--color-text-primary, #f9fafb);
-}
-
-[data-theme='dark'] .sort-option:hover {
-  background: var(--color-surface-alt, #111827);
-}
-
-[data-theme='dark'] .sort-option.active {
-  background: rgba(59, 130, 246, 0.2);
-  color: var(--color-primary, #3b82f6);
-}
-
-[data-theme='dark'] .sort-divider {
-  background: var(--color-border, #374151);
-}
-
-/* 邮箱后缀筛选暗色主题 */
-[data-theme='dark'] .email-suffix-btn {
-  background: var(--color-surface, #1f2937);
-  border-color: var(--color-border, #374151);
-  color: var(--color-text-primary, #f9fafb);
-}
-
-[data-theme='dark'] .email-suffix-btn:hover {
-  background: var(--color-surface-alt, #111827);
-  border-color: var(--color-primary, #3b82f6);
-}
-
-[data-theme='dark'] .email-suffix-btn.active {
-  background: rgba(59, 130, 246, 0.2);
-  border-color: var(--color-primary, #3b82f6);
-  color: var(--color-primary, #3b82f6);
-}
-
-[data-theme='dark'] .email-suffix-menu {
-  background: var(--color-surface, #1f2937);
-  border-color: var(--color-border, #374151);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-}
-
-[data-theme='dark'] .suffix-option {
-  color: var(--color-text-primary, #f9fafb);
-}
-
-[data-theme='dark'] .suffix-option:hover {
-  background: var(--color-surface-alt, #111827);
-}
-
-[data-theme='dark'] .suffix-option.active {
-  background: rgba(59, 130, 246, 0.2);
-  color: var(--color-primary, #3b82f6);
-}
-
-[data-theme='dark'] .suffix-option .suffix-count {
-  background: var(--color-surface-alt, #111827);
-  color: var(--color-text-secondary, #9ca3af);
-}
-
-[data-theme='dark'] .suffix-option.active .suffix-count {
-  background: rgba(59, 130, 246, 0.3);
-  color: var(--color-primary, #3b82f6);
-}
-
-[data-theme='dark'] .no-suffix-hint {
-  color: var(--color-text-secondary, #9ca3af);
-}
-
-[data-theme='dark'] .no-suffix-hint p {
-  color: var(--color-text-muted, #6b7280);
-}
-
-[data-theme='dark'] .suffix-menu-header {
-  background: var(--color-surface-alt, #111827);
-  border-bottom-color: var(--color-border, #374151);
-}
-
-[data-theme='dark'] .suffix-extract-btn {
-  background: var(--color-surface, #1f2937);
-  border-color: var(--color-border, #374151);
-  color: var(--color-primary, #3b82f6);
-}
-
-[data-theme='dark'] .suffix-extract-btn:hover:not(:disabled) {
-  background: rgba(59, 130, 246, 0.2);
-  border-color: var(--color-primary, #3b82f6);
-}
-
-[data-theme='dark'] .suffix-extract-btn:disabled {
-  color: var(--color-text-muted, #6b7280);
-}
-
-/* 标签筛选暗色主题 */
-[data-theme='dark'] .tag-filter-btn {
-  background: var(--color-surface, #1f2937);
-  border-color: var(--color-border, #374151);
-  color: var(--color-text-primary, #f9fafb);
-}
-
-[data-theme='dark'] .tag-filter-btn:hover {
-  background: var(--color-surface-alt, #111827);
-  border-color: var(--color-primary, #3b82f6);
-}
-
-[data-theme='dark'] .tag-filter-btn.active {
-  background: rgba(59, 130, 246, 0.2);
-  border-color: var(--color-primary, #3b82f6);
-  color: var(--color-primary, #3b82f6);
-}
-
-[data-theme='dark'] .tag-filter-menu {
-  background: var(--color-surface, #1f2937);
-  border-color: var(--color-border, #374151);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-}
-
-[data-theme='dark'] .tag-option {
-  color: var(--color-text-primary, #f9fafb);
-}
-
-[data-theme='dark'] .tag-option:hover {
-  background: var(--color-surface-alt, #111827);
-}
-
-[data-theme='dark'] .tag-option.active {
-  background: rgba(59, 130, 246, 0.2);
-  color: var(--color-primary, #3b82f6);
-}
-
-[data-theme='dark'] .no-tag-hint {
-  color: var(--color-text-secondary, #9ca3af);
-}
-
-/* 选择模式提示暗色主题 */
-[data-theme='dark'] .selection-info {
-  background: rgba(59, 130, 246, 0.2);
-  border-color: var(--color-primary, #3b82f6);
-  color: var(--color-primary, #3b82f6);
-}
-
-[data-theme='dark'] .no-tag-hint p {
-  color: var(--color-text-muted, #6b7280);
-}
-
-[data-theme='dark'] .tag-menu-header {
-  background: var(--color-surface-alt, #111827);
-  border-bottom-color: var(--color-border, #374151);
-}
-
-[data-theme='dark'] .tag-mode-toggle-btn {
-  background: var(--color-surface, #1f2937);
-  border-color: var(--color-border, #374151);
-  color: var(--color-text-primary, #f9fafb);
-}
-
-[data-theme='dark'] .tag-mode-toggle-btn:hover {
-  background: var(--color-surface-alt, #111827);
-  border-color: var(--color-primary, #3b82f6);
-  color: var(--color-primary, #3b82f6);
-}
-
-[data-theme='dark'] .tag-extract-btn {
-  background: var(--color-surface, #1f2937);
-  border-color: var(--color-border, #374151);
-  color: var(--color-primary, #3b82f6);
-}
-
-[data-theme='dark'] .tag-extract-btn:hover:not(:disabled) {
-  background: rgba(59, 130, 246, 0.2);
-  border-color: var(--color-primary, #3b82f6);
-}
-
-[data-theme='dark'] .tag-extract-btn:disabled {
-  color: var(--color-text-muted, #6b7280);
-}
-
-/* 状态统计卡片暗色主题 */
-[data-theme='dark'] .status-stat-card {
-  background: rgba(55, 65, 81, 0.5);
-  border-color: transparent;
-}
-
-[data-theme='dark'] .status-stat-card:hover {
-  background: rgba(55, 65, 81, 0.7);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-}
-
-[data-theme='dark'] .status-stat-card.selected {
-  border-color: var(--color-primary, #3b82f6);
-  background: rgba(59, 130, 246, 0.2);
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
-}
-
-[data-theme='dark'] .stat-label {
-  color: var(--color-text-secondary, #9ca3af);
-}
-
-[data-theme='dark'] .stat-value {
-  color: var(--color-text-primary, #f9fafb);
-}
-
-[data-theme='dark'] .filter-hint {
-  background: rgba(59, 130, 246, 0.2);
-  border-color: var(--color-primary, #3b82f6);
-  color: var(--color-primary, #60a5fa);
-}
-
-[data-theme='dark'] .clear-filter-btn {
-  background: var(--color-primary, #3b82f6);
-}
-
-[data-theme='dark'] .clear-filter-btn:hover {
-  background: var(--color-primary-hover, #2563eb);
-}
-
 /* ========== 批量操作工具栏样式 ========== */
 .batch-toolbar {
-  position: absolute;
+  position: fixed;
   bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 100;
-  background: var(--color-surface, #ffffff);
-  border: 1px solid var(--color-divider, #e1e5e9);
+  z-index: 1000;
+  background: var(--bg-surface, #ffffff);
+  border: 1px solid var(--divider, #e1e5e9);
   border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  padding: 12px 20px;
+  box-shadow: var(--shadow-elevated);
+  padding: 12px 24px;
+  min-width: 520px;
 }
 
 .batch-toolbar-content {
@@ -6445,13 +5681,13 @@ defineExpose({
 .selected-count {
   font-weight: 600;
   font-size: 14px;
-  color: var(--color-accent, #3b82f6);
+  color: var(--accent, #3b82f6);
 }
 
 .btn-text {
   background: none;
   border: none;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--text-secondary, #6b7280);
   font-size: 13px;
   cursor: pointer;
   padding: 4px 8px;
@@ -6460,41 +5696,14 @@ defineExpose({
 }
 
 .btn-text:hover {
-  background: var(--color-surface-soft, #f3f4f6);
-  color: var(--color-accent, #3b82f6);
+  background: var(--bg-surface-soft, #f3f4f6);
+  color: var(--accent, #3b82f6);
 }
 
 .batch-actions {
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.batch-action-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  border: none;
-  background: var(--color-surface-soft, #f3f4f6);
-  color: var(--color-text-secondary, #6b7280);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-
-.batch-action-btn:hover {
-  background: var(--color-accent, #3b82f6);
-  color: white;
-}
-
-.batch-action-btn.danger:hover {
-  background: var(--color-danger, #ef4444);
-}
-
-.batch-action-btn.close:hover {
-  background: var(--color-text-secondary, #6b7280);
 }
 
 /* 工具栏滑入动画 */
@@ -6507,33 +5716,6 @@ defineExpose({
 .slide-up-leave-to {
   opacity: 0;
   transform: translateX(-50%) translateY(20px);
-}
-
-/* 暗色模式适配 */
-[data-theme='dark'] .batch-toolbar {
-  background: var(--color-surface, #1f2937);
-  border-color: var(--color-divider, #374151);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-}
-
-[data-theme='dark'] .batch-action-btn {
-  background: rgba(55, 65, 81, 0.6);
-  color: var(--color-text-secondary, #9ca3af);
-}
-
-[data-theme='dark'] .batch-action-btn:hover {
-  background: var(--color-accent, #3b82f6);
-  color: white;
-}
-
-[data-theme='dark'] .btn-text:hover {
-  background: rgba(55, 65, 81, 0.6);
-}
-
-/* 禁用状态 */
-.batch-action-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 /* Page Mode Styles */
@@ -6554,7 +5736,7 @@ defineExpose({
   width: 100%;
 }
 
-.token-list-page .modal-content {
+.token-list-page .page-content {
   position: static;
   transform: none;
   max-width: none;
@@ -6568,20 +5750,20 @@ defineExpose({
   border: none;
 }
 
-.token-list-page .modal-overlay {
+.token-list-page .page-container {
   position: static;
   background: transparent;
 }
 
-.token-list-page .modal-header {
+.token-list-page .page-header {
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border);
   padding: 16px 20px;
   border-radius: 0;
 }
 
-.token-list-page .modal-body {
+.token-list-page .page-body {
   background: transparent;
-  padding: 0;
+  padding: 16px 24px;
 }
 </style>

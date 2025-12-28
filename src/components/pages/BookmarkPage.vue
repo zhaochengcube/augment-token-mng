@@ -59,7 +59,7 @@
       <div class="form-content" @click.stop>
         <div class="form-header">
           <h3>{{ editingBookmark ? $t('bookmarkManager.editBookmark') : $t('bookmarkManager.addBookmark') }}</h3>
-          <button class="close-btn" @click="hideForm">×</button>
+          <button class="modal-close" @click="hideForm">×</button>
         </div>
 
         <div class="form-body">
@@ -248,10 +248,14 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* ============================================
+   BookmarkPage - Modern Tech Style
+   ============================================ */
+
 .bookmark-page {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 26px;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -261,69 +265,22 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 26px;
   flex-shrink: 0;
 }
 
 .page-header h2 {
   font-size: 28px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-strong);
   margin: 0;
+  letter-spacing: -0.5px;
 }
 
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.btn-icon {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-
-.btn-icon.info {
-  background: var(--bg-surface);
-  color: var(--primary);
-}
-
-.btn-icon.info:hover {
-  background: var(--bg-hover);
-}
-
-.btn-icon.add {
-  background: var(--bg-surface);
-  color: var(--success);
-}
-
-.btn-icon.add:hover {
-  background: var(--bg-hover);
-}
-
-.btn-icon.edit {
-  background: var(--bg-surface);
-  color: var(--primary);
-}
-
-.btn-icon.edit:hover {
-  background: var(--bg-hover);
-}
-
-.btn-icon.delete {
-  background: var(--bg-surface);
-  color: var(--danger);
-}
-
-.btn-icon.delete:hover {
-  background: var(--danger-hover);
+  gap: 10px;
 }
 
 .page-body {
@@ -337,27 +294,54 @@ onMounted(() => {
   flex: 1;
   overflow-y: auto;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 14px;
   padding: 4px;
 }
 
+/* 书签卡片 - 科技风 */
 .bookmark-card {
   position: relative;
   aspect-ratio: 1;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg-surface);
-  transition: all 0.2s;
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 12px;
+  background: var(--tech-card-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+
+/* 顶部发光边线 */
+.bookmark-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 25%;
+  right: 25%;
+  height: 2px;
+  background: var(--accent);
+  opacity: 0;
+  transition: all 0.3s ease;
+  border-radius: 0 0 2px 2px;
+}
+
+.bookmark-card:hover::before {
+  opacity: 1;
+  left: 15%;
+  right: 15%;
+  box-shadow: 0 0 12px var(--tech-glow-primary);
 }
 
 .bookmark-card:hover {
-  border-color: var(--primary);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent),
+              0 6px 24px -6px rgba(0, 0, 0, 0.2),
+              0 0 25px -8px var(--tech-glow-primary);
+  transform: translateY(-3px);
 }
 
 .bookmark-actions {
@@ -365,7 +349,7 @@ onMounted(() => {
   top: 8px;
   right: 8px;
   display: flex;
-  gap: 4px;
+  gap: 6px;
   opacity: 0;
   transition: opacity 0.2s;
   z-index: 10;
@@ -381,23 +365,29 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 12px;
+  padding: 14px;
   text-align: center;
 }
 
 .bookmark-icon {
-  color: var(--primary);
-  margin-bottom: 6px;
+  color: var(--accent);
+  margin-bottom: 8px;
+  transition: transform 0.3s ease;
+}
+
+.bookmark-card:hover .bookmark-icon {
+  transform: scale(1.1);
 }
 
 .bookmark-icon svg {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
+  filter: drop-shadow(0 0 6px var(--tech-glow-primary));
 }
 
 .bookmark-name {
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-strong);
   margin-bottom: 4px;
   overflow: hidden;
@@ -431,27 +421,31 @@ onMounted(() => {
   margin: 8px 0;
 }
 
-/* Form Overlay */
+/* Form Overlay - 科技风 */
 .form-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 3000;
   padding: 20px;
+  backdrop-filter: blur(4px);
 }
 
 .form-content {
-  background: var(--bg-surface);
-  border-radius: 12px;
+  background: var(--tech-glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 18px;
   width: 100%;
-  max-width: 500px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  max-width: 520px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35), var(--tech-border-glow);
   display: flex;
   flex-direction: column;
   max-height: 90vh;
@@ -461,120 +455,35 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px;
-  border-bottom: 1px solid var(--border);
+  padding: 22px 26px;
+  border-bottom: 1px solid var(--tech-glass-border);
+  background: color-mix(in srgb, var(--bg-muted) 30%, transparent);
+  border-radius: 18px 18px 0 0;
 }
 
 .form-header h3 {
   margin: 0;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
   color: var(--text-strong);
 }
 
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  color: var(--text-muted);
-  padding: 0;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.close-btn:hover {
-  color: var(--text-strong);
-}
 
 .form-body {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
-}
-
-.form-group {
-  margin-bottom: 16px;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-strong);
-}
-
-.form-group input,
-.form-group textarea {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 14px;
-  background: var(--bg-base);
-  color: var(--text-strong);
-  transition: all 0.2s;
-}
-
-.form-group input:focus,
-.form-group textarea:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
-}
-
-.form-group textarea {
-  resize: vertical;
-  font-family: inherit;
+  padding: 26px;
 }
 
 .form-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
-  padding: 20px;
-  border-top: 1px solid var(--border);
+  gap: 14px;
+  padding: 22px 26px;
+  border-top: 1px solid var(--tech-glass-border);
+  background: color-mix(in srgb, var(--bg-muted) 30%, transparent);
+  border-radius: 0 0 18px 18px;
 }
 
-.btn {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn.primary {
-  background: var(--primary);
-  color: white;
-}
-
-.btn.primary:hover:not(:disabled) {
-  background: var(--primary-hover);
-}
-
-.btn.primary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn.secondary {
-  background: var(--bg-surface);
-  color: var(--text-strong);
-  border: 1px solid var(--border);
-}
-
-.btn.secondary:hover {
-  background: var(--bg-hover);
-}
 </style>
-
-
-
 

@@ -18,6 +18,7 @@ pub struct TokenData {
     pub suspensions: Option<serde_json::Value>,
     pub balance_color_mode: Option<String>,
     pub skip_check: Option<bool>,
+    pub session_updated_at: Option<DateTime<Utc>>,
     #[serde(default)]
     pub version: i64,
 }
@@ -47,6 +48,7 @@ impl TokenData {
             suspensions: None,
             balance_color_mode: None,
             skip_check: None,
+            session_updated_at: None,
             version: 0,
         }
     }
@@ -190,6 +192,11 @@ pub fn convert_legacy_token(legacy: &serde_json::Value) -> Result<TokenData, Box
         .and_then(|v| v.as_i64())
         .unwrap_or(0);
 
+    let session_updated_at = legacy.get("session_updated_at")
+        .and_then(|v| v.as_str())
+        .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
+        .map(|dt| dt.with_timezone(&chrono::Utc));
+
     Ok(TokenData {
         id,
         tenant_url,
@@ -206,6 +213,7 @@ pub fn convert_legacy_token(legacy: &serde_json::Value) -> Result<TokenData, Box
         suspensions,
         balance_color_mode,
         skip_check,
+        session_updated_at,
         version,
     })
 }

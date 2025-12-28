@@ -3,7 +3,7 @@
     <div :class="isPageMode ? 'page-content outlook-manager' : 'modal-content outlook-manager'" @click.stop>
       <div :class="isPageMode ? 'page-header' : 'modal-header'">
         <h3>{{ $t('outlookManager.title') }}</h3>
-        <button v-if="!isPageMode" @click="$emit('close')" class="close-btn">×</button>
+        <button v-if="!isPageMode" @click="$emit('close')" class="modal-close">×</button>
       </div>
 
       <div :class="isPageMode ? 'page-body' : 'modal-body'">
@@ -44,7 +44,7 @@
             <button
               @click="refreshAccounts"
               :disabled="isLoading"
-              class="btn secondary small"
+              class="btn primary small"
             >
               {{ $t('outlookManager.checkStatus') }}
             </button>
@@ -88,7 +88,7 @@
                 <button
                   @click="checkStatus(account.email)"
                   :disabled="isCheckingStatus"
-                  class="btn secondary small"
+                  class="btn primary small"
                 >
                   {{ $t('outlookManager.checkStatus') }}
                 </button>
@@ -280,6 +280,10 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* ============================================
+   OutlookManager - Modern Tech Style
+   ============================================ */
+
 /* Page Mode Styles */
 .page-container {
   height: 100%;
@@ -297,173 +301,77 @@ onMounted(() => {
 }
 
 .page-header {
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-surface);
+  padding: 22px 26px;
+  border-bottom: 1px solid var(--tech-glass-border);
+  background: color-mix(in srgb, var(--bg-muted) 30%, transparent);
   flex-shrink: 0;
 }
 
 .page-header h3 {
   margin: 0;
   font-size: 24px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-strong);
 }
 
 .page-body {
   flex: 1;
   overflow-y: auto;
-  padding: 24px;
+  padding: 26px;
 }
 
-/* Modal Mode Styles */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  z-index: 2000;
-}
-
-.modal-content {
-  background: var(--bg-surface);
-  border-radius: 12px;
+/* Modal Mode Styles - 科技风 */
+.modal-content.outlook-manager {
   width: 100%;
-  max-width: 900px;
+  max-width: 920px;
   height: 90vh;
   overflow: hidden;
-  position: relative;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
 }
 
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-muted);
-  border-radius: 12px 12px 0 0;
-}
-
-.modal-header h3 {
-  margin: 0;
-  color: var(--text-strong);
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  color: var(--text-muted);
-  padding: 0;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  transition: all 0.2s;
-}
-
-.close-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-
-.outlook-manager {
-  width: 100%;
-  max-width: 900px;
-  height: 90vh;
-}
-
-.modal-body {
-  padding: 24px;
+.modal-content.outlook-manager .modal-body {
+  padding: 26px;
   overflow-y: auto;
 }
 
+/* 区块 - 科技风 */
 .add-account-section {
-  background: var(--bg-muted);
-  border-radius: 8px;
-  padding: 20px;
-  margin-bottom: 24px;
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 14px;
+  padding: 22px;
+  margin-bottom: 26px;
 }
 
 .add-account-section h4 {
-  margin: 0 0 16px 0;
+  margin: 0 0 18px 0;
   color: var(--text-strong);
   font-size: 16px;
   font-weight: 600;
 }
 
-.form-group {
-  margin-bottom: 16px;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 6px;
-  font-weight: 500;
-  color: var(--text);
-  font-size: 14px;
-}
-
-.form-input,
-.form-textarea {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 14px;
-  transition: border-color 0.2s ease;
-  box-sizing: border-box;
-  background: var(--bg-surface);
-  color: var(--text);
-}
-
-.form-input:focus,
-.form-textarea:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
-}
-
-.form-textarea {
-  resize: vertical;
-  min-height: 80px;
-}
-
 .form-actions {
-  margin-top: 20px;
+  margin-top: 22px;
 }
 
 .input-hint {
-  margin-top: 6px;
+  margin-top: 8px;
   font-size: 12px;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--text-muted);
   font-style: italic;
 }
 
+/* 警告提示 - 科技风 */
 .session-notice {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px;
-  background: var(--color-warning-surface, #fef3c7);
-  border: 1px solid var(--color-warning-bg, #f59e0b);
-  border-radius: 6px;
-  margin-bottom: 16px;
+  gap: 10px;
+  padding: 14px;
+  background: color-mix(in srgb, #f59e0b 12%, transparent);
+  border: 1px solid color-mix(in srgb, #f59e0b 40%, transparent);
+  border-radius: 10px;
+  margin-bottom: 18px;
   font-size: 13px;
-  color: var(--color-warning-text, #92400e);
+  color: #f59e0b;
 }
 
 .notice-icon {
@@ -473,13 +381,14 @@ onMounted(() => {
 
 .empty-hint {
   font-size: 12px;
-  color: var(--color-text-soft, #9ca3af);
-  margin-top: 8px;
+  color: var(--text-muted);
+  margin-top: 10px;
+  opacity: 0.7;
 }
 
 .accounts-section h4 {
   margin: 0;
-  color: var(--color-text-heading, #333);
+  color: var(--text-strong);
   font-size: 16px;
   font-weight: 600;
 }
@@ -488,23 +397,30 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 
 .accounts-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
+/* 账户项 - 科技风 */
 .account-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px;
-  background: var(--color-surface, #ffffff);
-  border: 1px solid var(--color-border, #e5e7eb);
-  border-radius: 8px;
+  padding: 18px;
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 12px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.account-item:hover {
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  box-shadow: 0 0 15px var(--tech-glow-primary);
 }
 
 .account-info {
@@ -512,132 +428,83 @@ onMounted(() => {
 }
 
 .account-email {
-  font-weight: 500;
-  color: var(--color-text-primary, #374151);
-  margin-bottom: 6px;
+  font-weight: 600;
+  color: var(--text-strong);
+  margin-bottom: 8px;
 }
 
 .account-meta {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   flex-wrap: wrap;
 }
 
+/* 状态标签 - 科技风 */
 .account-status {
-  font-size: 12px;
-  padding: 2px 8px;
-  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
   display: inline-block;
 }
 
 .account-created {
   font-size: 11px;
-  color: var(--color-text-muted, #6b7280);
-  background: var(--color-surface-hover, #f3f4f6);
-  padding: 2px 6px;
+  font-family: var(--tech-mono-font);
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--bg-muted) 70%, transparent);
+  padding: 3px 8px;
   border-radius: 8px;
 }
 
 .status-active {
-  background: rgba(34, 197, 94, 0.1);
-  color: #22c55e;
+  background: color-mix(in srgb, #10b981 15%, transparent);
+  color: #10b981;
+  border: 1px solid color-mix(in srgb, #10b981 30%, transparent);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.3);
 }
 
 .status-inactive {
-  background: rgba(239, 68, 68, 0.1);
+  background: color-mix(in srgb, #ef4444 15%, transparent);
   color: #ef4444;
+  border: 1px solid color-mix(in srgb, #ef4444 30%, transparent);
 }
 
 .status-error {
-  background: rgba(245, 158, 11, 0.1);
+  background: color-mix(in srgb, #f59e0b 15%, transparent);
   color: #f59e0b;
+  border: 1px solid color-mix(in srgb, #f59e0b 30%, transparent);
 }
 
 .status-unknown {
-  background: var(--bg-muted);
+  background: color-mix(in srgb, var(--bg-muted) 70%, transparent);
   color: var(--text-muted);
+  border: 1px solid var(--tech-glass-border);
 }
 
 .account-actions {
   display: flex;
-  gap: 8px;
-}
-
-.btn {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.2s;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  text-decoration: none;
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  pointer-events: none;
-}
-
-.btn.primary {
-  background: var(--accent);
-  color: var(--text-contrast);
-}
-
-.btn.primary:hover:not(:disabled) {
-  background: var(--accent-strong);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px color-mix(in srgb, var(--accent) 30%, transparent);
-}
-
-.btn.secondary {
-  background: var(--text-muted);
-  color: var(--text-contrast);
-}
-
-.btn.secondary:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--text-muted) 80%, black);
-}
-
-.btn.danger {
-  background: #dc2626;
-  color: #ffffff;
-}
-
-.btn.danger:hover:not(:disabled) {
-  background: #b91c1c;
-}
-
-.btn.small {
-  padding: 6px 12px;
-  font-size: 12px;
-}
-
-.btn.loading {
-  opacity: 0.7;
-  cursor: wait;
+  gap: 10px;
 }
 
 .loading-state,
 .empty-state {
   text-align: center;
-  padding: 40px 20px;
+  padding: 45px 22px;
   color: var(--text-muted);
 }
 
+/* 加载动画 - 科技风 */
 .spinner {
-  width: 32px;
-  height: 32px;
-  border: 3px solid var(--bg-muted);
-  border-top: 3px solid var(--accent);
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--tech-glass-border);
+  border-top-color: var(--accent);
   border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 16px;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 18px;
+  box-shadow: 0 0 15px var(--tech-glow-primary);
 }
 
 @keyframes spin {
@@ -647,7 +514,7 @@ onMounted(() => {
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .modal-content {
+  .modal-content.outlook-manager {
     margin: 10px;
     max-width: calc(100vw - 20px);
     height: calc(100vh - 20px);
@@ -655,9 +522,8 @@ onMounted(() => {
 }
 
 @media (max-width: 480px) {
-  .modal-content {
+  .modal-content.outlook-manager {
     max-height: 95vh;
   }
 }
-
 </style>

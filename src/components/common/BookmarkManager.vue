@@ -15,7 +15,7 @@
                 <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
               </svg>
             </button>
-            <button class="close-btn" @click="$emit('close')">×</button>
+            <button class="modal-close" @click="$emit('close')">×</button>
           </div>
         </div>
         
@@ -74,7 +74,7 @@
           <div class="form-content" @click.stop>
             <div class="form-header">
               <h3>{{ editingBookmark ? $t('bookmarkManager.editBookmark') : $t('bookmarkManager.addBookmark') }}</h3>
-              <button class="close-btn" @click="hideForm">×</button>
+              <button class="modal-close" @click="hideForm">×</button>
             </div>
             
             <div class="form-body">
@@ -271,6 +271,10 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* ============================================
+   BookmarkManager - Modern Tech Style
+   ============================================ */
+
 /* 外层容器样式 */
 .bookmark-manager-modal {
   position: fixed;
@@ -291,114 +295,50 @@ onMounted(() => {
   display: none;
 }
 
-.modal-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.bookmark-manager-modal .modal-overlay {
   padding: 20px;
 }
 
-.modal-content {
-  background: var(--bg-surface);
-  border-radius: 12px;
+.bookmark-manager-modal .modal-content {
   width: 100%;
-  max-width: 900px;
+  max-width: 920px;
   height: 90vh;
   overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   display: flex;
   flex-direction: column;
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px;
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-.modal-header h2 {
-  margin: 0;
-  color: var(--text-strong);
 }
 
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  color: var(--text-muted);
-  padding: 0;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
 
-.close-btn:hover {
-  color: var(--text-strong);
-}
-
-.btn-icon.info {
-  background: var(--bg-muted);
-  color: var(--accent);
-}
-
-.btn-icon.info:hover {
-  background: var(--bg-hover);
-  color: var(--accent-strong);
-}
-
-.btn-icon.add {
-  background: var(--bg-muted);
-  color: #28a745;
-}
-
-.btn-icon.add:hover {
-  background: var(--bg-hover);
-  color: #1e7e34;
-}
-
-.modal-body {
+.bookmark-manager-modal .modal-body {
   flex: 1;
   overflow: hidden;
   display: flex;
   flex-direction: column;
 }
 
-
-
 .bookmarks-grid {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
+  padding: 22px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+  gap: 18px;
 }
 
+/* 书签卡片 - 科技风 */
 .bookmark-card {
   position: relative;
   aspect-ratio: 1;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--bg-surface);
-  transition: all 0.2s;
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -406,16 +346,16 @@ onMounted(() => {
 
 .bookmark-card:hover {
   border-color: var(--accent);
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 15%, transparent);
-  transform: translateY(-2px);
+  box-shadow: 0 0 20px var(--tech-glow-primary);
+  transform: translateY(-4px);
 }
 
 .bookmark-actions {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 10px;
+  right: 10px;
   display: flex;
-  gap: 4px;
+  gap: 6px;
   opacity: 0;
   transition: opacity 0.2s;
   z-index: 2;
@@ -431,14 +371,14 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 16px 12px;
+  padding: 18px 14px;
   text-align: center;
 }
 
 .bookmark-icon {
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   color: var(--accent);
-  opacity: 0.8;
+  filter: drop-shadow(0 0 6px var(--tech-glow-primary));
 }
 
 .bookmark-name {
@@ -446,7 +386,7 @@ onMounted(() => {
   color: var(--text-strong);
   font-size: 13px;
   line-height: 1.3;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
   word-break: break-word;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -466,105 +406,38 @@ onMounted(() => {
 
 .bookmark-buttons {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   justify-content: center;
-  margin-top: 8px;
+  margin-top: 10px;
 }
 
+/* 打开按钮 - 科技风 */
 .bookmark-open-btn {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 6px 12px;
-  border: none;
-  border-radius: 6px;
+  padding: 8px 14px;
+  border: 1px solid transparent;
+  border-radius: 8px;
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
   background: var(--accent);
-  color: var(--text-contrast);
+  color: #fff;
   min-width: 60px;
+  box-shadow: 0 0 10px var(--tech-glow-primary);
 }
 
 .bookmark-open-btn:hover {
-  background: var(--accent-strong);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 30%, transparent);
-}
-
-.btn-small {
-  padding: 4px 8px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 11px;
-  font-weight: 500;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  transition: all 0.2s;
-}
-
-.btn-small.primary {
-  background: var(--accent);
-  color: var(--text-contrast);
-}
-
-.btn-small.primary:hover {
-  background: var(--accent-strong);
-}
-
-.btn-small.secondary {
-  background: var(--text-muted);
-  color: var(--text-contrast);
-}
-
-.btn-small.secondary:hover {
-  background: color-mix(in srgb, var(--text-muted) 80%, black);
-}
-
-.btn-icon {
-  width: 24px;
-  height: 24px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  backdrop-filter: blur(10px);
-}
-
-.btn-icon.edit {
-  background: color-mix(in srgb, var(--bg-surface) 90%, transparent);
-  color: var(--text-muted);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.btn-icon.edit:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-  transform: scale(1.1);
-}
-
-.btn-icon.delete {
-  background: color-mix(in srgb, var(--bg-surface) 90%, transparent);
-  color: #dc3545;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.btn-icon.delete:hover {
-  background: rgba(245, 198, 203, 0.95);
-  color: #721c24;
-  transform: scale(1.1);
+  transform: translateY(-2px);
+  box-shadow: 0 0 18px var(--tech-glow-primary);
 }
 
 .empty-state {
   text-align: center;
-  padding: 40px 20px;
+  padding: 45px 22px;
   color: var(--text-muted);
   grid-column: 1 / -1;
   display: flex;
@@ -575,17 +448,17 @@ onMounted(() => {
 }
 
 .empty-state p {
-  margin: 8px 0;
+  margin: 10px 0;
   line-height: 1.5;
 }
 
 .empty-state p:first-child {
   font-size: 18px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-strong);
 }
 
-/* Form Modal Styles */
+/* Form Modal Styles - 科技风 */
 .form-overlay {
   position: fixed;
   top: 0;
@@ -597,15 +470,19 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   z-index: 1100;
+  backdrop-filter: blur(4px);
 }
 
 .form-content {
-  background: var(--bg-surface);
-  border-radius: 8px;
+  background: var(--tech-glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 14px;
   width: 90%;
-  max-width: 500px;
+  max-width: 520px;
   overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35), var(--tech-border-glow);
   display: flex;
   flex-direction: column;
 }
@@ -614,8 +491,9 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px;
-  border-bottom: 1px solid var(--border);
+  padding: 22px;
+  border-bottom: 1px solid var(--tech-glass-border);
+  background: color-mix(in srgb, var(--bg-muted) 30%, transparent);
   flex-shrink: 0;
 }
 
@@ -623,55 +501,19 @@ onMounted(() => {
   margin: 0;
   color: var(--text-strong);
   font-size: 18px;
+  font-weight: 600;
 }
 
 .form-body {
-  padding: 20px;
+  padding: 22px;
   flex: 1;
   min-height: 0;
 }
 
-.form-group {
-  margin-bottom: 20px;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 8px;
-  font-weight: 500;
-  color: var(--text);
-  font-size: 14px;
-}
-
-.form-group input,
-.form-group textarea {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  font-size: 14px;
-  transition: border-color 0.2s;
-  box-sizing: border-box;
-  background: var(--bg-surface);
-  color: var(--text);
-}
-
-.form-group input:focus,
-.form-group textarea:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 10%, transparent);
-}
-
-.form-group textarea {
-  resize: vertical;
-  font-family: inherit;
-}
-
 .form-actions {
   display: flex;
-  gap: 12px;
-  margin-top: 24px;
+  gap: 14px;
+  margin-top: 26px;
 }
 
 .form-actions .btn {
@@ -679,75 +521,35 @@ onMounted(() => {
   justify-content: center;
 }
 
-.btn {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.2s;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.btn.primary {
-  background: var(--accent);
-  color: var(--text-contrast);
-}
-
-.btn.primary:hover:not(:disabled) {
-  background: var(--accent-strong);
-}
-
-.btn.secondary {
-  background: var(--text-muted);
-  color: var(--text-contrast);
-}
-
-.btn.secondary:hover {
-  background: color-mix(in srgb, var(--text-muted) 80%, black);
-}
-
-.btn.small {
-  padding: 8px 12px;
-  font-size: 13px;
-}
-
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
+/* 状态提示 - 科技风 */
 .status {
-  padding: 12px 20px;
-  margin: 0 20px 20px;
-  border-radius: 4px;
+  padding: 14px 22px;
+  margin: 0 22px 22px;
+  border-radius: 10px;
   font-size: 14px;
 }
 
 .status.info {
-  background: rgba(59, 130, 246, 0.1);
+  background: color-mix(in srgb, #3b82f6 12%, transparent);
   color: #3b82f6;
-  border: 1px solid rgba(59, 130, 246, 0.3);
+  border: 1px solid color-mix(in srgb, #3b82f6 35%, transparent);
 }
 
 .status.success {
-  background: rgba(34, 197, 94, 0.1);
-  color: #22c55e;
-  border: 1px solid rgba(34, 197, 94, 0.3);
+  background: color-mix(in srgb, #10b981 12%, transparent);
+  color: #10b981;
+  border: 1px solid color-mix(in srgb, #10b981 35%, transparent);
 }
 
 .status.error {
-  background: rgba(239, 68, 68, 0.1);
+  background: color-mix(in srgb, #ef4444 12%, transparent);
   color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  border: 1px solid color-mix(in srgb, #ef4444 35%, transparent);
 }
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .modal-content {
+  .bookmark-manager-modal .modal-content {
     margin: 10px;
     max-width: calc(100vw - 20px);
     height: calc(100vh - 20px);
@@ -759,16 +561,16 @@ onMounted(() => {
 
   .bookmarks-grid {
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 12px;
-    padding: 16px;
+    gap: 14px;
+    padding: 18px;
   }
 
   .bookmark-card {
-    border-radius: 8px;
+    border-radius: 10px;
   }
 
   .bookmark-content {
-    padding: 12px 8px;
+    padding: 14px 10px;
   }
 
   .bookmark-name {
@@ -789,45 +591,49 @@ onMounted(() => {
 }
 
 @media (max-width: 480px) {
-  .modal-overlay {
+  .bookmark-manager-modal .modal-overlay {
     padding: 10px;
   }
 
-  .modal-content {
+  .bookmark-manager-modal .modal-content {
     max-height: 95vh;
   }
 
-  .modal-header h2 {
+  .bookmark-manager-modal .modal-header h2 {
     font-size: 1.25rem;
   }
 }
 
-/* Portal Dialog Styles */
+/* Portal Dialog Styles - 科技风 */
 .portal-dialog-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1200;
+  backdrop-filter: blur(4px);
 }
 
 .portal-dialog {
-  background: var(--bg-surface);
-  border-radius: 12px;
-  padding: 24px;
-  min-width: 320px;
-  max-width: 400px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  background: var(--tech-glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 14px;
+  padding: 26px;
+  min-width: 340px;
+  max-width: 420px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35), var(--tech-border-glow);
   text-align: center;
 }
 
 .portal-dialog h3 {
-  margin: 0 0 20px 0;
+  margin: 0 0 22px 0;
   color: var(--text-strong);
   font-size: 18px;
   font-weight: 600;
@@ -836,62 +642,67 @@ onMounted(() => {
 .dialog-buttons {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
+/* 对话框按钮 - 科技风 */
 .dialog-btn {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 12px;
-  padding: 12px 20px;
-  border: none;
-  border-radius: 8px;
+  padding: 14px 22px;
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 10px;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
   text-decoration: none;
 }
 
 .dialog-btn.copy {
-  background: #28a745;
-  color: #ffffff;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
 }
 
 .dialog-btn.copy:hover {
-  background: #218838;
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 0 25px rgba(16, 185, 129, 0.5);
 }
 
 .dialog-btn.external {
   background: var(--accent);
-  color: var(--text-contrast);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 0 15px var(--tech-glow-primary);
 }
 
 .dialog-btn.external:hover {
-  background: var(--accent-strong);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 0 25px var(--tech-glow-primary);
 }
 
 .dialog-btn.internal {
-  background: var(--text-muted);
-  color: var(--text-contrast);
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  color: var(--text);
 }
 
 .dialog-btn.internal:hover {
-  background: color-mix(in srgb, var(--text-muted) 80%, black);
-  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  color: var(--accent);
 }
 
 .dialog-btn.cancel {
-  background: var(--bg-muted);
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
   color: var(--text-muted);
-  border: 1px solid var(--border);
 }
 
 .dialog-btn.cancel:hover {
-  background: var(--bg-hover);
+  background: color-mix(in srgb, var(--bg-muted) 70%, transparent);
   color: var(--text);
 }
 </style>

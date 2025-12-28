@@ -149,10 +149,10 @@ const themePalette = computed(() => {
   const theme = currentTheme.value
   const isDark = theme === 'dark'
 
-  const primary = resolveCssVar('--color-btn-primary-bg', isDark ? '#a5b4fc' : '#667eea')
-  const primaryHover = resolveCssVar('--color-btn-primary-bg-hover', isDark ? '#c7d2fe' : '#5a6fd8')
-  const surface = resolveCssVar('--color-surface', isDark ? '#0f172a' : '#ffffff')
-  const tooltipSurface = resolveCssVar('--color-surface-alt', isDark ? '#111827' : '#ffffff')
+  const primary = resolveCssVar('--accent', isDark ? '#a5b4fc' : '#667eea')
+  const primaryHover = resolveCssVar('--accent-hover', isDark ? '#c7d2fe' : '#5a6fd8')
+  const surface = resolveCssVar('--bg-surface', isDark ? '#0f172a' : '#ffffff')
+  const tooltipSurface = resolveCssVar('--bg-surface-alt', isDark ? '#111827' : '#ffffff')
 
   return {
     isDark,
@@ -160,11 +160,11 @@ const themePalette = computed(() => {
     primaryHover,
     surface,
     tooltipBg: tooltipSurface,
-    tooltipTitle: resolveCssVar('--color-text-heading', isDark ? '#f9fafb' : '#1f2937'),
-    tooltipBody: resolveCssVar('--color-text-primary', isDark ? '#e2e8f0' : '#374151'),
-    tooltipBorder: resolveCssVar('--color-border-strong', isDark ? 'rgba(148, 163, 184, 0.45)' : '#e5e7eb'),
-    tickColor: resolveCssVar('--color-text-muted', isDark ? '#cbd5f5' : '#6b7280'),
-    gridColor: resolveCssVar('--color-border-muted', isDark ? 'rgba(148, 163, 184, 0.3)' : '#e5e7eb'),
+    tooltipTitle: resolveCssVar('--text-strong', isDark ? '#f9fafb' : '#1f2937'),
+    tooltipBody: resolveCssVar('--text', isDark ? '#e2e8f0' : '#374151'),
+    tooltipBorder: resolveCssVar('--border-strong', isDark ? 'rgba(148, 163, 184, 0.45)' : '#e5e7eb'),
+    tickColor: resolveCssVar('--text-muted', isDark ? '#cbd5f5' : '#6b7280'),
+    gridColor: resolveCssVar('--border-muted', isDark ? 'rgba(148, 163, 184, 0.3)' : '#e5e7eb'),
     pointBorder: surface
   }
 })
@@ -317,48 +317,53 @@ watch(currentTheme, () => {
 </script>
 
 <style scoped>
+/* ============================================
+   CreditUsageStats - Modern Tech Style
+   ============================================ */
+
 .credit-stats-container {
-  background: var(--color-surface);
-  border-radius: 12px;
-  padding: 20px;
-  border: 1px solid var(--color-border);
-  margin-bottom: 20px;
-  box-shadow: var(--color-shadow-elevated);
+  background: var(--tech-glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 16px;
+  padding: 22px;
+  margin-bottom: 22px;
+  box-shadow: var(--tech-border-glow);
 }
 
 .stats-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 22px;
 }
 
 .stats-header h3 {
   font-size: 16px;
   font-weight: 600;
-  color: var(--color-text-heading);
+  color: var(--text-strong);
   margin: 0;
 }
-
-
 
 .loading, .error {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  padding: 40px 20px;
-  color: var(--color-text-muted);
+  gap: 14px;
+  padding: 45px 22px;
+  color: var(--text-muted);
 }
 
 .error {
-  color: var(--color-danger-text);
+  color: #ef4444;
 }
 
 .error svg {
-  color: var(--color-danger-text);
-  opacity: 0.6;
+  color: #ef4444;
+  opacity: 0.7;
+  filter: drop-shadow(0 0 6px var(--tech-glow-danger));
 }
 
 .loading p, .error p {
@@ -366,13 +371,15 @@ watch(currentTheme, () => {
   font-size: 14px;
 }
 
+/* 加载动画 - 科技风 */
 .spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid var(--color-border);
-  border-top-color: var(--color-btn-primary-bg);
+  width: 42px;
+  height: 42px;
+  border: 3px solid var(--tech-glass-border);
+  border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
+  box-shadow: 0 0 15px var(--tech-glow-primary);
 }
 
 @keyframes spin {
@@ -384,13 +391,13 @@ watch(currentTheme, () => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  padding: 40px 20px;
+  gap: 14px;
+  padding: 45px 22px;
   color: var(--text-muted);
 }
 
 .no-data svg {
-  opacity: 0.4;
+  opacity: 0.5;
 }
 
 .no-data p {
@@ -401,40 +408,40 @@ watch(currentTheme, () => {
 .stats-content {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 }
 
+/* 统计卡片 - 科技风 */
 .stat-card {
-  background: linear-gradient(135deg, var(--bg-muted) 0%, var(--bg-surface) 100%);
-  border-radius: 10px;
-  padding: 20px;
-  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 14px;
+  padding: 22px;
   display: flex;
   align-items: center;
-  gap: 16px;
-  transition: all 0.3s ease;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  gap: 18px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  border-color: var(--border-strong);
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  box-shadow: 0 0 20px var(--tech-glow-primary);
 }
 
+/* 图表卡片 - 科技风 */
 .chart-card {
-  background: linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-muted) 100%);
-  border-radius: 10px;
-  padding: 20px;
-  border: 1px solid var(--border);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 14px;
+  padding: 22px;
 }
 
 .chart-title {
   font-size: 14px;
   font-weight: 600;
   color: var(--text-strong);
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 
 .chart-wrapper {
@@ -442,15 +449,17 @@ watch(currentTheme, () => {
   position: relative;
 }
 
+/* 统计图标 - 科技风渐变 */
 .stat-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  background: var(--accent);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  box-shadow: 0 0 15px var(--tech-glow-primary);
 }
 
 .stat-icon svg {
@@ -465,13 +474,13 @@ watch(currentTheme, () => {
 .stat-metrics {
   display: flex;
   align-items: stretch;
-  gap: 24px;
+  gap: 26px;
 }
 
 .metric-block {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   flex: 1;
   min-width: 0;
 }
@@ -479,8 +488,9 @@ watch(currentTheme, () => {
 .metric-label {
   font-size: 12px;
   color: var(--text-muted);
-  font-weight: 500;
-  text-transform: none;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .metric-value {
@@ -489,36 +499,36 @@ watch(currentTheme, () => {
   color: var(--accent);
   line-height: 1;
   letter-spacing: -0.01em;
+  text-shadow: 0 0 10px var(--tech-glow-primary);
+  font-family: var(--tech-mono-font);
 }
 
 .metric-unit {
   font-size: 11px;
   color: var(--text-muted);
-  font-weight: 500;
+  font-weight: 600;
   text-transform: uppercase;
 }
 
 .metric-divider {
   width: 1px;
-  background: var(--border);
+  background: var(--tech-glass-border);
   border-radius: 2px;
-  opacity: 0.6;
 }
-
 
 /* 响应式设计 */
 @media (max-width: 768px) {
   .credit-stats-container {
-    padding: 16px;
+    padding: 18px;
   }
 
   .stat-card {
-    padding: 16px;
+    padding: 18px;
   }
 
   .stat-icon {
-    width: 40px;
-    height: 40px;
+    width: 42px;
+    height: 42px;
   }
 
   .stat-icon svg {
@@ -528,7 +538,7 @@ watch(currentTheme, () => {
 
   .stat-metrics {
     flex-direction: column;
-    gap: 12px;
+    gap: 14px;
   }
 
   .metric-divider {
@@ -545,7 +555,7 @@ watch(currentTheme, () => {
   }
 
   .chart-card {
-    padding: 16px;
+    padding: 18px;
   }
 
   .chart-title {

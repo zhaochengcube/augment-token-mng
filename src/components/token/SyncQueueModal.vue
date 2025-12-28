@@ -10,7 +10,7 @@
               </svg>
               <h3>{{ $t('tokenList.syncQueueTitle') }}</h3>
             </div>
-            <button @click="close" class="sync-queue-close">
+            <button @click="close" class="modal-close">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
               </svg>
@@ -90,7 +90,7 @@
           
           <div class="sync-queue-footer">
             <button @click="handleMarkAllForSync" 
-                    class="btn-sync-now"
+                    class="btn primary"
                     :disabled="syncing || totalTokensCount === 0"
                     >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
@@ -99,12 +99,12 @@
               {{ $t('tokenList.fullSync') }}
             </button>
             <div class="footer-right">
-              <button @click="close" class="btn-close-queue">
+              <button @click="close" class="btn secondary">
                 {{ $t('common.close') }}
               </button>
               <button v-if="pendingUpserts.length > 0 || pendingDeletions.length > 0" 
                       @click="handleSync" 
-                      class="btn-sync-now"
+                      class="btn primary"
                       :disabled="syncing">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/>
@@ -167,26 +167,35 @@ const handleMarkAllForSync = () => {
 </script>
 
 <style scoped>
+/* ============================================
+   SyncQueueModal - Modern Tech Style
+   ============================================ */
+
 .sync-queue-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 3000;
   padding: 20px;
+  backdrop-filter: blur(4px);
 }
 
+/* 模态框 - 磨砂玻璃 */
 .sync-queue-dialog {
-  background: var(--bg-surface);
-  border-radius: 16px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+  background: var(--tech-glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 18px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35), var(--tech-border-glow);
   width: 100%;
-  max-width: 480px;
+  max-width: 500px;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
@@ -197,9 +206,9 @@ const handleMarkAllForSync = () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-muted);
+  padding: 22px 26px;
+  border-bottom: 1px solid var(--tech-glass-border);
+  background: color-mix(in srgb, var(--bg-muted) 30%, transparent);
 }
 
 .sync-queue-title {
@@ -211,6 +220,7 @@ const handleMarkAllForSync = () => {
 
 .sync-queue-title svg {
   color: var(--accent);
+  filter: drop-shadow(0 0 8px var(--tech-glow-primary));
 }
 
 .sync-queue-title h3 {
@@ -219,57 +229,40 @@ const handleMarkAllForSync = () => {
   font-weight: 600;
 }
 
-.sync-queue-close {
-  background: none;
-  border: none;
-  padding: 6px;
-  border-radius: 8px;
-  cursor: pointer;
-  color: var(--text-muted);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-
-.sync-queue-close:hover {
-  background: var(--bg-hover);
-  color: var(--text-strong);
-}
-
-/* Tabs */
+/* Tabs - 科技风 */
 .sync-queue-tabs {
   display: flex;
-  padding: 0 24px 0 0;
-  background: var(--bg-muted);
-  border-bottom: 1px solid var(--border);
+  padding: 0 26px 0 0;
+  background: color-mix(in srgb, var(--bg-muted) 30%, transparent);
+  border-bottom: 1px solid var(--tech-glass-border);
 }
 
 .tab-btn {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 14px 20px;
+  padding: 14px 22px;
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
   color: var(--text-muted);
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
   margin-bottom: -1px;
 }
 
 .tab-btn:hover {
   color: var(--text);
-  background: var(--bg-hover);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
 .tab-btn.active {
   color: var(--accent);
   border-bottom-color: var(--accent);
-  background: var(--bg-surface);
+  background: transparent;
+  box-shadow: 0 2px 10px var(--tech-glow-primary);
 }
 
 .tab-btn svg {
@@ -278,25 +271,29 @@ const handleMarkAllForSync = () => {
 
 .tab-btn.active svg {
   opacity: 1;
+  filter: drop-shadow(0 0 5px currentColor);
 }
 
 .tab-count {
   font-size: 12px;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 10px;
-  min-width: 24px;
+  font-weight: 700;
+  font-family: var(--tech-mono-font);
+  padding: 3px 10px;
+  border-radius: 12px;
+  min-width: 28px;
   text-align: center;
 }
 
 .tab-count.upserts {
-  background: rgba(16, 185, 129, 0.15);
+  background: color-mix(in srgb, #10b981 18%, transparent);
   color: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.3);
 }
 
 .tab-count.deletions {
-  background: rgba(239, 68, 68, 0.15);
+  background: color-mix(in srgb, #ef4444 18%, transparent);
   color: #ef4444;
+  box-shadow: 0 0 8px var(--tech-glow-danger);
 }
 
 /* Body & Tab Content */
@@ -308,7 +305,7 @@ const handleMarkAllForSync = () => {
 }
 
 .tab-content {
-  padding: 20px 24px;
+  padding: 22px 26px;
   height: 100%;
 }
 
@@ -317,34 +314,36 @@ const handleMarkAllForSync = () => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 24px;
-  background: var(--bg-muted);
-  border-radius: 10px;
+  padding: 28px;
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  border: 1px dashed var(--tech-glass-border);
+  border-radius: 12px;
   color: var(--text-muted);
   font-size: 13px;
-  gap: 8px;
+  gap: 10px;
 }
 
 .sync-queue-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .sync-queue-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-  background: var(--bg-muted);
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  transition: all 0.2s;
+  gap: 14px;
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  border-radius: 12px;
+  border: 1px solid var(--tech-glass-border);
+  transition: all 0.2s ease;
 }
 
 .sync-queue-item:hover {
-  border-color: var(--accent);
-  background: var(--bg-surface);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  box-shadow: 0 0 15px var(--tech-glow-primary);
 }
 
 .sync-queue-item.deletion {
@@ -352,9 +351,9 @@ const handleMarkAllForSync = () => {
 }
 
 .item-icon {
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -362,13 +361,15 @@ const handleMarkAllForSync = () => {
 }
 
 .item-icon.upsert {
-  background: rgba(16, 185, 129, 0.15);
+  background: color-mix(in srgb, #10b981 18%, transparent);
   color: #10b981;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
 }
 
 .item-icon.delete {
-  background: rgba(239, 68, 68, 0.15);
+  background: color-mix(in srgb, #ef4444 18%, transparent);
   color: #ef4444;
+  box-shadow: 0 0 10px var(--tech-glow-danger);
 }
 
 .item-content {
@@ -387,79 +388,38 @@ const handleMarkAllForSync = () => {
 
 .item-id {
   font-size: 12px;
-  font-family: 'SF Mono', Monaco, monospace;
-  background: var(--bg-surface);
-  padding: 4px 8px;
-  border-radius: 4px;
+  font-family: var(--tech-mono-font);
+  background: color-mix(in srgb, var(--bg-muted) 70%, transparent);
+  padding: 5px 10px;
+  border-radius: 6px;
   color: var(--text-muted);
 }
 
+/* Footer - 科技风 */
 .sync-queue-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  padding: 16px 24px;
-  border-top: 1px solid var(--border);
-  background: var(--bg-surface);
+  gap: 14px;
+  padding: 18px 26px;
+  border-top: 1px solid var(--tech-glass-border);
+  background: color-mix(in srgb, var(--bg-muted) 30%, transparent);
 }
 
 .footer-right {
   display: flex;
-  gap: 12px;
-}
-
-.btn-close-queue {
-  padding: 10px 20px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg-surface);
-  color: var(--text-muted);
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-close-queue:hover {
-  background: var(--bg-hover);
-  border-color: var(--border-strong);
-}
-
-.btn-sync-now {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 8px;
-  background: var(--accent);
-  color: var(--text-contrast);
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-sync-now:hover:not(:disabled) {
-  background: var(--accent-strong);
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent);
-}
-
-.btn-sync-now:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+  gap: 14px;
 }
 
 /* Modal 动画 */
 .modal-enter-active,
 .modal-leave-active {
-  transition: opacity 0.2s ease;
+  transition: opacity 0.25s ease;
 }
 
 .modal-enter-active .sync-queue-dialog,
 .modal-leave-active .sync-queue-dialog {
-  transition: transform 0.2s ease, opacity 0.2s ease;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease;
 }
 
 .modal-enter-from,
@@ -469,8 +429,7 @@ const handleMarkAllForSync = () => {
 
 .modal-enter-from .sync-queue-dialog,
 .modal-leave-to .sync-queue-dialog {
-  transform: scale(0.95);
+  transform: scale(0.92) translateY(10px);
   opacity: 0;
 }
-
 </style>

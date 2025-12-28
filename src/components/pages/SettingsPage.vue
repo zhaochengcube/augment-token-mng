@@ -152,25 +152,29 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* ============================================
+   SettingsPage - Modern Tech Style
+   ============================================ */
+
 .settings-page {
-  max-width: 900px;
+  max-width: 920px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 26px;
   height: 100%;
   display: flex;
   flex-direction: column;
 }
 
 .page-header {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
   flex-shrink: 0;
 }
 
 .page-header h2 {
-  font-size: 22px;
-  font-weight: 600;
+  font-size: 24px;
+  font-weight: 700;
   color: var(--text-strong);
-  margin: 0 0 4px 0;
+  margin: 0 0 6px 0;
 }
 
 .page-header p {
@@ -179,32 +183,34 @@ onMounted(() => {
   margin: 0;
 }
 
-
 .page-body {
   flex: 1;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 26px;
 }
 
 /* Settings Grid */
 .settings-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 18px;
+  padding-top: 4px; /* 防止第一行卡片 hover 时上边框被裁剪 */
 }
 
-/* Settings Card */
+/* Settings Card - 科技风卡片 */
 .settings-card {
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 16px;
-  transition: all 0.2s;
+  background: var(--tech-glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 14px;
+  padding: 18px;
+  transition: all 0.2s ease;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 .settings-card.clickable {
@@ -212,8 +218,9 @@ onMounted(() => {
 }
 
 .settings-card.clickable:hover {
-  border-color: var(--primary);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  box-shadow: 0 0 20px var(--tech-glow-primary);
+  transform: translateY(-2px);
 }
 
 .card-title-row {
@@ -226,7 +233,7 @@ onMounted(() => {
 .card-info {
   font-size: 13px;
   color: var(--text-muted);
-  font-family: 'Consolas', 'Monaco', monospace;
+  font-family: var(--tech-mono-font);
 }
 
 .card-title-row h3 {
@@ -238,54 +245,17 @@ onMounted(() => {
   min-width: 0;
 }
 
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 500;
-  background: var(--bg-muted);
-  color: var(--text-muted);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.status-badge.running,
-.status-badge.enabled {
-  background: rgba(34, 197, 94, 0.1);
-  color: #22c55e;
-}
-
-.status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  animation: pulse 2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
 .card-content {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--tech-glass-border);
 }
 
 .info-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 10px;
 }
 
 .info-label {
@@ -296,24 +266,26 @@ onMounted(() => {
 .info-value {
   font-size: 13px;
   color: var(--text-strong);
-  font-family: 'Consolas', 'Monaco', monospace;
+  font-family: var(--tech-mono-font);
 }
 
-/* About Section */
+/* About Section - 科技风 */
 .about-section {
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 20px;
+  background: var(--tech-glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 14px;
+  padding: 22px;
 }
 
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border);
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--tech-glass-border);
 }
 
 .section-header h3 {
@@ -326,46 +298,47 @@ onMounted(() => {
 .section-content {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 }
 
 .info-row {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 18px;
 }
 
 .label {
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-muted);
-  min-width: 80px;
+  min-width: 85px;
   flex-shrink: 0;
 }
 
 .value {
   font-size: 14px;
   color: var(--text-strong);
-  font-family: 'Consolas', 'Monaco', monospace;
+  font-family: var(--tech-mono-font);
 }
 
 .value-with-action {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   flex: 1;
 }
 
+/* 检查更新按钮 - 科技风 */
 .btn-check-update {
-  padding: 4px 12px;
+  padding: 6px 14px;
   font-size: 12px;
-  font-weight: 500;
-  border: 1px solid var(--border);
-  background: var(--bg-surface);
+  font-weight: 600;
+  border: 1px solid var(--tech-glass-border);
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
   color: var(--text);
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -373,116 +346,108 @@ onMounted(() => {
 }
 
 .btn-check-update:hover:not(:disabled) {
-  background: var(--bg-hover);
-  border-color: var(--primary);
-  color: var(--primary);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 12px var(--tech-glow-primary);
 }
 
 .btn-check-update:disabled {
-  opacity: 0.6;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
 .external-links-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex: 1;
+  flex-wrap: wrap;
 }
 
 .status-indicator {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 12px;
-  border-radius: 12px;
+  padding: 5px 14px;
+  border-radius: 20px;
   font-size: 13px;
-  font-weight: 500;
-  background: var(--bg-base);
+  font-weight: 600;
+  font-family: var(--tech-mono-font);
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
   color: var(--text-muted);
+  border: 1px solid var(--tech-glass-border);
 }
 
 .status-indicator.running {
-  background: rgba(34, 197, 94, 0.1);
-  color: #22c55e;
-}
-
-.status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  animation: pulse 2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
+  background: color-mix(in srgb, #10b981 15%, transparent);
+  color: #10b981;
+  border-color: color-mix(in srgb, #10b981 30%, transparent);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
 }
 
 .link {
-  color: var(--primary);
+  color: var(--accent);
   text-decoration: none;
   font-size: 14px;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .link:hover {
-  color: var(--primary-hover);
+  color: var(--accent);
   text-decoration: underline;
+  text-shadow: 0 0 8px var(--tech-glow-primary);
 }
 
+/* 外部链接按钮 - 科技风 */
 .external-link {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  border-radius: 4px;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 8px;
   text-decoration: none;
   font-size: 12px;
-  font-weight: 500;
-  transition: all 0.2s;
+  font-weight: 600;
+  transition: all 0.2s ease;
   border: 1px solid transparent;
   white-space: nowrap;
 }
 
 .external-link.app-home {
-  background: rgba(59, 130, 246, 0.1);
-  color: #3b82f6;
-  border-color: rgba(59, 130, 246, 0.2);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 .external-link.app-home:hover {
-  background: rgba(59, 130, 246, 0.15);
-  border-color: rgba(59, 130, 246, 0.3);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  box-shadow: 0 0 12px var(--tech-glow-primary);
 }
 
 .external-link.plugin-home {
-  background: rgba(34, 197, 94, 0.1);
-  color: #22c55e;
-  border-color: rgba(34, 197, 94, 0.2);
+  background: color-mix(in srgb, #10b981 15%, transparent);
+  color: #10b981;
+  border-color: color-mix(in srgb, #10b981 30%, transparent);
 }
 
 .external-link.plugin-home:hover {
-  background: rgba(34, 197, 94, 0.15);
-  border-color: rgba(34, 197, 94, 0.3);
+  background: color-mix(in srgb, #10b981 22%, transparent);
+  border-color: color-mix(in srgb, #10b981 45%, transparent);
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
 }
 
 .external-link.telegram-group {
-  background: rgba(34, 167, 240, 0.1);
-  color: #22a7f0;
-  border-color: rgba(34, 167, 240, 0.2);
+  background: color-mix(in srgb, #3b82f6 12%, transparent);
+  color: #3b82f6;
+  border-color: color-mix(in srgb, #3b82f6 28%, transparent);
 }
 
 .external-link.telegram-group:hover {
-  background: rgba(34, 167, 240, 0.15);
-  border-color: rgba(34, 167, 240, 0.3);
+  background: color-mix(in srgb, #3b82f6 18%, transparent);
+  border-color: color-mix(in srgb, #3b82f6 40%, transparent);
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.4);
 }
 </style>
-
-
 

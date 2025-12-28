@@ -3,7 +3,7 @@
     <div :class="isPageMode ? 'page-content gptmail-manager' : 'modal-content gptmail-manager'" @click.stop>
       <div :class="isPageMode ? 'page-header' : 'modal-header'">
         <h3>{{ $t('gptMailManager.title') }}</h3>
-        <button v-if="!isPageMode" @click="$emit('close')" class="close-btn">×</button>
+        <button v-if="!isPageMode" @click="$emit('close')" class="modal-close">×</button>
       </div>
 
       <div :class="isPageMode ? 'page-body' : 'modal-body'">
@@ -20,7 +20,7 @@
             <label>{{ $t('gptMailManager.generatedEmail') }}:</label>
             <div class="email-display-box">
               <input type="text" :value="generatedEmail" readonly class="form-input">
-              <button @click="copyEmail" class="btn secondary small">
+              <button @click="copyEmail" class="btn primary small">
                 {{ $t('gptMailManager.copy') }}
               </button>
             </div>
@@ -45,7 +45,7 @@
               :class="['btn', 'primary', { loading: isFetching }]">
               {{ isFetching ? $t('gptMailManager.fetching') : $t('gptMailManager.fetchBtn') }}
             </button>
-            <button @click="toggleAutoPolling" :class="['btn', isPolling ? 'danger' : 'secondary']"
+            <button @click="toggleAutoPolling" class="btn primary"
               :disabled="!canFetchEmails">
               {{ isPolling ? $t('gptMailManager.stopPolling') : $t('gptMailManager.startPolling') }}
             </button>
@@ -62,7 +62,7 @@
             <label>{{ $t('gptMailManager.verificationCode') }}:</label>
             <div class="code-box">
               <span class="code-value">{{ verificationCode }}</span>
-              <button @click="copyCode" class="btn success small">
+              <button @click="copyCode" class="btn primary small">
                 {{ $t('gptMailManager.copy') }}
               </button>
             </div>
@@ -348,6 +348,10 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+/* ============================================
+   GPTMailManager - Modern Tech Style
+   ============================================ */
+
 /* Page Mode Styles */
 .page-container {
   height: 100%;
@@ -365,181 +369,87 @@ onBeforeUnmount(() => {
 }
 
 .page-header {
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-surface);
+  padding: 22px 26px;
+  border-bottom: 1px solid var(--tech-glass-border);
+  background: color-mix(in srgb, var(--bg-muted) 30%, transparent);
   flex-shrink: 0;
 }
 
 .page-header h3 {
   margin: 0;
   font-size: 24px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-strong);
 }
 
 .page-body {
   flex: 1;
   overflow-y: auto;
-  padding: 24px;
+  padding: 26px;
 }
 
-/* Modal Mode Styles */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  z-index: 2000;
-}
-
-.modal-content {
-  background: var(--bg-surface);
-  border-radius: 12px;
+/* Modal Mode Styles - 科技风 */
+.modal-content.gptmail-manager {
   width: 100%;
-  max-width: 900px;
+  max-width: 920px;
   height: 90vh;
   overflow: hidden;
   position: relative;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
 }
 
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-muted);
-  border-radius: 12px 12px 0 0;
-}
-
-.modal-header h3 {
-  margin: 0;
-  color: var(--text-strong);
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  color: var(--text-muted);
-  padding: 0;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  transition: all 0.2s;
-}
-
-.close-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-
-.gptmail-manager {
-  width: 100%;
-  max-width: 900px;
-  height: 90vh;
-}
-
-.modal-body {
-  padding: 24px;
+.modal-content.gptmail-manager .modal-body {
+  padding: 26px;
   overflow-y: auto;
   height: calc(100% - 73px);
 }
 
+/* 区块 - 科技风 */
 .generate-email-section,
 .fetch-emails-section {
-  background: var(--bg-muted);
-  border-radius: 8px;
-  padding: 20px;
-  margin-bottom: 24px;
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 14px;
+  padding: 22px;
+  margin-bottom: 26px;
 }
 
 .generate-email-section h4,
 .fetch-emails-section h4 {
-  margin: 0 0 16px 0;
+  margin: 0 0 18px 0;
   color: var(--text-strong);
   font-size: 16px;
   font-weight: 600;
 }
 
-.form-group {
-  margin-bottom: 16px;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 6px;
-  font-weight: 500;
-  color: var(--text);
-  font-size: 14px;
-}
-
-.form-input {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 14px;
-  transition: border-color 0.2s ease;
-  box-sizing: border-box;
-  background: var(--bg-surface);
-  color: var(--text);
-}
-
-.form-input:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
-}
-
-.form-input:read-only {
-  background-color: var(--bg-muted);
-  color: var(--text-muted);
-}
-
 .form-actions {
   display: flex;
-  gap: 12px;
-  margin-top: 16px;
+  gap: 14px;
+  margin-top: 18px;
   flex-wrap: wrap;
 }
 
 .input-hint {
-  margin-top: 6px;
+  margin-top: 8px;
   font-size: 12px;
   color: var(--text-muted);
   font-style: italic;
 }
 
 .generated-email-display {
-  margin-top: 16px;
+  margin-top: 18px;
 }
 
 .generated-email-display label {
   display: block;
-  margin-bottom: 8px;
-  font-weight: 500;
+  margin-bottom: 10px;
+  font-weight: 600;
   color: var(--text);
   font-size: 14px;
 }
 
 .email-display-box {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   align-items: center;
 }
 
@@ -547,127 +457,130 @@ onBeforeUnmount(() => {
   flex: 1;
 }
 
-/* 轮询指示器 */
+/* 轮询指示器 - 科技风 */
 .polling-indicator {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px;
-  margin-top: 12px;
-  background: var(--color-info-surface, #dbeafe);
-  border: 1px solid var(--color-info-border, #93c5fd);
-  border-radius: 6px;
+  gap: 10px;
+  padding: 14px;
+  margin-top: 14px;
+  background: color-mix(in srgb, #3b82f6 12%, transparent);
+  border: 1px solid color-mix(in srgb, #3b82f6 35%, transparent);
+  border-radius: 10px;
   font-size: 13px;
-  color: var(--color-info-text, #1e40af);
+  color: #3b82f6;
 }
 
 .polling-dot {
-  width: 8px;
-  height: 8px;
-  background: var(--color-info-text, #1e40af);
+  width: 10px;
+  height: 10px;
+  background: #3b82f6;
   border-radius: 50%;
   animation: pulse 1.5s ease-in-out infinite;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
 }
 
 @keyframes pulse {
-
-  0%,
-  100% {
+  0%, 100% {
     opacity: 1;
+    transform: scale(1);
   }
-
   50% {
-    opacity: 0.3;
+    opacity: 0.4;
+    transform: scale(0.8);
   }
 }
 
-/* 验证码显示 */
+/* 验证码显示 - 科技风 */
 .verification-code-display {
-  margin-top: 16px;
-  padding: 16px;
-  background: var(--color-success-surface, #d1fae5);
-  border: 2px solid var(--color-success-border, #a7f3d0);
-  border-radius: 8px;
+  margin-top: 18px;
+  padding: 18px;
+  background: color-mix(in srgb, #10b981 12%, transparent);
+  border: 2px solid color-mix(in srgb, #10b981 40%, transparent);
+  border-radius: 12px;
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
 }
 
 .verification-code-display label {
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   font-weight: 600;
-  color: var(--color-success-text, #065f46);
+  color: #10b981;
   font-size: 14px;
 }
 
 .code-box {
   display: flex;
-  gap: 12px;
+  gap: 14px;
   align-items: center;
 }
 
 .code-value {
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 700;
-  font-family: 'Courier New', monospace;
-  color: var(--color-success-text, #065f46);
-  letter-spacing: 4px;
-  padding: 8px 16px;
-  background: var(--color-surface, #ffffff);
-  border-radius: 6px;
-  border: 1px solid var(--color-success-border, #a7f3d0);
+  font-family: var(--tech-mono-font);
+  color: #10b981;
+  letter-spacing: 5px;
+  padding: 10px 18px;
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, #10b981 35%, transparent);
+  text-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
 }
 
 /* 邮件列表 */
 .emails-section {
-  margin-top: 20px;
+  margin-top: 22px;
 }
 
 .emails-list h4 {
-  margin: 0 0 16px 0;
-  color: var(--color-text-heading, #333);
+  margin: 0 0 18px 0;
+  color: var(--text-strong);
   font-size: 16px;
   font-weight: 600;
 }
 
+/* 邮件项 - 科技风 */
 .email-item {
-  padding: 16px;
-  background: var(--color-surface, #ffffff);
-  border: 1px solid var(--color-border, #e5e7eb);
-  border-radius: 8px;
-  margin-bottom: 12px;
-  transition: all 0.2s;
+  padding: 18px;
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 12px;
+  margin-bottom: 14px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
   user-select: none;
 }
 
 .email-item:hover {
-  border-color: var(--color-accent, #3b82f6);
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
-  background: var(--color-surface-hover, #f9fafb);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  box-shadow: 0 0 15px var(--tech-glow-primary);
+  transform: translateX(4px);
 }
 
 .email-item.expanded {
-  border-color: var(--color-accent, #3b82f6);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  border-color: var(--accent);
+  box-shadow: 0 0 20px var(--tech-glow-primary);
 }
 
 .email-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
-  gap: 12px;
+  margin-bottom: 10px;
+  gap: 14px;
 }
 
 .email-from {
   font-size: 14px;
-  color: var(--color-text-primary, #374151);
+  color: var(--text);
   flex: 1;
   min-width: 0;
 }
 
 .email-time {
   font-size: 12px;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--text-muted);
   white-space: nowrap;
 }
 
@@ -675,7 +588,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--text-muted);
   transition: transform 0.3s ease, color 0.2s ease;
 }
 
@@ -688,26 +601,28 @@ onBeforeUnmount(() => {
 }
 
 .email-item:hover .expand-indicator {
-  color: var(--color-accent, #3b82f6);
+  color: var(--accent);
 }
 
 .email-subject {
   font-size: 14px;
-  color: var(--color-text-primary, #374151);
+  color: var(--text);
   margin-bottom: 0;
+  font-weight: 500;
 }
 
+/* 邮件内容 - 科技风 */
 .email-content {
   font-size: 13px;
-  color: var(--color-text-primary, #374151);
-  line-height: 1.6;
+  color: var(--text);
+  line-height: 1.7;
   max-height: 400px;
   overflow-y: auto;
-  padding: 12px;
-  background: var(--color-surface-muted, #f8f9fa);
-  border-radius: 6px;
-  border: 1px solid var(--color-border, #e5e7eb);
-  margin-top: 12px;
+  padding: 14px;
+  background: color-mix(in srgb, var(--bg-muted) 70%, transparent);
+  border-radius: 10px;
+  border: 1px solid var(--tech-glass-border);
+  margin-top: 14px;
 }
 
 .email-html-content {
@@ -753,98 +668,30 @@ onBeforeUnmount(() => {
   max-height: 500px;
 }
 
-/* 按钮样式 */
-.btn {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.2s;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  text-decoration: none;
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  pointer-events: none;
-}
-
-.btn.primary {
-  background: var(--accent);
-  color: var(--text-contrast);
-}
-
-.btn.primary:hover:not(:disabled) {
-  background: var(--accent-strong);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px color-mix(in srgb, var(--accent) 30%, transparent);
-}
-
-.btn.secondary {
-  background: var(--text-muted);
-  color: var(--text-contrast);
-}
-
-.btn.secondary:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--text-muted) 80%, black);
-}
-
-.btn.danger {
-  background: #dc2626;
-  color: #ffffff;
-}
-
-.btn.danger:hover:not(:disabled) {
-  background: #b91c1c;
-}
-
-.btn.success {
-  background: #10b981;
-  color: #ffffff;
-}
-
-.btn.success:hover:not(:disabled) {
-  background: #059669;
-}
-
-.btn.small {
-  padding: 6px 12px;
-  font-size: 12px;
-}
-
-.btn.loading {
-  opacity: 0.7;
-  cursor: wait;
-}
-
 /* 加载和空状态 */
 .loading-state,
 .empty-state {
   text-align: center;
-  padding: 40px 20px;
+  padding: 45px 22px;
   color: var(--text-muted);
 }
 
+/* 加载动画 - 科技风 */
 .spinner {
-  width: 32px;
-  height: 32px;
-  border: 3px solid var(--bg-muted);
-  border-top: 3px solid var(--accent);
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--tech-glass-border);
+  border-top-color: var(--accent);
   border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 16px;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 18px;
+  box-shadow: 0 0 15px var(--tech-glow-primary);
 }
 
 @keyframes spin {
   0% {
     transform: rotate(0deg);
   }
-
   100% {
     transform: rotate(360deg);
   }
@@ -852,7 +699,7 @@ onBeforeUnmount(() => {
 
 /* 响应式设计 */
 @media (max-width: 768px) {
-  .modal-content {
+  .modal-content.gptmail-manager {
     margin: 10px;
     max-width: calc(100vw - 20px);
     height: calc(100vh - 20px);
@@ -876,14 +723,13 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 480px) {
-  .modal-content {
+  .modal-content.gptmail-manager {
     max-height: 95vh;
   }
 
   .code-value {
     font-size: 20px;
-    letter-spacing: 2px;
+    letter-spacing: 3px;
   }
 }
-
 </style>

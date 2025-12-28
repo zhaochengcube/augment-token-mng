@@ -12,11 +12,11 @@
     "windows": [
       {
         "title": "ATM",
-        "width": 930,
+        "width": 940,
         "height": 750,
         "resizable": true,
         "fullscreen": false,
-        "minWidth": 930,
+        "minWidth": 940,
         "minHeight": 700
       }
     ],

@@ -4,7 +4,7 @@
       <div class="modal-content" @click.stop>
         <div class="modal-header">
           <h2>{{ $t('databaseConfig.title') }}</h2>
-          <button class="close-btn" @click="$emit('close')">×</button>
+          <button class="modal-close" @click="$emit('close')">×</button>
         </div>
         
         <div class="modal-body">
@@ -316,72 +316,27 @@ onMounted(() => {
 
 
 <style scoped>
+/* ============================================
+   DatabaseConfig - Modern Tech Style
+   ============================================ */
+
 .database-config-modal {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  inset: 0;
   z-index: 3000;
 }
 
-.modal-content {
-  background: var(--color-surface, #ffffff);
-  border-radius: 12px;
+.database-config-modal .modal-content {
   width: 90%;
   max-width: 600px;
   max-height: 90vh;
   overflow: hidden;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
   display: flex;
   flex-direction: column;
 }
 
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--color-border, #e5e7eb);
-  background: var(--color-surface-alt, #f9fafb);
-  border-radius: 12px 12px 0 0;
-  flex-shrink: 0;
-}
-
-.modal-header h2 {
-  margin: 0;
-  color: var(--color-text-primary, #374151);
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  color: var(--color-text-muted, #6b7280);
-  padding: 0;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  transition: all 0.2s;
-}
-
-.close-btn:hover {
-  background: var(--color-border, #e5e7eb);
-  color: var(--color-text-primary, #374151);
-}
-
-.modal-body {
-  padding: 24px;
+.database-config-modal .modal-body {
+  padding: 26px;
   flex: 1;
   overflow-y: auto;
   min-height: 0;
@@ -390,129 +345,29 @@ onMounted(() => {
 .config-form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 22px;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
-.form-group label {
-  font-weight: 500;
-  color: var(--color-text-primary, #374151);
-  font-size: 14px;
-}
-
-.form-group input {
-  padding: 10px 12px;
-  border: 1px solid var(--color-border-strong, #d1d5db);
-  border-radius: 6px;
-  font-size: 14px;
-  transition: border-color 0.2s ease;
-  background: var(--color-surface, #ffffff);
-  color: var(--color-text-primary, #374151);
-}
-
-.form-group input:focus {
-  outline: none;
-  border-color: var(--color-accent, #3b82f6);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.form-group input:disabled {
-  background-color: var(--color-surface-alt, #f9fafb);
-  color: var(--color-text-muted, #6b7280);
-  cursor: not-allowed;
-}
-
-.form-group select {
-  padding: 10px 12px;
-  border: 1px solid var(--color-border-strong, #d1d5db);
-  border-radius: 6px;
-  font-size: 14px;
-  transition: border-color 0.2s ease;
-  background-color: var(--color-surface, #ffffff);
-}
-
-.form-group select:focus {
-  outline: none;
-  border-color: var(--color-accent, #3b82f6);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.form-group select:disabled {
-  background-color: var(--color-surface-alt, #f9fafb);
-  color: var(--color-text-muted, #6b7280);
-  cursor: not-allowed;
-}
-
-
-
+/* 底部按钮区 */
 .modal-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 16px;
-  padding: 20px 24px;
-  border-top: 1px solid var(--color-border, #e5e7eb);
-  background: var(--color-surface-alt, #f9fafb);
-  border-radius: 0 0 12px 12px;
+  gap: 14px;
+  padding: 20px 26px;
+  border-top: 1px solid var(--tech-glass-border);
+  background: color-mix(in srgb, var(--bg-muted) 30%, transparent);
+  border-radius: 0 0 18px 18px;
   flex-shrink: 0;
 }
 
-.btn {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.2s;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.btn.primary {
-  background: var(--color-accent, #3b82f6);
-  color: var(--color-text-inverse, #ffffff);
-}
-
-.btn.primary:hover:not(:disabled) {
-  background: var(--color-accent-hover, #2563eb);
-}
-
-.btn.secondary {
-  background: var(--color-text-muted, #6b7280);
-  color: var(--color-text-inverse, #ffffff);
-}
-
-.btn.secondary:hover:not(:disabled) {
-  background: var(--color-text-secondary, #4b5563);
-}
-
-.btn.danger {
-  background: var(--color-danger-bg, #dc2626);
-  color: var(--color-text-inverse, #ffffff);
-}
-
-.btn.danger:hover:not(:disabled) {
-  background: var(--color-danger-bg-hover, #b91c1c);
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn.loading {
-  opacity: 0.7;
-  pointer-events: none;
-}
-
 @media (max-width: 900px) {
-  .modal-content {
+  .database-config-modal .modal-content {
     width: 95%;
     margin: 20px;
   }
@@ -528,55 +383,61 @@ onMounted(() => {
   }
 }
 
-/* 确认对话框样式 */
+/* 确认对话框 - 科技风 */
 .confirm-dialog-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.65);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 3100;
+  backdrop-filter: blur(4px);
 }
 
 .confirm-dialog {
-  background: var(--color-surface, #ffffff);
-  border-radius: 12px;
+  background: var(--tech-glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 16px;
   width: 90%;
   max-width: 400px;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35), var(--tech-border-glow);
   overflow: hidden;
 }
 
 .confirm-dialog-header {
-  padding: 20px 24px 16px;
-  border-bottom: 1px solid var(--color-border, #e5e7eb);
+  padding: 22px 26px 18px;
+  border-bottom: 1px solid var(--tech-glass-border);
 }
 
 .confirm-dialog-header h3 {
   margin: 0;
-  color: var(--color-text-primary, #374151);
+  color: var(--text-strong);
   font-size: 16px;
   font-weight: 600;
 }
 
 .confirm-dialog-body {
-  padding: 16px 24px 20px;
+  padding: 18px 26px 22px;
 }
 
 .confirm-dialog-body p {
   margin: 0;
-  color: var(--color-text-secondary, #6b7280);
-  line-height: 1.5;
+  color: var(--text-muted);
+  line-height: 1.6;
 }
 
 .confirm-dialog-footer {
-  padding: 16px 24px 20px;
+  padding: 18px 26px 22px;
   display: flex;
   gap: 12px;
   justify-content: flex-end;
+  background: color-mix(in srgb, var(--bg-muted) 30%, transparent);
+  border-top: 1px solid var(--tech-glass-border);
 }
 </style>

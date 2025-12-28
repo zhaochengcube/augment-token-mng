@@ -1,6 +1,6 @@
 <template>
-  <div class="modal-overlay">
-    <div class="modal-content" @click.stop>
+  <div class="modal-overlay credit-usage-overlay">
+    <div class="modal-content credit-usage-modal" @click.stop>
       <div class="modal-header">
         <div class="header-title">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
@@ -15,7 +15,7 @@
             </svg>
             <div v-else class="mini-spinner"></div>
           </button>
-          <button class="close-btn" @click="handleClose">×</button>
+          <button class="modal-close" @click="handleClose">×</button>
         </div>
       </div>
 
@@ -106,19 +106,24 @@ watch(() => props.creditsBalance, (value) => {
 </script>
 
 <style scoped>
-.modal-overlay {
+/* ============================================
+   CreditUsageModal - Modern Tech Style
+   ============================================ */
+
+.credit-usage-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: var(--color-backdrop, rgba(0, 0, 0, 0.5));
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 2000;
   padding: 20px;
-  animation: fadeIn 0.2s ease;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.25s ease;
 }
 
 @keyframes fadeIn {
@@ -130,38 +135,37 @@ watch(() => props.creditsBalance, (value) => {
   }
 }
 
-.modal-content {
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  max-width: 800px;
+/* 模态框布局 */
+.credit-usage-modal {
+  max-width: 820px;
   width: 100%;
   max-height: 90vh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
-  animation: slideUp 0.3s ease;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35), var(--tech-border-glow);
+  animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @keyframes slideUp {
   from {
-    transform: translateY(20px);
+    transform: translateY(20px) scale(0.95);
     opacity: 0;
   }
   to {
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
     opacity: 1;
   }
 }
 
-.modal-header {
+.credit-usage-modal .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 24px 28px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--tech-glass-border);
   flex-shrink: 0;
+  background: color-mix(in srgb, var(--bg-muted) 30%, transparent);
 }
 
 .header-title {
@@ -172,6 +176,7 @@ watch(() => props.creditsBalance, (value) => {
 
 .header-title svg {
   color: var(--accent);
+  filter: drop-shadow(0 0 8px var(--tech-glow-primary));
 }
 
 .header-title h2 {
@@ -184,43 +189,44 @@ watch(() => props.creditsBalance, (value) => {
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .refresh-btn {
-  background: transparent;
-  border: none;
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  border: 1px solid var(--tech-glass-border);
   cursor: pointer;
   padding: 0;
-  border-radius: 6px;
+  border-radius: 10px;
   color: var(--text-muted);
-  transition: all 0.2s;
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
 }
 
 .refresh-btn svg {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
 }
 
 .refresh-btn:hover:not(:disabled) {
-  background: var(--bg-hover);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-color: var(--accent);
   color: var(--accent);
 }
 
 .refresh-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
 .mini-spinner {
-  width: 24px;
-  height: 24px;
-  border: 2px solid var(--border);
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--tech-glass-border);
   border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
@@ -230,76 +236,53 @@ watch(() => props.creditsBalance, (value) => {
   to { transform: rotate(360deg); }
 }
 
-.close-btn {
-  background: transparent;
-  border: none;
-  font-size: 28px;
-  line-height: 1;
-  cursor: pointer;
-  color: var(--text-muted);
-  padding: 0;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  transition: all 0.2s;
-  margin-top: -2px;
-}
-
-.close-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-
-.modal-body {
-  padding: 24px 28px;
+.credit-usage-modal .modal-body {
+  padding: 26px 28px;
   overflow-y: auto;
   flex: 1;
 }
 
-/* 自定义滚动条 */
-.modal-body::-webkit-scrollbar {
+/* 自定义滚动条 - 科技风 */
+.credit-usage-modal .modal-body::-webkit-scrollbar {
   width: 8px;
 }
 
-.modal-body::-webkit-scrollbar-track {
-  background: var(--bg-muted);
+.credit-usage-modal .modal-body::-webkit-scrollbar-track {
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
   border-radius: 4px;
 }
 
-.modal-body::-webkit-scrollbar-thumb {
-  background: var(--border-strong);
+.credit-usage-modal .modal-body::-webkit-scrollbar-thumb {
+  background: var(--tech-glass-border);
   border-radius: 4px;
 }
 
-.modal-body::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
+.credit-usage-modal .modal-body::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--accent) 50%, transparent);
 }
 
 /* 响应式设计 */
 @media (max-width: 768px) {
-  .modal-overlay {
+  .credit-usage-overlay {
     padding: 0;
   }
 
-  .modal-content {
+  .credit-usage-modal {
     max-width: 100%;
     max-height: 100vh;
     border-radius: 0;
   }
 
-  .modal-header {
-    padding: 16px 20px;
+  .credit-usage-modal .modal-header {
+    padding: 18px 20px;
   }
 
   .header-title h2 {
     font-size: 18px;
   }
 
-  .modal-body {
-    padding: 16px 20px;
+  .credit-usage-modal .modal-body {
+    padding: 18px 20px;
   }
 }
 </style>

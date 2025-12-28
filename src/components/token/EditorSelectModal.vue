@@ -350,10 +350,14 @@ const handleTraeVersionSelect = async (version) => {
 </script>
 
 <style scoped>
+/* ============================================
+   EditorSelectModal - Modern Tech Style
+   ============================================ */
+
 /* Vue 过渡动画 */
 .modal-enter-active,
 .modal-leave-active {
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .modal-enter-from,
@@ -363,7 +367,7 @@ const handleTraeVersionSelect = async (version) => {
 
 .modal-enter-from .editor-modal,
 .modal-leave-to .editor-modal {
-  transform: translateY(-20px) scale(0.95);
+  transform: translateY(-20px) scale(0.92);
 }
 
 .modal-enter-to .editor-modal,
@@ -371,7 +375,7 @@ const handleTraeVersionSelect = async (version) => {
   transform: translateY(0) scale(1);
 }
 
-/* 编辑器选择模态框样式 */
+/* 编辑器选择模态框遮罩 */
 .editor-modal-overlay {
   position: fixed;
   top: 0;
@@ -380,72 +384,58 @@ const handleTraeVersionSelect = async (version) => {
   bottom: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 4000;
-  backdrop-filter: blur(2px);
+  backdrop-filter: blur(4px);
   pointer-events: auto;
 }
 
+/* 模态框 - 磨砂玻璃 */
 .editor-modal {
-  background: var(--bg-surface);
-  border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  max-width: 700px;
+  background: var(--tech-glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 18px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35), var(--tech-border-glow);
+  max-width: 720px;
   width: 90%;
   max-height: 95vh;
   overflow: hidden;
-  transition: transform 0.3s ease;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   pointer-events: auto;
   margin: auto;
 }
 
-.modal-header {
+.editor-modal .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 24px 16px;
-  border-bottom: 1px solid var(--border);
+  padding: 22px 26px 18px;
+  border-bottom: 1px solid var(--tech-glass-border);
 }
 
-.modal-header h3 {
+.editor-modal .modal-header h3 {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
   color: var(--text-strong);
 }
 
-.modal-close {
-  background: none;
-  border: none;
-  padding: 4px;
-  cursor: pointer;
-  color: var(--text-muted);
-  border-radius: 4px;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.modal-close:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-
-.modal-content {
-  padding: 20px 24px 24px;
+.editor-modal .modal-content {
+  padding: 22px 26px 26px;
   max-height: calc(95vh - 80px);
   overflow-y: auto;
 }
 
 .editor-section {
-  margin-bottom: 24px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid var(--color-divider, #e1e5e9);
+  margin-bottom: 26px;
+  padding-bottom: 26px;
+  border-bottom: 1px solid var(--tech-glass-border);
 }
 
 .editor-section:last-child {
@@ -457,25 +447,26 @@ const handleTraeVersionSelect = async (version) => {
 .editor-options {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 .jetbrains-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 12px;
+  gap: 14px;
 }
 
+/* 编辑器选项 - 科技风卡片 */
 .editor-option {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 16px;
-  border: 2px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg-surface);
+  padding: 16px 18px;
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s ease;
   text-align: left;
   width: 100%;
   position: relative;
@@ -487,31 +478,41 @@ const handleTraeVersionSelect = async (version) => {
 }
 
 .editor-option:hover {
-  border-color: var(--accent);
-  background: var(--bg-hover);
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  box-shadow: 0 0 20px var(--tech-glow-primary);
+  transform: translateY(-2px);
 }
 
 .editor-option:active {
-  background: var(--bg-muted);
-  box-shadow: 0 1px 4px color-mix(in srgb, var(--accent) 8%, transparent);
+  transform: translateY(0);
 }
 
 .editor-option:focus {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent),
+              0 0 20px var(--tech-glow-primary);
 }
 
+/* 编辑器图标 - 科技风 */
 .editor-icon {
   flex-shrink: 0;
-  width: 48px;
-  height: 48px;
+  width: 50px;
+  height: 50px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
-  background: var(--bg-muted);
-  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-muted) 70%, transparent);
+  border: 1px solid var(--tech-glass-border);
+  transition: all 0.2s ease;
+}
+
+.editor-option:hover .editor-icon {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  box-shadow: 0 0 15px var(--tech-glow-primary);
 }
 
 .editor-icon img {
@@ -544,8 +545,8 @@ const handleTraeVersionSelect = async (version) => {
 .rider-option .editor-icon,
 .rubymine-option .editor-icon,
 .aqua-option .editor-icon {
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
-  border-color: color-mix(in srgb, var(--accent) 20%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
 .editor-info {
@@ -561,39 +562,43 @@ const handleTraeVersionSelect = async (version) => {
   color: var(--text-strong);
 }
 
-/* Trae 版本选择对话框样式 */
+/* Trae 版本选择对话框 - 科技风 */
 .trae-version-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 10000;
   padding: 20px;
+  backdrop-filter: blur(4px);
 }
 
 .trae-version-modal {
-  background: var(--bg-surface);
-  border-radius: 12px;
-  max-width: 500px;
+  background: var(--tech-glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 18px;
+  max-width: 520px;
   width: 100%;
   max-height: 80vh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35), var(--tech-border-glow);
 }
 
 .trae-version-modal .modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--border);
+  padding: 22px 26px;
+  border-bottom: 1px solid var(--tech-glass-border);
 }
 
 .trae-version-modal .modal-header h3 {
@@ -604,7 +609,7 @@ const handleTraeVersionSelect = async (version) => {
 }
 
 .trae-version-modal .modal-body {
-  padding: 24px;
+  padding: 26px;
   overflow-y: auto;
   flex: 1;
 }
@@ -620,9 +625,9 @@ const handleTraeVersionSelect = async (version) => {
   align-items: center;
   gap: 16px;
   padding: 20px;
-  border: 2px solid var(--border);
-  border-radius: 12px;
-  background: var(--bg-surface);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
   cursor: pointer;
   transition: all 0.2s ease;
   width: 100%;
@@ -631,9 +636,9 @@ const handleTraeVersionSelect = async (version) => {
 }
 
 .version-option:hover {
-  border-color: var(--accent);
-  background: var(--bg-hover);
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 15%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  box-shadow: 0 0 20px var(--tech-glow-primary);
   transform: translateY(-2px);
 }
 
@@ -644,13 +649,14 @@ const handleTraeVersionSelect = async (version) => {
 .version-icon {
   font-size: 32px;
   flex-shrink: 0;
-  width: 48px;
-  height: 48px;
+  width: 50px;
+  height: 50px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg-muted);
-  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-muted) 70%, transparent);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 12px;
 }
 
 .version-name {
@@ -665,17 +671,18 @@ const handleTraeVersionSelect = async (version) => {
     width: 95%;
     margin: 16px;
     max-height: 90vh;
+    border-radius: 14px;
   }
 
-  .modal-header {
+  .editor-modal .modal-header {
     padding: 16px 20px 12px;
   }
 
-  .modal-header h3 {
+  .editor-modal .modal-header h3 {
     font-size: 16px;
   }
 
-  .modal-content {
+  .editor-modal .modal-content {
     padding: 16px 20px 20px;
   }
 
@@ -689,13 +696,15 @@ const handleTraeVersionSelect = async (version) => {
   }
 
   .editor-option {
-    padding: 12px;
+    padding: 12px 14px;
     gap: 12px;
+    border-radius: 12px;
   }
 
   .editor-icon {
-    width: 40px;
-    height: 40px;
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
   }
 
   .editor-icon img {
@@ -707,6 +716,4 @@ const handleTraeVersionSelect = async (version) => {
     font-size: 15px;
   }
 }
-
 </style>
-

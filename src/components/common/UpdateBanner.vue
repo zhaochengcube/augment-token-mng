@@ -8,7 +8,7 @@
           <polyline points="12 6 12 12 16 14"></polyline>
         </svg>
         <h3>{{ $t('update.newVersionAvailable') }}: v{{ updateInfo.latest_version }}</h3>
-        <button class="close-btn" @click.stop="close" :aria-label="$t('update.close')">
+        <button class="modal-close" @click.stop="close" :aria-label="$t('update.close')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -124,80 +124,71 @@ const copyCommand = async (command) => {
 </script>
 
 <style scoped>
+/* ============================================
+   UpdateBanner - Modern Tech Style
+   ============================================ */
+
 .update-banner {
   position: fixed;
-  bottom: 20px;
-  left: 20px;
-  max-width: 350px;
+  bottom: 22px;
+  left: 22px;
+  max-width: 360px;
   width: auto;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  background: var(--tech-glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 16px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25), var(--tech-border-glow);
   z-index: 999;
-  animation: slideIn 0.3s ease;
+  animation: slideIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .update-banner.expanded {
-  width: 400px;
-  max-width: 400px;
+  width: 420px;
+  max-width: 420px;
 }
 
 @keyframes slideIn {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(20px) scale(0.95);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
 
 .update-content {
-  padding: 20px;
+  padding: 22px;
   position: relative;
 }
 
 .update-banner:not(.expanded) .update-content {
-  padding: 12px 16px;
+  padding: 14px 18px;
 }
 
-.close-btn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 2px;
-  border-radius: 4px;
-  color: var(--text-muted);
-  transition: all 0.2s;
-  margin-left: auto;
-  flex-shrink: 0;
-}
-
-.close-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-}
 
 .update-header {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   cursor: pointer;
-  padding: 4px;
-  margin: -4px;
-  border-radius: 6px;
-  transition: background 0.2s;
+  padding: 6px;
+  margin: -6px;
+  border-radius: 10px;
+  transition: all 0.2s ease;
 }
 
 .update-header:hover {
-  background: var(--bg-hover);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
 .update-icon {
   color: var(--accent);
   flex-shrink: 0;
+  filter: drop-shadow(0 0 6px var(--tech-glow-primary));
 }
 
 .update-header h3 {
@@ -210,7 +201,7 @@ const copyCommand = async (command) => {
 }
 
 .expanded-content {
-  margin-top: 16px;
+  margin-top: 18px;
   animation: slideDown 0.3s ease;
 }
 
@@ -225,14 +216,16 @@ const copyCommand = async (command) => {
   }
 }
 
+/* 版本信息 - 科技风 */
 .version-info {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 20px;
-  padding: 12px;
-  background: var(--bg-muted);
-  border-radius: 8px;
+  gap: 10px;
+  margin-bottom: 22px;
+  padding: 14px;
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 12px;
 }
 
 .version-item {
@@ -248,24 +241,25 @@ const copyCommand = async (command) => {
 
 .version-value {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text);
-  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+  font-family: var(--tech-mono-font);
 }
 
 .version-value.highlight {
   color: var(--accent);
+  text-shadow: 0 0 8px var(--tech-glow-primary);
 }
 
 .install-methods h4 {
-  margin: 0 0 12px 0;
+  margin: 0 0 14px 0;
   font-size: 14px;
   font-weight: 600;
   color: var(--text);
 }
 
 .method-item {
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 
 .method-item:last-child {
@@ -276,65 +270,68 @@ const copyCommand = async (command) => {
   display: block;
   font-size: 12px;
   color: var(--text-muted);
-  margin-bottom: 6px;
-  font-weight: 500;
+  margin-bottom: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
+/* 方法按钮 - 科技风 */
 .method-btn {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
-  padding: 10px 14px;
+  padding: 12px 16px;
   background: color-mix(in srgb, var(--accent) 15%, transparent);
-  color: var(--accent-strong);
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
-  border-radius: 6px;
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 10px;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .method-btn:hover {
-  background: color-mix(in srgb, var(--accent) 25%, transparent);
-  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px color-mix(in srgb, var(--accent) 40%, transparent);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  transform: translateY(-2px);
+  box-shadow: 0 0 15px var(--tech-glow-primary);
 }
 
+/* 命令框 - 科技风 */
 .command-box {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
-  background: var(--bg-muted);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  padding: 10px 14px;
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 10px;
 }
 
 .command-box code {
-  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+  font-family: var(--tech-mono-font);
   font-size: 13px;
   color: var(--text);
   flex: 1;
 }
 
 .copy-btn {
-  background: transparent;
-  border: none;
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  border: 1px solid var(--tech-glass-border);
   cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
+  padding: 6px;
+  border-radius: 8px;
   color: var(--text-muted);
-  transition: all 0.2s;
+  transition: all 0.2s ease;
   flex-shrink: 0;
 }
 
 .copy-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-color: var(--accent);
+  color: var(--accent);
 }
-
 </style>
-

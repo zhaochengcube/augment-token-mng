@@ -3,7 +3,26 @@ export default {
     close: 'Close',
     cancel: 'Cancel',
     confirm: 'Confirm',
-    back: 'Back'
+    back: 'Back',
+    loading: 'Loading...',
+    refresh: 'Refresh',
+    refreshing: 'Refreshing...',
+    clear: 'Clear',
+    search: 'Search',
+    sort: 'Sort',
+    sortByTime: 'Sort by Time',
+    filter: 'Filter',
+    today: 'Today',
+    yesterday: 'Yesterday',
+    daysAgo: '{days} days ago',
+    selected: '{count} selected',
+    selectAllPage: 'Select all on page',
+    cancelSelection: 'Cancel selection',
+    batchDelete: 'Batch delete',
+    noSearchResults: 'No matching results found',
+    openDataFolder: 'Open data folder',
+    switchToTable: 'Switch to table view',
+    switchToCard: 'Switch to card view'
   },
   app: {
     title: 'Augment Token Manager',
@@ -104,7 +123,7 @@ export default {
     }
   },
   outlookManager: {
-    title: 'Outlook Email Manager',
+    title: 'Outlook',
     addAccount: 'Add Email Account',
     sessionNotice: 'Account information is only valid for the current session and needs to be re-added after closing the app',
     accountInfo: 'Account Information',
@@ -220,6 +239,12 @@ export default {
     syncTooltip: 'Perform bidirectional sync (Local ↔ Database)',
     showRealEmail: 'Show Real Email',
     hideRealEmail: 'Hide Real Email',
+    sessionExpiring: '{count} Session(s) Expiring Soon',
+    sessionRefreshTitle: 'Sessions Expiring Soon',
+    noExpiringSession: 'No expiring sessions',
+    daysRemaining: 'days remaining',
+    refreshAllSessions: 'Refresh All Sessions',
+    refreshing: 'Refreshing...',
     sort: 'Sort',
     sortByTime: 'By Time',
     sortByBalance: 'By Balance',
@@ -227,7 +252,8 @@ export default {
     // Status statistics and filtering
     statusStats: 'Status Statistics',
     allStatus: 'All',
-    activeStatus: 'Active',
+    activeStatus: 'Available',
+    depleteStatus: 'Depleted',
     suspendedStatus: 'Suspended',
     expiredStatus: 'Expired',
     invalidStatus: 'Invalid',
@@ -316,8 +342,8 @@ export default {
     tableHeaderTag: 'Tag',
     tableHeaderStatus: 'Status',
     tableHeaderEmail: 'Email',
-    tableHeaderBalance: 'Balance',
-    tableHeaderResetTime: 'Reset Time',
+    tableHeaderBalance: 'Credits',
+    tableHeaderDates: 'Created/Reset',
     tableHeaderActions: 'Actions',
     // Tag editing
     clickToEditTag: 'Click to edit tag',
@@ -363,6 +389,9 @@ export default {
     editToken: 'Edit Token',
     deleteToken: 'Delete Token',
     canUse: 'Can Use',
+    createdAt: 'Created At',
+    resetAt: 'Reset At',
+    sessionUpdatedAt: 'Session Updated At',
     exhausted: 'Usage Exhausted',
     tokenInvalid: 'Token Invalid',
     networkError: 'Network Error',
@@ -372,7 +401,36 @@ export default {
     reason: 'Reason',
     date: 'Date',
     noSuspensionData: 'No suspension data available',
-    rawData: 'Raw Data'
+    rawData: 'Raw Data',
+    team: 'Team',
+    manageTeam: 'Manage Team'
+  },
+  team: {
+    title: 'Team Management',
+    teamInfo: 'Team Information',
+    teamName: 'Team Name',
+    seats: 'Seats',
+    usedSeats: 'Used Seats',
+    updateSeats: 'Update Seats',
+    save: 'Save',
+    members: 'Members',
+    invitations: 'Pending Invitations',
+    inviteMembers: 'Invite Members',
+    emailPlaceholder: 'Enter email addresses, separated by comma or newline',
+    invite: 'Send Invitation',
+    deleteMember: 'Delete Member',
+    deleteInvitation: 'Delete Invitation',
+    confirmDelete: 'Confirm Delete',
+    confirmDeleteMember: 'Are you sure to delete member {email}?',
+    confirmDeleteInvitation: 'Are you sure to delete invitation {email}?',
+    loading: 'Loading...',
+    refreshing: 'Refreshing...',
+    noMembers: 'No members',
+    noInvitations: 'No pending invitations',
+    seatsUpdated: 'Seats updated successfully',
+    invitationsSent: 'Invitations sent successfully',
+    memberDeleted: 'Member deleted successfully',
+    invitationDeleted: 'Invitation deleted successfully'
   },
   tokenForm: {
     title: 'Add/Edit Token',
@@ -514,6 +572,10 @@ export default {
     getTokenError: 'Failed to get token',
     syncComplete: 'Bidirectional sync completed',
     syncFailed: 'Sync failed',
+    noExpiringSession: 'No expiring sessions',
+    sessionRefreshSuccess: 'Successfully refreshed {count} session(s)',
+    sessionRefreshPartialFail: 'Refresh completed: {success} succeeded, {fail} failed',
+    sessionRefreshFailed: 'Failed to refresh sessions',
     databaseDetected: 'Database connection detected successfully, switched to dual storage mode',
     databaseNotDetected: 'No database connection detected, still in local storage mode',
     openAppHomeFailed: 'Failed to open app home',
@@ -616,6 +678,7 @@ export default {
     sessionErrorOrAccountBanned: 'Session error or account banned',
     tagUpdated: 'Tag updated',
     tagCleared: 'Tag cleared',
+    comingSoon: 'Coming Soon'
   },
   validation: {
     required: 'This field is required',
@@ -724,7 +787,7 @@ export default {
     percentage: 'Percentage'
   },
   gptMailManager: {
-    title: 'GPTMail Manager',
+    title: 'GPTMail',
     generateEmail: 'Generate Random Email',
     generateBtn: 'Generate Email',
     generating: 'Generating...',
@@ -796,6 +859,90 @@ export default {
     windsurf: {
       title: 'Windsurf Token Manager',
       subtitle: 'Manage your Windsurf access tokens'
+    },
+    antigravity: {
+      title: 'Antigravity Account Manager',
+      subtitle: 'Manage your Antigravity accounts and quotas',
+      accountCount: '{count} accounts',
+      refreshQuota: 'Refresh Quota',
+      addAccount: 'Add Account',
+      currentAccount: 'Current Account',
+      switching: 'Switching...',
+      switch: 'Switch',
+      refresh: 'Refresh',
+      refreshing: 'Refreshing...',
+      delete: 'Delete',
+      lastUsed: 'Last used',
+      noAccounts: 'No accounts',
+      noAccountsHint: 'Click "Add Account" to get started',
+      quotaForbidden: 'No permission to access quota',
+      noQuotaData: 'No quota data available',
+      searchPlaceholder: 'Search email...',
+      sortByQuota: 'Sort by Quota',
+      batchRefresh: 'Batch refresh',
+      filter: {
+        all: 'All',
+        available: 'Available',
+        low: 'Low Quota',
+        forbidden: 'Forbidden'
+      },
+      status: {
+        current: 'Current',
+        available: 'Available',
+        low: 'Low Quota',
+        forbidden: 'Forbidden'
+      },
+      table: {
+        email: 'Email',
+        status: 'Status',
+        quota: 'Quota',
+        dates: 'Dates',
+        actions: 'Actions'
+      },
+      actions: {
+        switch: 'Switch account',
+        refresh: 'Refresh quota',
+        delete: 'Delete account'
+      },
+      addAccountDialog: {
+        title: 'Add Antigravity Account',
+        oauthMethod: 'OAuth Authorization',
+        manualMethod: 'Manual Add',
+        oauthInfo: 'Click the button below to open Google authorization page, account will be added automatically after authorization',
+        googleLogin: 'Sign in with Google',
+        email: 'Email Address',
+        emailPlaceholder: "your-email{'@'}example.com",
+        refreshToken: 'Refresh Token',
+        refreshTokenPlaceholder: 'Paste your Refresh Token here...',
+        refreshTokenHint: 'Get refresh_token from Antigravity database or network requests',
+        adding: 'Adding...',
+        add: 'Add Account'
+      },
+      messages: {
+        switchSuccess: 'Account switched successfully',
+        switchFailed: 'Switch failed: {error}',
+        refreshSuccess: 'Quota refreshed successfully',
+        refreshFailed: 'Refresh quota failed: {error}',
+        addSuccess: 'Account added successfully',
+        addFailed: 'Add account failed: {error}',
+        deleteConfirm: 'Are you sure you want to delete this account?',
+        deleteSuccess: 'Account deleted successfully',
+        deleteFailed: 'Delete failed: {error}',
+        batchDeleteConfirm: 'Are you sure you want to delete {count} selected accounts?',
+        noSelection: 'Please select accounts to operate'
+      },
+      quota: {
+        gemini: 'Gemini',
+        claude: 'Claude',
+        resetTime: 'Reset: {time}',
+        percentage: '{value}%',
+        timeAgo: {
+          justNow: 'Just now',
+          minutesAgo: '{count} minutes ago',
+          hoursAgo: '{count} hours ago',
+          daysAgo: '{count} days ago'
+        }
+      }
     }
   }
 }

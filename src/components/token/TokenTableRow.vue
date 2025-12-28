@@ -22,13 +22,13 @@
       <div class="tag-cell-wrapper" @click.stop="openTagEditor">
         <span
           v-if="hasTag"
-          class="tag-badge editable"
+          class="status-badge editable"
           :style="tagBadgeStyle"
-          :title="$t('tokenList.clickToEditTag')"
+          v-tooltip="$t('tokenList.clickToEditTag')"
         >
           {{ tagDisplayName }}
         </span>
-        <span v-else class="no-tag add-tag" :title="$t('tokenList.clickToAddTag')">
+        <span v-else class="no-tag add-tag" v-tooltip="$t('tokenList.clickToAddTag')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
             <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
           </svg>
@@ -38,11 +38,12 @@
 
     <!-- 状态 -->
     <td class="cell-status">
-      <span 
+      <span
         :class="['status-badge', getStatusClass(token.ban_status), { clickable: isBannedWithSuspensions }]"
-        :title="isBannedWithSuspensions ? $t('tokenCard.clickToViewDetails') : ''"
+        v-tooltip="isBannedWithSuspensions ? $t('tokenCard.clickToViewDetails') : ''"
         @click.stop="handleStatusClick"
       >
+        <span :class="['status-dot', getStatusClass(token.ban_status)]"></span>
         {{ getStatusText(token.ban_status) }}
       </span>
     </td>
@@ -53,14 +54,9 @@
         v-if="token.email_note"
         class="email-wrapper"
         @click.stop="copyEmailNote"
-        :title="token.email_note"
+        v-tooltip="token.email_note"
       >
         <span class="email-text">{{ showRealEmail ? token.email_note : maskedEmail }}</span>
-        <span class="copy-hint">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-          </svg>
-        </span>
       </div>
       <span v-else class="no-email">-</span>
     </td>
@@ -72,24 +68,31 @@
       </span>
     </td>
 
-    <!-- 过期时间 -->
-    <td class="cell-expiry">
-      <span v-if="expiryDate" class="expiry-text">
-        {{ formatExpiryDate(expiryDate) }}
-      </span>
-      <span v-else class="no-expiry">-</span>
+    <!-- 创建/重置/Session更新时间 -->
+    <td class="cell-dates">
+      <div class="dates-wrapper">
+        <Tooltip :content="$t('tokenCard.createdAt') + ': ' + formatDate(token.created_at)">
+          <span class="date-text created">C: {{ formatDate(token.created_at) }}</span>
+        </Tooltip>
+        <Tooltip v-if="expiryDate" :content="$t('tokenCard.resetAt') + ': ' + formatDate(expiryDate)">
+          <span class="date-text reset">R: {{ formatDate(expiryDate) }}</span>
+        </Tooltip>
+        <Tooltip v-if="token.session_updated_at" :content="$t('tokenCard.sessionUpdatedAt') + ': ' + formatDate(token.session_updated_at)">
+          <span class="date-text session">S: {{ formatDate(token.session_updated_at) }}</span>
+        </Tooltip>
+      </div>
     </td>
 
     <!-- 操作 -->
     <td class="cell-actions">
       <div class="actions-wrapper">
         <!-- 编辑器选择 -->
-        <button @click.stop="showEditorModal = true" class="action-btn editor" :title="$t('tokenCard.selectEditor')">
+        <button @click.stop="showEditorModal = true" class="btn-icon editor" v-tooltip="$t('tokenCard.selectEditor')">
           <img src="/icons/vscode.svg" alt="Editor" width="16" height="16" />
         </button>
-        
+
         <!-- 导出JSON -->
-        <button @click.stop="exportTokenAsJson" class="action-btn export" :title="$t('tokenCard.exportJson')">
+        <button @click.stop="exportTokenAsJson" class="btn-icon export" v-tooltip="$t('tokenCard.exportJson')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
             <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/>
           </svg>
@@ -97,7 +100,7 @@
 
         <!-- 复制菜单 -->
         <div class="copy-menu-wrapper" @click.stop>
-          <button @click.stop="toggleCopyMenu" class="action-btn copy" :title="$t('tokenCard.copyMenu')">
+          <button @click.stop="toggleCopyMenu" class="btn-icon copy" v-tooltip="$t('tokenCard.copyMenu')">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
               <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
             </svg>
@@ -140,11 +143,11 @@
         </div>
 
         <!-- 刷新状态 -->
-        <button 
+        <button
           @click.stop="handleCheckAccountStatus"
-          :class="['action-btn', 'refresh', { 'loading': isCheckingStatus || (isBatchChecking && !token.skip_check) }]"
+          :class="['btn-icon', 'refresh', { 'loading': isCheckingStatus || (isBatchChecking && !token.skip_check) }]"
           :disabled="isCheckingStatus || (isBatchChecking && !token.skip_check) || token.skip_check"
-          :title="token.skip_check ? $t('tokenCard.checkDisabled') : $t('tokenCard.checkAccountStatus')"
+          v-tooltip="token.skip_check ? $t('tokenCard.checkDisabled') : $t('tokenCard.checkAccountStatus')"
         >
           <svg v-if="!isCheckingStatus && !(isBatchChecking && !token.skip_check)" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
             <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
@@ -153,11 +156,11 @@
         </button>
 
         <!-- Portal -->
-        <button 
-          v-if="token.portal_url" 
-          @click.stop="showPortalDialog = true" 
-          class="action-btn portal" 
-          :title="$t('tokenCard.openPortal')"
+        <button
+          v-if="token.portal_url"
+          @click.stop="showPortalDialog = true"
+          class="btn-icon portal"
+          v-tooltip="$t('tokenCard.openPortal')"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
             <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
@@ -165,14 +168,14 @@
         </button>
 
         <!-- 编辑 -->
-        <button @click.stop="editToken" class="action-btn edit" :title="$t('tokenCard.editToken')">
+        <button @click.stop="editToken" class="btn-icon edit" v-tooltip="$t('tokenCard.editToken')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
             <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
           </svg>
         </button>
 
         <!-- 删除 -->
-        <button @click.stop="deleteToken" class="action-btn delete" :title="$t('tokenCard.deleteToken')">
+        <button @click.stop="deleteToken" class="btn-icon delete" v-tooltip="$t('tokenCard.deleteToken')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
             <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
           </svg>
@@ -199,14 +202,16 @@
     @clear="handleTagClear"
   />
 
-  <!-- Portal 对话框 -->
-  <ExternalLinkDialog
-    :show="showPortalDialog"
-    :title="$t('dialogs.selectOpenMethod')"
-    :url="token.portal_url || ''"
-    :browser-title="getPortalBrowserTitle()"
-    @close="showPortalDialog = false"
-  />
+  <!-- Portal 对话框 - 使用 Teleport 确保正确定位 -->
+  <Teleport to="body">
+    <ExternalLinkDialog
+      :show="showPortalDialog"
+      :title="$t('dialogs.selectOpenMethod')"
+      :url="token.portal_url || ''"
+      :browser-title="getPortalBrowserTitle()"
+      @close="showPortalDialog = false"
+    />
+  </Teleport>
 
   <!-- Suspensions 详情模态框 -->
   <Teleport to="body">
@@ -259,6 +264,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from 'vue-i18n'
 import { useTokenActions } from '@/composables/useTokenActions'
 import ExternalLinkDialog from '../common/ExternalLinkDialog.vue'
+import Tooltip from '../common/Tooltip.vue'
 import EditorSelectModal from './EditorSelectModal.vue'
 import TagEditorModal from './TagEditorModal.vue'
 
@@ -476,15 +482,6 @@ const handleClickOutside = (event) => {
 
 onMounted(async () => {
   document.addEventListener('click', handleClickOutside)
-  
-  // 只对有 auth_session 但没有 portal_url 的 token 自动检查状态
-  // 排除已封禁(SUSPENDED)和已过期(EXPIRED)的 token
-  if (props.token.auth_session &&
-      !props.token.portal_url &&
-      props.token.ban_status !== 'SUSPENDED' &&
-      props.token.ban_status !== 'EXPIRED') {
-    await handleCheckAccountStatus()
-  }
 })
 
 onUnmounted(() => {
@@ -503,40 +500,74 @@ defineExpose({
 </script>
 
 <style scoped>
+/* ============================================
+   TokenTableRow - Modern Tech Style
+   ============================================ */
+
 .token-table-row {
-  /* 不添加 transition 避免快速移动鼠标时的闪烁 */
   background: transparent;
+  transition: background-color 0.2s ease;
 }
 
 .token-table-row:hover {
-  background-color: color-mix(in srgb, var(--bg-hover) 50%, transparent);
+  background-color: color-mix(in srgb, var(--accent) 6%, transparent);
 }
 
 .token-table-row.selected {
-  background-color: color-mix(in srgb, var(--accent) 8%, transparent);
+  background-color: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .token-table-row.highlighted {
-  animation: row-highlight 1s ease-in-out 2;
+  animation: row-tech-highlight 1.2s ease-in-out 2;
 }
 
-@keyframes row-highlight {
-  0%, 100% { background-color: transparent; }
-  50% { background-color: rgba(251, 191, 36, 0.2); }
+@keyframes row-tech-highlight {
+  0%, 100% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: color-mix(in srgb, var(--accent) 15%, transparent);
+  }
 }
 
 .token-table-row td {
-  padding: 12px 8px;
-  /* 使用透明边框占位，避免边框闪烁 */
-  border-bottom: 1px solid var(--border);
+  padding: 14px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
   vertical-align: middle;
   white-space: nowrap;
-  /* 确保单元格背景继承行背景 */
   background: inherit;
 }
 
+/* 第一个单元格添加左侧指示条 */
+.token-table-row td:first-child {
+  padding-left: 16px;
+  position: relative;
+}
+
+.token-table-row td:first-child::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: transparent;
+  transition: all 0.25s ease;
+}
+
+.token-table-row:hover td:first-child::before {
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--tech-glow-primary);
+}
+
+.token-table-row.selected td:first-child::before {
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--tech-glow-primary);
+}
+
 .cell-checkbox {
-  width: 40px;
+  width: 44px;
   text-align: center;
 }
 
@@ -548,28 +579,30 @@ defineExpose({
 .checkbox-inner {
   width: 18px;
   height: 18px;
-  border-radius: 4px;
-  border: 2px solid var(--border);
+  border-radius: 5px;
+  border: 1.5px solid var(--border);
   background: var(--bg-surface);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s ease;
+  transition: all 0.2s ease;
 }
 
 .checkbox-inner:hover {
   border-color: var(--accent);
+  box-shadow: 0 0 8px var(--tech-glow-primary);
 }
 
 .checkbox-inner.checked {
   background: var(--accent);
-  border-color: var(--accent);
-  color: var(--text-contrast);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 0 10px var(--tech-glow-primary);
 }
 
 .cell-tag {
-  width: 80px;
-  max-width: 80px;
+  width: 85px;
+  max-width: 85px;
   overflow: hidden;
 }
 
@@ -577,34 +610,20 @@ defineExpose({
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  min-height: 24px;
-  padding: 2px;
-  border-radius: 6px;
-  transition: background-color 0.15s ease;
+  min-height: 26px;
+  padding: 3px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
   max-width: 100%;
   overflow: hidden;
 }
 
 .tag-cell-wrapper:hover {
-  background-color: var(--bg-hover);
+  background-color: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
-.tag-badge {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 6px;
-  border-radius: 10px;
-  max-width: 70px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.tag-badge.editable:hover {
-  transform: scale(1.05);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+.tag-cell-wrapper .status-badge {
+  max-width: 75px;
 }
 
 .no-tag {
@@ -617,194 +636,120 @@ defineExpose({
   justify-content: center;
   width: 24px;
   height: 24px;
-  border-radius: 4px;
+  border-radius: 6px;
   border: 1px dashed var(--border);
-  transition: all 0.15s ease;
-  opacity: 0.5;
+  transition: all 0.2s ease;
+  opacity: 0.4;
 }
 
 .token-table-row:hover .no-tag.add-tag {
-  opacity: 1;
+  opacity: 0.8;
 }
 
 .no-tag.add-tag:hover {
   border-color: var(--accent);
   color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
-}
-
-.cell-status {
-  width: 70px;
-}
-
-.status-badge {
-  display: inline-block;
-  font-size: 10px;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-}
-
-.status-badge.active {
-  background: color-mix(in srgb, var(--state-success) 15%, transparent);
-  color: var(--state-success);
-  border: 1px solid color-mix(in srgb, var(--state-success) 30%, transparent);
-}
-
-.status-badge.banned {
-  background: color-mix(in srgb, #dc2626 15%, transparent);
-  color: #dc2626;
-  border: 1px solid color-mix(in srgb, #dc2626 30%, transparent);
-}
-
-.status-badge.inactive {
-  background: color-mix(in srgb, #dc2626 15%, transparent);
-  color: #dc2626;
-  border: 1px solid color-mix(in srgb, #dc2626 30%, transparent);
-}
-
-.status-badge.invalid {
-  background: color-mix(in srgb, #d97706 15%, transparent);
-  color: #d97706;
-  border: 1px solid color-mix(in srgb, #d97706 30%, transparent);
-}
-
-.cell-email {
-  min-width: 140px;
-}
-
-.email-wrapper {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  cursor: pointer;
-  width: 100%;
-  max-width: 100%;
-  position: relative;
-}
-
-.email-text {
-  font-size: 12px;
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
-  padding: 2px 6px;
-  border-radius: 4px;
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.copy-hint {
-  color: var(--text-muted);
-  opacity: 0;
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.email-wrapper:hover .copy-hint {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  box-shadow: 0 0 8px var(--tech-glow-primary);
   opacity: 1;
 }
 
-.no-email {
-  color: var(--text-muted);
+.cell-status {
+  width: 75px;
+}
+
+.cell-email {
+  max-width: 200px;
 }
 
 .cell-balance {
-  width: 80px;
+  width: 85px;
   text-align: center;
 }
 
+/* 余额显示 - 等宽字体 */
 .balance-text {
   font-size: 12px;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 4px;
+  font-weight: 700;
+  font-family: var(--tech-mono-font);
+  padding: 4px 10px;
+  border-radius: 8px;
+  letter-spacing: 0.3px;
 }
 
 .balance-text.color-green {
-  color: var(--state-success);
-  background: color-mix(in srgb, var(--state-success) 15%, transparent);
+  color: #34d399;
+  background: color-mix(in srgb, #10b981 18%, transparent);
+  border: 1px solid color-mix(in srgb, #10b981 35%, transparent);
 }
 
 .balance-text.color-blue {
-  color: #ec4899;
-  background: color-mix(in srgb, #ec4899 15%, transparent);
+  color: #c084fc;
+  background: color-mix(in srgb, #a855f7 18%, transparent);
+  border: 1px solid color-mix(in srgb, #a855f7 35%, transparent);
 }
 
 .balance-text.exhausted {
-  color: #dc2626;
-  background: color-mix(in srgb, #dc2626 15%, transparent);
+  color: #fca5a5;
+  background: color-mix(in srgb, #ef4444 18%, transparent);
+  border: 1px solid color-mix(in srgb, #ef4444 35%, transparent);
 }
 
-.cell-expiry {
-  width: 100px;
+.cell-dates {
+  width: 140px;
+  min-width: 140px;
 }
 
-.expiry-text {
-  font-size: 12px;
+.dates-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.date-text {
+  font-size: 11px;
+  font-family: var(--tech-mono-font);
   color: var(--text-muted);
+  opacity: 0.7;
+  line-height: 1.2;
 }
 
-.no-expiry {
-  color: var(--text-muted);
+.date-text.created {
+  opacity: 0.8;
+}
+
+.date-text.reset {
+  opacity: 0.7;
 }
 
 .cell-actions {
-  width: 220px;
-  min-width: 220px;
+  width: 230px;
+  min-width: 230px;
 }
 
 .actions-wrapper {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
 }
 
-.action-btn {
-  width: 28px;
-  height: 28px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg-surface);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
-  color: var(--color-text-secondary, #6b7280);
+/* 操作按钮 */
+.btn-icon {
+  width: 30px;
+  height: 30px;
+  padding: 0;
 }
 
-.action-btn:hover:not(:disabled) {
-  border-color: var(--accent);
-  background: var(--bg-hover);
-}
-
-.action-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.action-btn.loading {
+.btn-icon.loading {
   pointer-events: none;
 }
 
-.action-btn.delete:hover {
-  border-color: #dc2626;
-  color: #dc2626;
-  background: color-mix(in srgb, #dc2626 10%, transparent);
-}
-
-.action-btn img {
+.btn-icon img {
   width: 16px;
   height: 16px;
 }
 
-/* 复制菜单 */
+/* 下拉菜单 - 磨砂玻璃 */
 .copy-menu-wrapper {
   position: relative;
 }
@@ -813,36 +758,49 @@ defineExpose({
   position: absolute;
   top: 100%;
   right: 0;
-  margin-top: 4px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  min-width: 180px;
+  margin-top: 6px;
+  background: var(--tech-glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), var(--tech-border-glow);
+  min-width: 190px;
   z-index: 1000;
-  padding: 4px 0;
+  padding: 6px;
 }
 
 .copy-menu-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
-  padding: 8px 12px;
+  padding: 10px 14px;
   border: none;
-  background: none;
+  background: transparent;
   cursor: pointer;
   font-size: 13px;
   color: var(--text);
-  transition: background-color 0.15s ease;
+  transition: all 0.2s ease;
+  border-radius: 8px;
 }
 
 .copy-menu-item:hover:not(:disabled) {
-  background: var(--bg-hover);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
+}
+
+.copy-menu-item svg {
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.copy-menu-item:hover svg {
+  opacity: 1;
 }
 
 .copy-menu-item:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
@@ -850,35 +808,35 @@ defineExpose({
 .loading-spinner {
   width: 14px;
   height: 14px;
-  border: 2px solid var(--border);
+  border: 2px solid color-mix(in srgb, var(--accent) 30%, transparent);
   border-top-color: var(--accent);
   border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+  animation: tech-spin 0.8s linear infinite;
 }
 
 .loading-spinner-small {
   width: 12px;
   height: 12px;
-  border: 2px solid var(--color-divider, #e5e7eb);
-  border-top-color: var(--color-accent, #3b82f6);
+  border: 2px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-top-color: var(--accent);
   border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+  animation: tech-spin 0.8s linear infinite;
 }
 
-@keyframes spin {
+@keyframes tech-spin {
   to { transform: rotate(360deg); }
 }
 
 /* 下拉动画 */
 .dropdown-enter-active,
 .dropdown-leave-active {
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .dropdown-enter-from,
 .dropdown-leave-to {
   opacity: 0;
-  transform: translateY(-4px);
+  transform: translateY(-8px) scale(0.95);
 }
 
 /* 状态徽章可点击样式 */
@@ -887,17 +845,18 @@ defineExpose({
 }
 
 .status-badge.clickable:hover {
-  filter: brightness(0.9);
+  filter: brightness(1.1);
 }
 
-/* Suspensions 模态框样式 */
+/* Suspensions 模态框 - 磨砂玻璃效果 */
 .suspensions-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -906,23 +865,26 @@ defineExpose({
 }
 
 .suspensions-modal {
-  background: var(--bg-surface);
-  border-radius: 12px;
+  background: var(--tech-glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 16px;
   max-width: 600px;
   width: 100%;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3), var(--tech-border-glow);
 }
 
 .suspensions-modal .modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border);
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--tech-glass-border);
 }
 
 .suspensions-modal .modal-header h3 {
@@ -932,22 +894,6 @@ defineExpose({
   color: var(--text-strong);
 }
 
-.suspensions-modal .modal-close {
-  background: none;
-  border: none;
-  padding: 4px;
-  cursor: pointer;
-  color: var(--text-muted);
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.suspensions-modal .modal-close:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-}
 
 .suspensions-modal .modal-body {
   padding: 24px;
@@ -962,14 +908,14 @@ defineExpose({
 }
 
 .suspension-item {
-  background: var(--bg-muted);
-  border-radius: 8px;
-  padding: 16px;
-  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
+  border-radius: 12px;
+  padding: 18px;
+  border: 1px solid var(--tech-glass-border);
 }
 
 .suspension-field {
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .suspension-field:last-child {
@@ -980,6 +926,9 @@ defineExpose({
   color: var(--text-muted);
   font-weight: 500;
   margin-right: 8px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .suspension-value {
@@ -991,41 +940,49 @@ defineExpose({
   text-align: center;
   padding: 40px 20px;
   color: var(--text-muted);
+  opacity: 0.7;
 }
 
 .raw-json {
   margin-top: 20px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 12px;
   overflow: hidden;
 }
 
 .raw-json summary {
-  padding: 12px 16px;
-  background: var(--bg-muted);
+  padding: 14px 18px;
+  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
   cursor: pointer;
   font-weight: 500;
   color: var(--text-muted);
+  transition: all 0.2s ease;
+}
+
+.raw-json summary:hover {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent);
 }
 
 .raw-json pre {
   margin: 0;
-  padding: 16px;
+  padding: 18px;
   font-size: 12px;
+  font-family: var(--tech-mono-font);
   overflow-x: auto;
-  background: var(--bg-surface);
+  background: color-mix(in srgb, var(--bg-surface) 80%, transparent);
   color: var(--text);
 }
 
 /* 模态框动画 */
 .modal-enter-active,
 .modal-leave-active {
-  transition: opacity 0.2s ease;
+  transition: opacity 0.25s ease;
 }
 
 .modal-enter-active .suspensions-modal,
 .modal-leave-active .suspensions-modal {
-  transition: transform 0.2s ease;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .modal-enter-from,
@@ -1035,8 +992,6 @@ defineExpose({
 
 .modal-enter-from .suspensions-modal,
 .modal-leave-to .suspensions-modal {
-  transform: scale(0.95);
+  transform: scale(0.92) translateY(10px);
 }
-
-/* 黑暗模式自动适配,无需额外样式 */
 </style>

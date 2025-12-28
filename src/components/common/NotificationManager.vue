@@ -127,10 +127,14 @@ defineExpose({
 </script>
 
 <style scoped>
+/* ============================================
+   NotificationManager - Modern Tech Style
+   ============================================ */
+
 .notification-manager {
   position: fixed;
-  top: 20px;
-  left: 20px;
+  top: 22px;
+  left: 22px;
   z-index: 9999;
   pointer-events: none;
 }
@@ -138,42 +142,42 @@ defineExpose({
 .notification-container {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
   max-height: 80vh;
   overflow: visible;
 }
 
-/* 通知动画 */
+/* 通知动画 - 科技风 */
 .notification-enter-active {
-  transition: all 0.3s ease-out;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .notification-leave-active {
-  transition: all 0.3s ease-in;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .notification-enter-from {
   opacity: 0;
-  transform: translateX(-100%);
+  transform: translateX(-100%) scale(0.9);
 }
 
 .notification-leave-to {
   opacity: 0;
-  transform: translateX(-100%);
+  transform: translateX(-100%) scale(0.9);
 }
 
 .notification-move {
-  transition: transform 0.3s ease;
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* 响应式设计 */
 @media (max-width: 640px) {
   .notification-manager {
-    top: 15px;
-    left: 10px;
-    right: 10px;
+    top: 16px;
+    left: 12px;
+    right: 12px;
   }
-  
+
   .notification-container {
     max-height: 70vh;
   }

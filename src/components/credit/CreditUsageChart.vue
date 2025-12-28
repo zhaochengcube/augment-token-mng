@@ -77,14 +77,25 @@ const themePalette = computed(() => {
 
   return {
     isDark,
-    surface: resolveCssVar('--color-surface', isDark ? '#0f172a' : '#ffffff'),
-    legendColor: resolveCssVar('--color-text-primary', isDark ? '#e2e8f0' : '#374151'),
-    tooltipBg: resolveCssVar('--color-surface-alt', isDark ? '#111827' : '#ffffff'),
-    tooltipTitle: resolveCssVar('--color-text-heading', isDark ? '#f9fafb' : '#1f2937'),
-    tooltipBody: resolveCssVar('--color-text-primary', isDark ? '#e2e8f0' : '#374151'),
-    tooltipBorder: resolveCssVar('--color-border-strong', isDark ? 'rgba(148, 163, 184, 0.45)' : '#e5e7eb')
+    surface: resolveCssVar('--bg-surface', isDark ? '#0f172a' : '#ffffff'),
+    legendColor: resolveCssVar('--text', isDark ? '#e2e8f0' : '#374151'),
+    tooltipBg: resolveCssVar('--bg-surface-alt', isDark ? '#111827' : '#ffffff'),
+    tooltipTitle: resolveCssVar('--text-strong', isDark ? '#f9fafb' : '#1f2937'),
+    tooltipBody: resolveCssVar('--text', isDark ? '#e2e8f0' : '#374151'),
+    tooltipBorder: resolveCssVar('--border-strong', isDark ? 'rgba(148, 163, 184, 0.45)' : '#e5e7eb')
   }
 })
+
+const chartColors = computed(() => ([
+  resolveCssVar('--chart-1', '#4c6ef5'),
+  resolveCssVar('--chart-2', '#f783ac'),
+  resolveCssVar('--chart-3', '#38bdf8'),
+  resolveCssVar('--chart-4', '#43e97b'),
+  resolveCssVar('--chart-5', '#ff922b'),
+  resolveCssVar('--chart-6', '#845ef7'),
+  resolveCssVar('--chart-7', '#12b886'),
+  resolveCssVar('--chart-8', '#fd7e14')
+]))
 
 // 图表数据
 const pieChartData = computed(() => {
@@ -96,14 +107,11 @@ const pieChartData = computed(() => {
   const data = props.chartData.data_points.map(p => parseInt(p.credits_consumed) || 0)
   const palette = themePalette.value
 
-  const lightColors = ['#4c6ef5', '#f783ac', '#38bdf8', '#43e97b', '#ff922b', '#845ef7', '#12b886', '#fd7e14']
-  const darkColors = ['#c7d2fe', '#f9a8d4', '#7dd3fc', '#6ee7b7', '#facc15', '#fca5a5', '#fcd34d', '#a5b4fc']
-
   return {
     labels,
     datasets: [{
       data,
-      backgroundColor: palette.isDark ? darkColors : lightColors,
+      backgroundColor: chartColors.value,
       borderWidth: 2,
       borderColor: palette.surface,
       hoverOffset: 14
@@ -183,22 +191,28 @@ watch(currentTheme, () => {
 </script>
 
 <style scoped>
+/* ============================================
+   CreditUsageChart - Modern Tech Style
+   ============================================ */
+
 .credit-chart-container {
-  background: linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-muted) 100%);
-  border-radius: 12px;
-  padding: 20px;
-  border: 1px solid var(--border);
-  height: 380px;
+  background: var(--tech-glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 16px;
+  padding: 22px;
+  height: 400px;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--tech-border-glow);
 }
 
 .chart-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
+  margin-bottom: 18px;
   flex-shrink: 0;
 }
 
@@ -208,8 +222,6 @@ watch(currentTheme, () => {
   color: var(--text-strong);
   margin: 0;
 }
-
-
 
 .chart-wrapper {
   flex: 1;
@@ -223,7 +235,7 @@ watch(currentTheme, () => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 14px;
   color: var(--text-muted);
 }
 
@@ -233,11 +245,13 @@ watch(currentTheme, () => {
 
 .error svg {
   color: #ef4444;
-  opacity: 0.6;
+  opacity: 0.7;
+  filter: drop-shadow(0 0 6px var(--tech-glow-danger));
 }
 
 .no-data svg {
-  opacity: 0.4;
+  opacity: 0.5;
+  color: var(--text-muted);
 }
 
 .loading p, .error p, .no-data p {
@@ -245,13 +259,15 @@ watch(currentTheme, () => {
   font-size: 14px;
 }
 
+/* 加载动画 - 科技风 */
 .spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid var(--border);
+  width: 44px;
+  height: 44px;
+  border: 3px solid var(--tech-glass-border);
   border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
+  box-shadow: 0 0 12px var(--tech-glow-primary);
 }
 
 @keyframes spin {
@@ -261,8 +277,8 @@ watch(currentTheme, () => {
 /* 响应式设计 */
 @media (max-width: 768px) {
   .credit-chart-container {
-    height: 320px;
-    padding: 16px;
+    height: 340px;
+    padding: 18px;
   }
 
   .chart-header h3 {
