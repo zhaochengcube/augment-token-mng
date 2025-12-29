@@ -385,6 +385,7 @@ export default {
     checkDisabled: '已禁用检测，右键启用',
     enableCheck: '启用检测',
     disableCheck: '禁用检测',
+    refreshSession: '刷新 Session',
     openPortal: '打开Portal',
     exportJson: '导出JSON',
     editToken: '编辑Token',

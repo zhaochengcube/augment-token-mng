@@ -388,6 +388,7 @@ export default {
     checkDisabled: 'Check disabled, right-click to enable',
     enableCheck: 'Enable Check',
     disableCheck: 'Disable Check',
+    refreshSession: 'Refresh Session',
     openPortal: 'Open Portal',
     exportJson: 'Export JSON',
     editToken: 'Edit Token',

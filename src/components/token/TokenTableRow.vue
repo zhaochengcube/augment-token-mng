@@ -143,17 +143,51 @@
         </div>
 
         <!-- 刷新状态 -->
-        <button
-          @click.stop="handleCheckAccountStatus"
-          :class="['btn-icon', 'refresh', { 'loading': isCheckingStatus || (isBatchChecking && !token.skip_check) }]"
-          :disabled="isCheckingStatus || (isBatchChecking && !token.skip_check) || token.skip_check"
-          v-tooltip="token.skip_check ? $t('tokenCard.checkDisabled') : $t('tokenCard.checkAccountStatus')"
-        >
-          <svg v-if="!isCheckingStatus && !(isBatchChecking && !token.skip_check)" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
-          </svg>
-          <div v-else class="loading-spinner"></div>
-        </button>
+        <div class="check-menu-wrapper">
+          <button
+            @click.stop="handleCheckAccountStatus"
+            @contextmenu.prevent.stop="showCheckMenu = !showCheckMenu"
+            :class="['btn-icon', 'refresh', { 'loading': isCheckingStatus || (isBatchChecking && !token.skip_check) }]"
+            :disabled="isCheckingStatus || (isBatchChecking && !token.skip_check) || token.skip_check"
+            v-tooltip="token.skip_check ? $t('tokenCard.checkDisabled') : $t('tokenCard.checkAccountStatus')"
+          >
+            <svg v-if="!isCheckingStatus && !(isBatchChecking && !token.skip_check) && !token.skip_check" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+            </svg>
+            <svg v-else-if="token.skip_check" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+            </svg>
+            <div v-else class="loading-spinner"></div>
+          </button>
+          <Transition name="dropdown">
+            <div v-if="showCheckMenu" class="check-dropdown" @click.stop>
+              <button @click="handleToggleSkipCheck" class="check-menu-item">
+                <!-- 禁用检测图标 - 暂停 -->
+                <svg v-if="!token.skip_check" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                </svg>
+                <!-- 启用检测图标 - 播放 -->
+                <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+                <span>{{ token.skip_check ? $t('tokenCard.enableCheck') : $t('tokenCard.disableCheck') }}</span>
+              </button>
+              <!-- 刷新 Session 选项 - 仅当有 auth_session 时显示 -->
+              <button
+                v-if="token.auth_session"
+                @click="handleRefreshSession"
+                class="check-menu-item"
+                :disabled="isRefreshingSession"
+              >
+                <svg v-if="!isRefreshingSession" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
+                </svg>
+                <div v-else class="loading-spinner-small"></div>
+                <span>{{ $t('tokenCard.refreshSession') }}</span>
+              </button>
+            </div>
+          </Transition>
+        </div>
 
         <!-- Portal -->
         <button
@@ -259,7 +293,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from 'vue-i18n'
 import { useTokenActions } from '@/composables/useTokenActions'
@@ -342,6 +376,7 @@ const {
   deleteToken,
   editToken,
   toggleSelection,
+  toggleSkipCheck,
   // 新增的共享方法
   isCheckingStatus,
   isFetchingPaymentLink,
@@ -354,10 +389,12 @@ const {
 
 // 本地状态
 const showCopyMenu = ref(false)
+const showCheckMenu = ref(false)
 const showEditorModal = ref(false)
 const showPortalDialog = ref(false)
 const showTagEditor = ref(false)
 const showSuspensionsModal = ref(false)
+const isRefreshingSession = ref(false)
 
 // 计算属性
 const expiryDate = computed(() => {
@@ -421,9 +458,7 @@ const balanceDisplay = computed(() => {
 
 // 方法
 const handleRowClick = () => {
-  if (showCopyMenu.value) {
-    showCopyMenu.value = false
-  }
+  // 点击行时的处理，菜单关闭由全局监听器处理
 }
 
 const toggleCopyMenu = () => {
@@ -463,6 +498,60 @@ const handleCheckAccountStatus = async () => {
   })
 }
 
+// 本地包装的 toggleSkipCheck，需要关闭菜单
+const handleToggleSkipCheck = () => {
+  toggleSkipCheck()
+  showCheckMenu.value = false
+}
+
+// 刷新单个 session
+const handleRefreshSession = async () => {
+  if (!props.token.auth_session) {
+    window.$notify.warning(t('messages.noAuthSession'))
+    showCheckMenu.value = false
+    return
+  }
+
+  isRefreshingSession.value = true
+  showCheckMenu.value = false
+
+  try {
+    // 调用后端刷新接口
+    const results = await invoke('batch_refresh_sessions', {
+      requests: [{
+        id: props.token.id,
+        session: props.token.auth_session
+      }]
+    })
+
+    if (results && results.length > 0) {
+      const result = results[0]
+      if (result.success && result.new_session) {
+        const now = new Date().toISOString()
+
+        // 更新 token 的 auth_session 和 session_updated_at
+        props.token.auth_session = result.new_session
+        props.token.session_updated_at = now
+        props.token.updated_at = now
+
+        // 触发 token-updated 事件，通知父组件保存
+        emit('token-updated', props.token)
+
+        window.$notify.success(t('messages.sessionRefreshSuccess', { count: 1 }))
+      } else {
+        const errorMsg = result.error || 'Unknown error'
+        console.error(`Failed to refresh session for token ${props.token.id}:`, errorMsg)
+        window.$notify.error(t('messages.sessionRefreshFailed') + ': ' + errorMsg)
+      }
+    }
+  } catch (error) {
+    console.error('Failed to refresh session:', error)
+    window.$notify.error(t('messages.sessionRefreshFailed') + ': ' + error.toString())
+  } finally {
+    isRefreshingSession.value = false
+  }
+}
+
 // 处理状态标签点击
 const handleStatusClick = () => {
   if (isBannedWithSuspensions.value) {
@@ -470,22 +559,80 @@ const handleStatusClick = () => {
   }
 }
 
-// 点击外部关闭菜单
-const handleClickOutside = (event) => {
-  if (showCopyMenu.value) {
-    const copyWrapper = document.querySelector('.copy-menu-wrapper')
-    if (copyWrapper && !copyWrapper.contains(event.target)) {
-      showCopyMenu.value = false
-    }
+// 全局点击监听，点击菜单外部关闭
+const handleGlobalClick = (event) => {
+  // 检查是否点击了复制按钮或菜单
+  const clickedCopyButton = event.target.closest('.copy-menu-wrapper .btn-icon')
+  const clickedCopyDropdown = event.target.closest('.copy-dropdown')
+
+  // 检查是否点击了检测按钮或菜单
+  const clickedCheckButton = event.target.closest('.check-menu-wrapper .btn-icon')
+  const clickedCheckDropdown = event.target.closest('.check-dropdown')
+
+  // 如果没有点击复制相关元素，关闭复制菜单
+  if (showCopyMenu.value && !clickedCopyButton && !clickedCopyDropdown) {
+    showCopyMenu.value = false
+  }
+
+  // 如果没有点击检测相关元素，关闭检测菜单
+  if (showCheckMenu.value && !clickedCheckButton && !clickedCheckDropdown) {
+    showCheckMenu.value = false
   }
 }
 
+// 跟踪全局监听器是否已添加
+const globalClickListenerAdded = ref(false)
+
+// 添加全局点击监听器
+const addGlobalClickListener = () => {
+  if (!globalClickListenerAdded.value) {
+    // 使用 setTimeout 确保在当前点击事件处理完后再添加监听器
+    setTimeout(() => {
+      document.addEventListener('click', handleGlobalClick, true)
+      globalClickListenerAdded.value = true
+    }, 0)
+  }
+}
+
+// 移除全局点击监听器
+const removeGlobalClickListener = () => {
+  if (globalClickListenerAdded.value && !showCopyMenu.value && !showCheckMenu.value) {
+    document.removeEventListener('click', handleGlobalClick, true)
+    globalClickListenerAdded.value = false
+  }
+}
+
+// 监听复制菜单打开，添加全局点击监听
+watch(showCopyMenu, (isOpen) => {
+  if (isOpen) {
+    // 添加全局点击监听
+    addGlobalClickListener()
+  } else {
+    // 移除全局点击监听（如果两个菜单都关闭）
+    removeGlobalClickListener()
+  }
+})
+
+// 监听检测菜单打开，添加全局点击监听
+watch(showCheckMenu, (isOpen) => {
+  if (isOpen) {
+    // 添加全局点击监听
+    addGlobalClickListener()
+  } else {
+    // 移除全局点击监听（如果两个菜单都关闭）
+    removeGlobalClickListener()
+  }
+})
+
 onMounted(async () => {
-  document.addEventListener('click', handleClickOutside)
+  // 不再需要在这里添加监听器，由 watch 处理
 })
 
 onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
+  // 清理全局监听器
+  if (globalClickListenerAdded.value) {
+    document.removeEventListener('click', handleGlobalClick, true)
+  }
 })
 
 // 打开标签编辑器
@@ -974,6 +1121,76 @@ defineExpose({
   color: var(--text);
 }
 
+/* 检测菜单 */
+.check-menu-wrapper {
+  position: relative;
+}
+
+.check-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: color-mix(in srgb, var(--bg-surface) 92%, var(--tech-card-bg));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), var(--tech-border-glow);
+  min-width: 180px;
+  overflow: hidden;
+  z-index: 9999;
+  padding: 6px;
+}
+
+.check-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text);
+  transition: all 0.2s ease;
+  text-align: left;
+  font-family: inherit;
+  border-radius: 8px;
+}
+
+.check-menu-item:hover {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
+}
+
+.check-menu-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.check-menu-item svg {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.check-menu-item:hover svg {
+  opacity: 1;
+}
+
+.check-menu-item span {
+  flex: 1;
+}
+
+.loading-spinner-small {
+  width: 16px;
+  height: 16px;
+  border: 2px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
 /* 模态框动画 */
 .modal-enter-active,
 .modal-leave-active {
@@ -993,5 +1210,17 @@ defineExpose({
 .modal-enter-from .suspensions-modal,
 .modal-leave-to .suspensions-modal {
   transform: scale(0.92) translateY(10px);
+}
+
+/* 下拉菜单动画 */
+.dropdown-enter-active,
+.dropdown-leave-active {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dropdown-enter-from,
+.dropdown-leave-to {
+  opacity: 0;
+  transform: translateY(-8px) scale(0.95);
 }
 </style>

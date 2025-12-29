@@ -192,6 +192,19 @@
                 </svg>
                 <span>{{ token.skip_check ? $t('tokenCard.enableCheck') : $t('tokenCard.disableCheck') }}</span>
               </button>
+              <!-- 刷新 Session 选项 - 仅当有 auth_session 时显示 -->
+              <button
+                v-if="token.auth_session"
+                @click="handleRefreshSession"
+                class="check-menu-item"
+                :disabled="isRefreshingSession"
+              >
+                <svg v-if="!isRefreshingSession" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
+                </svg>
+                <div v-else class="loading-spinner-small"></div>
+                <span>{{ $t('tokenCard.refreshSession') }}</span>
+              </button>
             </div>
           </Transition>
         </div>
@@ -468,6 +481,7 @@ const showCopyMenu = ref(false)
 const showCreditUsageModal = ref(false)
 const showTeamManageModal = ref(false)
 const copyMenuButton = ref(null)
+const isRefreshingSession = ref(false)
 
 // 标签编辑相关
 const showTagEditor = ref(false)
@@ -792,7 +806,53 @@ const handleToggleSkipCheck = () => {
   showCheckMenu.value = false
 }
 
+// 刷新单个 session
+const handleRefreshSession = async () => {
+  if (!props.token.auth_session) {
+    window.$notify.warning(t('messages.noAuthSession'))
+    showCheckMenu.value = false
+    return
+  }
 
+  isRefreshingSession.value = true
+  showCheckMenu.value = false
+
+  try {
+    // 调用后端刷新接口
+    const results = await invoke('batch_refresh_sessions', {
+      requests: [{
+        id: props.token.id,
+        session: props.token.auth_session
+      }]
+    })
+
+    if (results && results.length > 0) {
+      const result = results[0]
+      if (result.success && result.new_session) {
+        const now = new Date().toISOString()
+
+        // 更新 token 的 auth_session 和 session_updated_at
+        props.token.auth_session = result.new_session
+        props.token.session_updated_at = now
+        props.token.updated_at = now
+
+        // 触发 token-updated 事件，通知父组件保存
+        emit('token-updated', props.token)
+
+        window.$notify.success(t('messages.sessionRefreshSuccess', { count: 1 }))
+      } else {
+        const errorMsg = result.error || 'Unknown error'
+        console.error(`Failed to refresh session for token ${props.token.id}:`, errorMsg)
+        window.$notify.error(t('messages.sessionRefreshFailed') + ': ' + errorMsg)
+      }
+    }
+  } catch (error) {
+    console.error('Failed to refresh session:', error)
+    window.$notify.error(t('messages.sessionRefreshFailed') + ': ' + error.toString())
+  } finally {
+    isRefreshingSession.value = false
+  }
+}
 
 // 本地包装的 checkAccountStatus
 const handleCheckAccountStatus = async (showNotification = true) => {
