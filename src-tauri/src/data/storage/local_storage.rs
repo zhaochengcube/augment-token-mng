@@ -47,7 +47,7 @@ impl LocalFileStorage {
 
     async fn write_file_content(&self, content: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let _guard = self._lock.lock().unwrap();
-        
+
         // 确保父目录存在
         if let Some(parent) = self.storage_path.parent() {
             fs::create_dir_all(parent)?;
@@ -60,9 +60,52 @@ impl LocalFileStorage {
 
         // 原子性写入
         fs::write(&temp_path, content)?;
-        fs::rename(&temp_path, &self.storage_path)?;
 
-        Ok(())
+        // 尝试重命名,如果失败则清理临时文件并重试
+        match fs::rename(&temp_path, &self.storage_path) {
+            Ok(_) => Ok(()),
+            Err(e) => {
+                // 清理临时文件
+                let _ = fs::remove_file(&temp_path);
+
+                // 检查临时文件是否仍然存在
+                if !temp_path.exists() {
+                    return Err(format!("Failed to rename temp file (temp file was removed): {}", e).into());
+                }
+
+                // 检查父目录是否仍然存在
+                if let Some(parent) = self.storage_path.parent() {
+                    if !parent.exists() {
+                        return Err(format!("Failed to rename temp file (parent directory disappeared): {}", e).into());
+                    }
+                }
+
+                // 在Windows上,如果目标文件被占用,尝试先删除再重命名
+                #[cfg(target_os = "windows")]
+                {
+                    if self.storage_path.exists() {
+                        if let Err(remove_err) = fs::remove_file(&self.storage_path) {
+                            let _ = fs::remove_file(&temp_path);
+                            return Err(format!("Failed to remove existing file before rename: {}", remove_err).into());
+                        }
+                    }
+
+                    // 重新尝试重命名
+                    match fs::rename(&temp_path, &self.storage_path) {
+                        Ok(_) => return Ok(()),
+                        Err(retry_err) => {
+                            let _ = fs::remove_file(&temp_path);
+                            return Err(format!("Failed to rename temp file after retry: {}", retry_err).into());
+                        }
+                    }
+                }
+
+                #[cfg(not(target_os = "windows"))]
+                {
+                    Err(format!("Failed to rename temp file: {}", e).into())
+                }
+            }
+        }
     }
 
     async fn parse_tokens_from_content(&self, content: &str) -> Result<Vec<TokenData>, Box<dyn std::error::Error + Send + Sync>> {

@@ -349,11 +349,11 @@ pub fn run() {
             database::delete_database_config,
 
             // 代理配置命令
-            proxy_config::save_proxy_config_cmd,
-            proxy_config::load_proxy_config_cmd,
-            proxy_config::test_proxy_config_cmd,
-            proxy_config::delete_proxy_config_cmd,
-            proxy_config::proxy_config_exists_cmd
+            proxy_config::save_proxy_config,
+            proxy_config::load_proxy_config,
+            proxy_config::test_proxy_config,
+            proxy_config::delete_proxy_config,
+            proxy_config::proxy_config_exists
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

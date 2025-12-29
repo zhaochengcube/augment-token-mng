@@ -275,6 +275,7 @@ export default {
     searchPlaceholder: 'Token / 邮箱 / Session / 状态...',
     searchResults: '搜索结果：{count} 个',
     noSearchResults: '未找到匹配的 Token',
+    noFilterResults: '当前筛选条件下没有 Token',
     noDeletableTokens: '没有可删除的 token',
     batchImport: '批量导入',
     batchImportTitle: '批量导入Token',

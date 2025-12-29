@@ -552,6 +552,14 @@
               <p>{{ $t('tokenList.noSearchResults') }}</p>
             </div>
 
+            <!-- 无筛选结果提示 -->
+            <div v-else-if="filteredTokens.length === 0" class="no-search-results">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor" opacity="0.3">
+                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+              </svg>
+              <p>{{ $t('tokenList.noFilterResults') }}</p>
+            </div>
+
             <template v-else>
               <!-- 卡片布局 -->
               <div v-if="viewMode === 'card'" class="token-grid">

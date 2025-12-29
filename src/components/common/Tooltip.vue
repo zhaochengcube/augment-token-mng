@@ -131,15 +131,15 @@ const updatePosition = () => {
   position: fixed;
   z-index: 10000;
   padding: 6px 10px;
-  background: var(--bg-surface-alt, #1f2937);
-  color: var(--text-inverse, #ffffff);
+  background: var(--bg-surface-alt);
+  color: var(--text);
   border-radius: 6px;
   font-size: 12px;
   font-weight: 500;
   white-space: nowrap;
   pointer-events: none;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15),
-              0 0 0 1px var(--tech-glass-border);
+  box-shadow: var(--shadow-elevated);
+  border: 1px solid var(--border-strong);
 }
 
 .tooltip-fade-enter-active,

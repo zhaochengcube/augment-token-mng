@@ -222,6 +222,13 @@
   --tech-mono-font: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace; /* 用途: 等宽字体 / used for code-like text */
 }
 
+/* 黑暗模式下的下拉箭头 */
+[data-theme='dark'] .form-group select,
+[data-theme='dark'] .size-select,
+[data-theme='dark'] .pagination-size-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -770,6 +777,14 @@ body {
   background-repeat: no-repeat;
   background-position: right 12px center;
   background-size: 12px;
+}
+
+/* 修复 Windows 下拉菜单在黑暗模式下的背景色问题 */
+.form-group select option,
+.size-select option,
+.pagination-size-select option {
+  background-color: var(--bg-surface);
+  color: var(--text);
 }
 
 .form-textarea,

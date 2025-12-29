@@ -239,7 +239,7 @@ fn get_proxy_config_path(app_handle: &tauri::AppHandle) -> Result<PathBuf, Strin
 }
 
 /// 保存代理配置到文件
-pub fn save_proxy_config(app_handle: &tauri::AppHandle, config: &ProxyConfig) -> Result<(), String> {
+pub fn save_proxy_config_internal(app_handle: &tauri::AppHandle, config: &ProxyConfig) -> Result<(), String> {
     let config_path = get_proxy_config_path(app_handle)?;
 
     // 如果配置文件已存在且新密码为空，则保留原有密码
@@ -269,7 +269,7 @@ pub fn save_proxy_config(app_handle: &tauri::AppHandle, config: &ProxyConfig) ->
 }
 
 /// 从文件加载代理配置
-pub fn load_proxy_config(app_handle: &tauri::AppHandle) -> Result<ProxyConfig, String> {
+pub fn load_proxy_config_internal(app_handle: &tauri::AppHandle) -> Result<ProxyConfig, String> {
     let config_path = get_proxy_config_path(app_handle)?;
 
     // 如果文件不存在，返回默认配置
@@ -289,7 +289,7 @@ pub fn load_proxy_config(app_handle: &tauri::AppHandle) -> Result<ProxyConfig, S
 }
 
 /// 删除代理配置文件
-pub fn delete_proxy_config(app_handle: &tauri::AppHandle) -> Result<(), String> {
+pub fn delete_proxy_config_internal(app_handle: &tauri::AppHandle) -> Result<(), String> {
     let config_path = get_proxy_config_path(app_handle)?;
 
     // 如果文件存在，删除它
@@ -302,7 +302,7 @@ pub fn delete_proxy_config(app_handle: &tauri::AppHandle) -> Result<(), String> 
 }
 
 /// 检查代理配置文件是否存在
-pub fn proxy_config_exists(app_handle: &tauri::AppHandle) -> Result<bool, String> {
+pub fn proxy_config_exists_internal(app_handle: &tauri::AppHandle) -> Result<bool, String> {
     let config_path = get_proxy_config_path(app_handle)?;
     Ok(config_path.exists())
 }
@@ -372,8 +372,8 @@ pub async fn test_proxy_connection(config: &ProxyConfig) -> Result<(), String> {
 }
 
 // 代理配置相关命令
-#[tauri::command(rename = "save_proxy_config")]
-pub async fn save_proxy_config_cmd(
+#[tauri::command]
+pub async fn save_proxy_config(
     app: tauri::AppHandle,
     proxy_type: String,
     enabled: bool,
@@ -402,18 +402,18 @@ pub async fn save_proxy_config_cmd(
         custom_url,
     };
 
-    save_proxy_config(&app, &config)
+    save_proxy_config_internal(&app, &config)
         .map_err(|e| format!("Failed to save proxy config: {}", e))
 }
 
-#[tauri::command(rename = "load_proxy_config")]
-pub async fn load_proxy_config_cmd(app: tauri::AppHandle) -> Result<ProxyConfig, String> {
-    load_proxy_config(&app)
+#[tauri::command]
+pub async fn load_proxy_config(app: tauri::AppHandle) -> Result<ProxyConfig, String> {
+    load_proxy_config_internal(&app)
         .map_err(|e| format!("Failed to load proxy config: {}", e))
 }
 
-#[tauri::command(rename = "test_proxy_config")]
-pub async fn test_proxy_config_cmd(
+#[tauri::command]
+pub async fn test_proxy_config(
     proxy_type: String,
     enabled: bool,
     host: Option<String>,
@@ -444,14 +444,14 @@ pub async fn test_proxy_config_cmd(
     test_proxy_connection(&config).await
 }
 
-#[tauri::command(rename = "delete_proxy_config")]
-pub async fn delete_proxy_config_cmd(app: tauri::AppHandle) -> Result<(), String> {
-    delete_proxy_config(&app)
+#[tauri::command]
+pub async fn delete_proxy_config(app: tauri::AppHandle) -> Result<(), String> {
+    delete_proxy_config_internal(&app)
         .map_err(|e| format!("Failed to delete proxy config: {}", e))
 }
 
-#[tauri::command(rename = "proxy_config_exists")]
-pub async fn proxy_config_exists_cmd(app: tauri::AppHandle) -> Result<bool, String> {
-    proxy_config_exists(&app)
+#[tauri::command]
+pub async fn proxy_config_exists(app: tauri::AppHandle) -> Result<bool, String> {
+    proxy_config_exists_internal(&app)
         .map_err(|e| format!("Failed to check proxy config: {}", e))
 }

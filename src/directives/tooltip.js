@@ -10,8 +10,8 @@ function createTooltipElement() {
     position: fixed;
     z-index: 10000;
     padding: 6px 10px;
-    background: var(--bg-surface-alt, #1f2937);
-    color: var(--text-inverse, #ffffff);
+    background: var(--bg-surface-alt);
+    color: var(--text);
     border-radius: 6px;
     font-size: 12px;
     font-weight: 500;
@@ -19,7 +19,8 @@ function createTooltipElement() {
     pointer-events: none;
     opacity: 0;
     transition: opacity 0.15s ease;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 0 0 1px var(--tech-glass-border, rgba(59, 130, 246, 0.15));
+    box-shadow: var(--shadow-elevated);
+    border: 1px solid var(--border-strong);
   `
   document.body.appendChild(el)
   return el

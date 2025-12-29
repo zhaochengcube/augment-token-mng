@@ -43,10 +43,49 @@ pub async fn save_tokens_json(json_string: String, app: tauri::AppHandle) -> Res
             .map_err(|e| format!("Failed to sync temp file: {}", e))?;
     }
 
-    fs::rename(&temp_path, &storage_path)
-        .map_err(|e| format!("Failed to rename temp file: {}", e))?;
+    // 尝试重命名,如果失败则清理临时文件并重试
+    match fs::rename(&temp_path, &storage_path) {
+        Ok(_) => Ok(()),
+        Err(e) => {
+            // 清理临时文件
+            let _ = fs::remove_file(&temp_path);
 
-    Ok(())
+            // 检查临时文件是否仍然存在
+            if !temp_path.exists() {
+                return Err(format!("Failed to rename temp file (temp file was removed): {}", e));
+            }
+
+            // 检查父目录是否仍然存在
+            if !app_data_dir.exists() {
+                return Err(format!("Failed to rename temp file (parent directory disappeared): {}", e));
+            }
+
+            // 在Windows上,如果目标文件被占用,尝试先删除再重命名
+            #[cfg(target_os = "windows")]
+            {
+                if storage_path.exists() {
+                    if let Err(remove_err) = fs::remove_file(&storage_path) {
+                        let _ = fs::remove_file(&temp_path);
+                        return Err(format!("Failed to remove existing file before rename: {}", remove_err));
+                    }
+                }
+
+                // 重新尝试重命名
+                match fs::rename(&temp_path, &storage_path) {
+                    Ok(_) => return Ok(()),
+                    Err(retry_err) => {
+                        let _ = fs::remove_file(&temp_path);
+                        return Err(format!("Failed to rename temp file after retry: {}", retry_err));
+                    }
+                }
+            }
+
+            #[cfg(not(target_os = "windows"))]
+            {
+                Err(format!("Failed to rename temp file: {}", e))
+            }
+        }
+    }
 }
 
 #[tauri::command]

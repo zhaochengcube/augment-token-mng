@@ -149,7 +149,7 @@ pub async fn open_internal_browser(
     use std::time::Duration;
 
     // 加载代理配置
-    let proxy_config = proxy_config::load_proxy_config(&app).ok();
+    let proxy_config = proxy_config::load_proxy_config(app.clone()).await.ok();
 
     let window_label = format!("browser_{}", chrono::Utc::now().timestamp());
     let app_handle = app.clone();
