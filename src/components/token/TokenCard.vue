@@ -888,6 +888,11 @@ defineExpose({
   position: relative;
   z-index: 1;
   overflow: hidden;
+  /* 优化滚动性能,防止样式丢失 */
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-font-smoothing: subpixel-antialiased;
 }
 
 .token-card.menu-open {
