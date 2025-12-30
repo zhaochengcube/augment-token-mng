@@ -1035,8 +1035,6 @@ body {
   flex: 1;
   overflow-y: auto;
   background: var(--bg-page);
-  display: flex;
-  flex-direction: column;
 }
 
 /* 当包含平台详情页时，禁用外部滚动让内部组件自己管理 */

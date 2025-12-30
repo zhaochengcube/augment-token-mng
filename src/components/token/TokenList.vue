@@ -679,6 +679,15 @@
                   </svg>
                 </button>
 
+                <!-- 批量刷新 Session -->
+                <button @click="batchRefreshSessionsSelected" class="btn-icon"
+                        :disabled="isBatchRefreshingSessions"
+                        v-tooltip="$t('tokenList.batchRefreshSessionSelected')">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
+                  </svg>
+                </button>
+
                 <!-- 批量导出 -->
                 <button @click="batchExportSelected" class="btn-icon"
                         v-tooltip="$t('tokenList.batchExportSelected')">
@@ -1198,6 +1207,7 @@ const selectedTokenIds = ref(new Set())
 const isSelectionMode = computed(() => selectedTokenIds.value.size > 0)
 const showSelectedDeleteDialog = ref(false)
 const isBatchRefreshing = ref(false)
+const isBatchRefreshingSessions = ref(false)
 const isBatchFetchingPaymentLinks = ref(false)
 const showBatchTagEditor = ref(false)
 
@@ -2088,6 +2098,72 @@ const batchRefreshSelected = async () => {
   }
 }
 
+// 批量刷新选中的 Session
+const batchRefreshSessionsSelected = async () => {
+  if (selectedTokenIds.value.size === 0 || isBatchRefreshingSessions.value) return
+
+  // 构建请求列表：{ id, session }
+  const requests = selectedTokens.value
+    .filter(token => token.auth_session)
+    .map(token => ({
+      id: token.id,
+      session: token.auth_session
+    }))
+
+  if (requests.length === 0) {
+    window.$notify.warning(t('tokenList.noTokensWithSession'))
+    return
+  }
+
+  isBatchRefreshingSessions.value = true
+
+  try {
+    window.$notify.info(t('tokenList.batchRefreshingSessions', { count: requests.length }))
+
+    // 调用后端刷新接口
+    const results = await invoke('batch_refresh_sessions', { requests })
+
+    let successCount = 0
+    let failCount = 0
+
+    // 更新 tokens（使用 token_id 匹配）
+    const now = new Date().toISOString()
+    results.forEach(result => {
+      if (result.success && result.new_session) {
+        successCount++
+        // 在 tokens 数组中查找对应的 token
+        const token = tokens.value.find(t => t.id === result.token_id)
+        if (token) {
+          token.auth_session = result.new_session
+          token.session_updated_at = now  // 设置 session 更新时间
+          token.updated_at = now
+        }
+      } else {
+        failCount++
+        console.error(`Failed to refresh session for token ${result.token_id}:`, result.error)
+      }
+    })
+
+    // 保存更新后的 tokens（由前端统一处理双向存储）
+    await saveTokens()
+
+    // 显示结果
+    if (successCount > 0) {
+      window.$notify.success(t('messages.sessionRefreshSuccess', { count: successCount }))
+    }
+    if (failCount > 0) {
+      window.$notify.warning(t('messages.sessionRefreshPartialFail', { success: successCount, fail: failCount }))
+    }
+  } catch (error) {
+    console.error('Failed to refresh sessions:', error)
+    window.$notify.error(t('messages.sessionRefreshFailed'))
+  } finally {
+    isBatchRefreshingSessions.value = false
+    // 操作完成后清除选择
+    clearSelection()
+  }
+}
+
 // 批量导出选中的 token
 const batchExportSelected = async () => {
   if (selectedTokenIds.value.size === 0) return
@@ -2839,21 +2915,22 @@ const handleBatchRefreshSessions = async () => {
     return
   }
 
+  // 构建请求列表：{ id, session }
+  const requests = expiringSessionTokens.value
+    .filter(token => token.auth_session)
+    .map(token => ({
+      id: token.id,
+      session: token.auth_session
+    }))
+
+  if (requests.length === 0) {
+    window.$notify.warning(t('messages.noExpiringSession'))
+    return
+  }
+
   isRefreshingSessions.value = true
 
   try {
-    // 构建请求列表：{ id, session }
-    const requests = expiringSessionTokens.value
-      .filter(token => token.auth_session)
-      .map(token => ({
-        id: token.id,
-        session: token.auth_session
-      }))
-
-    if (requests.length === 0) {
-      window.$notify.warning(t('messages.noExpiringSession'))
-      return
-    }
 
     // 调用后端刷新接口
     const results = await invoke('batch_refresh_sessions', { requests })
