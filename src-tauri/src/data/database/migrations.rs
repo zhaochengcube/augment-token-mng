@@ -47,6 +47,7 @@ pub async fn create_tables(client: &Client) -> Result<(), Box<dyn std::error::Er
             suspensions JSONB,
             balance_color_mode TEXT,
             skip_check BOOLEAN,
+            session_updated_at TIMESTAMP WITH TIME ZONE,
             deleted BOOLEAN NOT NULL DEFAULT FALSE,
             version BIGINT NOT NULL DEFAULT nextval('token_version_seq')
         )

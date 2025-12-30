@@ -268,6 +268,10 @@ pub fn convert_to_legacy_format(token: &TokenData) -> serde_json::Value {
         map.insert("skip_check".to_string(), serde_json::Value::Bool(skip_check));
     }
 
+    if let Some(session_updated_at) = token.session_updated_at {
+        map.insert("session_updated_at".to_string(), serde_json::Value::String(session_updated_at.to_rfc3339()));
+    }
+
     serde_json::Value::Object(map)
 }
 
