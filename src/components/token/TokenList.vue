@@ -562,7 +562,7 @@
 
             <template v-else>
               <!-- 可滚动内容区域 -->
-              <div class="token-content-scroll">
+              <div ref="tokenContentScrollRef" class="token-content-scroll">
                 <!-- 卡片布局 -->
                 <div v-if="viewMode === 'card'" class="token-grid">
                   <TokenCard v-for="token in paginatedTokens" :key="token.id" :ref="el => setTokenCardRef(el, token.id)"
@@ -1171,6 +1171,7 @@ const showRealEmail = ref(true) // false = 脱敏显示, true = 真实邮箱
 
 // 模态框主体容器引用
 const pageBodyRef = ref(null)
+const tokenContentScrollRef = ref(null)
 
 // 搜索状态管理
 const searchQuery = ref('')
@@ -1877,19 +1878,9 @@ const handlePageChange = (page) => {
   currentPage.value = page
   // 滚动到顶部
   nextTick(() => {
-    // 查找真正的滚动容器（向上遍历 DOM 树）
-    let element = pageBodyRef.value
-    while (element && element !== document.body) {
-      const style = window.getComputedStyle(element)
-      const hasScroll = element.scrollHeight > element.clientHeight
-      const canScroll = style.overflowY === 'auto' || style.overflowY === 'scroll'
-
-      if (hasScroll && canScroll) {
-        element.scrollTop = 0
-        break
-      }
-
-      element = element.parentElement
+    // 直接使用 token-content-scroll 容器
+    if (tokenContentScrollRef.value) {
+      tokenContentScrollRef.value.scrollTop = 0
     }
   })
 }
@@ -2137,12 +2128,22 @@ const batchRefreshSessionsSelected = async () => {
           token.auth_session = result.new_session
           token.session_updated_at = now  // 设置 session 更新时间
           token.updated_at = now
+
+          // 添加到待同步队列
+          pendingUpserts.value.set(token.id, token)
+          pendingDeletions.value.delete(token.id)
         }
       } else {
         failCount++
         console.error(`Failed to refresh session for token ${result.token_id}:`, result.error)
       }
     })
+
+    // 标记需要同步
+    if (successCount > 0) {
+      isSyncNeeded.value = true
+      savePendingChanges()
+    }
 
     // 保存更新后的 tokens（由前端统一处理双向存储）
     await saveTokens()
@@ -2899,6 +2900,14 @@ const handleSingleRefreshSession = async ({ tokenId, newSession, updatedAt }) =>
       token.session_updated_at = updatedAt
       token.updated_at = updatedAt
 
+      // 添加到待同步队列
+      pendingUpserts.value.set(token.id, token)
+      pendingDeletions.value.delete(token.id)
+
+      // 标记需要同步
+      isSyncNeeded.value = true
+      savePendingChanges()
+
       // 保存更新后的 tokens
       await saveTokens()
     }
@@ -2949,12 +2958,22 @@ const handleBatchRefreshSessions = async () => {
           token.auth_session = result.new_session
           token.session_updated_at = now  // 设置 session 更新时间
           token.updated_at = now
+
+          // 添加到待同步队列
+          pendingUpserts.value.set(token.id, token)
+          pendingDeletions.value.delete(token.id)
         }
       } else {
         failCount++
         console.error(`Failed to refresh session for token ${result.token_id}:`, result.error)
       }
     })
+
+    // 标记需要同步
+    if (successCount > 0) {
+      isSyncNeeded.value = true
+      savePendingChanges()
+    }
 
     // 保存更新后的 tokens（由前端统一处理双向存储）
     await saveTokens()
