@@ -1035,6 +1035,13 @@ body {
   flex: 1;
   overflow-y: auto;
   background: var(--bg-page);
+  display: flex;
+  flex-direction: column;
+}
+
+/* 当包含平台详情页时，禁用外部滚动让内部组件自己管理 */
+.main-content:has(.platform-detail-view) {
+  overflow: hidden;
 }
 
 
@@ -1558,11 +1565,10 @@ body {
   color: var(--text-soft, #9ca3af);
 }
 
-/* 移除了重复的状态指示器样式，现在在 TokenList.vue 中 */
 
 /* Platform Detail View */
 .platform-detail-view {
-  flex: 1;
+  height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;

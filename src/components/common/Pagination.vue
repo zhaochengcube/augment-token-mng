@@ -188,9 +188,6 @@ const handlePageSizeChange = (event) => {
   justify-content: space-between;
   gap: 22px;
   padding: 18px 22px;
-  background: color-mix(in srgb, var(--bg-muted) 30%, transparent);
-  border-top: 1px solid var(--tech-glass-border);
-  border-radius: 0 0 14px 14px;
 }
 
 .pagination-info {

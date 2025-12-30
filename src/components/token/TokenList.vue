@@ -561,78 +561,81 @@
             </div>
 
             <template v-else>
-              <!-- 卡片布局 -->
-              <div v-if="viewMode === 'card'" class="token-grid">
-                <TokenCard v-for="token in paginatedTokens" :key="token.id" :ref="el => setTokenCardRef(el, token.id)"
-                  :token="token" :is-batch-checking="isRefreshing" :is-highlighted="highlightedTokenId === token.id"
-                  :is-selected="selectedTokenIds.has(token.id)" :selection-mode="isSelectionMode"
-                  :is-selected-refreshing="isBatchRefreshing"
-                  :cached-payment-link="paymentLinksCache.get(token.id)"
-                  :all-tokens="tokens"
-                  :show-real-email="showRealEmail"
-                  @delete="deleteToken" @edit="handleEditToken" @token-updated="handleTokenUpdated"
-                  @select="toggleTokenSelection" @payment-link-fetched="cachePaymentLink" />
-              </div>
+              <!-- 可滚动内容区域 -->
+              <div class="token-content-scroll">
+                <!-- 卡片布局 -->
+                <div v-if="viewMode === 'card'" class="token-grid">
+                  <TokenCard v-for="token in paginatedTokens" :key="token.id" :ref="el => setTokenCardRef(el, token.id)"
+                    :token="token" :is-batch-checking="isRefreshing" :is-highlighted="highlightedTokenId === token.id"
+                    :is-selected="selectedTokenIds.has(token.id)" :selection-mode="isSelectionMode"
+                    :is-selected-refreshing="isBatchRefreshing"
+                    :cached-payment-link="paymentLinksCache.get(token.id)"
+                    :all-tokens="tokens"
+                    :show-real-email="showRealEmail"
+                    @delete="deleteToken" @edit="handleEditToken" @token-updated="handleTokenUpdated"
+                    @select="toggleTokenSelection" @payment-link-fetched="cachePaymentLink" />
+                </div>
 
-              <!-- 列表布局 -->
-              <div v-else class="token-table-wrapper">
-                <table class="token-table">
-                  <thead>
-                    <tr>
-                      <th class="th-checkbox">
-                        <div class="header-checkbox" @click="toggleSelectAll">
-                          <div
-                            class="checkbox-inner"
-                            :class="{
-                              'checked': isAllSelected,
-                              'indeterminate': isPartialSelected
-                            }"
-                          >
-                            <svg v-if="isAllSelected" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
-                            </svg>
-                            <svg v-else-if="isPartialSelected" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M19 13H5v-2h14v2z"/>
-                            </svg>
+                <!-- 列表布局 -->
+                <div v-else class="token-table-wrapper">
+                  <table class="token-table">
+                    <thead>
+                      <tr>
+                        <th class="th-checkbox">
+                          <div class="header-checkbox" @click="toggleSelectAll">
+                            <div
+                              class="checkbox-inner"
+                              :class="{
+                                'checked': isAllSelected,
+                                'indeterminate': isPartialSelected
+                              }"
+                            >
+                              <svg v-if="isAllSelected" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                              </svg>
+                              <svg v-else-if="isPartialSelected" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19 13H5v-2h14v2z"/>
+                              </svg>
+                            </div>
                           </div>
-                        </div>
-                      </th>
-                      <th class="th-tag">{{ $t('tokenList.tableHeaderTag') }}</th>
-                      <th class="th-status">{{ $t('tokenList.tableHeaderStatus') }}</th>
-                      <th class="th-email">{{ $t('tokenList.tableHeaderEmail') }}</th>
-                      <th class="th-balance">{{ $t('tokenList.tableHeaderBalance') }}</th>
-                      <th class="th-dates">{{ $t('tokenList.tableHeaderDates') }}</th>
-                      <th class="th-actions">{{ $t('tokenList.tableHeaderActions') }}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <TokenTableRow
-                      v-for="token in paginatedTokens"
-                      :key="token.id"
-                      :ref="el => setTokenCardRef(el, token.id)"
-                      :token="token"
-                      :is-batch-checking="isRefreshing"
-                      :is-highlighted="highlightedTokenId === token.id"
-                      :is-selected="selectedTokenIds.has(token.id)"
-                      :selection-mode="isSelectionMode"
-                      :is-selected-refreshing="isBatchRefreshing"
-                      :cached-payment-link="paymentLinksCache.get(token.id)"
-                      :all-tokens="tokens"
-                      :show-real-email="showRealEmail"
-                      @delete="deleteToken"
-                      @edit="handleEditToken"
-                      @token-updated="handleTokenUpdated"
-                      @select="toggleTokenSelection"
-                      @payment-link-fetched="cachePaymentLink"
-                      @open-editor="handleOpenEditor"
-                      @open-portal="handleOpenPortal"
-                      @edit-tag="handleEditTag"
-                    />
-                  </tbody>
-                </table>
+                        </th>
+                        <th class="th-tag">{{ $t('tokenList.tableHeaderTag') }}</th>
+                        <th class="th-status">{{ $t('tokenList.tableHeaderStatus') }}</th>
+                        <th class="th-email">{{ $t('tokenList.tableHeaderEmail') }}</th>
+                        <th class="th-balance">{{ $t('tokenList.tableHeaderBalance') }}</th>
+                        <th class="th-dates">{{ $t('tokenList.tableHeaderDates') }}</th>
+                        <th class="th-actions">{{ $t('tokenList.tableHeaderActions') }}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <TokenTableRow
+                        v-for="token in paginatedTokens"
+                        :key="token.id"
+                        :ref="el => setTokenCardRef(el, token.id)"
+                        :token="token"
+                        :is-batch-checking="isRefreshing"
+                        :is-highlighted="highlightedTokenId === token.id"
+                        :is-selected="selectedTokenIds.has(token.id)"
+                        :selection-mode="isSelectionMode"
+                        :is-selected-refreshing="isBatchRefreshing"
+                        :cached-payment-link="paymentLinksCache.get(token.id)"
+                        :all-tokens="tokens"
+                        :show-real-email="showRealEmail"
+                        @delete="deleteToken"
+                        @edit="handleEditToken"
+                        @token-updated="handleTokenUpdated"
+                        @select="toggleTokenSelection"
+                        @payment-link-fetched="cachePaymentLink"
+                        @open-editor="handleOpenEditor"
+                        @open-portal="handleOpenPortal"
+                        @edit-tag="handleEditTag"
+                      />
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
-              <!-- 分页组件 -->
+              <!-- 分页组件 - 固定在底部 -->
               <Pagination
                 v-if="filteredTokens.length > 0"
                 :current-page="currentPage"
@@ -4805,6 +4808,7 @@ defineExpose({
   position: relative;
   z-index: 100;
   margin-bottom: 16px;
+  flex-shrink: 0;
 }
 
 .toolbar-left {
@@ -5732,6 +5736,7 @@ defineExpose({
   height: 100%;
   width: 100%;
   overflow: hidden;
+  min-height: 0;
 }
 
 .page-container {
@@ -5741,6 +5746,8 @@ defineExpose({
   flex-direction: column;
   height: 100%;
   width: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .token-list-page .page-content {
@@ -5755,11 +5762,19 @@ defineExpose({
   box-shadow: none;
   background: transparent;
   border: none;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+  flex: 1;
 }
 
 .token-list-page .page-container {
   position: static;
   background: transparent;
+  min-height: 0;
+  overflow: hidden;
+  flex: 1;
 }
 
 .token-list-page .page-header {
@@ -5767,10 +5782,45 @@ defineExpose({
   border-bottom: 1px solid var(--border);
   padding: 16px 20px;
   border-radius: 0;
+  flex-shrink: 0;
 }
 
 .token-list-page .page-body {
   background: transparent;
-  padding: 16px 24px;
+  padding: 4px 12px;
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Token list wrapper with fixed pagination */
+.token-list-page .page-body > .token-list {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* 可滚动内容区域 */
+.token-list-page .token-content-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  padding-bottom: 8px;
+}
+
+/* 确保表格包装器在滚动容器内正常工作 */
+.token-list-page .token-content-scroll > .token-table-wrapper {
+  overflow-x: auto;
+  max-height: none;
+}
+
+/* 分页组件固定样式 */
+.token-list-page .token-list :deep(.pagination-container) {
+  flex-shrink: 0;
 }
 </style>
