@@ -7,6 +7,7 @@ use crate::platforms::augment::models::{
     CompleteUserInfo,
     CreditConsumptionResponse,
     CreditInfoResponse,
+    CreditsInfoResponse,
     ModelsResponse,
     PaymentMethodLinkResponse,
     PortalInfo,
@@ -307,12 +308,16 @@ pub async fn batch_check_account_status(
                 }
             }
 
-            // 3. 如果账号被封禁，尝试获取详细的用户信息
+            // 3. 如果账号被封禁，尝试获取详细的用户信息和额度信息
             let mut suspensions_info = None;
+            let mut banned_portal_info = None;
+            let mut banned_portal_error = None;
             if status_result.status == "SUSPENDED" {
-                // 如果有 auth_session,获取详细的封禁信息
+                // 如果有 auth_session,获取详细的封禁信息和额度信息
                 if let Some(ref session) = auth_session {
-                    println!("Account banned for {:?}, fetching detailed user info", token_id);
+                    println!("Account banned for {:?}, fetching detailed user info and credits", token_id);
+
+                    // 获取用户封禁信息
                     match get_user_info(session, &cache).await {
                         Ok(user_info) => {
                             println!("Successfully fetched user info for banned account {:?}", token_id);
@@ -330,6 +335,75 @@ pub async fn batch_check_account_status(
                             // 不影响主流程,只记录错误
                         }
                     }
+
+                    // 获取额度信息
+                    // 1. 检查缓存中是否有有效的 app_session
+                    let cached_app_session = {
+                        let cache_guard = cache.lock().unwrap();
+                        cache_guard.get(session).map(|c| c.app_session.clone())
+                    };
+
+                    // 2. 尝试使用缓存的 app_session 获取额度
+                    let app_session = if let Some(app_session) = cached_app_session {
+                        println!("Using cached app_session for banned account credits fetch");
+                        match get_credits_info(&app_session).await {
+                            Ok(credits) => {
+                                let credit_total = credits.usage_units_remaining + credits.usage_units_consumed_this_billing_cycle;
+                                banned_portal_info = Some(PortalInfo {
+                                    credits_balance: credits.usage_units_remaining,
+                                    credit_total: Some(credit_total),
+                                    expiry_date: None,
+                                });
+                                Some(app_session)
+                            }
+                            Err(e) => {
+                                println!("Cached app_session failed for credits: {}, will refresh", e);
+                                None
+                            }
+                        }
+                    } else {
+                        println!("No cached app_session found for banned account, will exchange auth_session");
+                        None
+                    };
+
+                    // 3. 如果缓存失败或不存在，交换新的 app_session
+                    if app_session.is_none() && banned_portal_info.is_none() {
+                        match exchange_auth_session_for_app_session(session).await {
+                            Ok(new_app_session) => {
+                                println!("Successfully exchanged auth_session for app_session for banned account {:?}", token_id);
+
+                                // 更新缓存
+                                {
+                                    let mut cache_guard = cache.lock().unwrap();
+                                    cache_guard.insert(session.clone(), crate::AppSessionCache {
+                                        app_session: new_app_session.clone(),
+                                        created_at: std::time::SystemTime::now(),
+                                    });
+                                }
+
+                                // 获取额度信息
+                                match get_credits_info(&new_app_session).await {
+                                    Ok(credits) => {
+                                        println!("Successfully fetched credits for banned account {:?}", token_id);
+                                        let credit_total = credits.usage_units_remaining + credits.usage_units_consumed_this_billing_cycle;
+                                        banned_portal_info = Some(PortalInfo {
+                                            credits_balance: credits.usage_units_remaining,
+                                            credit_total: Some(credit_total),
+                                            expiry_date: None,
+                                        });
+                                    }
+                                    Err(e) => {
+                                        println!("Failed to fetch credits for banned account {:?}: {}", token_id, e);
+                                        banned_portal_error = Some(format!("Failed to fetch credits: {}", e));
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                println!("Failed to exchange auth_session for banned account {:?}: {}", token_id, e);
+                                banned_portal_error = Some(format!("Failed to exchange auth_session: {}", e));
+                            }
+                        }
+                    }
                 }
 
                 return TokenStatusResult {
@@ -337,8 +411,8 @@ pub async fn batch_check_account_status(
                     access_token: token,
                     tenant_url,
                     status_result,
-                    portal_info: None,
-                    portal_error: None,
+                    portal_info: banned_portal_info,
+                    portal_error: banned_portal_error,
                     suspensions: suspensions_info,
                     email_note: None,  // 封禁账号不获取邮箱
                     portal_url: None,
@@ -1050,4 +1124,39 @@ pub async fn fetch_team_info(app_session: &str) -> Result<serde_json::Value, Str
         .json::<serde_json::Value>()
         .await
         .map_err(|e| format!("Failed to parse team info response: {}", e))
+}
+
+/// 获取额度信息 (使用 app_session)
+pub async fn get_credits_info(app_session: &str) -> Result<CreditsInfoResponse, String> {
+    let client = create_proxy_client()?;
+
+    println!("=== get_credits_info API Request ===");
+    println!("URL: https://app.augmentcode.com/api/credits");
+
+    let response = client
+        .get("https://app.augmentcode.com/api/credits")
+        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+        .header("Cookie", format!("_session={}", urlencoding::encode(app_session)))
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch credits info: {}", e))?;
+
+    let status_code = response.status().as_u16();
+    println!("Response Status: {}", status_code);
+
+    if !response.status().is_success() {
+        let error_body = response.text().await
+            .unwrap_or_else(|_| "Unknown error".to_string());
+        return Err(format!("API request failed with status {}: {}", status_code, error_body));
+    }
+
+    let response_body = response.text().await
+        .map_err(|e| format!("Failed to read response body: {}", e))?;
+
+    println!("Credits info response: {}", response_body);
+
+    let credits_info: CreditsInfoResponse = serde_json::from_str(&response_body)
+        .map_err(|e| format!("Failed to parse credits info response: {}", e))?;
+
+    Ok(credits_info)
 }

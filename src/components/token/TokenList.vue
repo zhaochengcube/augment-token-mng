@@ -3153,7 +3153,6 @@ const updateTokensFromResults = (results) => {
           }
           Object.assign(token.portal_info, newPortalInfo)
           hasChanges = true
-          console.log(`Updated token ${token.id} portal info:`, token.portal_info)
         }
       } else if (result.portal_error) {
         console.warn(`Failed to get portal info for token ${token.id}:`, result.portal_error)

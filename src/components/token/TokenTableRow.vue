@@ -433,8 +433,9 @@ const formattedSuspensions = computed(() => {
 const balanceClasses = computed(() => {
   const hasError = !props.token.portal_info
   const exhausted = (
-    props.token.ban_status === 'EXPIRED' ||
-    props.token.ban_status === 'SUSPENDED'
+    props.token.ban_status === 'EXPIRED'
+    // 移除 SUSPENDED 的判断，让封禁账号也能正常显示颜色
+    // || props.token.ban_status === 'SUSPENDED'
   )
 
   if (hasError || exhausted) {
@@ -450,8 +451,9 @@ const balanceDisplay = computed(() => {
 
   const status = props.token.ban_status
   if (status === 'EXPIRED') return t('tokenCard.expired')
-  if (status === 'SUSPENDED') return t('tokenCard.banned')
-  
+  // 封禁状态也显示额度信息（如果有的话）
+  // if (status === 'SUSPENDED') return t('tokenCard.banned')
+
   const credits = props.token.portal_info.credits_balance
   return credits !== undefined ? credits : '-'
 })

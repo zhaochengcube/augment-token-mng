@@ -41,3 +41,18 @@ pub struct CreditInfoResponse {
     pub usage_units_total: f64,
     pub current_billing_cycle_end_date_iso: String,
 }
+
+// /api/credits API 响应结构体
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreditsInfoResponse {
+    #[serde(rename = "usageUnitsAvailable")]
+    pub usage_units_available: i32,
+    #[serde(rename = "usageUnitsPending")]
+    pub usage_units_pending: i32,
+    #[serde(rename = "usageUnitsRemaining")]
+    pub usage_units_remaining: i32,
+    #[serde(rename = "usageUnitsConsumedThisBillingCycle")]
+    pub usage_units_consumed_this_billing_cycle: i32,
+    #[serde(rename = "usageBalanceStatus")]
+    pub usage_balance_status: String,
+}

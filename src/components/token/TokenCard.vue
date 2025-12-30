@@ -73,7 +73,7 @@
           </div>
 
           <!-- 第三行：余额进度条 -->
-          <template v-if="(token.portal_url || portalInfo.data) && !isBannedOrExpired">
+          <template v-if="token.portal_url || portalInfo.data">
             <div class="meta-row portal-row">
               <!-- 余额进度条显示 (可点击查看详情) -->
               <div
@@ -649,8 +649,9 @@ const balanceClasses = computed(() => {
   // 网络错误或账号异常状态显示红色
   const hasError = portalInfo.value?.error
   const exhausted = (
-    props.token.ban_status === 'EXPIRED' ||
-    props.token.ban_status === 'SUSPENDED'
+    props.token.ban_status === 'EXPIRED'
+    // 移除 SUSPENDED 的判断，让封禁账号也能正常显示颜色
+    // || props.token.ban_status === 'SUSPENDED'
   )
 
   // 如果是异常状态或网络错误（红色），不应用颜色模式
@@ -677,7 +678,8 @@ const isBannedOrExpired = computed(() => {
 const showProgressBar = computed(() => {
   if (!portalInfo.value?.data) return false
   const status = props.token.ban_status
-  if (status === 'EXPIRED' || status === 'SUSPENDED') return false
+  // 只有过期状态不显示进度条，封禁状态也显示进度条
+  if (status === 'EXPIRED') return false
 
   const balance = portalInfo.value.data.credits_balance
   const total = portalInfo.value.data.credit_total
@@ -712,7 +714,8 @@ const balanceDisplay = computed(() => {
 
   const status = props.token.ban_status
   if (status === 'EXPIRED') return t('tokenCard.expired')
-  if (status === 'SUSPENDED') return t('tokenCard.banned')
+  // 封禁状态也显示额度信息（如果有的话）
+  // if (status === 'SUSPENDED') return t('tokenCard.banned')
 
   const balance = portalInfo.value.data.credits_balance
   const total = portalInfo.value.data.credit_total
