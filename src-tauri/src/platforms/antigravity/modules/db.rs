@@ -67,6 +67,7 @@ pub fn inject_token(
     )
     .map_err(|e| format!("Failed to write data: {}", e))?;
 
+
     // 8. 注入 Onboarding 标记
     conn.execute(
         "INSERT OR REPLACE INTO ItemTable (key, value) VALUES (?, ?)",
@@ -84,4 +85,3 @@ pub fn check_db_exists() -> bool {
         Err(_) => false,
     }
 }
-

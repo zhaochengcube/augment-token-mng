@@ -11,39 +11,41 @@
       </div>
     </td>
 
-    <!-- 邮箱 -->
-    <td class="cell-email">
-      <div class="email-wrapper" @click.stop="copyEmail" :title="account.email">
-        <span class="email-text">{{ showRealEmail ? account.email : maskedEmail }}</span>
+    <!-- 账号信息 -->
+    <td class="cell-info">
+      <div class="info-wrapper">
+        <div class="status-row">
+          <span :class="['status-badge', statusClass]">
+            <span :class="['status-dot', statusClass]"></span>
+            {{ statusLabel }}
+          </span>
+          <span :class="['tier-badge', `tier-${subscriptionTier.class}`]">{{ subscriptionTier.label }}</span>
+        </div>
+        <div class="email-wrapper" @click.stop="copyEmail" v-tooltip="account.email">
+          <span class="email-text">{{ showRealEmail ? account.email : maskedEmail }}</span>
+        </div>
+        <div class="dates-wrapper">
+          <span class="created-date" v-tooltip="$t('platform.antigravity.createdAt') + ': ' + formatDate(account.created_at)">C: {{ formatDate(account.created_at) }}</span>
+          <span v-if="account.quota?.last_updated" class="created-date" v-tooltip="$t('platform.antigravity.quotaRefreshedAt') + ': ' + formatDate(account.quota.last_updated)">R: {{ formatDate(account.quota.last_updated) }}</span>
+        </div>
       </div>
-    </td>
-
-    <!-- 状态 -->
-    <td class="cell-status">
-      <span v-if="isCurrent" class="status-badge current">
-        {{ $t('platform.antigravity.status.current') }}
-      </span>
-      <span v-else-if="account.quota?.is_forbidden" class="status-badge forbidden">
-        {{ $t('platform.antigravity.status.forbidden') }}
-      </span>
-      <span v-else-if="isAvailable" class="status-badge available">
-        {{ $t('platform.antigravity.status.available') }}
-      </span>
-      <span v-else class="status-badge low">
-        {{ $t('platform.antigravity.status.low') }}
-      </span>
     </td>
 
     <!-- 配额 -->
     <td class="cell-quota">
       <div v-if="account.quota && !account.quota.is_forbidden && filteredModels.length > 0" class="quota-wrapper">
-        <div v-for="model in filteredModels" :key="model.name" class="quota-item">
-          <span class="model-name">{{ formatModelName(model.name) }}</span>
-          <div class="quota-bar-wrapper">
+        <div v-for="(row, rowIndex) in quotaRows" :key="rowIndex" class="quota-row">
+          <div v-for="model in row" :key="model.name" class="quota-item">
             <div class="quota-bar">
               <div class="quota-fill" :class="getQuotaClass(model.percentage)" :style="{ width: `${model.percentage}%` }"></div>
+              <div class="quota-overlay">
+                <span class="model-label">{{ formatModelName(model.name) }}</span>
+                <span class="model-time">{{ formatResetCountdown(model.reset_time) }}</span>
+                <span :class="['model-percent', getQuotaClass(model.percentage)]">
+                  {{ model.percentage }}%
+                </span>
+              </div>
             </div>
-            <span class="quota-percentage">{{ model.percentage }}%</span>
           </div>
         </div>
       </div>
@@ -51,27 +53,19 @@
       <span v-else class="no-quota">-</span>
     </td>
 
-    <!-- 日期 -->
-    <td class="cell-dates">
-      <div class="dates-wrapper">
-        <span class="date-text created">C: {{ formatDate(account.created_at) }}</span>
-        <span class="date-text used">U: {{ formatDate(account.last_used) }}</span>
-      </div>
-    </td>
-
     <!-- 操作 -->
     <td class="cell-actions">
       <div class="actions-wrapper">
         <!-- 切换账号 -->
-        <button v-if="!isCurrent" @click.stop="$emit('switch', account.id)" class="btn-icon switch" :disabled="isSwitching" :title="$t('platform.antigravity.actions.switch')">
+        <button v-if="!isCurrent" @click.stop="$emit('switch', account.id)" class="btn-icon switch" :disabled="isSwitching" v-tooltip="$t('platform.antigravity.actions.switch')">
           <svg v-if="!isSwitching" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" />
+            <path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z" />
           </svg>
           <div v-else class="loading-spinner-small"></div>
         </button>
 
         <!-- 刷新配额 -->
-        <button @click.stop="$emit('refresh', account.id)" class="btn-icon refresh" :disabled="isRefreshing" :title="$t('platform.antigravity.actions.refresh')">
+        <button @click.stop="$emit('refresh', account.id)" class="btn-icon refresh" :disabled="isRefreshing" v-tooltip="$t('platform.antigravity.actions.refresh')">
           <svg v-if="!isRefreshing" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
             <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
           </svg>
@@ -79,12 +73,15 @@
         </button>
 
         <!-- 删除 -->
-        <button @click.stop="$emit('delete', account.id)" class="btn-icon delete" :title="$t('platform.antigravity.actions.delete')">
+        <button @click.stop="$emit('delete', account.id)" class="btn-icon delete" v-tooltip="$t('platform.antigravity.actions.delete')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
             <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
           </svg>
         </button>
       </div>
+      <button class="view-all-models" @click.stop="$emit('view-models', account)">
+        {{ $t('platform.antigravity.viewAllModels') }}
+      </button>
     </td>
   </tr>
 </template>
@@ -126,7 +123,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['switch', 'refresh', 'delete', 'select'])
+const emit = defineEmits(['switch', 'refresh', 'delete', 'select', 'view-models'])
 
 const maskedEmail = computed(() => {
   const email = props.account.email
@@ -141,7 +138,9 @@ const filteredModels = computed(() => {
   const targetModels = [
     'gemini-3-pro-high',
     'gemini-3-pro-image',
+    'gemini-3-flash',
     'claude-sonnet-4-5',
+    'claude-sonnet-4-5-thinking',
     'claude-opus-4-5-thinking'
   ]
 
@@ -158,6 +157,15 @@ const filteredModels = computed(() => {
     })
 })
 
+const quotaRows = computed(() => {
+  const rows = []
+  const models = filteredModels.value
+  for (let i = 0; i < models.length; i += 2) {
+    rows.push(models.slice(i, i + 2))
+  }
+  return rows
+})
+
 const isAvailable = computed(() => {
   if (!props.account.quota || props.account.quota.is_forbidden) return false
   const gemini = props.account.quota.models.find(m => m.name.toLowerCase().includes('gemini'))?.percentage || 0
@@ -165,12 +173,42 @@ const isAvailable = computed(() => {
   return gemini >= 20 && claude >= 20
 })
 
+const statusClass = computed(() => {
+  if (props.isCurrent) return 'current'
+  if (props.account.quota?.is_forbidden) return 'forbidden'
+  if (isAvailable.value) return 'available'
+  return 'low'
+})
+
+const statusLabel = computed(() => {
+  if (props.isCurrent) return $t('platform.antigravity.status.current')
+  if (props.account.quota?.is_forbidden) return $t('platform.antigravity.status.forbidden')
+  if (isAvailable.value) return $t('platform.antigravity.status.available')
+  return $t('platform.antigravity.status.low')
+})
+
+const subscriptionTier = computed(() => {
+  const tier = props.account.quota?.subscription_tier
+  if (!tier) {
+    return { label: 'Free', class: 'free' }
+  }
+  const lowerTier = tier.toLowerCase()
+  if (lowerTier.includes('ultra')) {
+    return { label: 'Ultra', class: 'ultra' }
+  }
+  if (tier === 'g1-pro-tier') {
+    return { label: 'Pro', class: 'pro' }
+  }
+  return { label: 'Free', class: 'free' }
+})
+
 const copyEmail = async () => {
   try {
     await navigator.clipboard.writeText(props.account.email)
-    // 可以添加复制成功提示
+    window.$notify?.success($t('messages.copySuccess'))
   } catch (err) {
     console.error('Failed to copy email:', err)
+    window.$notify?.error($t('messages.copyFailed'))
   }
 }
 
@@ -188,6 +226,7 @@ const formatModelName = (name) => {
   // Gemini 模型
   if (lowerName.includes('gemini-3-pro-high')) return 'Gemini 3 Pro (High)'
   if (lowerName.includes('gemini-3-pro-image')) return 'Gemini 3 Pro (Image)'
+  if (lowerName.includes('gemini-3-flash')) return 'Gemini 3 Flash'
   if (lowerName.includes('gemini-3-pro')) return 'Gemini 3 Pro'
   if (lowerName.includes('gemini')) return 'Gemini'
 
@@ -201,18 +240,39 @@ const getQuotaClass = (percentage) => {
   return 'low'
 }
 
+const parseResetTime = (timeStr) => {
+  if (!timeStr) return null
+  const normalized = /Z$|[+-]\d{2}:\d{2}$/.test(timeStr) ? timeStr : `${timeStr}Z`
+  const target = new Date(normalized).getTime()
+  return Number.isNaN(target) ? null : target
+}
+
+const formatResetCountdown = (timeStr) => {
+  const target = parseResetTime(timeStr)
+  if (!target) return '--:--'
+
+  const diffMs = Math.max(0, target - Date.now())
+  const days = Math.floor(diffMs / 86400000)
+  const hours = Math.floor((diffMs % 86400000) / 3600000)
+  const minutes = Math.floor((diffMs % 3600000) / 60000)
+
+  if (days > 0) {
+    return `R: ${days}d ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m`
+  }
+
+  return `R: ${hours}h ${String(minutes).padStart(2, '0')}m`
+}
+
 const formatDate = (timestamp) => {
   if (!timestamp) return '-'
   const date = new Date(timestamp * 1000)
-  const now = new Date()
-  const diff = now - date
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-
-  if (days === 0) return $t('common.today')
-  if (days === 1) return $t('common.yesterday')
-  if (days < 7) return $t('common.daysAgo', { days })
-
-  return date.toLocaleDateString()
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 }
 
 const toggleSelection = () => {
@@ -248,7 +308,7 @@ const handleRowClick = () => {
 .account-table-row td {
   padding: 14px 10px;
   border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
-  vertical-align: middle;
+  vertical-align: top;
   white-space: nowrap;
   background: inherit;
   font-size: 13px;
@@ -290,6 +350,14 @@ const handleRowClick = () => {
   text-align: center;
 }
 
+.cell-info {
+  min-width: 220px;
+}
+
+.cell-quota {
+  min-width: 360px;
+}
+
 .checkbox-wrapper {
   display: inline-flex;
   cursor: pointer;
@@ -324,65 +392,142 @@ const handleRowClick = () => {
 }
 
 /* 配额 */
+.info-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.info-wrapper .status-badge {
+  align-self: center;
+  padding: 2px 8px;
+  font-size: 10px;
+}
+
+.tier-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+  line-height: 1;
+  border: 1px solid transparent;
+}
+
+.tier-free {
+  color: #94a3b8;
+  border-color: rgba(148, 163, 184, 0.45);
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.tier-pro {
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.5);
+  background: rgba(56, 189, 248, 0.12);
+}
+
+.tier-ultra {
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.5);
+  background: rgba(251, 191, 36, 0.12);
+}
+
 .quota-wrapper {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
+.quota-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
 .quota-item {
   display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.model-name {
-  min-width: 60px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-.quota-bar-wrapper {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  width: 100%;
 }
 
 .quota-bar {
-  flex: 1;
-  height: 6px;
-  background: var(--bg-hover);
-  border-radius: 3px;
+  position: relative;
+  width: 100%;
+  height: 24px;
+  background: color-mix(in srgb, var(--bg-muted) 75%, transparent);
+  border-radius: 10px;
   overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
 }
 
 .quota-fill {
   height: 100%;
-  border-radius: 3px;
+  border-radius: 10px;
   transition: width 0.3s;
+  opacity: 0.95;
+  position: relative;
+  z-index: 1;
 }
 
-.quota-fill.high {
-  background: linear-gradient(90deg, #22c55e, #16a34a);
-}
+.quota-fill.high { background: rgba(16, 185, 129, 0.45); }
+.quota-fill.medium { background: linear-gradient(90deg, #f59e0b, #d97706); }
+.quota-fill.low { background: linear-gradient(90deg, #ef4444, #dc2626); }
 
-.quota-fill.medium {
-  background: linear-gradient(90deg, #fb923c, #f97316);
-}
-
-.quota-fill.low {
-  background: linear-gradient(90deg, #ef4444, #dc2626);
-}
-
-.quota-percentage {
-  min-width: 40px;
-  font-size: 12px;
+.quota-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  gap: 8px;
+  color: var(--text-strong, #0f172a);
+  font-size: 11px;
   font-weight: 600;
-  font-family: 'Monaco', 'Courier New', monospace;
-  color: var(--text);
-  text-align: right;
+  z-index: 2;
+  text-shadow: none;
+}
+
+.model-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-time {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary, #4b5563);
+}
+
+.model-percent {
+  font-variant-numeric: tabular-nums;
+}
+
+.model-percent.high { color: #10b981; }
+.model-percent.medium { color: #f59e0b; }
+.model-percent.low { color: #ef4444; }
+
+:global([data-theme='dark']) .quota-overlay {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+:global([data-theme='dark']) .model-time {
+  color: var(--text-secondary, #cbd5e1);
+}
+
+:global(:root:not([data-theme='dark'])) .quota-bar {
+  background: color-mix(in srgb, var(--bg-muted) 90%, white);
+  border-color: var(--border);
 }
 
 .no-quota {
@@ -397,14 +542,11 @@ const handleRowClick = () => {
   gap: 4px;
 }
 
-.date-text {
+.created-date {
   font-size: 11px;
-  color: var(--text-secondary);
-  font-family: 'Monaco', 'Courier New', monospace;
-}
-
-.date-text.created {
-  color: var(--text-soft);
+  color: var(--text-muted);
+  font-family: var(--tech-mono-font);
+  opacity: 0.7;
 }
 
 /* 操作按钮 */
@@ -414,9 +556,24 @@ const handleRowClick = () => {
   gap: 5px;
 }
 
+.view-all-models {
+  margin-top: 6px;
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 0;
+  cursor: pointer;
+}
+
+.view-all-models:hover {
+  color: color-mix(in srgb, var(--accent) 85%, white);
+}
+
 .btn-icon {
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   padding: 0;
 }
 

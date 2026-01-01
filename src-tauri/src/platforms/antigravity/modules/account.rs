@@ -30,8 +30,7 @@ pub async fn add_account(
     account.name = user_info.get_display_name();
     
     // 5. 保存账号
-    storage::save_account(app_handle, &account)?;
-    storage::upsert_account_summary(app_handle, &account)?;
+    storage::save_account(app_handle, &account).await?;
     
     Ok(account)
 }
@@ -41,44 +40,27 @@ pub async fn delete_account(
     app_handle: &tauri::AppHandle,
     account_id: String,
 ) -> Result<(), String> {
-    let mut index = storage::load_account_index(app_handle)?;
-    
-    // 从索引中移除
-    let original_len = index.accounts.len();
-    index.accounts.retain(|s| s.id != account_id);
-    
-    if index.accounts.len() == original_len {
+    let deleted = storage::delete_account(app_handle, &account_id).await?;
+    if !deleted {
         return Err(format!("Account not found: {}", account_id));
     }
-    
-    // 如果是当前账号，清除当前账号
-    if index.current_account_id.as_deref() == Some(&account_id) {
-        index.current_account_id = index.accounts.first().map(|s| s.id.clone());
-    }
-    
-    storage::save_account_index(app_handle, &index)?;
-    
-    // 删除账号文件
-    storage::delete_account_file(app_handle, &account_id)?;
-    
     Ok(())
 }
 
 /// 获取当前账号 ID
-pub fn get_current_account_id(app_handle: &tauri::AppHandle) -> Result<Option<String>, String> {
-    let index = storage::load_account_index(app_handle)?;
-    Ok(index.current_account_id)
+pub async fn get_current_account_id(app_handle: &tauri::AppHandle) -> Result<Option<String>, String> {
+    storage::get_current_account_id(app_handle).await
 }
 
 /// 更新账号配额
-pub fn update_account_quota(
+pub async fn update_account_quota(
     app_handle: &tauri::AppHandle,
     account_id: &str,
     quota: QuotaData,
 ) -> Result<(), String> {
-    let mut account = storage::load_account(app_handle, account_id)?;
+    let mut account = storage::load_account(app_handle, account_id).await?;
     account.update_quota(quota);
-    storage::save_account(app_handle, &account)
+    storage::save_account(app_handle, &account).await
 }
 
 /// 带有重试机制的配额查询
@@ -86,12 +68,28 @@ pub async fn fetch_quota_with_retry(
     app_handle: &tauri::AppHandle,
     account: &mut Account,
 ) -> Result<QuotaData, String> {
+    println!("=== fetch_quota_with_retry ===");
+    println!("account.email: {}", account.email);
+
     // 1. 基于时间的检查 - 先确保 Token 有效
-    let token = oauth::ensure_fresh_token(&account.token).await?;
-    
+    let token = match oauth::ensure_fresh_token(&account.token).await {
+        Ok(token) => token,
+        Err(e) => {
+            if e.contains("invalid_grant") {
+                account.disabled = true;
+                account.disabled_at = Some(chrono::Utc::now().timestamp());
+                account.disabled_reason = Some(format!("invalid_grant: {}", e));
+                let _ = storage::save_account(app_handle, account).await;
+            }
+            return Err(e);
+        }
+    };
+
     if token.access_token != account.token.access_token {
+        println!("Token refreshed, updating account");
         account.token = token.clone();
-        
+        account.updated_at = chrono::Utc::now().timestamp();
+
         // 重新获取用户名
         let name = if account.name.is_none() || account.name.as_ref().map_or(false, |n| n.trim().is_empty()) {
             match oauth::get_user_info(&token.access_token).await {
@@ -101,20 +99,47 @@ pub async fn fetch_quota_with_retry(
         } else {
             account.name.clone()
         };
-        
+
         account.name = name;
-        storage::save_account(app_handle, account)?;
+        storage::save_account(app_handle, account).await?;
     }
-    
+
+    if account.name.is_none() || account.name.as_ref().map_or(false, |n| n.trim().is_empty()) {
+        if let Ok(user_info) = oauth::get_user_info(&account.token.access_token).await {
+            account.name = user_info.get_display_name();
+            storage::save_account(app_handle, account).await?;
+        }
+    }
+
     // 2. 尝试查询
+    println!("Attempting to fetch quota...");
     let result = quota::fetch_quota(&account.token.access_token).await;
-    
+
+    if let Ok((ref _quota, ref project_id)) = result {
+        if project_id.is_some() && *project_id != account.token.project_id {
+            account.token.project_id = project_id.clone();
+            storage::save_account(app_handle, account).await?;
+        }
+    }
+
     // 3. 处理 401 错误
     if let Err(ref e) = result {
         if e.contains("401") {
+            println!("Got 401 error, forcing token refresh...");
             // 强制刷新
-            let token_res = oauth::refresh_access_token(&account.token.refresh_token).await?;
-            
+            let token_res = match oauth::refresh_access_token(&account.token.refresh_token).await {
+                Ok(token_res) => token_res,
+                Err(e) => {
+                    if e.contains("invalid_grant") {
+                        account.disabled = true;
+                        account.disabled_at = Some(chrono::Utc::now().timestamp());
+                        account.disabled_reason = Some(format!("invalid_grant: {}", e));
+                        let _ = storage::save_account(app_handle, account).await;
+                    }
+                    return Err(e);
+                }
+            };
+
             let new_token = TokenData::new(
                 token_res.access_token.clone(),
                 account.token.refresh_token.clone(),
@@ -123,15 +148,23 @@ pub async fn fetch_quota_with_retry(
                 account.token.project_id.clone(),
                 None,
             );
-            
+
             account.token = new_token.clone();
-            storage::save_account(app_handle, account)?;
-            
+            account.updated_at = chrono::Utc::now().timestamp();
+            storage::save_account(app_handle, account).await?;
+
             // 重试查询
-            return quota::fetch_quota(&new_token.access_token).await;
+            println!("Retrying quota fetch with new token...");
+            let retry_result = quota::fetch_quota(&new_token.access_token).await;
+            if let Ok((ref _quota, ref project_id)) = retry_result {
+                if project_id.is_some() && *project_id != account.token.project_id {
+                    account.token.project_id = project_id.clone();
+                    storage::save_account(app_handle, account).await?;
+                }
+            }
+            return retry_result.map(|(q, _)| q);
         }
     }
-    
-    result
-}
 
+    result.map(|(q, _)| q)
+}

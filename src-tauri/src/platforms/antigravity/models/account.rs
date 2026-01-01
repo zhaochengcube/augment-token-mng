@@ -9,8 +9,19 @@ pub struct Account {
     pub name: Option<String>,
     pub token: TokenData,
     pub quota: Option<QuotaData>,
+    #[serde(default)]
+    pub disabled: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub disabled_reason: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub disabled_at: Option<i64>,
     pub created_at: i64,
     pub last_used: i64,
+    pub updated_at: i64,
+    #[serde(default)]
+    pub version: i64,
+    #[serde(default)]
+    pub deleted: bool,
 }
 
 impl Account {
@@ -22,17 +33,25 @@ impl Account {
             name: None,
             token,
             quota: None,
+            disabled: false,
+            disabled_reason: None,
+            disabled_at: None,
             created_at: now,
             last_used: now,
+            updated_at: now,
+            version: 0,
+            deleted: false,
         }
     }
 
     pub fn update_last_used(&mut self) {
         self.last_used = chrono::Utc::now().timestamp();
+        self.updated_at = self.last_used;
     }
 
     pub fn update_quota(&mut self, quota: QuotaData) {
         self.quota = Some(quota);
+        self.updated_at = chrono::Utc::now().timestamp();
     }
 }
 
@@ -69,4 +88,3 @@ impl Default for AccountIndex {
         Self::new()
     }
 }
-

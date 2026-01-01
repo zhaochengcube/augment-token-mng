@@ -879,8 +879,20 @@ export default {
       refreshing: '刷新中...',
       delete: '删除',
       lastUsed: '最后使用',
+      createdAt: '创建时间',
+      quotaRefreshedAt: '配额刷新时间',
       noAccounts: '暂无账号',
       noAccountsHint: '点击"添加账号"按钮开始',
+      viewAllModels: '查看全部模型',
+      modelsModalTitle: '全部模型',
+      lastUpdated: '刷新时间',
+      viewSyncQueueTooltip: '点击查看待同步队列',
+      syncQueueTitle: '同步队列',
+      syncQueueUpsertsTitle: '待更新',
+      syncQueueDeletionsTitle: '待删除',
+      syncQueueEmpty: '暂无待同步内容',
+      fullSync: '全部同步',
+      sync: '同步',
       quotaForbidden: '无权限访问配额',
       noQuotaData: '暂无配额数据',
       searchPlaceholder: '搜索邮箱...',
@@ -899,10 +911,8 @@ export default {
         forbidden: '已禁用'
       },
       table: {
-        email: '邮箱',
-        status: '状态',
+        info: '账号信息',
         quota: '配额',
-        dates: '日期',
         actions: '操作'
       },
       actions: {
@@ -937,6 +947,7 @@ export default {
         batchDeleteConfirm: '确定要删除选中的 {count} 个账号吗？',
         noSelection: '请先选择要操作的账号'
       },
+      allAccountsMarkedForSync: '已将 {count} 个账号标记为待同步',
       quota: {
         gemini: 'Gemini',
         claude: 'Claude',

@@ -1,13 +1,17 @@
 <template>
   <div class="antigravity-manager">
     <div class="page-container">
-      <div class="page-content antigravity-manager-content" @click.stop>
+      <div class="page-content antigravity-manager-content" @click.stop="handlePageContentClick">
         <!-- Header -->
         <div class="page-header">
           <!-- 左侧：状态徽章 -->
-          <div class="status-badge active">
-            <span class="status-dot active"></span>
-            <span class="status-text">{{ $t('storage.localStorage') }}</span>
+          <div
+            :class="['status-badge', storageStatusClass, { clickable: isDatabaseAvailable }]"
+            v-tooltip="isDatabaseAvailable ? $t('platform.antigravity.viewSyncQueueTooltip') : ''"
+            @click="isDatabaseAvailable && openSyncQueue()"
+          >
+            <span class="status-dot" :class="storageStatusClass"></span>
+            <span class="status-text">{{ storageStatusText }}</span>
           </div>
 
           <!-- 中间：搜索框 -->
@@ -16,7 +20,7 @@
               <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
             </svg>
             <input type="text" v-model="searchQuery" :placeholder="$t('platform.antigravity.searchPlaceholder')" class="search-input" />
-            <button v-if="searchQuery.trim()" @click="searchQuery = ''" class="modal-close clear-search-btn" :title="$t('common.clear')">
+            <button v-if="searchQuery.trim()" @click="searchQuery = ''" class="modal-close clear-search-btn" v-tooltip="$t('common.clear')">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
               </svg>
@@ -25,11 +29,11 @@
 
           <!-- 右侧：操作按钮 -->
           <div class="header-actions">
-            <button @click="refreshAllQuotas" class="btn primary small" :disabled="isRefreshing" :title="$t('platform.antigravity.refreshQuota')">
-              <svg v-if="!isRefreshing" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
+            <button v-if="isDatabaseAvailable" @click="handleSync" class="btn primary small" :disabled="isSyncing" v-tooltip="$t('tokenList.syncTooltip')">
+              <svg v-if="!isSyncing" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.41-.5 2.69-1.32 3.7l1.46 1.46C19.29 15.77 20 13.96 20 12c0-4.42-3.58-8-8-8zm-6.68 2.3L3.86 7.76C2.71 9.23 2 11.04 2 13c0 4.42 3.58 8 8 8v3l4-4-4-4v3c-3.31 0-6-2.69-6-6 0-1.41.5-2.69 1.32-3.7z" />
               </svg>
-              {{ isRefreshing ? $t('platform.antigravity.refreshing') : $t('platform.antigravity.refresh') }}
+              {{ isSyncing ? $t('tokenList.syncing') : $t('tokenList.sync') }}
             </button>
             <button @click="showAddDialog = true" class="btn primary small">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
@@ -138,8 +142,8 @@
 
                 <!-- 排序下拉菜单 -->
                 <div class="sort-dropdown">
-                  <button class="sort-btn" @click.stop="toggleSortMenu" :title="$t('common.sort')">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <button class="btn-icon" @click.stop="toggleSortMenu" v-tooltip="$t('common.sort')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
                       <path d="M7 16V6M4 9l3-3 3 3" />
                       <path d="M17 8v10M14 15l3 3 3-3" />
                     </svg>
@@ -205,11 +209,11 @@
                 </div>
 
                 <!-- 布局切换按钮 -->
-                <button class="btn-icon view-toggle-btn" @click="toggleViewMode" :title="viewMode === 'card' ? $t('common.switchToTable') : $t('common.switchToCard')" :class="{ 'active': viewMode === 'table' }">
-                  <svg v-if="viewMode === 'table'" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <button class="btn-icon view-toggle-btn" @click="toggleViewMode" v-tooltip="viewMode === 'card' ? $t('common.switchToTable') : $t('common.switchToCard')" :class="{ 'active': viewMode === 'table' }">
+                  <svg v-if="viewMode === 'table'" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M4 11h5V5H4v6zm0 7h5v-6H4v6zm6 0h5v-6h-5v6zm6 0h5v-6h-5v6zm-6-7h5V5h-5v6zm6-6v6h5V5h-5z" />
                   </svg>
-                  <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M3 14h4v-4H3v4zm0 5h4v-4H3v4zM3 9h4V5H3v4zm5 5h13v-4H8v4zm0 5h13v-4H8v4zM8 5v4h13V5H8z" />
                   </svg>
                 </button>
@@ -222,7 +226,7 @@
                   class="btn-icon email-visibility-btn"
                   @click="showRealEmail = !showRealEmail"
                   :class="{ 'active': showRealEmail }"
-                  :title="showRealEmail ? $t('tokenList.hideRealEmail') : $t('tokenList.showRealEmail')"
+                  v-tooltip="showRealEmail ? $t('tokenList.hideRealEmail') : $t('tokenList.showRealEmail')"
                 >
                   <svg v-if="showRealEmail" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
@@ -233,7 +237,7 @@
                 </button>
 
                 <!-- 刷新按钮 -->
-                <button class="btn-icon refresh-btn" @click="handleRefresh" :disabled="isRefreshing" :title="$t('common.refresh')">
+                <button class="btn-icon refresh-btn" @click="handleRefresh" :disabled="isRefreshing" v-tooltip="$t('platform.antigravity.refreshQuota')">
                   <svg v-if="!isRefreshing" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
                   </svg>
@@ -243,14 +247,14 @@
                 </button>
 
                 <!-- 打开文件夹按钮 -->
-                <button class="btn-icon open-folder-btn" @click="openDataFolder" :title="$t('common.openDataFolder')">
+                <button class="btn-icon open-folder-btn" @click="openDataFolder" v-tooltip="$t('common.openDataFolder')">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z" />
                   </svg>
                 </button>
 
                 <!-- 批量删除按钮 -->
-                <button class="btn-icon batch-delete-btn" @click="handleBatchDelete" :title="$t('common.batchDelete')">
+                <button class="btn-icon batch-delete-btn" @click="handleBatchDelete" v-tooltip="$t('common.batchDelete')">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
                   </svg>
@@ -267,43 +271,83 @@
             </div>
 
             <template v-else>
-              <!-- 卡片布局 -->
-              <div v-if="viewMode === 'card'" class="account-grid">
-                <AccountCard v-for="account in paginatedAccounts" :key="account.id" :account="account" :is-current="account.id === currentAccountId" :is-switching="switchingAccountId === account.id" :is-refreshing="refreshingIds.has(account.id)" :is-selected="selectedAccountIds.has(account.id)" :selection-mode="isSelectionMode" :show-real-email="showRealEmail" @switch="handleSwitch" @refresh="handleRefreshQuota" @delete="handleDelete" @select="toggleAccountSelection" />
-              </div>
+              <!-- 可滚动内容区域 -->
+              <div class="account-content-scroll">
+                <!-- 卡片布局 -->
+                <div v-if="viewMode === 'card'" class="account-grid">
+                  <AccountCard
+                    v-for="account in paginatedAccounts"
+                    :key="account.id"
+                    :account="account"
+                    :is-current="account.id === currentAccountId"
+                    :is-switching="switchingAccountId === account.id"
+                    :is-refreshing="refreshingIds.has(account.id)"
+                    :is-selected="selectedAccountIds.has(account.id)"
+                    :selection-mode="isSelectionMode"
+                    :show-real-email="showRealEmail"
+                    @switch="handleSwitch"
+                    @refresh="handleRefreshQuota"
+                    @delete="handleDelete"
+                    @select="toggleAccountSelection"
+                    @view-models="openModelsModal"
+                  />
+                </div>
 
-              <!-- 列表布局 -->
-              <div v-else class="account-table-wrapper">
-                <table class="account-table">
-                  <thead>
-                    <tr>
-                      <th class="th-checkbox">
-                        <div class="header-checkbox" @click="toggleSelectAll">
-                          <div class="checkbox-inner" :class="{ 'checked': isAllSelected, 'indeterminate': isPartialSelected }">
-                            <svg v-if="isAllSelected" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
-                            </svg>
-                            <svg v-else-if="isPartialSelected" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M19 13H5v-2h14v2z" />
-                            </svg>
+                <!-- 列表布局 -->
+                <div v-else class="account-table-wrapper">
+                  <table class="account-table">
+                    <thead>
+                      <tr>
+                        <th class="th-checkbox">
+                          <div class="header-checkbox" @click="toggleSelectAll">
+                            <div class="checkbox-inner" :class="{ 'checked': isAllSelected, 'indeterminate': isPartialSelected }">
+                              <svg v-if="isAllSelected" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                              </svg>
+                              <svg v-else-if="isPartialSelected" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19 13H5v-2h14v2z" />
+                              </svg>
+                            </div>
                           </div>
-                        </div>
-                      </th>
-                      <th class="th-email">{{ $t('platform.antigravity.table.email') }}</th>
-                      <th class="th-status">{{ $t('platform.antigravity.table.status') }}</th>
-                      <th class="th-quota">{{ $t('platform.antigravity.table.quota') }}</th>
-                      <th class="th-dates">{{ $t('platform.antigravity.table.dates') }}</th>
-                      <th class="th-actions">{{ $t('platform.antigravity.table.actions') }}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <AccountTableRow v-for="account in paginatedAccounts" :key="account.id" :account="account" :is-current="account.id === currentAccountId" :is-switching="switchingAccountId === account.id" :is-refreshing="refreshingIds.has(account.id)" :is-selected="selectedAccountIds.has(account.id)" :selection-mode="isSelectionMode" :show-real-email="showRealEmail" @switch="handleSwitch" @refresh="handleRefreshQuota" @delete="handleDelete" @select="toggleAccountSelection" />
-                  </tbody>
-                </table>
+                        </th>
+                        <th class="th-info">{{ $t('platform.antigravity.table.info') }}</th>
+                        <th class="th-quota">{{ $t('platform.antigravity.table.quota') }}</th>
+                        <th class="th-actions">{{ $t('platform.antigravity.table.actions') }}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <AccountTableRow
+                        v-for="account in paginatedAccounts"
+                        :key="account.id"
+                        :account="account"
+                        :is-current="account.id === currentAccountId"
+                        :is-switching="switchingAccountId === account.id"
+                        :is-refreshing="refreshingIds.has(account.id)"
+                        :is-selected="selectedAccountIds.has(account.id)"
+                        :selection-mode="isSelectionMode"
+                        :show-real-email="showRealEmail"
+                        @switch="handleSwitch"
+                        @refresh="handleRefreshQuota"
+                        @delete="handleDelete"
+                        @select="toggleAccountSelection"
+                        @view-models="openModelsModal"
+                      />
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
               <!-- 分页组件 -->
-              <Pagination v-if="filteredAccounts.length > 0" :current-page="currentPage" :total-pages="totalPages" :total-items="filteredAccounts.length" :page-size="pageSize" :page-size-options="pageSizeOptions" @update:current-page="handlePageChange" @update:page-size="changePageSize" />
+              <Pagination
+                v-if="filteredAccounts.length > 0"
+                :current-page="currentPage"
+                :total-pages="totalPages"
+                :total-items="filteredAccounts.length"
+                :page-size="pageSize"
+                :page-size-options="pageSizeOptions"
+                @update:current-page="handlePageChange"
+                @update:page-size="changePageSize"
+              />
             </template>
           </div>
         </div>
@@ -321,19 +365,19 @@
             </div>
 
             <div class="batch-actions">
-              <button @click="batchRefreshSelected" class="btn-icon" :disabled="isBatchRefreshing" :title="$t('platform.antigravity.batchRefresh')">
+              <button @click="batchRefreshSelected" class="btn-icon" :disabled="isBatchRefreshing" v-tooltip="$t('platform.antigravity.batchRefresh')">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
                 </svg>
               </button>
 
-              <button @click="showBatchDeleteSelectedConfirm" class="btn-icon danger" :title="$t('common.batchDelete')">
+              <button @click="showBatchDeleteSelectedConfirm" class="btn-icon danger" v-tooltip="$t('common.batchDelete')">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
                 </svg>
               </button>
 
-              <button @click="clearSelection" class="btn-icon close" :title="$t('common.cancelSelection')">
+              <button @click="clearSelection" class="btn-icon close" v-tooltip="$t('common.cancelSelection')">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
                 </svg>
@@ -345,7 +389,24 @@
     </Teleport>
 
     <!-- Add Account Dialog -->
-    <AddAccountDialog v-if="showAddDialog" @close="showAddDialog = false" @add="handleAddAccount" @refresh="handleRefreshAfterAdd" />
+    <AddAccountDialog v-if="showAddDialog" @close="showAddDialog = false" @add="handleAddAccount" @added="handleAccountAdded" />
+    <ModelsModal
+      v-if="showModelsModal"
+      :visible="showModelsModal"
+      :account="activeModelsAccount"
+      :refreshing="activeModelsAccount ? refreshingIds.has(activeModelsAccount.id) : false"
+      @close="closeModelsModal"
+      @refresh="refreshModelsModal"
+    />
+    <SyncQueueModal
+      v-model:visible="showSyncQueueModal"
+      :pending-upserts="pendingUpsertsList"
+      :pending-deletions="pendingDeletionsList"
+      :syncing="isSyncing"
+      :total-accounts-count="accounts.length"
+      @sync="handleSync"
+      @mark-all-for-sync="handleMarkAllForSync"
+    />
   </div>
 </template>
 
@@ -356,6 +417,8 @@ import { useI18n } from 'vue-i18n'
 import AccountCard from '../antigravity/AccountCard.vue'
 import AccountTableRow from '../antigravity/AccountTableRow.vue'
 import AddAccountDialog from '../antigravity/AddAccountDialog.vue'
+import ModelsModal from '../antigravity/ModelsModal.vue'
+import SyncQueueModal from '../antigravity/SyncQueueModal.vue'
 import Pagination from '../common/Pagination.vue'
 
 const { t: $t } = useI18n()
@@ -368,6 +431,27 @@ const isLoading = ref(false)
 const isRefreshing = ref(false)
 const switchingAccountId = ref(null)
 const refreshingIds = ref(new Set())
+const isDatabaseAvailable = ref(false)
+const isStorageInitializing = ref(false)
+const isSyncing = ref(false)
+const isSyncNeeded = ref(false)
+const isLoadingFromSync = ref(false)
+const storageType = ref('antigravity_local_only')
+const showModelsModal = ref(false)
+const activeModelsAccount = ref(null)
+const showSyncQueueModal = ref(false)
+
+const STORAGE_KEY_LAST_VERSION = 'atm-antigravity-sync-last-version'
+const STORAGE_KEY_PENDING_UPSERTS = 'atm-antigravity-sync-pending-upserts'
+const STORAGE_KEY_PENDING_DELETIONS = 'atm-antigravity-sync-pending-deletions'
+
+const lastVersion = ref(0)
+const pendingUpserts = ref(new Map())
+const pendingDeletions = ref(new Map())
+
+const hasPendingChanges = computed(() => pendingUpserts.value.size > 0 || pendingDeletions.value.size > 0)
+const pendingUpsertsList = computed(() => Array.from(pendingUpserts.value.values()))
+const pendingDeletionsList = computed(() => Array.from(pendingDeletions.value.values()))
 
 // 搜索和筛选
 const searchQuery = ref('')
@@ -423,6 +507,32 @@ const statusStatistics = computed(() => {
   return stats
 })
 
+const storageStatusText = computed(() => {
+  if (isStorageInitializing.value) {
+    return $t('storage.initializing')
+  }
+
+  if (storageType.value === 'antigravity_dual_storage') {
+    return hasPendingChanges.value
+      ? `${$t('storage.dualStorage')}-${$t('storage.notSynced')}`
+      : $t('storage.dualStorage')
+  }
+
+  return $t('storage.localStorage')
+})
+
+const storageStatusClass = computed(() => {
+  if (isStorageInitializing.value) {
+    return 'initializing'
+  }
+
+  if (isDatabaseAvailable.value && hasPendingChanges.value) {
+    return 'unsaved'
+  }
+
+  return 'saved'
+})
+
 const filteredAccounts = computed(() => {
   let result = accounts.value
 
@@ -452,8 +562,17 @@ const filteredAccounts = computed(() => {
     })
   }
 
-  // 排序
+  // 排序（当前账号置顶，其余按设置排序）
   result = [...result].sort((a, b) => {
+    const currentId = currentAccountId.value
+    if (currentId) {
+      const aIsCurrent = a.id === currentId
+      const bIsCurrent = b.id === currentId
+      if (aIsCurrent !== bIsCurrent) {
+        return aIsCurrent ? -1 : 1
+      }
+    }
+
     if (sortType.value === 'time') {
       const timeA = a.last_used || a.created_at
       const timeB = b.last_used || b.created_at
@@ -504,11 +623,138 @@ const loadAccounts = async () => {
   }
 }
 
+const loadLastVersion = () => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY_LAST_VERSION)
+    if (stored) {
+      const version = parseInt(stored, 10)
+      if (!isNaN(version) && version >= 0) {
+        return version
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to load Antigravity lastVersion:', error)
+  }
+  return 0
+}
+
+const saveLastVersion = (version) => {
+  try {
+    localStorage.setItem(STORAGE_KEY_LAST_VERSION, version.toString())
+  } catch (error) {
+    console.error('Failed to save Antigravity lastVersion:', error)
+  }
+}
+
+const savePendingChanges = () => {
+  try {
+    const upsertsArr = Array.from(pendingUpserts.value.entries()).map(([id, account]) => ({ id, account }))
+    const deletionsArr = Array.from(pendingDeletions.value.values())
+
+    localStorage.setItem(STORAGE_KEY_PENDING_UPSERTS, JSON.stringify(upsertsArr))
+    localStorage.setItem(STORAGE_KEY_PENDING_DELETIONS, JSON.stringify(deletionsArr))
+  } catch (error) {
+    console.error('Failed to save Antigravity pending changes:', error)
+  }
+}
+
+const loadPendingChanges = () => {
+  try {
+    const upsertsJson = localStorage.getItem(STORAGE_KEY_PENDING_UPSERTS)
+    if (upsertsJson) {
+      const arr = JSON.parse(upsertsJson)
+      if (Array.isArray(arr)) {
+        pendingUpserts.value = new Map(
+          arr
+            .filter(item => item && item.id && item.account)
+            .map(item => [item.id, item.account])
+        )
+      }
+    }
+
+    const deletionsJson = localStorage.getItem(STORAGE_KEY_PENDING_DELETIONS)
+    if (deletionsJson) {
+      const arr = JSON.parse(deletionsJson)
+      if (Array.isArray(arr)) {
+        pendingDeletions.value = new Map(
+          arr
+            .filter(item => item && item.id)
+            .map(item => [item.id, { id: item.id, email: item.email || null }])
+        )
+      }
+    }
+
+    if (pendingUpserts.value.size > 0 || pendingDeletions.value.size > 0) {
+      isSyncNeeded.value = true
+    }
+  } catch (error) {
+    console.warn('Failed to load Antigravity pending changes:', error)
+  }
+}
+
+let storageCheckTimer = null
+
+const getStorageStatus = async () => {
+  try {
+    const status = await invoke('get_antigravity_storage_status')
+    storageType.value = status?.storage_type || 'antigravity_local_only'
+
+    if (status?.is_initializing) {
+      isStorageInitializing.value = true
+      isDatabaseAvailable.value = false
+      if (!storageCheckTimer) {
+        storageCheckTimer = setInterval(async () => {
+          await getStorageStatus()
+        }, 800)
+      }
+    } else {
+      isStorageInitializing.value = false
+      isDatabaseAvailable.value = status?.is_database_available || false
+      if (storageCheckTimer) {
+        clearInterval(storageCheckTimer)
+        storageCheckTimer = null
+      }
+    }
+  } catch (error) {
+    console.error('Failed to get Antigravity storage status:', error)
+    isDatabaseAvailable.value = false
+    isStorageInitializing.value = false
+  }
+}
+
+const markAccountUpsert = (account) => {
+  if (!account?.id) return
+  pendingUpserts.value.set(account.id, account)
+  pendingDeletions.value.delete(account.id)
+  savePendingChanges()
+  if (isDatabaseAvailable.value) {
+    isSyncNeeded.value = true
+  }
+}
+
+const markAccountDeletion = (account) => {
+  if (!account?.id) return
+  pendingDeletions.value.set(account.id, { id: account.id, email: account.email || null })
+  pendingUpserts.value.delete(account.id)
+  savePendingChanges()
+  if (isDatabaseAvailable.value) {
+    isSyncNeeded.value = true
+  }
+}
+
+const markAccountUpsertById = (accountId) => {
+  const account = accounts.value.find(a => a.id === accountId)
+  if (account) {
+    markAccountUpsert(account)
+  }
+}
+
 const handleSwitch = async (accountId) => {
   switchingAccountId.value = accountId
   try {
     await invoke('antigravity_switch_account', { accountId })
     await loadAccounts()
+    markAccountUpsertById(accountId)
   } catch (error) {
     console.error('Failed to switch account:', error)
     alert(error)
@@ -522,50 +768,68 @@ const handleRefreshQuota = async (accountId) => {
   try {
     await invoke('antigravity_fetch_quota', { accountId })
     await loadAccounts()
+    markAccountUpsertById(accountId)
+    window.$notify?.success($t('platform.antigravity.messages.refreshSuccess'))
   } catch (error) {
     console.error('Failed to refresh quota:', error)
-    alert(error)
+    window.$notify?.error($t('platform.antigravity.messages.refreshFailed', { error: error?.message || error }))
   } finally {
     refreshingIds.value.delete(accountId)
   }
 }
 
-const refreshAllQuotas = async () => {
+const handleRefresh = async () => {
   isRefreshing.value = true
+  window.$notify?.info($t('platform.antigravity.refreshing'))
   try {
+    await loadAccounts()
     for (const account of accounts.value) {
-      await handleRefreshQuota(account.id)
+      refreshingIds.value.add(account.id)
     }
+    await invoke('antigravity_refresh_all_quotas')
+    await loadAccounts()
+    for (const account of accounts.value) {
+      markAccountUpsert(account)
+    }
+    window.$notify?.success($t('platform.antigravity.messages.refreshSuccess'))
+  } catch (error) {
+    console.error('Failed to refresh quotas:', error)
+    window.$notify?.error($t('platform.antigravity.messages.refreshFailed', { error: error?.message || error }))
   } finally {
+    refreshingIds.value.clear()
     isRefreshing.value = false
   }
 }
 
-const handleRefresh = () => {
-  loadAccounts()
-}
-
 const handleAddAccount = async (email, refreshToken) => {
   try {
-    await invoke('antigravity_add_account', { email, refreshToken })
-    await loadAccounts()
-    showAddDialog.value = false
+    const account = await invoke('antigravity_add_account', { email, refreshToken })
+    await handleAccountAdded(account)
   } catch (error) {
     console.error('Failed to add account:', error)
+    window.$notify?.error($t('platform.antigravity.messages.addFailed', { error: error?.message || error }))
     throw error
   }
 }
 
-const handleRefreshAfterAdd = async () => {
+const handleAccountAdded = async (account) => {
   showAddDialog.value = false
+  if (account?.id) {
+    markAccountUpsert(account)
+  }
   await loadAccounts()
+  window.$notify?.success($t('platform.antigravity.messages.addSuccess'))
 }
 
 const handleDelete = async (accountId) => {
   if (!confirm($t('platform.antigravity.messages.deleteConfirm'))) return
 
   try {
+    const account = accounts.value.find(a => a.id === accountId)
     await invoke('antigravity_delete_account', { accountId })
+    if (account) {
+      markAccountDeletion(account)
+    }
     await loadAccounts()
   } catch (error) {
     console.error('Failed to delete account:', error)
@@ -611,6 +875,27 @@ const setSortType = (type, order) => {
 const toggleViewMode = () => {
   viewMode.value = viewMode.value === 'card' ? 'table' : 'card'
   currentPage.value = 1
+}
+
+// 处理页面内容点击 (关闭所有下拉菜单)
+const handlePageContentClick = (event) => {
+  const target = event.target
+
+  // 关闭排序菜单
+  if (showSortMenu.value) {
+    const sortDropdown = document.querySelector('.sort-dropdown')
+    if (sortDropdown && !sortDropdown.contains(target)) {
+      showSortMenu.value = false
+    }
+  }
+
+  // 关闭状态筛选菜单
+  if (showStatusFilterMenu.value) {
+    const statusFilterDropdown = document.querySelector('.status-filter-dropdown')
+    if (statusFilterDropdown && !statusFilterDropdown.contains(target)) {
+      showStatusFilterMenu.value = false
+    }
+  }
 }
 
 // 分页
@@ -676,7 +961,11 @@ const showBatchDeleteSelectedConfirm = () => {
 const handleBatchDeleteSelected = async () => {
   try {
     for (const accountId of selectedAccountIds.value) {
+      const account = accounts.value.find(a => a.id === accountId)
       await invoke('antigravity_delete_account', { accountId })
+      if (account) {
+        markAccountDeletion(account)
+      }
     }
     selectedAccountIds.value = new Set()
     await loadAccounts()
@@ -692,6 +981,107 @@ const handleBatchDelete = () => {
     return
   }
   showBatchDeleteSelectedConfirm()
+}
+
+const openSyncQueue = () => {
+  if (!isDatabaseAvailable.value) {
+    window.$notify.info($t('storage.databaseNotAvailable'))
+    return
+  }
+  showSyncQueueModal.value = true
+}
+
+const closeSyncQueue = () => {
+  showSyncQueueModal.value = false
+}
+
+const handleMarkAllForSync = () => {
+  if (accounts.value.length === 0) {
+    window.$notify.warning($t('platform.antigravity.messages.noSelection'))
+    return
+  }
+  pendingUpserts.value = new Map(accounts.value.map(account => [account.id, account]))
+  pendingDeletions.value.clear()
+  savePendingChanges()
+  isSyncNeeded.value = true
+  window.$notify.success($t('platform.antigravity.allAccountsMarkedForSync', { count: accounts.value.length }))
+}
+
+const openModelsModal = (account) => {
+  activeModelsAccount.value = account
+  showModelsModal.value = true
+}
+
+const closeModelsModal = () => {
+  showModelsModal.value = false
+  activeModelsAccount.value = null
+}
+
+const refreshModelsModal = async () => {
+  if (!activeModelsAccount.value) return
+  await handleRefreshQuota(activeModelsAccount.value.id)
+  activeModelsAccount.value = accounts.value.find(a => a.id === activeModelsAccount.value.id) || activeModelsAccount.value
+}
+
+const handleSync = async () => {
+  if (isSyncing.value) return
+  if (!isDatabaseAvailable.value) {
+    window.$notify.warning($t('messages.databaseNotAvailable'))
+    return
+  }
+
+  isSyncing.value = true
+  try {
+    window.$notify.info($t('messages.syncingData'))
+
+    const req = {
+      last_version: lastVersion.value,
+      upserts: Array.from(pendingUpserts.value.values()).map(account => ({ account })),
+      deletions: Array.from(pendingDeletions.value.values()).map(item => ({ id: item.id })),
+    }
+
+    const res = await invoke('antigravity_sync_accounts', { reqJson: JSON.stringify(req) })
+
+    isLoadingFromSync.value = true
+
+    for (const serverAccount of res.upserts) {
+      const idx = accounts.value.findIndex(a => a.id === serverAccount.id)
+      if (idx !== -1) {
+        accounts.value[idx] = serverAccount
+      } else {
+        accounts.value.push(serverAccount)
+      }
+    }
+
+    for (const id of res.deletions) {
+      const idx = accounts.value.findIndex(a => a.id === id)
+      if (idx !== -1) {
+        accounts.value.splice(idx, 1)
+      }
+      if (currentAccountId.value === id) {
+        currentAccountId.value = null
+      }
+    }
+
+    lastVersion.value = res.new_version
+    saveLastVersion(res.new_version)
+
+    pendingUpserts.value.clear()
+    pendingDeletions.value.clear()
+    savePendingChanges()
+
+    await loadAccounts()
+
+    await new Promise(resolve => setTimeout(resolve, 1200))
+    isLoadingFromSync.value = false
+    isSyncNeeded.value = false
+
+    window.$notify.success($t('messages.syncComplete'))
+  } catch (error) {
+    window.$notify.error(`${$t('messages.syncFailed')}: ${error}`)
+  } finally {
+    isSyncing.value = false
+  }
 }
 
 // 监听搜索和筛选变化，重置分页
@@ -711,11 +1101,18 @@ const handleClickOutside = (event) => {
 
 onMounted(() => {
   loadAccounts()
+  lastVersion.value = loadLastVersion()
+  loadPendingChanges()
+  getStorageStatus()
   document.addEventListener('click', handleClickOutside)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  if (storageCheckTimer) {
+    clearInterval(storageCheckTimer)
+    storageCheckTimer = null
+  }
 })
 </script>
 
@@ -748,7 +1145,7 @@ onUnmounted(() => {
   max-width: 100%;
   max-height: 100%;
   border-radius: 0;
-  background: var(--bg-surface);
+  background: transparent;
 }
 
 /* Header 样式 - 科技风 */
@@ -756,9 +1153,10 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 20px;
-  padding: 16px 24px;
-  border-bottom: 1px solid var(--border, #e5e7eb);
-  background: var(--bg-surface-alt, #f9fafb);
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+  flex-shrink: 0;
 }
 
 .antigravity-manager-content .page-header > .status-badge {
@@ -856,9 +1254,11 @@ onUnmounted(() => {
 /* Body 样式 */
 .antigravity-manager-content .page-body {
   flex: 1;
-  overflow-y: auto;
-  padding: 16px 24px;
+  overflow: hidden;
+  padding: 4px 12px;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Loading 和 Empty 状态 - 科技风 */
@@ -1055,7 +1455,7 @@ onUnmounted(() => {
   top: calc(100% + 6px);
   left: 0;
   min-width: 280px;
-  background: var(--tech-card-bg);
+  background: color-mix(in srgb, var(--bg-surface) 92%, var(--tech-card-bg));
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--tech-glass-border);
@@ -1076,7 +1476,7 @@ onUnmounted(() => {
   top: calc(100% + 6px);
   left: 0;
   min-width: 220px;
-  background: var(--tech-card-bg);
+  background: color-mix(in srgb, var(--bg-surface) 92%, var(--tech-card-bg));
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--tech-glass-border);
@@ -1231,6 +1631,18 @@ onUnmounted(() => {
   width: 40px;
 }
 
+.th-info {
+  width: 220px;
+}
+
+.th-quota {
+  width: auto;
+}
+
+.th-actions {
+  width: 88px;
+}
+
 .header-checkbox {
   display: flex;
   align-items: center;
@@ -1349,5 +1761,34 @@ onUnmounted(() => {
 .slide-up-leave-to {
   opacity: 0;
   transform: translateY(20px);
+}
+
+/* Account list wrapper with fixed pagination */
+.antigravity-manager .page-body > .account-list {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* 可滚动内容区域 */
+.antigravity-manager .account-content-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  padding-bottom: 8px;
+}
+
+/* 确保表格包装器在滚动容器内正常工作 */
+.antigravity-manager .account-content-scroll > .account-table-wrapper {
+  overflow-x: auto;
+  max-height: none;
+}
+
+/* 分页组件固定样式 */
+.antigravity-manager .account-list :deep(.pagination-container) {
+  flex-shrink: 0;
 }
 </style>

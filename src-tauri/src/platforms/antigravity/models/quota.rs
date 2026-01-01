@@ -6,6 +6,8 @@ pub struct QuotaData {
     pub models: Vec<ModelQuota>,
     pub last_updated: i64,
     pub is_forbidden: bool,
+    #[serde(default)]
+    pub subscription_tier: Option<String>,
 }
 
 /// 单个模型的配额信息
@@ -22,6 +24,7 @@ impl QuotaData {
             models: Vec::new(),
             last_updated: chrono::Utc::now().timestamp(),
             is_forbidden: false,
+            subscription_tier: None,
         }
     }
 
@@ -62,7 +65,22 @@ pub struct QuotaInfo {
 
 #[derive(Debug, Deserialize)]
 pub struct LoadProjectResponse {
-    #[serde(rename = "projectId")]
+    #[serde(rename = "cloudaicompanionProject", alias = "projectId")]
     pub project_id: Option<String>,
+    #[serde(rename = "currentTier")]
+    pub current_tier: Option<Tier>,
+    #[serde(rename = "paidTier")]
+    pub paid_tier: Option<Tier>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct Tier {
+    pub id: Option<String>,
+    #[allow(dead_code)]
+    #[serde(rename = "quotaTier")]
+    pub quota_tier: Option<String>,
+    #[allow(dead_code)]
+    pub name: Option<String>,
+    #[allow(dead_code)]
+    pub slug: Option<String>,
+}

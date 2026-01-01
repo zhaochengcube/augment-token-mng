@@ -1,67 +1,65 @@
 /// Protobuf 编码工具
 
+/// 读取 Protobuf Varint
+fn read_varint(data: &[u8], offset: usize) -> Result<(u64, usize), String> {
+    let mut result = 0u64;
+    let mut shift = 0;
+    let mut pos = offset;
+
+    loop {
+        if pos >= data.len() {
+            return Err("Invalid varint: unexpected end".to_string());
+        }
+        let byte = data[pos];
+        result |= ((byte & 0x7F) as u64) << shift;
+        pos += 1;
+        if byte & 0x80 == 0 {
+            break;
+        }
+        shift += 7;
+    }
+
+    Ok((result, pos))
+}
+
+/// 跳过指定 wire_type 的字段
+fn skip_field(data: &[u8], offset: usize, wire_type: u8) -> Result<usize, String> {
+    match wire_type {
+        0 => {
+            let (_, new_offset) = read_varint(data, offset)?;
+            Ok(new_offset)
+        }
+        1 => Ok(offset + 8),
+        2 => {
+            let (length, content_offset) = read_varint(data, offset)?;
+            Ok(content_offset + length as usize)
+        }
+        5 => Ok(offset + 4),
+        _ => Err(format!("Unsupported wire type: {}", wire_type)),
+    }
+}
+
 /// 移除 Protobuf 中的指定 Field
 pub fn remove_protobuf_field(data: &[u8], field_number: u8) -> Result<Vec<u8>, String> {
     let mut result = Vec::new();
-    let mut i = 0;
-    
-    while i < data.len() {
-        let tag = data[i];
-        let field_num = tag >> 3;
-        let wire_type = tag & 0x07;
-        
-        if field_num == field_number {
-            // 跳过这个 field
-            i += 1;
-            match wire_type {
-                0 => {
-                    // Varint
-                    while i < data.len() && (data[i] & 0x80) != 0 {
-                        i += 1;
-                    }
-                    i += 1;
-                }
-                2 => {
-                    // Length-delimited
-                    let (length, bytes_read) = decode_varint(&data[i..])?;
-                    i += bytes_read + length;
-                }
-                _ => {
-                    return Err(format!("Unsupported wire type: {}", wire_type));
-                }
-            }
+    let mut offset = 0;
+    let target_field = field_number as u32;
+
+    while offset < data.len() {
+        let start_offset = offset;
+        let (tag, new_offset) = read_varint(data, offset)?;
+        let wire_type = (tag & 7) as u8;
+        let current_field = (tag >> 3) as u32;
+
+        if current_field == target_field {
+            offset = skip_field(data, new_offset, wire_type)?;
         } else {
-            // 保留这个 field
-            result.push(tag);
-            i += 1;
-            
-            match wire_type {
-                0 => {
-                    // Varint
-                    while i < data.len() && (data[i] & 0x80) != 0 {
-                        result.push(data[i]);
-                        i += 1;
-                    }
-                    if i < data.len() {
-                        result.push(data[i]);
-                        i += 1;
-                    }
-                }
-                2 => {
-                    // Length-delimited
-                    let start = i;
-                    let (length, bytes_read) = decode_varint(&data[i..])?;
-                    let end = i + bytes_read + length;
-                    result.extend_from_slice(&data[start..end]);
-                    i = end;
-                }
-                _ => {
-                    return Err(format!("Unsupported wire type: {}", wire_type));
-                }
-            }
+            let next_offset = skip_field(data, new_offset, wire_type)?;
+            result.extend_from_slice(&data[start_offset..next_offset]);
+            offset = next_offset;
         }
     }
-    
+
     Ok(result)
 }
 
@@ -77,27 +75,38 @@ pub fn create_oauth_field(access_token: &str, refresh_token: &str, expiry: i64) 
     
     // Field 1: access_token (string)
     inner.push((1 << 3) | 2);
-    inner.extend(encode_varint(access_token.len()));
+    inner.extend(encode_varint(access_token.len() as u64));
     inner.extend_from_slice(access_token.as_bytes());
     
-    // Field 2: refresh_token (string)
+    // Field 2: token_type (string)
+    let token_type = "Bearer";
     inner.push((2 << 3) | 2);
-    inner.extend(encode_varint(refresh_token.len()));
-    inner.extend_from_slice(refresh_token.as_bytes());
+    inner.extend(encode_varint(token_type.len() as u64));
+    inner.extend_from_slice(token_type.as_bytes());
     
-    // Field 3: expiry (int64)
-    inner.push((3 << 3) | 0);
-    inner.extend(encode_varint(expiry as usize));
+    // Field 3: refresh_token (string)
+    inner.push((3 << 3) | 2);
+    inner.extend(encode_varint(refresh_token.len() as u64));
+    inner.extend_from_slice(refresh_token.as_bytes());
+
+    // Field 4: expiry (google.protobuf.Timestamp)
+    let expiry_seconds = if expiry < 0 { 0 } else { expiry as u64 };
+    let mut expiry_inner = Vec::new();
+    expiry_inner.push((1 << 3) | 0);
+    expiry_inner.extend(encode_varint(expiry_seconds));
+    inner.push((4 << 3) | 2);
+    inner.extend(encode_varint(expiry_inner.len() as u64));
+    inner.extend(expiry_inner);
     
     // 写入长度
-    field.extend(encode_varint(inner.len()));
+    field.extend(encode_varint(inner.len() as u64));
     field.extend(inner);
     
     field
 }
 
 /// 编码 Varint
-fn encode_varint(mut value: usize) -> Vec<u8> {
+fn encode_varint(mut value: u64) -> Vec<u8> {
     let mut result = Vec::new();
     
     while value >= 0x80 {
@@ -109,23 +118,4 @@ fn encode_varint(mut value: usize) -> Vec<u8> {
     result
 }
 
-/// 解码 Varint
-fn decode_varint(data: &[u8]) -> Result<(usize, usize), String> {
-    let mut result = 0usize;
-    let mut shift = 0;
-    let mut bytes_read = 0;
-    
-    for &byte in data.iter().take(10) {
-        bytes_read += 1;
-        result |= ((byte & 0x7F) as usize) << shift;
-        
-        if (byte & 0x80) == 0 {
-            return Ok((result, bytes_read));
-        }
-        
-        shift += 7;
-    }
-    
-    Err("Varint too long".to_string())
-}
-
+// decode_varint is intentionally omitted; use read_varint for protobuf tags/lengths.

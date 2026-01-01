@@ -1,7 +1,7 @@
 <template>
   <div :class="['account-card', { 'current': isCurrent, 'switching': isSwitching, 'selected': isSelected }]" @click="handleCardClick">
     <!-- 选择框 -->
-    <div v-if="selectionMode" class="selection-checkbox" @click.stop="toggleSelection">
+    <div class="selection-checkbox" :class="{ 'visible': selectionMode || isSelected }" @click.stop="toggleSelection">
       <div class="checkbox-inner" :class="{ 'checked': isSelected }">
         <svg v-if="isSelected" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
           <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
@@ -9,41 +9,49 @@
       </div>
     </div>
 
-    <!-- Current Badge -->
-    <div v-if="isCurrent" class="current-badge">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
-      </svg>
-      {{ $t('platform.antigravity.currentAccount') }}
+    <!-- Status Badge -->
+    <div class="status-indicator">
+      <span :class="['status-badge', statusClass]">
+        <span :class="['status-dot', statusClass]"></span>
+        {{ statusLabel }}
+      </span>
     </div>
 
     <!-- Account Info -->
     <div class="account-info">
-      <div class="email-wrapper" @click.stop="copyEmail" :title="account.email">
+      <div class="email-wrapper" @click.stop="copyEmail" v-tooltip="account.email">
         <span class="email-text">{{ showRealEmail ? account.email : maskedEmail }}</span>
+        <span :class="['tier-badge', `tier-${subscriptionTier.class}`]">{{ subscriptionTier.label }}</span>
+      </div>
+      <div class="account-meta">
+        <div class="meta-row">
+          <span class="created-date" v-tooltip="$t('platform.antigravity.createdAt') + ': ' + formatDate(account.created_at)">C: {{ formatDate(account.created_at) }}</span>
+          <span v-if="account.quota?.last_updated" class="created-date" v-tooltip="$t('platform.antigravity.quotaRefreshedAt') + ': ' + formatDate(account.quota.last_updated)">R: {{ formatDate(account.quota.last_updated) }}</span>
+        </div>
       </div>
     </div>
 
     <!-- Quota Display -->
     <div v-if="account.quota && !account.quota.is_forbidden && filteredModels.length > 0" class="quota-section">
       <div v-for="model in filteredModels" :key="model.name" class="quota-item">
-        <div class="quota-header">
-          <span class="model-name">{{ formatModelName(model.name) }}</span>
-          <span :class="['quota-percentage', getQuotaClass(model.percentage)]">
-            {{ model.percentage }}%
-          </span>
-        </div>
         <div class="quota-bar">
           <div
             class="quota-fill"
             :class="getQuotaClass(model.percentage)"
             :style="{ width: model.percentage + '%' }"
           ></div>
-        </div>
-        <div v-if="model.reset_time" class="reset-time">
-          {{ $t('platform.antigravity.quota.resetTime', { time: formatResetTime(model.reset_time) }) }}
+          <div class="quota-overlay">
+            <span class="model-label">{{ formatModelName(model.name) }}</span>
+            <span class="model-time">{{ formatResetCountdown(model.reset_time) }}</span>
+            <span :class="['model-percent', getQuotaClass(model.percentage)]">
+              {{ model.percentage }}%
+            </span>
+          </div>
         </div>
       </div>
+      <button class="view-all-models" @click.stop="$emit('view-models', account)">
+        {{ $t('platform.antigravity.viewAllModels') }}
+      </button>
     </div>
 
     <div v-else-if="account.quota?.is_forbidden" class="quota-forbidden">
@@ -59,36 +67,36 @@
 
     <!-- Actions -->
     <div class="card-actions">
-      <button 
+      <button
         v-if="!isCurrent"
-        @click="$emit('switch', account.id)" 
-        class="btn-icon switch-btn"
+        @click="$emit('switch', account.id)"
+        class="btn primary small"
         :disabled="isSwitching"
       >
-        <svg v-if="!isSwitching" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+        <svg v-if="!isSwitching" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
           <path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/>
         </svg>
-        <svg v-else class="spin" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+        <svg v-else class="spin" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
           <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/>
         </svg>
         {{ isSwitching ? $t('platform.antigravity.switching') : $t('platform.antigravity.switch') }}
       </button>
-      
+
       <button
         @click="$emit('refresh', account.id)"
         class="btn-icon refresh-btn"
         :disabled="isRefreshing"
-        :title="$t('platform.antigravity.refresh')"
+        v-tooltip="$t('platform.antigravity.refresh')"
       >
         <svg :class="{ 'spin': isRefreshing }" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
           <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
         </svg>
       </button>
-      
+
       <button
         @click="$emit('delete', account.id)"
         class="btn-icon delete-btn"
-        :title="$t('platform.antigravity.delete')"
+        v-tooltip="$t('platform.antigravity.delete')"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
           <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
@@ -96,10 +104,6 @@
       </button>
     </div>
 
-    <!-- Last Used -->
-    <div class="card-footer">
-      <span class="last-used">{{ $t('platform.antigravity.lastUsed') }}: {{ formatLastUsed(account.last_used) }}</span>
-    </div>
   </div>
 </template>
 
@@ -140,7 +144,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['switch', 'refresh', 'delete', 'select'])
+const emit = defineEmits(['switch', 'refresh', 'delete', 'select', 'view-models'])
 
 const maskedEmail = computed(() => {
   const email = props.account.email
@@ -155,7 +159,9 @@ const filteredModels = computed(() => {
   const targetModels = [
     'gemini-3-pro-high',
     'gemini-3-pro-image',
+    'gemini-3-flash',
     'claude-sonnet-4-5',
+    'claude-sonnet-4-5-thinking',
     'claude-opus-4-5-thinking'
   ]
 
@@ -172,6 +178,42 @@ const filteredModels = computed(() => {
     })
 })
 
+const isAvailable = computed(() => {
+  if (!props.account.quota || props.account.quota.is_forbidden) return false
+  const gemini = props.account.quota.models.find(m => m.name.toLowerCase().includes('gemini'))?.percentage || 0
+  const claude = props.account.quota.models.find(m => m.name.toLowerCase().includes('claude'))?.percentage || 0
+  return gemini >= 20 && claude >= 20
+})
+
+const statusClass = computed(() => {
+  if (props.isCurrent) return 'current'
+  if (props.account.quota?.is_forbidden) return 'forbidden'
+  if (isAvailable.value) return 'available'
+  return 'low'
+})
+
+const statusLabel = computed(() => {
+  if (props.isCurrent) return $t('platform.antigravity.status.current')
+  if (props.account.quota?.is_forbidden) return $t('platform.antigravity.status.forbidden')
+  if (isAvailable.value) return $t('platform.antigravity.status.available')
+  return $t('platform.antigravity.status.low')
+})
+
+const subscriptionTier = computed(() => {
+  const tier = props.account.quota?.subscription_tier
+  if (!tier) {
+    return { label: 'Free', class: 'free' }
+  }
+  const lowerTier = tier.toLowerCase()
+  if (lowerTier.includes('ultra')) {
+    return { label: 'Ultra', class: 'ultra' }
+  }
+  if (tier === 'g1-pro-tier') {
+    return { label: 'Pro', class: 'pro' }
+  }
+  return { label: 'Free', class: 'free' }
+})
+
 const toggleSelection = () => {
   emit('select', props.account.id)
 }
@@ -185,9 +227,10 @@ const handleCardClick = () => {
 const copyEmail = async () => {
   try {
     await navigator.clipboard.writeText(props.account.email)
-    // 可以添加复制成功提示
+    window.$notify?.success($t('messages.copySuccess'))
   } catch (err) {
     console.error('Failed to copy email:', err)
+    window.$notify?.error($t('messages.copyFailed'))
   }
 }
 
@@ -205,6 +248,7 @@ const formatModelName = (name) => {
   // Gemini 模型
   if (lowerName.includes('gemini-3-pro-high')) return 'Gemini 3 Pro (High)'
   if (lowerName.includes('gemini-3-pro-image')) return 'Gemini 3 Pro (Image)'
+  if (lowerName.includes('gemini-3-flash')) return 'Gemini 3 Flash'
   if (lowerName.includes('gemini-3-pro')) return 'Gemini 3 Pro'
   if (lowerName.includes('gemini')) return 'Gemini'
 
@@ -218,34 +262,39 @@ const getQuotaClass = (percentage) => {
   return 'low'
 }
 
-const formatResetTime = (timeStr) => {
-  if (!timeStr) return ''
-  try {
-    const date = new Date(timeStr)
-    return date.toLocaleString('zh-CN', { 
-      month: 'short', 
-      day: 'numeric', 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    })
-  } catch {
-    return timeStr
-  }
+const parseResetTime = (timeStr) => {
+  if (!timeStr) return null
+  const normalized = /Z$|[+-]\d{2}:\d{2}$/.test(timeStr) ? timeStr : `${timeStr}Z`
+  const target = new Date(normalized).getTime()
+  return Number.isNaN(target) ? null : target
 }
 
-const formatLastUsed = (timestamp) => {
-  const date = new Date(timestamp * 1000)
-  const now = new Date()
-  const diff = now - date
-  const minutes = Math.floor(diff / 60000)
-  const hours = Math.floor(diff / 3600000)
-  const days = Math.floor(diff / 86400000)
+const formatResetCountdown = (timeStr) => {
+  const target = parseResetTime(timeStr)
+  if (!target) return '--:--'
 
-  if (minutes < 1) return $t('platform.antigravity.quota.timeAgo.justNow')
-  if (minutes < 60) return $t('platform.antigravity.quota.timeAgo.minutesAgo', { count: minutes })
-  if (hours < 24) return $t('platform.antigravity.quota.timeAgo.hoursAgo', { count: hours })
-  if (days < 7) return $t('platform.antigravity.quota.timeAgo.daysAgo', { count: days })
-  return date.toLocaleDateString()
+  const diffMs = Math.max(0, target - Date.now())
+  const days = Math.floor(diffMs / 86400000)
+  const hours = Math.floor((diffMs % 86400000) / 3600000)
+  const minutes = Math.floor((diffMs % 3600000) / 60000)
+
+  if (days > 0) {
+    return `R: ${days}d ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m`
+  }
+
+  return `R: ${hours}h ${String(minutes).padStart(2, '0')}m`
+}
+
+const formatDate = (timestamp) => {
+  if (!timestamp) return '-'
+  const date = new Date(timestamp * 1000)
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 }
 </script>
 
@@ -263,8 +312,15 @@ const formatLastUsed = (timestamp) => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  height: fit-content;
   min-height: 140px;
   z-index: 1;
+  overflow: hidden;
+  /* 优化滚动性能,防止样式丢失 */
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-font-smoothing: subpixel-antialiased;
 }
 
 .account-card:hover {
@@ -360,22 +416,14 @@ const formatLastUsed = (timestamp) => {
   color: #fff;
 }
 
-.current-badge {
+.status-indicator {
   position: absolute;
   top: 12px;
   right: 12px;
+  z-index: 10;
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  background: var(--accent);
-  color: white;
-  border-radius: 20px;
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  box-shadow: 0 0 12px var(--tech-glow-primary);
+  gap: 6px;
 }
 
 .account-info {
@@ -384,59 +432,158 @@ const formatLastUsed = (timestamp) => {
   gap: 8px;
 }
 
+.email-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tier-badge {
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+}
+
+.tier-free {
+  color: #94a3b8;
+  border-color: rgba(148, 163, 184, 0.45);
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.tier-pro {
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.5);
+  background: rgba(56, 189, 248, 0.12);
+}
+
+.tier-ultra {
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.5);
+  background: rgba(251, 191, 36, 0.12);
+}
+
+.account-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.meta-row {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.created-date {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--tech-mono-font);
+  opacity: 0.7;
+}
+
 .quota-section {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
+.view-all-models {
+  grid-column: 1 / -1;
+  align-self: flex-end;
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 0;
+  cursor: pointer;
+}
+
+.view-all-models:hover {
+  color: color-mix(in srgb, var(--accent) 85%, white);
+}
+
 .quota-item {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  width: 100%;
 }
-
-.quota-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.model-name {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-secondary);
-}
-
-.quota-percentage {
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.quota-percentage.high { color: #10b981; }
-.quota-percentage.medium { color: #f59e0b; }
-.quota-percentage.low { color: #ef4444; }
 
 .quota-bar {
-  height: 6px;
-  background: var(--bg-muted);
-  border-radius: 3px;
+  position: relative;
+  width: 100%;
+  height: 24px;
+  background: color-mix(in srgb, var(--bg-muted) 75%, transparent);
+  border-radius: 10px;
   overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
 }
 
 .quota-fill {
   height: 100%;
-  border-radius: 3px;
+  border-radius: 10px;
   transition: width 0.3s;
+  opacity: 0.95;
+  position: relative;
+  z-index: 1;
 }
 
-.quota-fill.high { background: linear-gradient(90deg, #10b981, #059669); }
+.quota-fill.high { background: rgba(16, 185, 129, 0.45); }
 .quota-fill.medium { background: linear-gradient(90deg, #f59e0b, #d97706); }
 .quota-fill.low { background: linear-gradient(90deg, #ef4444, #dc2626); }
 
-.reset-time {
+.quota-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  gap: 8px;
+  color: var(--text-strong, #0f172a);
   font-size: 11px;
-  color: var(--text-soft);
+  font-weight: 600;
+  z-index: 2;
+  text-shadow: none;
+}
+
+.model-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-time {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary, #4b5563);
+}
+
+.model-percent {
+  font-variant-numeric: tabular-nums;
+}
+
+.model-percent.high { color: #10b981; }
+.model-percent.medium { color: #f59e0b; }
+.model-percent.low { color: #ef4444; }
+
+:global([data-theme='dark']) .quota-overlay {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+:global([data-theme='dark']) .model-time {
+  color: var(--text-secondary, #cbd5e1);
+}
+
+:global(:root:not([data-theme='dark'])) .quota-bar {
+  background: color-mix(in srgb, var(--bg-muted) 90%, white);
+  border-color: var(--border);
 }
 
 .quota-forbidden, .quota-empty {
@@ -457,80 +604,18 @@ const formatLastUsed = (timestamp) => {
   margin-top: auto;
 }
 
-.btn-icon {
+/* 使用全局 .btn 和 .btn-icon 样式 */
+.card-actions .btn {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 8px 12px;
-  border-radius: 10px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid var(--tech-glass-border);
-  background: color-mix(in srgb, var(--bg-muted) 60%, transparent);
-  backdrop-filter: blur(4px);
-  color: var(--text-muted);
+  margin: 0;
 }
 
-.btn-icon svg {
-  transition: transform 0.2s ease;
-}
-
-.btn-icon:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--accent) 15%, transparent);
-  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
-  color: var(--accent);
-  box-shadow: 0 0 15px var(--tech-glow-primary);
-  transform: translateY(-2px);
-}
-
-.btn-icon:hover:not(:disabled) svg {
-  transform: scale(1.1);
-}
-
-.btn-icon:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.switch-btn {
-  background: var(--accent);
-  color: white;
-  border: none;
-}
-
-.switch-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 0 20px var(--tech-glow-primary);
-}
-
-.refresh-btn, .delete-btn {
+.card-actions .btn-icon {
   flex: 0 0 auto;
-  padding: 8px;
-  min-width: 34px;
-  min-height: 34px;
-}
-
-.delete-btn:hover:not(:disabled) {
-  background: color-mix(in srgb, #ef4444 15%, transparent);
-  border-color: color-mix(in srgb, #ef4444 50%, transparent);
-  color: #f87171;
-  box-shadow: 0 0 15px var(--tech-glow-danger);
-}
-
-.card-footer {
-  padding-top: 12px;
-  border-top: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
-}
-
-.last-used {
-  font-size: 11px;
-  font-family: var(--tech-mono-font);
-  color: var(--text-muted);
-  opacity: 0.7;
 }
 
 .spin {

@@ -880,8 +880,20 @@ export default {
       refreshing: 'Refreshing...',
       delete: 'Delete',
       lastUsed: 'Last used',
+      createdAt: 'Created at',
+      quotaRefreshedAt: 'Quota refreshed at',
       noAccounts: 'No accounts',
       noAccountsHint: 'Click "Add Account" to get started',
+      viewAllModels: 'View all models',
+      modelsModalTitle: 'All Models',
+      lastUpdated: 'Last updated',
+      viewSyncQueueTooltip: 'Click to view pending sync queue',
+      syncQueueTitle: 'Sync Queue',
+      syncQueueUpsertsTitle: 'Pending Updates',
+      syncQueueDeletionsTitle: 'Pending Deletions',
+      syncQueueEmpty: 'No pending changes',
+      fullSync: 'Full Sync',
+      sync: 'Sync',
       quotaForbidden: 'No permission to access quota',
       noQuotaData: 'No quota data available',
       searchPlaceholder: 'Search email...',
@@ -900,10 +912,8 @@ export default {
         forbidden: 'Forbidden'
       },
       table: {
-        email: 'Email',
-        status: 'Status',
+        info: 'Account',
         quota: 'Quota',
-        dates: 'Dates',
         actions: 'Actions'
       },
       actions: {
@@ -938,6 +948,7 @@ export default {
         batchDeleteConfirm: 'Are you sure you want to delete {count} selected accounts?',
         noSelection: 'Please select accounts to operate'
       },
+      allAccountsMarkedForSync: 'All {count} accounts marked for sync',
       quota: {
         gemini: 'Gemini',
         claude: 'Claude',

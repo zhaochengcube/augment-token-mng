@@ -1,15 +1,15 @@
 pub mod connection;
 pub mod config;
-pub mod migrations;
+pub mod augment;
+pub mod antigravity;
 
 pub use config::*;
 pub use connection::*;
-pub use migrations::*;
 
 use std::sync::Arc;
 use tauri::{AppHandle, State};
 use crate::AppState;
-use crate::storage::initialize_storage_manager;
+use crate::storage::{initialize_storage_manager, initialize_antigravity_storage_manager};
 
 // 数据库配置相关命令
 #[tauri::command]
@@ -44,19 +44,30 @@ pub async fn save_database_config(
                 let client = pool.get().await
                     .map_err(|e| format!("Failed to get database client: {}", e))?;
 
-                let tables_exist = check_tables_exist(&client).await
-                    .map_err(|e| format!("Failed to check tables: {}", e))?;
+                let augment_tables_exist = augment::check_tables_exist(&client).await
+                    .map_err(|e| format!("Failed to check Augment tables: {}", e))?;
 
-                if !tables_exist {
-                    create_tables(&client).await
-                        .map_err(|e| format!("Failed to create tables: {}", e))?;
+                if !augment_tables_exist {
+                    augment::create_tables(&client).await
+                        .map_err(|e| format!("Failed to create Augment tables: {}", e))?;
                 } else {
-                    println!("Database tables already exist, checking for new fields");
-                    add_new_fields_if_not_exist(&client).await
-                        .map_err(|e| format!("Failed to add new fields: {}", e))?;
+                    println!("Augment tables already exist, checking for new fields");
+                    augment::add_new_fields_if_not_exist(&client).await
+                        .map_err(|e| format!("Failed to add new fields to Augment tables: {}", e))?;
 
-                    remove_updated_at_trigger(&client).await
-                        .map_err(|e| format!("Failed to remove trigger: {}", e))?;
+                    augment::remove_updated_at_trigger(&client).await
+                        .map_err(|e| format!("Failed to remove Augment trigger: {}", e))?;
+                }
+
+                let antigravity_tables_exist = antigravity::check_tables_exist(&client).await
+                    .map_err(|e| format!("Failed to check Antigravity tables: {}", e))?;
+
+                if !antigravity_tables_exist {
+                    antigravity::create_tables(&client).await
+                        .map_err(|e| format!("Failed to create Antigravity tables: {}", e))?;
+                } else {
+                    antigravity::add_new_fields_if_not_exist(&client).await
+                        .map_err(|e| format!("Failed to add new fields to Antigravity tables: {}", e))?;
                 }
             }
 
@@ -64,6 +75,8 @@ pub async fn save_database_config(
 
             initialize_storage_manager(&app, &state).await
                 .map_err(|e| format!("Failed to initialize storage: {}", e))?;
+            initialize_antigravity_storage_manager(&app, &state).await
+                .map_err(|e| format!("Failed to initialize Antigravity storage: {}", e))?;
 
             Ok(())
         }
@@ -118,6 +131,8 @@ pub async fn delete_database_config(
 
     initialize_storage_manager(&app, &state).await
         .map_err(|e| format!("Failed to reinitialize storage: {}", e))?;
+    initialize_antigravity_storage_manager(&app, &state).await
+        .map_err(|e| format!("Failed to reinitialize Antigravity storage: {}", e))?;
 
     Ok(())
 }

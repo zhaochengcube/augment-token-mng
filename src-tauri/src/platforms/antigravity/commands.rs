@@ -2,10 +2,16 @@ use tauri::AppHandle;
 use crate::antigravity::models::{Account, QuotaData, TokenData};
 use crate::antigravity::modules::{storage, account, oauth, oauth_server, process, db};
 
+async fn internal_refresh_account_quota(app: &AppHandle, account: &mut Account) -> Result<QuotaData, String> {
+    let quota = account::fetch_quota_with_retry(app, account).await?;
+    account::update_account_quota(app, &account.id, quota.clone()).await?;
+    Ok(quota)
+}
+
 /// 列出所有账号
 #[tauri::command]
 pub async fn antigravity_list_accounts(app: AppHandle) -> Result<Vec<Account>, String> {
-    storage::list_accounts(&app)
+    storage::list_accounts(&app).await
 }
 
 /// 添加账号（使用 refresh_token）
@@ -15,7 +21,9 @@ pub async fn antigravity_add_account(
     email: String,
     refresh_token: String,
 ) -> Result<Account, String> {
-    account::add_account(&app, email, refresh_token).await
+    let mut account = account::add_account(&app, email, refresh_token).await?;
+    let _ = internal_refresh_account_quota(&app, &mut account).await;
+    Ok(account)
 }
 
 /// 删除账号
@@ -30,9 +38,9 @@ pub async fn antigravity_delete_account(
 /// 获取当前账号
 #[tauri::command]
 pub async fn antigravity_get_current_account(app: AppHandle) -> Result<Option<Account>, String> {
-    let account_id = account::get_current_account_id(&app)?;
+    let account_id = account::get_current_account_id(&app).await?;
     match account_id {
-        Some(id) => Ok(Some(storage::load_account(&app, &id)?)),
+        Some(id) => Ok(Some(storage::load_account(&app, &id).await?)),
         None => Ok(None),
     }
 }
@@ -43,10 +51,59 @@ pub async fn antigravity_fetch_quota(
     app: AppHandle,
     account_id: String,
 ) -> Result<QuotaData, String> {
-    let mut acc = storage::load_account(&app, &account_id)?;
+    println!("=== antigravity_fetch_quota ===");
+    println!("account_id: {}", account_id);
+
+    let mut acc = storage::load_account(&app, &account_id).await?;
+    println!("Loaded account: {}", acc.email);
+
     let quota = account::fetch_quota_with_retry(&app, &mut acc).await?;
-    account::update_account_quota(&app, &account_id, quota.clone())?;
+    println!("Fetched quota: {:?}", quota);
+
+    account::update_account_quota(&app, &account_id, quota.clone()).await?;
+    println!("Updated account quota");
+
     Ok(quota)
+}
+
+#[derive(serde::Serialize)]
+pub struct RefreshStats {
+    total: usize,
+    success: usize,
+    failed: usize,
+    details: Vec<String>,
+}
+
+/// 刷新所有账号配额
+#[tauri::command]
+pub async fn antigravity_refresh_all_quotas(app: AppHandle) -> Result<RefreshStats, String> {
+    let accounts = storage::list_accounts(&app).await?;
+    let mut success = 0;
+    let mut failed = 0;
+    let mut details = Vec::new();
+
+    for mut account in accounts {
+        if account.disabled {
+            continue;
+        }
+        if let Some(ref q) = account.quota {
+            if q.is_forbidden {
+                continue;
+            }
+        }
+
+        match internal_refresh_account_quota(&app, &mut account).await {
+            Ok(_) => {
+                success += 1;
+            }
+            Err(e) => {
+                failed += 1;
+                details.push(format!("Account {}: {}", account.email, e));
+            }
+        }
+    }
+
+    Ok(RefreshStats { total: success + failed, success, failed, details })
 }
 
 /// 切换账号（完整流程）
@@ -56,25 +113,30 @@ pub async fn antigravity_switch_account(
     account_id: String,
 ) -> Result<String, String> {
     // 1. 加载账号
-    let mut acc = storage::load_account(&app, &account_id)?;
+    let mut acc = storage::load_account(&app, &account_id).await?;
     
     // 2. 确保 Token 有效
     let token = oauth::ensure_fresh_token(&acc.token).await?;
     if token.access_token != acc.token.access_token {
         acc.token = token.clone();
-        storage::save_account(&app, &acc)?;
+        storage::save_account(&app, &acc).await?;
     }
     
     // 3. 检查 Antigravity 是否运行
     let was_running = process::is_antigravity_running();
     
     if was_running {
-        // 4. 杀死进程
-        process::kill_antigravity_processes()?;
+        // 4. 关闭进程（优先主进程）
+        process::close_antigravity(20)?;
     }
     
-    // 5. 注入 Token
+    // 5. 注入 Token（先备份数据库）
     let db_path = db::get_db_path()?;
+    if db_path.exists() {
+        if let Some(backup_path) = db_path.with_extension("vscdb.backup").to_str() {
+            let _ = std::fs::copy(&db_path, backup_path);
+        }
+    }
     db::inject_token(
         &db_path,
         &acc.token.access_token,
@@ -83,23 +145,19 @@ pub async fn antigravity_switch_account(
     )?;
     
     // 6. 更新当前账号
-    let mut index = storage::load_account_index(&app)?;
-    index.current_account_id = Some(account_id.clone());
-    storage::save_account_index(&app, &index)?;
+    storage::set_current_account_id(&app, Some(account_id.clone())).await?;
     
     // 7. 更新最后使用时间
     acc.update_last_used();
-    storage::save_account(&app, &acc)?;
-    storage::upsert_account_summary(&app, &acc)?;
+    storage::save_account(&app, &acc).await?;
     
-    // 8. 如果之前在运行，重新启动
-    if was_running {
-        std::thread::sleep(std::time::Duration::from_secs(1));
-        process::launch_antigravity()?;
-        Ok(format!("Account switched and Antigravity restarted: {}", acc.email))
-    } else {
-        Ok(format!("Account switched (Antigravity not running): {}", acc.email))
-    }
+    // 8. 启动 Antigravity
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    process::launch_antigravity()?;
+    Ok(format!(
+        "Account switched and Antigravity started: {}",
+        acc.email
+    ))
 }
 
 /// 检查 Antigravity 是否安装
@@ -154,8 +212,8 @@ pub async fn antigravity_exchange_code(
     account.name = user_info.get_display_name();
 
     // 4. 保存账号
-    storage::save_account(&app, &account)?;
-    storage::upsert_account_summary(&app, &account)?;
+    storage::save_account(&app, &account).await?;
+    let _ = internal_refresh_account_quota(&app, &mut account).await;
 
     Ok(account)
 }
@@ -212,10 +270,10 @@ pub async fn antigravity_start_oauth_login(app: AppHandle) -> Result<Account, St
 
     // 5. 保存账号
     eprintln!("正在保存账号信息...");
-    storage::save_account(&app, &account)?;
-    storage::upsert_account_summary(&app, &account)?;
+    storage::save_account(&app, &account).await?;
 
     eprintln!("账号保存成功！");
+    let _ = internal_refresh_account_quota(&app, &mut account).await;
 
     Ok(account)
 }
@@ -226,4 +284,3 @@ pub async fn antigravity_cancel_oauth_login() -> Result<(), String> {
     oauth_server::cancel_oauth_flow();
     Ok(())
 }
-

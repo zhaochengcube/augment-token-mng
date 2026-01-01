@@ -112,6 +112,7 @@ pub async fn start_api_server_cmd(state: State<'_, AppState>) -> Result<(), Stri
             api_server: Mutex::new(None),
             outlook_manager: Mutex::new(OutlookManager::new()),
             storage_manager: state.storage_manager.clone(),
+            antigravity_storage_manager: state.antigravity_storage_manager.clone(),
             database_manager: state.database_manager.clone(),
             app_session_cache: state.app_session_cache.clone(),
             app_handle: state.app_handle.clone(),

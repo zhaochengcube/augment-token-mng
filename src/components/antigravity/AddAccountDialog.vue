@@ -118,7 +118,7 @@ import { useI18n } from 'vue-i18n'
 import { invoke } from '@tauri-apps/api/core'
 
 const { t: $t } = useI18n()
-const emit = defineEmits(['close', 'add', 'refresh'])
+const emit = defineEmits(['close', 'add', 'added'])
 
 const addMethod = ref('oauth') // 'oauth' or 'manual'
 const email = ref('')
@@ -139,11 +139,7 @@ const handleOAuthLogin = async () => {
     // 使用 OAuth 服务器模式，自动完成整个流程
     const account = await invoke('antigravity_start_oauth_login')
 
-    // 添加账号成功，关闭对话框
-    emit('close')
-
-    // 通知父组件刷新列表
-    emit('refresh')
+    emit('added', account)
 
   } catch (err) {
     error.value = err.message || 'OAuth 授权失败'

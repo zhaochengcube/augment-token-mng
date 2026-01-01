@@ -314,7 +314,7 @@ const platforms = computed(() => [
     name: 'Antigravity',
     icon: '/icons/antigravity.png',
     component: AntigravityAccountManager,
-    enabled: false
+    enabled: true
   },
   {
     id: 'windsurf',
