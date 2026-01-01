@@ -1,5 +1,5 @@
 use crate::antigravity::models::quota::{QuotaData, QuotaResponse, LoadProjectResponse};
-use reqwest;
+use crate::http_client::create_proxy_client;
 use serde_json::json;
 
 const QUOTA_API_URL: &str = "https://cloudcode-pa.googleapis.com/v1internal:fetchAvailableModels";
@@ -9,7 +9,14 @@ const DEFAULT_PROJECT_ID: &str = "bamboo-precept-lgxtn";
 
 /// 获取 Project ID
 async fn fetch_project_id(access_token: &str) -> (Option<String>, Option<String>) {
-    let client = reqwest::Client::new();
+    let client = match create_proxy_client() {
+        Ok(c) => c,
+        Err(e) => {
+            println!("Failed to create proxy client: {}", e);
+            return (None, None);
+        }
+    };
+
     let body = json!({
         "metadata": {
             "ideType": "ANTIGRAVITY"
@@ -24,7 +31,7 @@ async fn fetch_project_id(access_token: &str) -> (Option<String>, Option<String>
             .header("User-Agent", USER_AGENT)
             .json(&body)
             .send()
-            .await 
+            .await
         {
             Ok(res) if res.status().is_success() => {
                 if let Ok(data) = res.json::<LoadProjectResponse>().await {
@@ -45,7 +52,7 @@ pub async fn fetch_quota(access_token: &str) -> Result<(QuotaData, Option<String
     println!("=== fetch_quota ===");
     println!("access_token: {}...", &access_token.chars().take(20).collect::<String>());
 
-    let client = reqwest::Client::new();
+    let client = create_proxy_client()?;
 
     // 1. 获取 Project ID
     let (project_id, subscription_tier) = fetch_project_id(access_token).await;

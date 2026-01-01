@@ -69,7 +69,7 @@
     <div class="card-actions">
       <button
         v-if="!isCurrent"
-        @click="$emit('switch', account.id)"
+        @click.stop="$emit('switch', account.id)"
         class="btn primary small"
         :disabled="isSwitching"
       >
@@ -83,7 +83,7 @@
       </button>
 
       <button
-        @click="$emit('refresh', account.id)"
+        @click.stop="$emit('refresh', account.id)"
         class="btn-icon refresh-btn"
         :disabled="isRefreshing"
         v-tooltip="$t('platform.antigravity.refresh')"
@@ -94,9 +94,9 @@
       </button>
 
       <button
-        @click="$emit('delete', account.id)"
-        class="btn-icon delete-btn"
-        v-tooltip="$t('platform.antigravity.delete')"
+        @click.stop="$emit('delete', account.id)"
+        class="btn-icon delete"
+        v-tooltip="$t('platform.antigravity.actions.delete')"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
           <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>

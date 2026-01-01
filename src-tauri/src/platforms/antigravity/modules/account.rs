@@ -10,11 +10,21 @@ pub async fn add_account(
 ) -> Result<Account, String> {
     // 1. 使用 refresh_token 获取 access_token
     let token_res = oauth::refresh_access_token(&refresh_token).await?;
-    
+
     // 2. 获取用户信息
     let user_info = oauth::get_user_info(&token_res.access_token).await?;
-    
-    // 3. 构造 TokenData
+
+    // 3. 检查邮箱是否已存在
+    let email_to_check = user_info.email.trim().to_lowercase();
+    let existing_accounts = storage::list_accounts(app_handle).await?;
+
+    if existing_accounts.iter().any(|account| {
+        account.email.trim().to_lowercase() == email_to_check
+    }) {
+        return Err(format!("Account with email '{}' already exists", user_info.email));
+    }
+
+    // 4. 构造 TokenData
     let token = TokenData::new(
         token_res.access_token,
         refresh_token,
@@ -23,15 +33,15 @@ pub async fn add_account(
         None,
         None,
     );
-    
-    // 4. 创建账号
+
+    // 5. 创建账号
     let account_id = Uuid::new_v4().to_string();
     let mut account = Account::new(account_id, user_info.email.clone(), token);
     account.name = user_info.get_display_name();
-    
-    // 5. 保存账号
+
+    // 6. 保存账号
     storage::save_account(app_handle, &account).await?;
-    
+
     Ok(account)
 }
 

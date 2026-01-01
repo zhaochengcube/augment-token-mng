@@ -1,5 +1,5 @@
 use crate::antigravity::models::token::{TokenResponse, UserInfo};
-use reqwest;
+use crate::http_client::create_proxy_client;
 
 // 使用 Antigravity Manager 的 OAuth 配置
 const CLIENT_ID: &str = "1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com";
@@ -35,8 +35,8 @@ pub fn get_auth_url(redirect_uri: &str) -> String {
 
 /// 使用 Authorization Code 交换 Token
 pub async fn exchange_code(code: &str, redirect_uri: &str) -> Result<TokenResponse, String> {
-    let client = reqwest::Client::new();
-    
+    let client = create_proxy_client()?;
+
     let params = [
         ("client_id", CLIENT_ID),
         ("client_secret", CLIENT_SECRET),
@@ -63,8 +63,8 @@ pub async fn exchange_code(code: &str, redirect_uri: &str) -> Result<TokenRespon
 
 /// 使用 refresh_token 刷新 access_token
 pub async fn refresh_access_token(refresh_token: &str) -> Result<TokenResponse, String> {
-    let client = reqwest::Client::new();
-    
+    let client = create_proxy_client()?;
+
     let params = [
         ("client_id", CLIENT_ID),
         ("client_secret", CLIENT_SECRET),
@@ -84,12 +84,12 @@ pub async fn refresh_access_token(refresh_token: &str) -> Result<TokenResponse, 
             .json::<TokenResponse>()
             .await
             .map_err(|e| format!("Failed to parse refresh response: {}", e))?;
-        
+
         // 刷新时可能不返回新的 refresh_token，保留原有的
         if token_data.refresh_token.is_none() {
             token_data.refresh_token = Some(refresh_token.to_string());
         }
-        
+
         Ok(token_data)
     } else {
         let error_text = response.text().await.unwrap_or_default();
@@ -99,8 +99,8 @@ pub async fn refresh_access_token(refresh_token: &str) -> Result<TokenResponse, 
 
 /// 获取用户信息
 pub async fn get_user_info(access_token: &str) -> Result<UserInfo, String> {
-    let client = reqwest::Client::new();
-    
+    let client = create_proxy_client()?;
+
     let response = client
         .get(USER_INFO_URL)
         .bearer_auth(access_token)

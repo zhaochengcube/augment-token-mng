@@ -512,7 +512,7 @@ const storageStatusText = computed(() => {
     return $t('storage.initializing')
   }
 
-  if (storageType.value === 'antigravity_dual_storage') {
+  if (isDatabaseAvailable.value) {
     return hasPendingChanges.value
       ? `${$t('storage.dualStorage')}-${$t('storage.notSynced')}`
       : $t('storage.dualStorage')
@@ -822,8 +822,6 @@ const handleAccountAdded = async (account) => {
 }
 
 const handleDelete = async (accountId) => {
-  if (!confirm($t('platform.antigravity.messages.deleteConfirm'))) return
-
   try {
     const account = accounts.value.find(a => a.id === accountId)
     await invoke('antigravity_delete_account', { accountId })
@@ -831,9 +829,10 @@ const handleDelete = async (accountId) => {
       markAccountDeletion(account)
     }
     await loadAccounts()
+    window.$notify?.success($t('platform.antigravity.messages.deleteSuccess'))
   } catch (error) {
     console.error('Failed to delete account:', error)
-    alert(error)
+    window.$notify?.error($t('platform.antigravity.messages.deleteFailed', { error: error?.message || error }))
   }
 }
 
@@ -954,7 +953,6 @@ const batchRefreshSelected = async () => {
 }
 
 const showBatchDeleteSelectedConfirm = () => {
-  if (!confirm($t('platform.antigravity.messages.batchDeleteConfirm', { count: selectedAccountIds.value.size }))) return
   handleBatchDeleteSelected()
 }
 
@@ -969,9 +967,10 @@ const handleBatchDeleteSelected = async () => {
     }
     selectedAccountIds.value = new Set()
     await loadAccounts()
+    window.$notify?.success($t('platform.antigravity.messages.deleteSuccess'))
   } catch (error) {
     console.error('Failed to batch delete accounts:', error)
-    alert(error)
+    window.$notify?.error($t('platform.antigravity.messages.deleteFailed', { error: error?.message || error }))
   }
 }
 

@@ -142,7 +142,8 @@ const handleOAuthLogin = async () => {
     emit('added', account)
 
   } catch (err) {
-    error.value = err.message || 'OAuth 授权失败'
+    console.error('OAuth login error:', err)
+    error.value = err?.message || err || 'OAuth 授权失败'
   } finally {
     isLoading.value = false
   }
@@ -157,7 +158,8 @@ const handleAdd = async () => {
   try {
     await emit('add', email.value.trim(), refreshToken.value.trim())
   } catch (err) {
-    error.value = err.message || '添加账号失败'
+    console.error('Add account error:', err)
+    error.value = err?.message || err || '添加账号失败'
   } finally {
     isLoading.value = false
   }

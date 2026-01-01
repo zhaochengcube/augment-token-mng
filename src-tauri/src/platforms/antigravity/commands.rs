@@ -242,7 +242,17 @@ pub async fn antigravity_start_oauth_login(app: AppHandle) -> Result<Account, St
     let user_info = oauth::get_user_info(&token_res.access_token).await?;
     eprintln!("获取用户信息成功: {}", user_info.email);
 
-    // 4. 创建账号
+    // 4. 检查邮箱是否已存在
+    let email_to_check = user_info.email.trim().to_lowercase();
+    let existing_accounts = storage::list_accounts(&app).await?;
+
+    if existing_accounts.iter().any(|account| {
+        account.email.trim().to_lowercase() == email_to_check
+    }) {
+        return Err(format!("Account with email '{}' already exists", user_info.email));
+    }
+
+    // 5. 创建账号
     let account_id = uuid::Uuid::new_v4().to_string();
     let token = TokenData::new(
         token_res.access_token.clone(),
@@ -268,7 +278,7 @@ pub async fn antigravity_start_oauth_login(app: AppHandle) -> Result<Account, St
     eprintln!("  name: {:?}", account.name);
     eprintln!("  token.refresh_token: {}...", &account.token.refresh_token.chars().take(20).collect::<String>());
 
-    // 5. 保存账号
+    // 6. 保存账号
     eprintln!("正在保存账号信息...");
     storage::save_account(&app, &account).await?;
 
