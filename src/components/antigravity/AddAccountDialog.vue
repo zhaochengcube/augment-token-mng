@@ -15,7 +15,7 @@
         <div class="method-tabs">
           <button
             :class="['method-tab', { active: addMethod === 'oauth' }]"
-            @click="addMethod = 'oauth'; oauthStep = 0; authCode = ''"
+            @click="switchToOAuth"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
@@ -52,6 +52,54 @@
               </svg>
               <span v-if="isLoading">{{ $t('platform.antigravity.addAccountDialog.adding') }}</span>
               <span v-else>{{ $t('platform.antigravity.addAccountDialog.googleLogin') }}</span>
+            </button>
+          </div>
+
+          <div class="oauth-manual">
+            <div class="oauth-manual-title">{{ $t('platform.antigravity.addAccountDialog.oauthManualTitle') }}</div>
+            <div class="oauth-link-actions">
+              <button class="btn primary" @click="generateAuthUrl" :disabled="isLoading || isManualLoading">
+                {{ $t('platform.antigravity.addAccountDialog.generateAuthLink') }}
+              </button>
+            </div>
+
+            <div v-if="oauthAuthUrl" class="oauth-url-field">
+              <input type="text" :value="oauthAuthUrl" readonly class="form-input" />
+              <button class="btn-icon copy-auth-link" @click="copyAuthUrl" :disabled="isLoading || isManualLoading" v-tooltip="$t('platform.antigravity.addAccountDialog.copyAuthLink')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                </svg>
+              </button>
+            </div>
+
+            <div class="form-group oauth-callback">
+              <label>{{ $t('platform.antigravity.addAccountDialog.callbackLabel') }}</label>
+              <div class="input-with-clear">
+                <input
+                  v-model="oauthCallbackInput"
+                  type="text"
+                  :placeholder="$t('platform.antigravity.addAccountDialog.callbackPlaceholder')"
+                  class="form-input"
+                  :disabled="isLoading || isManualLoading"
+                />
+                <button
+                  v-if="oauthCallbackInput"
+                  class="modal-close clear-input-btn"
+                  type="button"
+                  @click="oauthCallbackInput = ''"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                  </svg>
+                </button>
+              </div>
+              <p class="form-hint">
+                {{ $t('platform.antigravity.addAccountDialog.callbackHint') }}
+              </p>
+            </div>
+
+            <button class="btn primary" @click="handleOAuthExchange" :disabled="!canExchange || isLoading || isManualLoading">
+              <span>{{ $t('platform.antigravity.addAccountDialog.exchangeCode') }}</span>
             </button>
           </div>
         </div>
@@ -113,9 +161,10 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 
 const { t: $t } = useI18n()
 const emit = defineEmits(['close', 'add', 'added'])
@@ -124,16 +173,65 @@ const addMethod = ref('oauth') // 'oauth' or 'manual'
 const email = ref('')
 const refreshToken = ref('')
 const isLoading = ref(false)
+const isManualLoading = ref(false)
 const error = ref('')
+const oauthAuthUrl = ref('')
+const oauthRedirectUri = ref('')
+const oauthCallbackInput = ref('')
 
 const canSubmit = computed(() => {
   if (addMethod.value === 'oauth') return true
   return email.value.trim() && refreshToken.value.trim()
 })
 
+const canExchange = computed(() => {
+  const raw = oauthCallbackInput.value.trim()
+  if (!raw) return false
+  if (/^https?:\/\//i.test(raw)) return true
+  return !!oauthRedirectUri.value
+})
+
+const resetOAuthState = () => {
+  oauthAuthUrl.value = ''
+  oauthRedirectUri.value = ''
+  oauthCallbackInput.value = ''
+}
+
+const switchToOAuth = () => {
+  addMethod.value = 'oauth'
+  resetOAuthState()
+}
+
+let unlistenOAuthUrl = null
+
+onMounted(async () => {
+  unlistenOAuthUrl = await listen('oauth-url-generated', event => {
+    const url = typeof event.payload === 'string' ? event.payload : ''
+    if (!url) return
+    oauthAuthUrl.value = url
+    try {
+      const parsed = new URL(url)
+      const redirect = parsed.searchParams.get('redirect_uri')
+      if (redirect) {
+        oauthRedirectUri.value = redirect
+      }
+    } catch (err) {
+      console.error('Parse oauth url error:', err)
+    }
+  })
+})
+
+onUnmounted(() => {
+  if (unlistenOAuthUrl) {
+    unlistenOAuthUrl()
+    unlistenOAuthUrl = null
+  }
+})
+
 const handleOAuthLogin = async () => {
   error.value = ''
   isLoading.value = true
+  resetOAuthState()
 
   try {
     // 使用 OAuth 服务器模式，自动完成整个流程
@@ -143,9 +241,82 @@ const handleOAuthLogin = async () => {
 
   } catch (err) {
     console.error('OAuth login error:', err)
-    error.value = err?.message || err || 'OAuth 授权失败'
+    error.value = formatOAuthError(err)
   } finally {
     isLoading.value = false
+  }
+}
+
+const generateAuthUrl = async () => {
+  error.value = ''
+  isManualLoading.value = true
+
+  try {
+    const port = Math.floor(Math.random() * 16383) + 49152
+    const redirectUri = `http://localhost:${port}/oauth-callback`
+    const authUrl = await invoke('antigravity_get_auth_url', { redirectUri })
+    oauthAuthUrl.value = authUrl
+    oauthRedirectUri.value = redirectUri
+  } catch (err) {
+    console.error('Generate auth url error:', err)
+    error.value = err?.message || err || '生成授权链接失败'
+  } finally {
+    isManualLoading.value = false
+  }
+}
+
+const copyAuthUrl = async () => {
+  if (!oauthAuthUrl.value) return
+
+  try {
+    await navigator.clipboard.writeText(oauthAuthUrl.value)
+    window.$notify?.success($t('platform.antigravity.addAccountDialog.authLinkCopied'))
+  } catch (err) {
+    console.error('Copy auth url error:', err)
+    error.value = err?.message || err || '复制授权链接失败'
+  }
+}
+
+const formatOAuthError = (err) => {
+  const message = err?.message || err || ''
+  if (message.includes('ANTIGRAVITY_EMAIL_EXISTS')) {
+    return $t('platform.antigravity.addAccountDialog.emailExists')
+  }
+  return message || $t('platform.antigravity.addAccountDialog.oauthExchangeFailed')
+}
+
+const handleOAuthExchange = async () => {
+  const rawInput = oauthCallbackInput.value.trim()
+  if (!rawInput) return
+
+  error.value = ''
+  isManualLoading.value = true
+
+  try {
+    let code = rawInput
+    let redirectUri = oauthRedirectUri.value
+
+    if (/^https?:\/\//i.test(rawInput)) {
+      const url = new URL(rawInput)
+      code = url.searchParams.get('code') || ''
+      redirectUri = `${url.origin}${url.pathname}`
+    }
+
+    if (!code) {
+      throw new Error($t('platform.antigravity.addAccountDialog.invalidCallback'))
+    }
+
+    if (!redirectUri) {
+      throw new Error($t('platform.antigravity.addAccountDialog.missingRedirectUri'))
+    }
+
+    const account = await invoke('antigravity_exchange_code', { code, redirectUri })
+    emit('added', account)
+  } catch (err) {
+    console.error('Exchange code error:', err)
+    error.value = formatOAuthError(err)
+  } finally {
+    isManualLoading.value = false
   }
 }
 
@@ -289,6 +460,69 @@ const handleAdd = async () => {
 .oauth-btn svg {
   width: 20px;
   height: 20px;
+}
+
+.oauth-manual {
+  margin-top: 20px;
+  padding: 16px;
+  background: var(--bg-muted);
+  border-radius: 8px;
+}
+
+.oauth-manual-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+
+.oauth-link-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.oauth-url-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.copy-auth-link {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-surface);
+}
+
+.copy-auth-link:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.oauth-callback .form-hint {
+  margin-top: 6px;
+}
+
+.input-with-clear {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-with-clear .form-input {
+  padding-right: 36px;
+}
+
+.clear-input-btn {
+  position: absolute;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .oauth-code-input {

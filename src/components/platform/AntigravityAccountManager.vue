@@ -436,7 +436,6 @@ const isStorageInitializing = ref(false)
 const isSyncing = ref(false)
 const isSyncNeeded = ref(false)
 const isLoadingFromSync = ref(false)
-const storageType = ref('antigravity_local_only')
 const showModelsModal = ref(false)
 const activeModelsAccount = ref(null)
 const showSyncQueueModal = ref(false)
@@ -613,11 +612,15 @@ const isPartialSelected = computed(() => {
 const loadAccounts = async () => {
   isLoading.value = true
   try {
-    accounts.value = await invoke('antigravity_list_accounts')
-    const current = await invoke('antigravity_get_current_account')
-    currentAccountId.value = current?.id
+    // 直接从本地文件加载,不触发 storage manager 初始化
+    const jsonString = await invoke('antigravity_load_accounts_json')
+    const data = JSON.parse(jsonString)
+    accounts.value = data.accounts || []
+    currentAccountId.value = data.current_account_id || null
   } catch (error) {
     console.error('Failed to load accounts:', error)
+    accounts.value = []
+    currentAccountId.value = null
   } finally {
     isLoading.value = false
   }
@@ -697,19 +700,24 @@ let storageCheckTimer = null
 const getStorageStatus = async () => {
   try {
     const status = await invoke('get_antigravity_storage_status')
-    storageType.value = status?.storage_type || 'antigravity_local_only'
 
+    // 检查是否正在初始化
     if (status?.is_initializing) {
       isStorageInitializing.value = true
       isDatabaseAvailable.value = false
+
+      // 启动定时器，每 500ms 检查一次
       if (!storageCheckTimer) {
         storageCheckTimer = setInterval(async () => {
           await getStorageStatus()
-        }, 800)
+        }, 500)
       }
     } else {
+      // 初始化完成
       isStorageInitializing.value = false
       isDatabaseAvailable.value = status?.is_database_available || false
+
+      // 停止定时器
       if (storageCheckTimer) {
         clearInterval(storageCheckTimer)
         storageCheckTimer = null
@@ -719,6 +727,12 @@ const getStorageStatus = async () => {
     console.error('Failed to get Antigravity storage status:', error)
     isDatabaseAvailable.value = false
     isStorageInitializing.value = false
+
+    // 停止定时器
+    if (storageCheckTimer) {
+      clearInterval(storageCheckTimer)
+      storageCheckTimer = null
+    }
   }
 }
 
@@ -734,11 +748,16 @@ const markAccountUpsert = (account) => {
 
 const markAccountDeletion = (account) => {
   if (!account?.id) return
-  pendingDeletions.value.set(account.id, { id: account.id, email: account.email || null })
+  const wasOnlyLocal = pendingUpserts.value.has(account.id)
   pendingUpserts.value.delete(account.id)
+  if (!wasOnlyLocal) {
+    pendingDeletions.value.set(account.id, { id: account.id, email: account.email || null })
+  } else {
+    pendingDeletions.value.delete(account.id)
+  }
   savePendingChanges()
   if (isDatabaseAvailable.value) {
-    isSyncNeeded.value = true
+    isSyncNeeded.value = pendingUpserts.value.size > 0 || pendingDeletions.value.size > 0
   }
 }
 
@@ -814,10 +833,10 @@ const handleAddAccount = async (email, refreshToken) => {
 
 const handleAccountAdded = async (account) => {
   showAddDialog.value = false
-  if (account?.id) {
-    markAccountUpsert(account)
-  }
   await loadAccounts()
+  if (account?.id) {
+    markAccountUpsertById(account.id)
+  }
   window.$notify?.success($t('platform.antigravity.messages.addSuccess'))
 }
 
@@ -1069,8 +1088,6 @@ const handleSync = async () => {
     pendingDeletions.value.clear()
     savePendingChanges()
 
-    await loadAccounts()
-
     await new Promise(resolve => setTimeout(resolve, 1200))
     isLoadingFromSync.value = false
     isSyncNeeded.value = false
@@ -1098,11 +1115,11 @@ const handleClickOutside = (event) => {
   }
 }
 
-onMounted(() => {
-  loadAccounts()
+onMounted(async () => {
   lastVersion.value = loadLastVersion()
   loadPendingChanges()
-  getStorageStatus()
+  await getStorageStatus()
+  await loadAccounts()
   document.addEventListener('click', handleClickOutside)
 })
 

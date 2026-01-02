@@ -307,6 +307,7 @@ pub fn run() {
 
             // Antigravity 管理命令
             antigravity::antigravity_list_accounts,
+            antigravity::antigravity_load_accounts_json,
             antigravity::antigravity_add_account,
             antigravity::antigravity_delete_account,
             antigravity::antigravity_get_current_account,

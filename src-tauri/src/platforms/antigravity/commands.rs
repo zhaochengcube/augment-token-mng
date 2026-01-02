@@ -1,4 +1,4 @@
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 use crate::antigravity::models::{Account, QuotaData, TokenData};
 use crate::antigravity::modules::{storage, account, oauth, oauth_server, process, db};
 
@@ -12,6 +12,32 @@ async fn internal_refresh_account_quota(app: &AppHandle, account: &mut Account) 
 #[tauri::command]
 pub async fn antigravity_list_accounts(app: AppHandle) -> Result<Vec<Account>, String> {
     storage::list_accounts(&app).await
+}
+
+/// 直接从本地文件加载账号
+#[tauri::command]
+pub async fn antigravity_load_accounts_json(app: AppHandle) -> Result<String, String> {
+    use std::fs;
+
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
+
+    let storage_path = app_data_dir.join("antigravity_accounts.json");
+
+    if storage_path.exists() {
+        let content = fs::read_to_string(&storage_path)
+            .map_err(|e| format!("Failed to read accounts file: {}", e))?;
+
+        if content.trim().is_empty() {
+            return Ok(r#"{"accounts":[],"current_account_id":null}"#.to_string());
+        }
+
+        Ok(content)
+    } else {
+        Ok(r#"{"accounts":[],"current_account_id":null}"#.to_string())
+    }
 }
 
 /// 添加账号（使用 refresh_token）
@@ -197,7 +223,17 @@ pub async fn antigravity_exchange_code(
     // 2. 获取用户信息
     let user_info = oauth::get_user_info(&token_res.access_token).await?;
 
-    // 3. 创建账号
+    // 3. 检查邮箱是否已存在
+    let email_to_check = user_info.email.trim().to_lowercase();
+    let existing_accounts = storage::list_accounts(&app).await?;
+
+    if existing_accounts.iter().any(|account| {
+        account.email.trim().to_lowercase() == email_to_check
+    }) {
+        return Err("ANTIGRAVITY_EMAIL_EXISTS".to_string());
+    }
+
+    // 4. 创建账号
     let account_id = uuid::Uuid::new_v4().to_string();
     let token = crate::antigravity::models::TokenData::new(
         token_res.access_token,
@@ -211,7 +247,7 @@ pub async fn antigravity_exchange_code(
     let mut account = Account::new(account_id, user_info.email.clone(), token);
     account.name = user_info.get_display_name();
 
-    // 4. 保存账号
+    // 5. 保存账号
     storage::save_account(&app, &account).await?;
     let _ = internal_refresh_account_quota(&app, &mut account).await;
 

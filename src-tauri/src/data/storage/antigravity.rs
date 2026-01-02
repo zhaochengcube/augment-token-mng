@@ -70,8 +70,35 @@ pub async fn antigravity_sync_accounts(
 
 #[tauri::command]
 pub async fn get_antigravity_storage_status(
+    app: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
+    let mut needs_reinit = false;
+    {
+        let guard = state.antigravity_storage_manager.lock().unwrap();
+        if let Some(manager) = guard.as_ref() {
+            if !manager.is_database_available() {
+                let db_guard = state.database_manager.lock().unwrap();
+                if db_guard.is_some() {
+                    needs_reinit = true;
+                }
+            }
+        } else {
+            return Ok(serde_json::json!({
+                "is_available": false,
+                "storage_type": "initializing",
+                "is_database_available": false,
+                "is_initializing": true
+            }));
+        }
+    }
+
+    if needs_reinit {
+        if let Err(e) = initialize_antigravity_storage_manager(&app, &state).await {
+            eprintln!("Failed to reinitialize Antigravity storage manager: {}", e);
+        }
+    }
+
     let storage_manager = {
         let guard = state.antigravity_storage_manager.lock().unwrap();
         guard.clone()

@@ -215,19 +215,19 @@ const copyEmail = async () => {
 const formatModelName = (name) => {
   const lowerName = name.toLowerCase()
 
-  // Claude 模型
-  if (lowerName.includes('claude-opus-4-5-thinking')) return 'Claude Opus 4.5 Thinking'
-  if (lowerName.includes('claude-sonnet-4-5-thinking')) return 'Claude Sonnet 4.5 Thinking'
-  if (lowerName.includes('claude-sonnet-4-5')) return 'Claude Sonnet 4.5'
-  if (lowerName.includes('claude-opus')) return 'Claude Opus'
-  if (lowerName.includes('claude-sonnet')) return 'Claude Sonnet'
-  if (lowerName.includes('claude')) return 'Claude'
+  // Claude 模型 - 缩写为 C
+  if (lowerName.includes('claude-opus-4-5-thinking')) return 'C Opus 4.5 Thinking'
+  if (lowerName.includes('claude-sonnet-4-5-thinking')) return 'C Sonnet 4.5 Thinking'
+  if (lowerName.includes('claude-sonnet-4-5')) return 'C Sonnet 4.5'
+  if (lowerName.includes('claude-opus')) return 'C Opus'
+  if (lowerName.includes('claude-sonnet')) return 'C Sonnet'
+  if (lowerName.includes('claude')) return 'C'
 
-  // Gemini 模型
-  if (lowerName.includes('gemini-3-pro-high')) return 'Gemini 3 Pro (High)'
-  if (lowerName.includes('gemini-3-pro-image')) return 'Gemini 3 Pro (Image)'
-  if (lowerName.includes('gemini-3-flash')) return 'Gemini 3 Flash'
-  if (lowerName.includes('gemini-3-pro')) return 'Gemini 3 Pro'
+  // Gemini 模型 - Gemini 3 缩写为 G3
+  if (lowerName.includes('gemini-3-pro-high')) return 'G3 Pro (High)'
+  if (lowerName.includes('gemini-3-pro-image')) return 'G3 Pro (Image)'
+  if (lowerName.includes('gemini-3-flash')) return 'G3 Flash'
+  if (lowerName.includes('gemini-3-pro')) return 'G3 Pro'
   if (lowerName.includes('gemini')) return 'Gemini'
 
   // 返回原始名称
