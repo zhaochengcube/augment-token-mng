@@ -111,11 +111,20 @@ const formatModelName = (name) => {
   if (lowerName.includes('claude-sonnet')) return 'Claude Sonnet'
   if (lowerName.includes('claude')) return 'Claude'
 
+  if (lowerName.includes('gemini-2.5-pro')) return 'Gemini 2.5 Pro'
+  if (lowerName.includes('gemini-2.5-flash-thinking')) return 'Gemini 2.5 Flash Thinking'
+  if (lowerName.includes('gemini-2.5-flash-lite')) return 'Gemini 2.5 Flash Lite'
+  if (lowerName.includes('gemini-2.5-flash')) return 'Gemini 2.5 Flash'
   if (lowerName.includes('gemini-3-pro-high')) return 'Gemini 3 Pro (High)'
+  if (lowerName.includes('gemini-3-pro-low')) return 'Gemini 3 Pro (Low)'
   if (lowerName.includes('gemini-3-pro-image')) return 'Gemini 3 Pro (Image)'
   if (lowerName.includes('gemini-3-flash')) return 'Gemini 3 Flash'
   if (lowerName.includes('gemini-3-pro')) return 'Gemini 3 Pro'
   if (lowerName.includes('gemini')) return 'Gemini'
+
+  if (lowerName.includes('gpt-oss-120b-medium')) return 'GPT OSS 120B Medium'
+  if (lowerName.includes('rev19-uic3-1p')) return 'Rev19 UIC3 1P'
+  if (lowerName.startsWith('chat_')) return `Chat ${name.replace(/^chat_/, '')}`
 
   return name
 }
@@ -233,11 +242,11 @@ const formatResetCountdown = (timeStr) => {
   justify-content: space-between;
   padding: 0 10px;
   gap: 8px;
-  color: var(--text, #e5e7eb);
+  color: var(--text-strong, #0f172a);
   font-size: 11px;
   font-weight: 600;
   z-index: 2;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  text-shadow: none;
 }
 
 .model-label {
@@ -250,7 +259,7 @@ const formatResetCountdown = (timeStr) => {
 
 .model-time {
   font-variant-numeric: tabular-nums;
-  color: color-mix(in srgb, var(--text, #e5e7eb) 70%, transparent);
+  color: var(--text-secondary, #4b5563);
 }
 
 .model-percent {
@@ -260,6 +269,14 @@ const formatResetCountdown = (timeStr) => {
 .model-percent.high { color: #10b981; }
 .model-percent.medium { color: #f59e0b; }
 .model-percent.low { color: #ef4444; }
+
+:global([data-theme='dark']) .model-time {
+  color: var(--text-secondary, #cbd5e1);
+}
+
+:global([data-theme='dark']) .quota-overlay {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
 
 .quota-fill.medium {
   background: linear-gradient(90deg, #f59e0b, #d97706);

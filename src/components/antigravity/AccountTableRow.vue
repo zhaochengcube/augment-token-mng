@@ -131,30 +131,35 @@ const maskedEmail = computed(() => {
   return 'hello@augmentcode.com'
 })
 
-// 过滤并排序模型,只显示指定的4个模型
+// 过滤并排序模型,只显示优先模型
 const filteredModels = computed(() => {
   if (!props.account.quota || !props.account.quota.models) return []
 
-  const targetModels = [
+  const priorityModels = [
+    'claude-opus-4-5-thinking',
+    'claude-sonnet-4-5-thinking',
+    'claude-sonnet-4-5',
     'gemini-3-pro-high',
     'gemini-3-pro-image',
-    'gemini-3-flash',
-    'claude-sonnet-4-5',
-    'claude-sonnet-4-5-thinking',
-    'claude-opus-4-5-thinking'
+    'gemini-3-flash'
   ]
+  const maxDisplay = 6
+  const normalizedPriority = priorityModels.map((model) => model.toLowerCase())
 
-  return props.account.quota.models
-    .filter(model => {
-      const lowerName = model.name.toLowerCase()
-      return targetModels.some(target => lowerName.includes(target))
+  const prioritized = props.account.quota.models
+    .map((model) => {
+      const index = normalizedPriority.findIndex((target) => model.name.toLowerCase().includes(target))
+      return { model, index }
     })
-    .sort((a, b) => {
-      // 按照 targetModels 的顺序排序
-      const indexA = targetModels.findIndex(target => a.name.toLowerCase().includes(target))
-      const indexB = targetModels.findIndex(target => b.name.toLowerCase().includes(target))
-      return indexA - indexB
-    })
+    .filter((entry) => entry.index !== -1)
+    .sort((a, b) => a.index - b.index)
+    .map((entry) => entry.model)
+
+  const fallback = props.account.quota.models
+    .filter((model) => !prioritized.some((entry) => entry.name === model.name))
+    .sort((a, b) => a.name.localeCompare(b.name))
+
+  return [...prioritized, ...fallback].slice(0, maxDisplay)
 })
 
 const quotaRows = computed(() => {
@@ -224,11 +229,20 @@ const formatModelName = (name) => {
   if (lowerName.includes('claude')) return 'C'
 
   // Gemini 模型 - Gemini 3 缩写为 G3
+  if (lowerName.includes('gemini-2.5-pro')) return 'G2.5 Pro'
+  if (lowerName.includes('gemini-2.5-flash-thinking')) return 'G2.5 Flash Think'
+  if (lowerName.includes('gemini-2.5-flash-lite')) return 'G2.5 Flash Lite'
+  if (lowerName.includes('gemini-2.5-flash')) return 'G2.5 Flash'
   if (lowerName.includes('gemini-3-pro-high')) return 'G3 Pro (High)'
+  if (lowerName.includes('gemini-3-pro-low')) return 'G3 Pro (Low)'
   if (lowerName.includes('gemini-3-pro-image')) return 'G3 Pro (Image)'
   if (lowerName.includes('gemini-3-flash')) return 'G3 Flash'
   if (lowerName.includes('gemini-3-pro')) return 'G3 Pro'
   if (lowerName.includes('gemini')) return 'Gemini'
+
+  if (lowerName.includes('gpt-oss-120b-medium')) return 'GPT OSS 120B'
+  if (lowerName.includes('rev19-uic3-1p')) return 'Rev19 UIC3'
+  if (lowerName.startsWith('chat_')) return `Chat ${name.replace(/^chat_/, '')}`
 
   // 返回原始名称
   return name

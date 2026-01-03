@@ -205,13 +205,15 @@
                       <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
                     </svg>
                   </button>
-                </div>
-                <div class="button-container">
-                  <button type="button" @click="openAuthUrl" class="btn primary">
+                  <button
+                    type="button"
+                    @click="openAuthDialog"
+                    class="btn-icon copy-icon"
+                    :title="$t('tokenGenerator.openAuthUrl')"
+                  >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
                     </svg>
-                    {{ $t('tokenGenerator.openAuthUrl') }}
                   </button>
                 </div>
               </div>
@@ -226,6 +228,7 @@
                 :placeholder="$t('tokenGenerator.authCodePlaceholder')"
                 rows="4"
                 :disabled="isGettingToken"
+                class="oauth-code-textarea"
               ></textarea>
               <div class="button-container">
                 <button
@@ -375,6 +378,16 @@
       </div>
     </div>
   </div>
+
+  <Teleport to="body">
+    <ExternalLinkDialog
+      :show="showAuthUrlDialog"
+      :title="$t('dialogs.selectOpenMethod')"
+      :url="oauthData.authUrl"
+      :browser-title="$t('dialogs.authUrlTitle')"
+      @close="showAuthUrlDialog = false"
+    />
+  </Teleport>
 </template>
 
 <script setup>
@@ -382,6 +395,7 @@ import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { useI18n } from 'vue-i18n'
+import ExternalLinkDialog from '../common/ExternalLinkDialog.vue'
 
 const { t } = useI18n()
 
@@ -444,6 +458,7 @@ const oauthData = ref({
 })
 const isGeneratingAuth = ref(false)
 const isGettingToken = ref(false)
+const showAuthUrlDialog = ref(false)
 
 // Session import data
 const sessionInput = ref('')
@@ -633,25 +648,46 @@ const generateAuthUrl = async () => {
     oauthData.value.authUrl = url
   } catch (error) {
     console.error('Failed to generate auth URL:', error)
-    // TODO: Show error message
+    showStatus(t('messages.generateUrlError'), 'error')
   } finally {
     isGeneratingAuth.value = false
   }
 }
 
-const copyAuthUrl = async () => {
+const copyToClipboard = async (text) => {
+  if (!text) return false
   try {
-    await navigator.clipboard.writeText(oauthData.value.authUrl)
-    // TODO: Show success message
+    await navigator.clipboard.writeText(text)
+    return true
   } catch (error) {
-    console.error('Failed to copy auth URL:', error)
+    console.warn('Clipboard API failed, falling back:', error)
+  }
+
+  try {
+    const textArea = document.createElement('textarea')
+    textArea.value = text
+    document.body.appendChild(textArea)
+    textArea.select()
+    const success = document.execCommand('copy')
+    document.body.removeChild(textArea)
+    return success
+  } catch (error) {
+    console.error('Fallback copy failed:', error)
+    return false
   }
 }
 
-const openAuthUrl = () => {
-  if (oauthData.value.authUrl) {
-    window.open(oauthData.value.authUrl, '_blank')
-  }
+const copyAuthUrl = async () => {
+  const success = await copyToClipboard(oauthData.value.authUrl)
+  showStatus(
+    success ? t('messages.copySuccess') : t('messages.copyFailed'),
+    success ? 'success' : 'error'
+  )
+}
+
+const openAuthDialog = () => {
+  if (!oauthData.value.authUrl) return
+  showAuthUrlDialog.value = true
 }
 
 const getAccessToken = async () => {
@@ -672,12 +708,11 @@ const getAccessToken = async () => {
 }
 
 const copyAccessToken = async () => {
-  try {
-    await navigator.clipboard.writeText(oauthData.value.tokenResult.access_token)
-    // TODO: Show success message
-  } catch (error) {
-    console.error('Failed to copy access token:', error)
-  }
+  const success = await copyToClipboard(oauthData.value.tokenResult.access_token)
+  showStatus(
+    success ? t('messages.accessTokenCopied') : t('messages.copyFailed'),
+    success ? 'success' : 'error'
+  )
 }
 
 const saveOAuthToken = async () => {
@@ -1320,6 +1355,33 @@ onUnmounted(() => {
   margin: 0 0 16px 0;
   font-size: 14px;
   color: var(--text-muted);
+}
+
+.oauth-code-textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  line-height: 1.6;
+  background: var(--bg-surface);
+  color: var(--text);
+  min-height: 140px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.oauth-code-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.oauth-code-textarea:disabled {
+  background: var(--bg-muted);
+  color: var(--text-muted);
+  cursor: not-allowed;
 }
 
 .url-section {

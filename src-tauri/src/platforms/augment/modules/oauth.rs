@@ -1,6 +1,5 @@
 use base64::{engine::general_purpose, Engine as _};
 use rand::Rng;
-use regex::Regex;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
@@ -19,6 +18,8 @@ use crate::platforms::augment::account::get_models;
 
 const CLIENT_ID: &str = "v";
 const AUTH_BASE_URL: &str = "https://auth.augmentcode.com";
+const AUTH_CONTINUE_PATH: &str = "/auth/continue";
+const API_REDIRECT_URI: &str = "vscode://augment.vscode-augment/auth/result";
 
 #[derive(Debug, Deserialize)]
 struct TokenApiResponse {
@@ -79,6 +80,95 @@ pub fn generate_augment_authorize_url(oauth_state: &AugmentOAuthState) -> Result
         .append_pair("prompt", "login");
 
     Ok(url.to_string())
+}
+
+fn extract_json_object_from_html(html: &str, marker: &str) -> Option<String> {
+    let marker_index = html.find(marker)?;
+    let brace_start = html[marker_index..].find('{')? + marker_index;
+
+    let mut depth = 0isize;
+    for (offset, ch) in html[brace_start..].char_indices() {
+        if ch == '{' {
+            depth += 1;
+        } else if ch == '}' {
+            depth -= 1;
+            if depth == 0 {
+                let end = brace_start + offset + ch.len_utf8();
+                return Some(html[brace_start..end].to_string());
+            }
+        }
+    }
+
+    None
+}
+
+fn parse_auth_data_from_initial_state(
+    html: &str,
+) -> Result<(String, String, String, Option<String>), String> {
+    let json_text = extract_json_object_from_html(html, "window.__INITIAL_STATE__")
+        .ok_or_else(|| "missing initial state".to_string())?;
+
+    let initial_state: serde_json::Value = serde_json::from_str(&json_text)
+        .map_err(|e| format!("invalid initial state json: {}", e))?;
+
+    let client_code = initial_state.get("client_code");
+    let code = client_code
+        .and_then(|value| value.get("code"))
+        .and_then(|value| value.as_str())
+        .map(|value| value.to_string());
+    let state = client_code
+        .and_then(|value| value.get("state"))
+        .and_then(|value| value.as_str())
+        .map(|value| value.to_string());
+    let tenant_url = client_code
+        .and_then(|value| value.get("tenant_url"))
+        .and_then(|value| value.as_str())
+        .map(|value| value.to_string());
+
+    match (code, state, tenant_url) {
+        (Some(code), Some(state), Some(tenant_url)) => {
+            let email = initial_state
+                .get("email")
+                .and_then(|value| value.as_str())
+                .map(|value| value.to_string());
+            Ok((code, state, tenant_url, email))
+        }
+        _ => Err("missing client_code".to_string()),
+    }
+}
+
+async fn get_auth_continue_with_cookie(
+    session: &str,
+    code_challenge: &str,
+    state: &str,
+) -> Result<(String, Option<String>), String> {
+    let mut url = Url::parse(&format!("{}{}", AUTH_BASE_URL, AUTH_CONTINUE_PATH))
+        .map_err(|e| format!("Failed to parse auth continue url: {}", e))?;
+
+    url.query_pairs_mut()
+        .append_pair("response_type", "code")
+        .append_pair("code_challenge", code_challenge)
+        .append_pair("client_id", CLIENT_ID)
+        .append_pair("state", state)
+        .append_pair("prompt", "login")
+        .append_pair("redirect_uri", API_REDIRECT_URI);
+
+    let client = create_proxy_client()?;
+    let response = client
+        .get(url.as_str())
+        .header("Cookie", format!("session={}", session))
+        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch auth continue: {}", e))?;
+
+    let new_session = extract_session_from_response(&response).ok();
+    let html = response
+        .text()
+        .await
+        .map_err(|e| format!("Failed to read auth continue response: {}", e))?;
+
+    Ok((html, new_session))
 }
 
 /// Parse the authorization code response
@@ -145,68 +235,35 @@ pub async fn complete_augment_oauth_flow(
 
 /// 从 auth session 中提取 access token
 pub async fn extract_token_from_session(session: &str) -> Result<AugmentTokenResponse, String> {
-    // 生成 PKCE 参数
     let code_verifier = generate_random_string(32);
     let code_challenge = base64_url_encode(&sha256_hash(code_verifier.as_bytes()));
     let state = generate_random_string(42);
-    let client_id = CLIENT_ID;
 
-    // 使用 session 访问 terms-accept 获取 HTML
-    let terms_url = format!(
-        "{}/terms-accept?response_type=code&code_challenge={}&client_id={}&state={}&prompt=login",
-        AUTH_BASE_URL, code_challenge, client_id, state
+    let (html, _new_session) = get_auth_continue_with_cookie(session, &code_challenge, &state).await?;
+
+    let (code, parsed_state, tenant_url, email) = match parse_auth_data_from_initial_state(&html) {
+        Ok(data) => data,
+        Err(err) => {
+            eprintln!("Failed to parse auth data: {}", err);
+            return Err("SESSION_ERROR_OR_ACCOUNT_BANNED".to_string());
+        }
+    };
+
+    println!(
+        "Extracted - code: {}, state: {}, tenant_url: {}",
+        code, parsed_state, tenant_url
     );
 
-    // 使用 ProxyClient，自动处理 Edge Function
-    let client = create_proxy_client()?;
-    let html_response = client
-        .get(&terms_url)
-        .header("Cookie", format!("session={}", session))
-        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-        .send()
-        .await
-        .map_err(|e| format!("Failed to fetch terms page: {}", e))?;
-
-    let html = html_response
-        .text()
-        .await
-        .map_err(|e| format!("Failed to read HTML response: {}", e))?;
-
-    // 使用正则表达式提取 code, state, tenant_url
-    let code_regex = Regex::new(r#"code:\s*"([^"]+)""#).unwrap();
-    let state_regex = Regex::new(r#"state:\s*"([^"]+)""#).unwrap();
-    let tenant_url_regex = Regex::new(r#"tenant_url:\s*"([^"]+)""#).unwrap();
-
-    let code = code_regex
-        .captures(&html)
-        .and_then(|cap| cap.get(1))
-        .map(|m| m.as_str())
-        .ok_or("SESSION_ERROR_OR_ACCOUNT_BANNED")?;
-
-    let parsed_state = state_regex
-        .captures(&html)
-        .and_then(|cap| cap.get(1))
-        .map(|m| m.as_str())
-        .ok_or("SESSION_ERROR_OR_ACCOUNT_BANNED")?;
-
-    let tenant_url = tenant_url_regex
-        .captures(&html)
-        .and_then(|cap| cap.get(1))
-        .map(|m| m.as_str())
-        .ok_or("SESSION_ERROR_OR_ACCOUNT_BANNED")?;
-
-    println!("Extracted - code: {}, state: {}, tenant_url: {}", code, parsed_state, tenant_url);
-
-    // 用授权码换 Token
     let token_url = format!("{}token", tenant_url);
     let token_payload = serde_json::json!({
         "grant_type": "authorization_code",
-        "client_id": client_id,
+        "client_id": CLIENT_ID,
         "code_verifier": code_verifier,
-        "redirect_uri": "",
+        "redirect_uri": API_REDIRECT_URI,
         "code": code
     });
 
+    let client = create_proxy_client()?;
     let token_response = client
         .post(&token_url)
         .header("Content-Type", "application/json")
@@ -220,21 +277,9 @@ pub async fn extract_token_from_session(session: &str) -> Result<AugmentTokenRes
         .await
         .map_err(|e| format!("Failed to parse token response: {}", e))?;
 
-    // 获取用户邮箱
-    let token = token_data.access_token.clone();
-    let tenant_url_clone = tenant_url.to_string();
-
-    let email = match get_models(&token, &tenant_url_clone).await {
-        Ok(models_response) => Some(models_response.user.email),
-        Err(err) => {
-            println!("Failed to get user email from session: {}", err);
-            None
-        }
-    };
-
     Ok(AugmentTokenResponse {
         access_token: token_data.access_token,
-        tenant_url: tenant_url.to_string(),
+        tenant_url,
         email,
     })
 }
@@ -279,30 +324,22 @@ pub async fn add_token_from_session_internal(session: &str) -> Result<TokenFromS
 pub async fn refresh_auth_session(
     existing_session: &str
 ) -> Result<String, String> {
-    // 1. 生成 OAuth 状态
-    let oauth_state = create_augment_oauth_state();
+    let code_verifier = generate_random_string(32);
+    let code_challenge = base64_url_encode(&sha256_hash(code_verifier.as_bytes()));
+    let state = generate_random_string(42);
 
-    // 2. 构建 URL
-    let url = format!(
-        "{}/terms-accept?response_type=code&code_challenge={}&client_id={}&state={}&prompt=login",
-        AUTH_BASE_URL,
-        oauth_state.code_challenge,
-        CLIENT_ID,
-        oauth_state.state
-    );
+    let (html, new_session) =
+        get_auth_continue_with_cookie(existing_session, &code_challenge, &state).await?;
 
-    // 3. 发送请求
-    let client = create_proxy_client()?;
-    let response = client
-        .get(&url)
-        .header("Cookie", format!("session={}", existing_session))
-        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-        .send()
-        .await
-        .map_err(|e| format!("Failed to refresh session: {}", e))?;
+    if parse_auth_data_from_initial_state(&html).is_err() {
+        return Err("SESSION_ERROR_OR_ACCOUNT_BANNED".to_string());
+    }
 
-    // 4. 从响应头中提取新 session
-    extract_session_from_response(&response)
+    if let Some(session) = new_session {
+        return Ok(session);
+    }
+
+    Ok(existing_session.to_string())
 }
 
 /// 从响应头中提取 session cookie
