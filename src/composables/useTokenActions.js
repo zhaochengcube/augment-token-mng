@@ -115,15 +115,13 @@ export function useTokenActions(props, emit) {
   const getStatusClass = (status) => {
     switch (status) {
       case 'SUSPENDED':
-        return 'banned'
+        return 'badge--danger-tech'
       case 'EXPIRED':
-        return 'inactive'
+        return 'badge--warning-tech'
       case 'INVALID_TOKEN':
-        return 'invalid'
-      case 'ACTIVE':
-        return 'active'
+        return 'badge--warning-tech'
       default:
-        return 'active'
+        return 'badge--success-tech'
     }
   }
 
@@ -135,8 +133,6 @@ export function useTokenActions(props, emit) {
         return t('tokenCard.expired')
       case 'INVALID_TOKEN':
         return t('tokenCard.tokenInvalid')
-      case 'ACTIVE':
-        return t('tokenCard.active')
       default:
         return t('tokenCard.active')
     }

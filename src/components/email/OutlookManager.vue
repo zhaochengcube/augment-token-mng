@@ -1,12 +1,12 @@
 <template>
   <div :class="isPageMode ? 'page-container' : 'modal-overlay'">
-    <div :class="isPageMode ? 'page-content outlook-manager' : 'modal-content outlook-manager'" @click.stop>
+    <div :class="isPageMode ? 'page-content outlook-manager' : ['modal-content', 'modal-content-shell', 'outlook-manager']" @click.stop>
       <div :class="isPageMode ? 'page-header' : 'modal-header'">
         <h3>{{ $t('outlookManager.title') }}</h3>
         <button v-if="!isPageMode" @click="$emit('close')" class="modal-close">×</button>
       </div>
 
-      <div :class="isPageMode ? 'page-body' : 'modal-body'">
+      <div :class="isPageMode ? 'page-body' : ['modal-body', 'modal-body-scroll']">
         <!-- 添加邮箱表单 -->
         <div class="add-account-section">
           <h4>{{ $t('outlookManager.addAccount') }}</h4>
@@ -325,12 +325,10 @@ onMounted(() => {
   width: 100%;
   max-width: 920px;
   height: 90vh;
-  overflow: hidden;
 }
 
 .modal-content.outlook-manager .modal-body {
   padding: 26px;
-  overflow-y: auto;
 }
 
 /* 区块 - 科技风 */
@@ -351,13 +349,6 @@ onMounted(() => {
 
 .form-actions {
   margin-top: 22px;
-}
-
-.input-hint {
-  margin-top: 8px;
-  font-size: 12px;
-  color: var(--text-muted);
-  font-style: italic;
 }
 
 /* 警告提示 - 科技风 */

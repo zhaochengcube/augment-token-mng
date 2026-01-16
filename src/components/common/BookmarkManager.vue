@@ -1,7 +1,7 @@
 <template>
   <div class="bookmark-manager-modal">
     <div class="modal-overlay">
-      <div class="modal-content" @click.stop>
+      <div class="modal-content modal-content-shell" @click.stop>
         <div class="modal-header">
           <h2>{{ $t('bookmarkManager.title') }}</h2>
           <div class="header-actions">
@@ -303,9 +303,6 @@ onMounted(() => {
   width: 100%;
   max-width: 920px;
   height: 90vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
 }
 
 .header-actions {
@@ -604,105 +601,4 @@ onMounted(() => {
   }
 }
 
-/* Portal Dialog Styles - 科技风 */
-.portal-dialog-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1200;
-  backdrop-filter: blur(4px);
-}
-
-.portal-dialog {
-  background: var(--tech-glass-bg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--tech-glass-border);
-  border-radius: 14px;
-  padding: 26px;
-  min-width: 340px;
-  max-width: 420px;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35), var(--tech-border-glow);
-  text-align: center;
-}
-
-.portal-dialog h3 {
-  margin: 0 0 22px 0;
-  color: var(--text-strong);
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.dialog-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-/* 对话框按钮 - 科技风 */
-.dialog-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 14px 22px;
-  border: 1px solid var(--tech-glass-border);
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-decoration: none;
-}
-
-.dialog-btn.copy {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  border-color: transparent;
-  color: #fff;
-  box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
-}
-
-.dialog-btn.copy:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 0 25px rgba(16, 185, 129, 0.5);
-}
-
-.dialog-btn.external {
-  background: var(--accent);
-  border-color: transparent;
-  color: #fff;
-  box-shadow: 0 0 15px var(--tech-glow-primary);
-}
-
-.dialog-btn.external:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 0 25px var(--tech-glow-primary);
-}
-
-.dialog-btn.internal {
-  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
-  color: var(--text);
-}
-
-.dialog-btn.internal:hover {
-  background: color-mix(in srgb, var(--accent) 15%, transparent);
-  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
-  color: var(--accent);
-}
-
-.dialog-btn.cancel {
-  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
-  color: var(--text-muted);
-}
-
-.dialog-btn.cancel:hover {
-  background: color-mix(in srgb, var(--bg-muted) 70%, transparent);
-  color: var(--text);
-}
 </style>

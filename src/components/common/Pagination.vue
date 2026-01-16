@@ -1,20 +1,20 @@
 <template>
-  <div v-if="totalPages > 0" class="pagination-container">
+  <div v-if="totalPages > 0" class="flex items-center justify-between gap-5.5 px-5.5 py-4.5">
     <!-- 左侧：分页信息 -->
-    <div class="pagination-info">
-      <span class="info-text">
-        {{ $t('pagination.showing') }} 
-        <strong>{{ startItem }}-{{ endItem }}</strong> 
-        {{ $t('pagination.of') }} 
-        <strong>{{ totalItems }}</strong>
+    <div class="shrink-0">
+      <span class="text-sm text-text-muted font-mono">
+        {{ $t('pagination.showing') }}
+        <strong class="text-accent font-bold">{{ startItem }}-{{ endItem }}</strong>
+        {{ $t('pagination.of') }}
+        <strong class="text-accent font-bold">{{ totalItems }}</strong>
       </span>
     </div>
 
     <!-- 中间：页码导航 -->
-    <div class="pagination-nav">
+    <div class="flex items-center gap-2 flex-1 justify-center">
       <!-- 首页 -->
-      <button 
-        class="nav-btn" 
+      <button
+        class="btn btn--secondary h-[34px] w-[34px] p-0 rounded-[10px] disabled:opacity-30 disabled:cursor-not-allowed disabled:pointer-events-none"
         :disabled="currentPage === 1"
         @click="goToPage(1)"
         :title="$t('pagination.first')"
@@ -25,8 +25,8 @@
       </button>
 
       <!-- 上一页 -->
-      <button 
-        class="nav-btn" 
+      <button
+        class="btn btn--secondary h-[34px] w-[34px] p-0 rounded-[10px] disabled:opacity-30 disabled:cursor-not-allowed disabled:pointer-events-none"
         :disabled="currentPage === 1"
         @click="goToPage(currentPage - 1)"
         :title="$t('pagination.prev')"
@@ -37,12 +37,17 @@
       </button>
 
       <!-- 页码显示 -->
-      <div class="page-numbers">
+      <div class="flex items-center gap-1.5 mx-2.5">
         <template v-for="page in visiblePages" :key="page">
-          <span v-if="page === '...'" class="page-ellipsis">...</span>
-          <button 
+          <span v-if="page === '...'" class="px-1.5 text-text-muted text-sm">...</span>
+          <button
             v-else
-            :class="['page-btn', { active: page === currentPage }]"
+            :class="[
+              'btn min-w-[34px] h-[34px] px-2.5 rounded-[10px] text-sm font-semibold font-mono',
+              page === currentPage
+                ? 'bg-accent border-transparent text-white'
+                : 'btn--secondary'
+            ]"
             @click="goToPage(page)"
           >
             {{ page }}
@@ -51,8 +56,8 @@
       </div>
 
       <!-- 下一页 -->
-      <button 
-        class="nav-btn" 
+      <button
+        class="btn btn--secondary h-[34px] w-[34px] p-0 rounded-[10px] disabled:opacity-30 disabled:cursor-not-allowed disabled:pointer-events-none"
         :disabled="currentPage === totalPages"
         @click="goToPage(currentPage + 1)"
         :title="$t('pagination.next')"
@@ -63,8 +68,8 @@
       </button>
 
       <!-- 末页 -->
-      <button 
-        class="nav-btn" 
+      <button
+        class="btn btn--secondary h-[34px] w-[34px] p-0 rounded-[10px] disabled:opacity-30 disabled:cursor-not-allowed disabled:pointer-events-none"
         :disabled="currentPage === totalPages"
         @click="goToPage(totalPages)"
         :title="$t('pagination.last')"
@@ -76,12 +81,12 @@
     </div>
 
     <!-- 右侧：每页数量选择 -->
-    <div class="pagination-size">
-      <label>{{ $t('pagination.perPage') }}</label>
-      <select 
-        :value="pageSize" 
+    <div class="flex items-center gap-2.5 shrink-0">
+      <label class="text-sm text-text-muted whitespace-nowrap">{{ $t('pagination.perPage') }}</label>
+      <select
+        :value="pageSize"
         @change="handlePageSizeChange"
-        class="size-select"
+        class="input px-3 py-2 rounded-[10px] text-sm font-mono cursor-pointer"
       >
         <option v-for="size in pageSizeOptions" :key="size" :value="size">
           {{ size }}
@@ -176,147 +181,4 @@ const handlePageSizeChange = (event) => {
   emit('size-change', newSize)
 }
 </script>
-
-<style scoped>
-/* ============================================
-   Pagination - Modern Tech Style
-   ============================================ */
-
-.pagination-container {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 22px;
-  padding: 18px 22px;
-}
-
-.pagination-info {
-  flex-shrink: 0;
-}
-
-.info-text {
-  font-size: 14px;
-  color: var(--text-muted);
-  font-family: var(--tech-mono-font);
-}
-
-.info-text strong {
-  color: var(--accent);
-  font-weight: 700;
-}
-
-.pagination-nav {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  justify-content: center;
-}
-
-/* 导航按钮 - 科技风 */
-.nav-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border: 1px solid var(--tech-glass-border);
-  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
-  color: var(--text);
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.nav-btn:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--accent) 15%, transparent);
-  border-color: var(--accent);
-  color: var(--accent);
-  box-shadow: 0 0 12px var(--tech-glow-primary);
-}
-
-.nav-btn:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-
-.page-numbers {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0 10px;
-}
-
-/* 页码按钮 - 科技风 */
-.page-btn {
-  min-width: 34px;
-  height: 34px;
-  padding: 0 10px;
-  border: 1px solid var(--tech-glass-border);
-  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
-  color: var(--text);
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 14px;
-  font-weight: 600;
-  font-family: var(--tech-mono-font);
-}
-
-.page-btn:hover {
-  background: color-mix(in srgb, var(--accent) 15%, transparent);
-  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
-  color: var(--accent);
-}
-
-.page-btn.active {
-  background: var(--accent);
-  border-color: transparent;
-  color: #fff;
-  box-shadow: 0 0 15px var(--tech-glow-primary);
-}
-
-.page-ellipsis {
-  padding: 0 6px;
-  color: var(--text-muted);
-  font-size: 14px;
-}
-
-.pagination-size {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-}
-
-.pagination-size label {
-  font-size: 14px;
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-
-/* 下拉选择 - 科技风 */
-.size-select {
-  padding: 8px 12px;
-  border: 1px solid var(--tech-glass-border);
-  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
-  color: var(--text);
-  border-radius: 10px;
-  font-size: 14px;
-  font-family: var(--tech-mono-font);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.size-select:hover {
-  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
-}
-
-.size-select:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent),
-              0 0 12px var(--tech-glow-primary);
-}
-</style>
 

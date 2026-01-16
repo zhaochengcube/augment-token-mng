@@ -1,10 +1,17 @@
 <template>
-  <tr :class="['account-table-row', { 'selected': isSelected, 'current': isCurrent }]" @click="handleRowClick">
+  <tr
+    :class="[
+      'group transition-colors duration-200',
+      'hover:bg-accent/6',
+      isSelected ? 'bg-accent/10' : ''
+    ]"
+    @click="handleRowClick"
+  >
     <!-- 多选框 -->
-    <td class="cell-checkbox">
-      <div class="checkbox-wrapper" @click.stop="toggleSelection">
+    <td class="w-11 text-center px-2.5 py-3.5 border-b border-border/50 align-top whitespace-nowrap text-[13px] text-text relative first-cell">
+      <div class="inline-flex cursor-pointer" @click.stop="toggleSelection">
         <div class="checkbox-inner" :class="{ 'checked': isSelected }">
-          <svg v-if="isSelected" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+          <svg v-if="isSelected" class="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
             <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
           </svg>
         </div>
@@ -12,74 +19,89 @@
     </td>
 
     <!-- 账号信息 -->
-    <td class="cell-info">
-      <div class="info-wrapper">
-        <div class="status-row">
-          <span :class="['status-badge', statusClass]">
-            <span :class="['status-dot', statusClass]"></span>
+    <td class="min-w-[220px] px-2.5 py-3.5 border-b border-border/50 align-top whitespace-nowrap text-[13px] text-text">
+      <div class="flex flex-col gap-1.5">
+        <div class="flex items-center gap-1.5">
+          <span :class="['badge', statusBadgeClass]">
+            <span class="status-dot" :class="statusDotClass"></span>
             {{ statusLabel }}
           </span>
-          <span :class="['tier-badge', `tier-${subscriptionTier.class}`]">{{ subscriptionTier.label }}</span>
+          <span :class="tierBadgeClasses">{{ subscriptionTier.label }}</span>
         </div>
-        <div class="email-wrapper" @click.stop="copyEmail" v-tooltip="account.email">
-          <span class="email-text">{{ showRealEmail ? account.email : maskedEmail }}</span>
+        <div class="text-copyable" @click.stop="copyEmail" v-tooltip="account.email">
+          <span class="text-copyable__content">{{ showRealEmail ? account.email : maskedEmail }}</span>
         </div>
-        <div class="dates-wrapper">
-          <span class="created-date" v-tooltip="$t('platform.antigravity.createdAt') + ': ' + formatDate(account.created_at)">C: {{ formatDate(account.created_at) }}</span>
-          <span v-if="account.quota?.last_updated" class="created-date" v-tooltip="$t('platform.antigravity.quotaRefreshedAt') + ': ' + formatDate(account.quota.last_updated)">R: {{ formatDate(account.quota.last_updated) }}</span>
+        <div class="flex flex-col gap-1">
+          <span class="text-meta" v-tooltip="$t('platform.antigravity.createdAt') + ': ' + formatDate(account.created_at)">C: {{ formatDate(account.created_at) }}</span>
+          <span v-if="account.quota?.last_updated" class="text-meta" v-tooltip="$t('platform.antigravity.quotaRefreshedAt') + ': ' + formatDate(account.quota.last_updated)">R: {{ formatDate(account.quota.last_updated) }}</span>
         </div>
       </div>
     </td>
 
     <!-- 配额 -->
-    <td class="cell-quota">
-      <div v-if="account.quota && !account.quota.is_forbidden && filteredModels.length > 0" class="quota-wrapper">
-        <div v-for="(row, rowIndex) in quotaRows" :key="rowIndex" class="quota-row">
-          <div v-for="model in row" :key="model.name" class="quota-item">
-            <div class="quota-bar">
-              <div class="quota-fill" :class="getQuotaClass(model.percentage)" :style="{ width: `${model.percentage}%` }"></div>
-              <div class="quota-overlay">
-                <span class="model-label">{{ formatModelName(model.name) }}</span>
-                <span class="model-time">{{ formatResetCountdown(model.reset_time) }}</span>
-                <span :class="['model-percent', getQuotaClass(model.percentage)]">
-                  {{ model.percentage }}%
-                </span>
-              </div>
-            </div>
+    <td class="min-w-[360px] px-2.5 py-3.5 border-b border-border/50 align-top whitespace-nowrap text-[13px] text-text">
+      <div v-if="account.quota && !account.quota.is_forbidden && filteredModels.length > 0" class="flex flex-col gap-2">
+        <div v-for="(row, rowIndex) in quotaRows" :key="rowIndex" class="grid grid-cols-2 gap-2">
+          <div v-for="model in row" :key="model.name" class="flex w-full" :ref="(el) => setQuotaItemRef(el, model.name)">
+            <QuotaBar
+              :label="getQuotaLabel(model)"
+              :percent="model.percentage"
+              :refresh="formatResetCountdown(model.reset_time)"
+              :low-threshold="20"
+              :medium-threshold="50"
+            />
           </div>
         </div>
       </div>
-      <span v-else-if="account.quota?.is_forbidden" class="no-quota">{{ $t('platform.antigravity.status.forbidden') }}</span>
-      <span v-else class="no-quota">-</span>
+      <span v-else-if="account.quota?.is_forbidden" class="text-text-muted text-xs">{{ $t('platform.antigravity.status.forbidden') }}</span>
+      <span v-else class="text-text-muted text-xs">-</span>
     </td>
 
     <!-- 操作 -->
-    <td class="cell-actions">
-      <div class="actions-wrapper">
+    <td class="px-2.5 py-3.5 border-b border-border/50 align-top whitespace-nowrap text-[13px] text-text">
+      <div class="flex items-center gap-1.5">
         <!-- 切换账号 -->
-        <button v-if="!isCurrent" @click.stop="$emit('switch', account.id)" class="btn-icon switch" :disabled="isSwitching" v-tooltip="$t('platform.antigravity.actions.switch')">
-          <svg v-if="!isSwitching" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+        <button
+          v-if="!isCurrent"
+          @click.stop="$emit('switch', account.id)"
+          class="btn btn--ghost btn--icon-sm"
+          :disabled="isSwitching"
+          v-tooltip="$t('platform.antigravity.actions.switch')"
+        >
+          <svg v-if="!isSwitching" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
             <path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z" />
           </svg>
-          <div v-else class="loading-spinner-small"></div>
+          <div v-else class="h-3 w-3 border-2 border-accent/30 border-t-accent rounded-full animate-spin"></div>
         </button>
 
         <!-- 刷新配额 -->
-        <button @click.stop="$emit('refresh', account.id)" class="btn-icon refresh" :disabled="isRefreshing" v-tooltip="$t('platform.antigravity.actions.refresh')">
-          <svg v-if="!isRefreshing" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+        <button
+          @click.stop="$emit('refresh', account.id)"
+          class="btn btn--ghost btn--icon-sm"
+          :disabled="isRefreshing"
+          v-tooltip="$t('platform.antigravity.actions.refresh')"
+        >
+          <svg v-if="!isRefreshing" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
             <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
           </svg>
-          <div v-else class="loading-spinner-small"></div>
+          <div v-else class="h-3 w-3 border-2 border-accent/30 border-t-accent rounded-full animate-spin"></div>
         </button>
 
         <!-- 删除 -->
-        <button @click.stop="$emit('delete', account.id)" class="btn-icon delete" v-tooltip="$t('platform.antigravity.actions.delete')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+        <button
+          @click.stop="$emit('delete', account.id)"
+          class="btn btn--ghost btn--icon-sm text-danger hover:bg-danger/10"
+          v-tooltip="$t('platform.antigravity.actions.delete')"
+        >
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
             <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
           </svg>
         </button>
       </div>
-      <button class="view-all-models" @click.stop="$emit('view-models', account)">
+      <button
+        class="mt-1.5 bg-transparent border-0 text-accent text-[11px] font-semibold py-0.5 px-0 cursor-pointer hover:text-accent/80 hover:underline transition-all"
+        @click.stop="$emit('view-models', account)"
+      >
         {{ $t('platform.antigravity.viewAllModels') }}
       </button>
     </td>
@@ -87,8 +109,9 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
+import QuotaBar from '../common/QuotaBar.vue'
 
 const { t: $t } = useI18n()
 
@@ -185,6 +208,37 @@ const statusClass = computed(() => {
   return 'low'
 })
 
+// Badge classes for status - using Tailwind
+const statusBadgeClass = computed(() => {
+  switch (statusClass.value) {
+    case 'current':
+      return 'badge--accent-tech'
+    case 'forbidden':
+      return 'badge--danger-tech'
+    case 'available':
+      return 'badge--success-tech'
+    case 'low':
+      return 'badge--warning-tech'
+    default:
+      return ''
+  }
+})
+
+const statusDotClass = computed(() => {
+  switch (statusClass.value) {
+    case 'current':
+      return 'text-accent'
+    case 'forbidden':
+      return 'text-danger'
+    case 'available':
+      return 'text-success'
+    case 'low':
+      return 'text-warning'
+    default:
+      return ''
+  }
+})
+
 const statusLabel = computed(() => {
   if (props.isCurrent) return $t('platform.antigravity.status.current')
   if (props.account.quota?.is_forbidden) return $t('platform.antigravity.status.forbidden')
@@ -207,35 +261,48 @@ const subscriptionTier = computed(() => {
   return { label: 'Free', class: 'free' }
 })
 
+// Tier badge Tailwind classes - 完整的内联样式
+const tierBadgeClasses = computed(() => {
+  const base = 'inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide leading-none border'
+  switch (subscriptionTier.value.class) {
+    case 'ultra':
+      return `${base} text-amber-400 border-amber-400/50 bg-amber-400/12`
+    case 'pro':
+      return `${base} text-sky-400 border-sky-400/50 bg-sky-400/12`
+    default:
+      return `${base} text-slate-400 border-slate-400/45 bg-slate-400/12`
+  }
+})
+
 const copyEmail = async () => {
   try {
     await navigator.clipboard.writeText(props.account.email)
-    window.$notify?.success($t('messages.copySuccess'))
+    window.$notify?.success($t('messages.emailNoteCopied'))
   } catch (err) {
     console.error('Failed to copy email:', err)
-    window.$notify?.error($t('messages.copyFailed'))
+    window.$notify?.error($t('messages.copyEmailNoteFailed'))
   }
 }
 
-const formatModelName = (name) => {
+const formatModelNameShort = (name) => {
   const lowerName = name.toLowerCase()
 
   // Claude 模型 - 缩写为 C
-  if (lowerName.includes('claude-opus-4-5-thinking')) return 'C Opus 4.5 Thinking'
-  if (lowerName.includes('claude-sonnet-4-5-thinking')) return 'C Sonnet 4.5 Thinking'
-  if (lowerName.includes('claude-sonnet-4-5')) return 'C Sonnet 4.5'
+  if (lowerName.includes('claude-opus-4-5-thinking')) return 'C O4.5 T'
+  if (lowerName.includes('claude-sonnet-4-5-thinking')) return 'C S4.5 T'
+  if (lowerName.includes('claude-sonnet-4-5')) return 'C S4.5'
   if (lowerName.includes('claude-opus')) return 'C Opus'
   if (lowerName.includes('claude-sonnet')) return 'C Sonnet'
   if (lowerName.includes('claude')) return 'C'
 
   // Gemini 模型 - Gemini 3 缩写为 G3
   if (lowerName.includes('gemini-2.5-pro')) return 'G2.5 Pro'
-  if (lowerName.includes('gemini-2.5-flash-thinking')) return 'G2.5 Flash Think'
-  if (lowerName.includes('gemini-2.5-flash-lite')) return 'G2.5 Flash Lite'
+  if (lowerName.includes('gemini-2.5-flash-thinking')) return 'G2.5 F T'
+  if (lowerName.includes('gemini-2.5-flash-lite')) return 'G2.5 F L'
   if (lowerName.includes('gemini-2.5-flash')) return 'G2.5 Flash'
-  if (lowerName.includes('gemini-3-pro-high')) return 'G3 Pro (High)'
-  if (lowerName.includes('gemini-3-pro-low')) return 'G3 Pro (Low)'
-  if (lowerName.includes('gemini-3-pro-image')) return 'G3 Pro (Image)'
+  if (lowerName.includes('gemini-3-pro-high')) return 'G3 P H'
+  if (lowerName.includes('gemini-3-pro-low')) return 'G3 P L'
+  if (lowerName.includes('gemini-3-pro-image')) return 'G3 P I'
   if (lowerName.includes('gemini-3-flash')) return 'G3 Flash'
   if (lowerName.includes('gemini-3-pro')) return 'G3 Pro'
   if (lowerName.includes('gemini')) return 'Gemini'
@@ -248,11 +315,74 @@ const formatModelName = (name) => {
   return name
 }
 
-const getQuotaClass = (percentage) => {
-  if (percentage >= 50) return 'high'
-  if (percentage >= 20) return 'medium'
-  return 'low'
+const formatModelNameFull = (name) => {
+  const lowerName = name.toLowerCase()
+
+  // Claude 模型
+  if (lowerName.includes('claude-opus-4-5-thinking')) return 'Claude Opus 4.5 Thinking'
+  if (lowerName.includes('claude-sonnet-4-5-thinking')) return 'Claude Sonnet 4.5 Thinking'
+  if (lowerName.includes('claude-sonnet-4-5')) return 'Claude Sonnet 4.5'
+  if (lowerName.includes('claude-opus')) return 'Claude Opus'
+  if (lowerName.includes('claude-sonnet')) return 'Claude Sonnet'
+  if (lowerName.includes('claude')) return 'Claude'
+
+  // Gemini 模型
+  if (lowerName.includes('gemini-2.5-pro')) return 'Gemini 2.5 Pro'
+  if (lowerName.includes('gemini-2.5-flash-thinking')) return 'Gemini 2.5 Flash Thinking'
+  if (lowerName.includes('gemini-2.5-flash-lite')) return 'Gemini 2.5 Flash Lite'
+  if (lowerName.includes('gemini-2.5-flash')) return 'Gemini 2.5 Flash'
+  if (lowerName.includes('gemini-3-pro-high')) return 'Gemini 3 Pro (High)'
+  if (lowerName.includes('gemini-3-pro-low')) return 'Gemini 3 Pro (Low)'
+  if (lowerName.includes('gemini-3-pro-image')) return 'Gemini 3 Pro (Image)'
+  if (lowerName.includes('gemini-3-flash')) return 'Gemini 3 Flash'
+  if (lowerName.includes('gemini-3-pro')) return 'Gemini 3 Pro'
+  if (lowerName.includes('gemini')) return 'Gemini'
+
+  if (lowerName.includes('gpt-oss-120b-medium')) return 'GPT OSS 120B Medium'
+  if (lowerName.includes('rev19-uic3-1p')) return 'Rev19 UIC3 1P'
+  if (lowerName.startsWith('chat_')) return `Chat ${name.replace(/^chat_/, '')}`
+
+  // 返回原始名称
+  return name
 }
+
+const quotaItemWidths = reactive({})
+const quotaItemObservers = new Map()
+const quotaLabelMinWidth = 220
+
+const setQuotaItemRef = (el, modelName) => {
+  const existingObserver = quotaItemObservers.get(modelName)
+  if (existingObserver) {
+    existingObserver.disconnect()
+    quotaItemObservers.delete(modelName)
+  }
+
+  if (!el) {
+    delete quotaItemWidths[modelName]
+    return
+  }
+
+  const observer = new ResizeObserver((entries) => {
+    const entry = entries[0]
+    if (!entry) return
+    quotaItemWidths[modelName] = Math.round(entry.contentRect.width)
+  })
+  observer.observe(el)
+  quotaItemObservers.set(modelName, observer)
+}
+
+const getQuotaLabel = (model) => {
+  const width = quotaItemWidths[model.name]
+  if (!width || width < quotaLabelMinWidth) {
+    return formatModelNameShort(model.name)
+  }
+  return formatModelNameFull(model.name)
+}
+
+onBeforeUnmount(() => {
+  quotaItemObservers.forEach((observer) => observer.disconnect())
+  quotaItemObservers.clear()
+})
 
 const parseResetTime = (timeStr) => {
   if (!timeStr) return null
@@ -263,7 +393,7 @@ const parseResetTime = (timeStr) => {
 
 const formatResetCountdown = (timeStr) => {
   const target = parseResetTime(timeStr)
-  if (!target) return '--:--'
+  if (!target) return ''
 
   const diffMs = Math.max(0, target - Date.now())
   const days = Math.floor(diffMs / 86400000)
@@ -271,10 +401,10 @@ const formatResetCountdown = (timeStr) => {
   const minutes = Math.floor((diffMs % 3600000) / 60000)
 
   if (days > 0) {
-    return `R: ${days}d ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m`
+    return `${days}d ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m`
   }
 
-  return `R: ${hours}h ${String(minutes).padStart(2, '0')}m`
+  return `${hours}h ${String(minutes).padStart(2, '0')}m`
 }
 
 const formatDate = (timestamp) => {
@@ -299,308 +429,3 @@ const handleRowClick = () => {
   }
 }
 </script>
-
-<style scoped>
-.account-table-row {
-  background: transparent;
-  transition: background-color 0.2s ease;
-  cursor: pointer;
-}
-
-.account-table-row:hover {
-  background-color: color-mix(in srgb, var(--accent) 6%, transparent);
-}
-
-.account-table-row.selected {
-  background-color: color-mix(in srgb, var(--accent) 10%, transparent);
-}
-
-.account-table-row.current {
-  background-color: color-mix(in srgb, var(--accent) 8%, transparent);
-}
-
-.account-table-row td {
-  padding: 14px 10px;
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
-  vertical-align: top;
-  white-space: nowrap;
-  background: inherit;
-  font-size: 13px;
-  color: var(--text);
-}
-
-/* 第一个单元格添加左侧指示条 */
-.account-table-row td:first-child {
-  padding-left: 16px;
-  position: relative;
-}
-
-.account-table-row td:first-child::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 6px;
-  bottom: 6px;
-  width: 3px;
-  border-radius: 0 3px 3px 0;
-  background: transparent;
-  transition: all 0.25s ease;
-}
-
-.account-table-row:hover td:first-child::before {
-  background: var(--accent);
-  box-shadow: 0 0 10px var(--tech-glow-primary);
-}
-
-.account-table-row.selected td:first-child::before,
-.account-table-row.current td:first-child::before {
-  background: var(--accent);
-  box-shadow: 0 0 12px var(--tech-glow-primary);
-}
-
-/* 复选框 */
-.cell-checkbox {
-  width: 44px;
-  text-align: center;
-}
-
-.cell-info {
-  min-width: 220px;
-}
-
-.cell-quota {
-  min-width: 360px;
-}
-
-.checkbox-wrapper {
-  display: inline-flex;
-  cursor: pointer;
-}
-
-.checkbox-inner {
-  width: 18px;
-  height: 18px;
-  border-radius: 5px;
-  border: 1.5px solid var(--border);
-  background: var(--bg-surface);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-}
-
-.checkbox-inner:hover {
-  border-color: var(--accent);
-  box-shadow: 0 0 8px var(--tech-glow-primary);
-}
-
-.checkbox-inner.checked {
-  background: var(--accent);
-  border-color: transparent;
-  color: #fff;
-  box-shadow: 0 0 10px var(--tech-glow-primary);
-}
-
-.checkbox-inner.checked svg {
-  color: #fff;
-}
-
-/* 配额 */
-.info-wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.status-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.info-wrapper .status-badge {
-  align-self: center;
-  padding: 2px 8px;
-  font-size: 10px;
-}
-
-.tier-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 6px;
-  border-radius: 999px;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.2px;
-  text-transform: uppercase;
-  line-height: 1;
-  border: 1px solid transparent;
-}
-
-.tier-free {
-  color: #94a3b8;
-  border-color: rgba(148, 163, 184, 0.45);
-  background: rgba(148, 163, 184, 0.12);
-}
-
-.tier-pro {
-  color: #38bdf8;
-  border-color: rgba(56, 189, 248, 0.5);
-  background: rgba(56, 189, 248, 0.12);
-}
-
-.tier-ultra {
-  color: #fbbf24;
-  border-color: rgba(251, 191, 36, 0.5);
-  background: rgba(251, 191, 36, 0.12);
-}
-
-.quota-wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.quota-row {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.quota-item {
-  display: flex;
-  width: 100%;
-}
-
-.quota-bar {
-  position: relative;
-  width: 100%;
-  height: 24px;
-  background: color-mix(in srgb, var(--bg-muted) 75%, transparent);
-  border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
-}
-
-.quota-fill {
-  height: 100%;
-  border-radius: 10px;
-  transition: width 0.3s;
-  opacity: 0.95;
-  position: relative;
-  z-index: 1;
-}
-
-.quota-fill.high { background: rgba(16, 185, 129, 0.45); }
-.quota-fill.medium { background: linear-gradient(90deg, #f59e0b, #d97706); }
-.quota-fill.low { background: linear-gradient(90deg, #ef4444, #dc2626); }
-
-.quota-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 10px;
-  gap: 8px;
-  color: var(--text-strong, #0f172a);
-  font-size: 11px;
-  font-weight: 600;
-  z-index: 2;
-  text-shadow: none;
-}
-
-.model-label {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.model-time {
-  font-variant-numeric: tabular-nums;
-  color: var(--text-secondary, #4b5563);
-}
-
-.model-percent {
-  font-variant-numeric: tabular-nums;
-}
-
-.model-percent.high { color: #10b981; }
-.model-percent.medium { color: #f59e0b; }
-.model-percent.low { color: #ef4444; }
-
-:global([data-theme='dark']) .quota-overlay {
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-}
-
-:global([data-theme='dark']) .model-time {
-  color: var(--text-secondary, #cbd5e1);
-}
-
-:global(:root:not([data-theme='dark'])) .quota-bar {
-  background: color-mix(in srgb, var(--bg-muted) 90%, white);
-  border-color: var(--border);
-}
-
-.no-quota {
-  color: var(--text-soft);
-  font-size: 12px;
-}
-
-/* 日期 */
-.dates-wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.created-date {
-  font-size: 11px;
-  color: var(--text-muted);
-  font-family: var(--tech-mono-font);
-  opacity: 0.7;
-}
-
-/* 操作按钮 */
-.actions-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.view-all-models {
-  margin-top: 6px;
-  background: transparent;
-  border: none;
-  color: var(--accent);
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 0;
-  cursor: pointer;
-}
-
-.view-all-models:hover {
-  color: color-mix(in srgb, var(--accent) 85%, white);
-}
-
-.btn-icon {
-  width: 26px;
-  height: 26px;
-  padding: 0;
-}
-
-.loading-spinner-small {
-  width: 12px;
-  height: 12px;
-  border: 2px solid color-mix(in srgb, var(--accent) 30%, transparent);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: tech-spin 0.8s linear infinite;
-}
-
-@keyframes tech-spin {
-  to { transform: rotate(360deg); }
-}
-</style>

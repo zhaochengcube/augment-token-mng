@@ -6,22 +6,6 @@ let hideTimer = null
 function createTooltipElement() {
   const el = document.createElement('div')
   el.className = 'v-tooltip'
-  el.style.cssText = `
-    position: fixed;
-    z-index: 10000;
-    padding: 6px 10px;
-    background: var(--bg-surface-alt);
-    color: var(--text);
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: 500;
-    white-space: nowrap;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.15s ease;
-    box-shadow: var(--shadow-elevated);
-    border: 1px solid var(--border-strong);
-  `
   document.body.appendChild(el)
   return el
 }
@@ -90,52 +74,78 @@ function hideTooltip() {
   }
 }
 
+function addTooltipListeners(el, binding) {
+  // 如果已经添加过，先移除
+  removeTooltipListeners(el)
+
+  el._tooltipBinding = binding
+  el._tooltipHandlers = {
+    mouseenter: () => {
+      if (hideTimer) {
+        clearTimeout(hideTimer)
+        hideTimer = null
+      }
+
+      showTimer = setTimeout(() => {
+        showTooltip(el, el._tooltipBinding)
+      }, 500)
+    },
+    mouseleave: () => {
+      if (showTimer) {
+        clearTimeout(showTimer)
+        showTimer = null
+      }
+
+      hideTimer = setTimeout(() => {
+        hideTooltip()
+      }, 0)
+    }
+  }
+
+  el.addEventListener('mouseenter', el._tooltipHandlers.mouseenter)
+  el.addEventListener('mouseleave', el._tooltipHandlers.mouseleave)
+}
+
+function removeTooltipListeners(el) {
+  if (el._tooltipHandlers) {
+    el.removeEventListener('mouseenter', el._tooltipHandlers.mouseenter)
+    el.removeEventListener('mouseleave', el._tooltipHandlers.mouseleave)
+    el._tooltipHandlers = null
+  }
+}
+
 export const tooltip = {
   mounted(el, binding) {
-    // 如果没有内容，不添加事件监听器
-    if (!binding.value) return
-
-    el._tooltipHandlers = {
-      mouseenter: () => {
-        if (hideTimer) {
-          clearTimeout(hideTimer)
-          hideTimer = null
-        }
-
-        showTimer = setTimeout(() => {
-          showTooltip(el, binding)
-        }, binding.modifiers.fast ? 100 : 200)
-      },
-      mouseleave: () => {
-        if (showTimer) {
-          clearTimeout(showTimer)
-          showTimer = null
-        }
-
-        hideTimer = setTimeout(() => {
-          hideTooltip()
-        }, 0)
-      }
+    // 如果有内容，添加事件监听器
+    if (binding.value) {
+      addTooltipListeners(el, binding)
     }
-
-    el.addEventListener('mouseenter', el._tooltipHandlers.mouseenter)
-    el.addEventListener('mouseleave', el._tooltipHandlers.mouseleave)
   },
-  
+
   updated(el, binding) {
-    // 如果内容改变了，更新 tooltip
-    if (tooltipElement && tooltipElement.style.opacity === '1') {
-      tooltipElement.textContent = binding.value
-      updatePosition(el, tooltipElement, binding.arg || 'bottom')
+    // 保存最新的 binding
+    el._tooltipBinding = binding
+
+    if (binding.value) {
+      // 有值：确保监听器已添加
+      if (!el._tooltipHandlers) {
+        addTooltipListeners(el, binding)
+      }
+      // 如果 tooltip 正在显示，更新内容
+      if (tooltipElement && tooltipElement.style.opacity === '1') {
+        tooltipElement.textContent = binding.value
+        updatePosition(el, tooltipElement, binding.arg || 'bottom')
+      }
+    } else {
+      // 无值：移除监听器并隐藏 tooltip
+      removeTooltipListeners(el)
+      hideTooltip()
     }
   },
-  
+
   unmounted(el) {
-    if (el._tooltipHandlers) {
-      el.removeEventListener('mouseenter', el._tooltipHandlers.mouseenter)
-      el.removeEventListener('mouseleave', el._tooltipHandlers.mouseleave)
-    }
-    
+    removeTooltipListeners(el)
+
     if (showTimer) {
       clearTimeout(showTimer)
     }
@@ -146,4 +156,3 @@ export const tooltip = {
 }
 
 export default tooltip
-

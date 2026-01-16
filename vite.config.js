@@ -1,4 +1,5 @@
 import { defineConfig } from "vite";
+import tailwindcss from "@tailwindcss/vite";
 import vue from "@vitejs/plugin-vue";
 import { resolve } from "path";
 import VueI18nPlugin from "@intlify/unplugin-vue-i18n/vite";
@@ -6,6 +7,7 @@ import VueI18nPlugin from "@intlify/unplugin-vue-i18n/vite";
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
   plugins: [
+    tailwindcss(),
     vue(),
     VueI18nPlugin({
       include: [

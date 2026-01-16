@@ -1,29 +1,29 @@
 <template>
-  <div class="credit-chart-container">
-    <div class="chart-header">
-      <h3>{{ $t('credit.modelDistribution') }}</h3>
+  <div class="card hover:translate-y-0 p-5 h-[400px] flex flex-col md:h-[340px] md:p-4">
+    <div class="flex justify-between items-center mb-4 shrink-0">
+      <h3 class="text-[16px] font-semibold text-text-strong m-0 md:text-[14px]">{{ $t('credit.modelDistribution') }}</h3>
     </div>
 
-    <div v-if="loading && !chartData" class="loading">
-      <div class="spinner"></div>
-      <p>{{ $t('credit.loading') }}</p>
+    <div v-if="loading && !chartData" class="flex-1 flex flex-col items-center justify-center gap-3.5 text-text-muted">
+      <span class="spinner"></span>
+      <p class="m-0 text-[14px]">{{ $t('credit.loading') }}</p>
     </div>
 
-    <div v-else-if="error" class="error">
-      <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+    <div v-else-if="error" class="flex-1 flex flex-col items-center justify-center gap-3.5 text-danger">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor" class="opacity-70">
         <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
       </svg>
-      <p>{{ error }}</p>
+      <p class="m-0 text-[14px]">{{ error }}</p>
     </div>
 
-    <div v-else-if="!chartData || !chartData.data_points || chartData.data_points.length === 0" class="no-data">
-      <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+    <div v-else-if="!chartData || !chartData.data_points || chartData.data_points.length === 0" class="flex-1 flex flex-col items-center justify-center gap-3.5 text-text-muted">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor" class="opacity-50">
         <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
       </svg>
-      <p>{{ $t('credit.noData') }}</p>
+      <p class="m-0 text-[14px]">{{ $t('credit.noData') }}</p>
     </div>
 
-    <div v-else class="chart-wrapper">
+    <div v-else class="flex-1 min-h-0 relative">
       <Pie :key="chartKey" :data="pieChartData" :options="chartOptions" />
     </div>
   </div>
@@ -77,24 +77,24 @@ const themePalette = computed(() => {
 
   return {
     isDark,
-    surface: resolveCssVar('--bg-surface', isDark ? '#0f172a' : '#ffffff'),
-    legendColor: resolveCssVar('--text', isDark ? '#e2e8f0' : '#374151'),
-    tooltipBg: resolveCssVar('--bg-surface-alt', isDark ? '#111827' : '#ffffff'),
-    tooltipTitle: resolveCssVar('--text-strong', isDark ? '#f9fafb' : '#1f2937'),
-    tooltipBody: resolveCssVar('--text', isDark ? '#e2e8f0' : '#374151'),
-    tooltipBorder: resolveCssVar('--border-strong', isDark ? 'rgba(148, 163, 184, 0.45)' : '#e5e7eb')
+    surface: resolveCssVar('--surface', isDark ? '#171717' : '#ffffff'),
+    legendColor: resolveCssVar('--text', isDark ? '#fafafa' : '#171717'),
+    tooltipBg: resolveCssVar('--surface-elevated', isDark ? '#1f1f1f' : '#ffffff'),
+    tooltipTitle: resolveCssVar('--text', isDark ? '#fafafa' : '#171717'),
+    tooltipBody: resolveCssVar('--text-secondary', isDark ? '#a3a3a3' : '#525252'),
+    tooltipBorder: resolveCssVar('--border-strong', isDark ? '#404040' : '#d4d4d4')
   }
 })
 
 const chartColors = computed(() => ([
-  resolveCssVar('--chart-1', '#4c6ef5'),
-  resolveCssVar('--chart-2', '#f783ac'),
-  resolveCssVar('--chart-3', '#38bdf8'),
-  resolveCssVar('--chart-4', '#43e97b'),
-  resolveCssVar('--chart-5', '#ff922b'),
-  resolveCssVar('--chart-6', '#845ef7'),
-  resolveCssVar('--chart-7', '#12b886'),
-  resolveCssVar('--chart-8', '#fd7e14')
+  '#4c6ef5',
+  '#f783ac',
+  '#38bdf8',
+  '#43e97b',
+  '#ff922b',
+  '#845ef7',
+  '#12b886',
+  '#fd7e14'
 ]))
 
 // 图表数据
@@ -189,100 +189,3 @@ watch(currentTheme, () => {
   chartKey.value++
 })
 </script>
-
-<style scoped>
-/* ============================================
-   CreditUsageChart - Modern Tech Style
-   ============================================ */
-
-.credit-chart-container {
-  background: var(--tech-glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--tech-glass-border);
-  border-radius: 16px;
-  padding: 22px;
-  height: 400px;
-  display: flex;
-  flex-direction: column;
-  box-shadow: var(--tech-border-glow);
-}
-
-.chart-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 18px;
-  flex-shrink: 0;
-}
-
-.chart-header h3 {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-strong);
-  margin: 0;
-}
-
-.chart-wrapper {
-  flex: 1;
-  min-height: 0;
-  position: relative;
-}
-
-.loading, .error, .no-data {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  color: var(--text-muted);
-}
-
-.error {
-  color: #ef4444;
-}
-
-.error svg {
-  color: #ef4444;
-  opacity: 0.7;
-  filter: drop-shadow(0 0 6px var(--tech-glow-danger));
-}
-
-.no-data svg {
-  opacity: 0.5;
-  color: var(--text-muted);
-}
-
-.loading p, .error p, .no-data p {
-  margin: 0;
-  font-size: 14px;
-}
-
-/* 加载动画 - 科技风 */
-.spinner {
-  width: 44px;
-  height: 44px;
-  border: 3px solid var(--tech-glass-border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  box-shadow: 0 0 12px var(--tech-glow-primary);
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .credit-chart-container {
-    height: 340px;
-    padding: 18px;
-  }
-
-  .chart-header h3 {
-    font-size: 14px;
-  }
-}
-</style>

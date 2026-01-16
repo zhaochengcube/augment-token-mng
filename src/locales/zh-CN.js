@@ -16,7 +16,7 @@ export default {
     yesterday: '昨天',
     daysAgo: '{days} 天前',
     selected: '已选择 {count} 项',
-    selectAllPage: '选择当前页全部',
+    selectAllPage: '全选当前页',
     cancelSelection: '取消选择',
     batchDelete: '批量删除',
     noSearchResults: '未找到匹配结果',
@@ -26,8 +26,8 @@ export default {
   },
   app: {
     title: 'Augment Token Manager',
-    appHome: 'App主页',
-    pluginHome: '插件主页',
+    appHome: 'App仓库',
+    pluginHome: '插件仓库',
     telegramGroup: 'ATM群聊',
     viewTokens: '查看Token',
     bookmarkManager: '书签管理',
@@ -85,7 +85,6 @@ export default {
     scoopCommand: 'Scoop 命令',
     copyCommand: '复制命令',
     commandCopied: '命令已复制',
-    checkingForUpdates: '正在检查更新...',
     upToDate: '已是最新版本',
     checkFailed: '检查更新失败',
     close: '关闭'
@@ -227,7 +226,6 @@ export default {
   },
   tokenList: {
     title: 'Token 列表',
-    empty: '还没有保存的Token',
     loading: '正在加载Token...',
     listTitle: 'Token列表 ({count})',
     refresh: '刷新',
@@ -273,10 +271,7 @@ export default {
     confirmDelete: '确认删除',
     deleting: '删除中...',
     searchPlaceholder: 'Token / 邮箱 / Session / 状态...',
-    searchResults: '搜索结果：{count} 个',
-    noSearchResults: '未找到匹配的 Token',
-    noFilterResults: '当前筛选条件下没有 Token',
-    noDeletableTokens: '没有可删除的 token',
+    noResults: '暂无结果',
     batchImport: '批量导入',
     batchImportTitle: '批量导入Token',
     sessionImportTab: 'Session 导入',
@@ -345,7 +340,7 @@ export default {
     tableHeaderTag: '标签',
     tableHeaderStatus: '状态',
     tableHeaderEmail: '邮箱',
-    tableHeaderBalance: '剩余积分',
+    tableHeaderBalance: '积分',
     tableHeaderDates: '创建/重置时间',
     tableHeaderActions: '操作',
     // 标签编辑
@@ -468,7 +463,6 @@ export default {
     sessionImportDescription: '粘贴你的 Augment Session 来自动提取 Token 信息',
     sessionPlaceholder: '请粘贴 Session 字符串...',
     importSession: '导入',
-    oauthStep1Desc: '点击按钮生成授权链接',
     oauthStep2Desc: '在浏览器中完成授权后，将授权码粘贴到下方',
     oauthStep3Desc: 'Token获取成功！填写可选信息后保存',
     tagColor: '标签颜色'
@@ -511,23 +505,6 @@ export default {
     autoImportSession: '自动导入',
     autoImportBrowserTitle: 'Augment 登录 - 自动导入',
     importingSession: '正在导入...'
-  },
-  sessionHelp: {
-    title: '如何获取 Auth Session',
-    step1Title: '步骤 1: 登录 Augment',
-    step1Content: '在浏览器中登录你的 Augment 账户：',
-    step1LoginLink: 'https://login.augmentcode.com',
-    step1LinkPrefix: '然后访问：',
-    step1Link: 'https://auth.augmentcode.com',
-    step2Title: '步骤 2: 打开浏览器开发者工具',
-    step2Content: '按 F12 键或右键点击页面选择"检查"打开开发者工具',
-    step3Title: '步骤 3: 找到 Cookie',
-    step3Content: '在开发者工具中，点击 Application (应用) 标签页，然后在左侧展开 Cookies，选择 https://auth.augmentcode.com',
-    step4Title: '步骤 4: 复制 session 值',
-    step4Content: '在 Cookie 列表中找到名为 session 的项，双击其 Value (值) 列，复制完整的 session 值',
-    step5Title: '步骤 5: 粘贴到输入框',
-    step5Content: '将复制的 session 值粘贴到上方的输入框中，然后点击"导入 Session"按钮',
-    closeButton: '关闭'
   },
   storage: {
     localStorage: '本地存储',
@@ -773,6 +750,19 @@ export default {
       testFailedStatus: '失败'
     }
   },
+  fontConfig: {
+    title: '字体设置',
+    fontName: '字体名称',
+    placeholder: '输入字体名称，如 Inter、PingFang SC',
+    help: '输入系统已安装的字体名称，留空使用默认字体',
+    preview: '预览',
+    save: '保存',
+    reset: '恢复默认',
+    saveSuccess: '字体设置已保存',
+    resetSuccess: '已恢复默认字体',
+    customized: '自定义',
+    default: '默认'
+  },
   credit: {
     title: 'Credit 使用统计',
     viewUsage: '查看使用详情',
@@ -881,8 +871,6 @@ export default {
       lastUsed: '最后使用',
       createdAt: '创建时间',
       quotaRefreshedAt: '配额刷新时间',
-      noAccounts: '暂无账号',
-      noAccountsHint: '点击"添加账号"按钮开始',
       viewAllModels: '查看全部模型',
       modelsModalTitle: '全部模型',
       lastUpdated: '刷新时间',
@@ -959,6 +947,17 @@ export default {
         batchDeleteConfirm: '确定要删除选中的 {count} 个账号吗？',
         noSelection: '请先选择要操作的账号'
       },
+      export: '导出账号',
+      exportSuccess: '账号导出成功',
+      exportFailed: '导出失败',
+      hideEmail: '隐藏邮箱',
+      showEmail: '显示邮箱',
+      sortByTimeDesc: '最新添加',
+      sortByTimeAsc: '最早添加',
+      sortByEmailAsc: '邮箱 A-Z',
+      sortByEmailDesc: '邮箱 Z-A',
+      allStatus: '全部状态',
+      sort: '排序',
       allAccountsMarkedForSync: '已将 {count} 个账号标记为待同步',
       quota: {
         gemini: 'Gemini',
@@ -973,5 +972,23 @@ export default {
         }
       }
     }
+  },
+  font: {
+    title: '字体设置',
+    customFont: '自定义字体',
+    hint: '输入字体名称，多个字体用逗号分隔。留空使用默认字体。',
+    size: '字体大小',
+    sizeHint: '单位 px，建议 10-24。',
+    preview: '预览',
+    previewText: 'The quick brown fox jumps over the lazy dog. 快速的棕色狐狸跳过懒狗。1234567890',
+    reset: '重置为默认',
+    apply: '应用',
+    currentFont: '当前字体',
+    systemDefault: '系统默认',
+    applied: '字体已应用',
+    resetSuccess: '已重置为默认字体',
+    applyFailed: '应用字体失败',
+    resetFailed: '重置字体失败',
+    managerNotFound: '字体管理器未找到'
   }
 }

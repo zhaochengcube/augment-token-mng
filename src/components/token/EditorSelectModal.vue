@@ -1,83 +1,83 @@
 <template>
-  <Teleport to="body">
-    <Transition name="modal" appear>
-      <div v-if="show" class="editor-modal-overlay">
-        <div class="editor-modal" @click.stop>
-          <div class="modal-header">
-            <h3>{{ $t('tokenCard.selectEditor') }}</h3>
-            <button @click.stop="closeModal" class="modal-close">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-              </svg>
-            </button>
-          </div>
-          <div class="modal-content">
-            <!-- VSCode 系编辑器区域 -->
-            <div class="editor-section">
-              <div class="editor-options jetbrains-grid">
-                <button v-for="editor in vscodeEditors" :key="editor.type" @click="handleEditorClick(editor.type)" :class="['editor-option', `${editor.type}-option`]">
-                  <div class="editor-icon">
-                    <img :src="editorIcons[editor.type]" :alt="editor.name" width="32" height="32" />
-                  </div>
-                  <div class="editor-info">
-                    <span class="editor-name">{{ editor.name }}</span>
-                  </div>
-                </button>
-              </div>
+  <!-- 主编辑器选择模态框 -->
+  <BaseModal
+    :visible="show"
+    :title="$t('tokenCard.selectEditor')"
+    :close-on-overlay="true"
+    :body-scroll="true"
+    modal-class="!max-w-[720px]"
+    @close="closeModal"
+  >
+    <div class="flex flex-col gap-6">
+      <!-- VSCode 系编辑器区域 -->
+      <div class="pb-6 border-b border-border last:pb-0 last:border-b-0">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button
+            v-for="editor in vscodeEditors"
+            :key="editor.type"
+            class="card card--lift flex items-center gap-4 !p-4 text-left"
+            @click="handleEditorClick(editor.type)"
+          >
+            <div class="shrink-0 w-12 h-12 flex items-center justify-center">
+              <img :src="editorIcons[editor.type]" :alt="editor.name" class="w-8 h-8 object-contain" />
             </div>
-
-            <!-- JetBrains 系编辑器区域 -->
-            <div class="editor-section">
-              <div class="editor-options jetbrains-grid">
-                <button v-for="editor in jetbrainsEditorsList" :key="editor.type" @click="handleEditorClick(editor.type)" :class="['editor-option', `${editor.type}-option`]">
-                  <div class="editor-icon">
-                    <img :src="editorIcons[editor.type]" :alt="editor.name" width="32" height="32" />
-                  </div>
-                  <div class="editor-info">
-                    <span class="editor-name">{{ editor.name }}</span>
-                  </div>
-                </button>
-              </div>
-            </div>
-          </div>
+            <span class="text-base font-semibold text-text">{{ editor.name }}</span>
+          </button>
         </div>
       </div>
-    </Transition>
 
-    <!-- Trae 版本选择对话框 -->
-    <Transition name="modal" appear>
-      <div v-if="showTraeVersionDialog" class="trae-version-modal-overlay" @click="showTraeVersionDialog = false">
-        <div class="trae-version-modal" @click.stop>
-          <div class="modal-header">
-            <h3>选择 Trae 版本</h3>
-            <button @click="showTraeVersionDialog = false" class="modal-close">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-              </svg>
-            </button>
-          </div>
-          <div class="modal-body">
-            <div class="version-options">
-              <button @click="handleTraeVersionSelect('global')" class="version-option">
-                <div class="version-icon">🌍</div>
-                <div class="version-name">Trae 国际版</div>
-              </button>
-              <button @click="handleTraeVersionSelect('cn')" class="version-option">
-                <div class="version-icon">🇨🇳</div>
-                <div class="version-name">Trae 国内版</div>
-              </button>
+      <!-- JetBrains 系编辑器区域 -->
+      <div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button
+            v-for="editor in jetbrainsEditorsList"
+            :key="editor.type"
+            class="card card--lift flex items-center gap-4 !p-4 text-left"
+            @click="handleEditorClick(editor.type)"
+          >
+            <div class="shrink-0 w-12 h-12 flex items-center justify-center">
+              <img :src="editorIcons[editor.type]" :alt="editor.name" class="w-8 h-8 object-contain" />
             </div>
-          </div>
+            <span class="text-base font-semibold text-text">{{ editor.name }}</span>
+          </button>
         </div>
       </div>
-    </Transition>
-  </Teleport>
+    </div>
+  </BaseModal>
+
+  <!-- Trae 版本选择对话框 -->
+  <BaseModal
+    :visible="showTraeVersionDialog"
+    title="选择 Trae 版本"
+    :close-on-overlay="true"
+    :body-scroll="false"
+    modal-class="!max-w-[520px] !z-[10000]"
+    @close="showTraeVersionDialog = false"
+  >
+    <div class="flex flex-col gap-4">
+      <button
+        class="card card--lift flex items-center gap-4 !p-5 text-left"
+        @click="handleTraeVersionSelect('global')"
+      >
+        <div class="text-[32px] shrink-0 w-12 h-12 flex items-center justify-center">🌍</div>
+        <span class="text-base font-semibold text-text">Trae 国际版</span>
+      </button>
+      <button
+        class="card card--lift flex items-center gap-4 !p-5 text-left"
+        @click="handleTraeVersionSelect('cn')"
+      >
+        <div class="text-[32px] shrink-0 w-12 h-12 flex items-center justify-center">🇨🇳</div>
+        <span class="text-base font-semibold text-text">Trae 国内版</span>
+      </button>
+    </div>
+  </BaseModal>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from 'vue-i18n'
+import BaseModal from '../common/BaseModal.vue'
 
 const { t } = useI18n()
 
@@ -348,372 +348,3 @@ const handleTraeVersionSelect = async (version) => {
   }
 }
 </script>
-
-<style scoped>
-/* ============================================
-   EditorSelectModal - Modern Tech Style
-   ============================================ */
-
-/* Vue 过渡动画 */
-.modal-enter-active,
-.modal-leave-active {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
-}
-
-.modal-enter-from .editor-modal,
-.modal-leave-to .editor-modal {
-  transform: translateY(-20px) scale(0.92);
-}
-
-.modal-enter-to .editor-modal,
-.modal-leave-from .editor-modal {
-  transform: translateY(0) scale(1);
-}
-
-/* 编辑器选择模态框遮罩 */
-.editor-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 4000;
-  backdrop-filter: blur(4px);
-  pointer-events: auto;
-}
-
-/* 模态框 - 磨砂玻璃 */
-.editor-modal {
-  background: var(--tech-glass-bg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--tech-glass-border);
-  border-radius: 18px;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35), var(--tech-border-glow);
-  max-width: 720px;
-  width: 90%;
-  max-height: 95vh;
-  overflow: hidden;
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  pointer-events: auto;
-  margin: auto;
-}
-
-.editor-modal .modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 22px 26px 18px;
-  border-bottom: 1px solid var(--tech-glass-border);
-}
-
-.editor-modal .modal-header h3 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-strong);
-}
-
-.editor-modal .modal-content {
-  padding: 22px 26px 26px;
-  max-height: calc(95vh - 80px);
-  overflow-y: auto;
-}
-
-.editor-section {
-  margin-bottom: 26px;
-  padding-bottom: 26px;
-  border-bottom: 1px solid var(--tech-glass-border);
-}
-
-.editor-section:last-child {
-  margin-bottom: 0;
-  padding-bottom: 0;
-  border-bottom: none;
-}
-
-.editor-options {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.jetbrains-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 14px;
-}
-
-/* 编辑器选项 - 科技风卡片 */
-.editor-option {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px 18px;
-  border: 1px solid var(--tech-glass-border);
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-align: left;
-  width: 100%;
-  position: relative;
-  font-family: inherit;
-  font-size: inherit;
-  text-decoration: none;
-  color: inherit;
-  box-sizing: border-box;
-}
-
-.editor-option:hover {
-  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
-  box-shadow: 0 0 20px var(--tech-glow-primary);
-  transform: translateY(-2px);
-}
-
-.editor-option:active {
-  transform: translateY(0);
-}
-
-.editor-option:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent),
-              0 0 20px var(--tech-glow-primary);
-}
-
-/* 编辑器图标 - 科技风 */
-.editor-icon {
-  flex-shrink: 0;
-  width: 50px;
-  height: 50px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--bg-muted) 70%, transparent);
-  border: 1px solid var(--tech-glass-border);
-  transition: all 0.2s ease;
-}
-
-.editor-option:hover .editor-icon {
-  background: color-mix(in srgb, var(--accent) 15%, transparent);
-  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
-  box-shadow: 0 0 15px var(--tech-glow-primary);
-}
-
-.editor-icon img {
-  width: 32px;
-  height: 32px;
-  object-fit: contain;
-}
-
-.vscode-option .editor-icon,
-.vscode-insiders-option .editor-icon,
-.cursor-option .editor-icon,
-.kiro-option .editor-icon,
-.trae-option .editor-icon,
-.windsurf-option .editor-icon,
-.qoder-option .editor-icon,
-.vscodium-option .editor-icon,
-.codebuddy-option .editor-icon,
-.vim-option .editor-icon,
-.auggie-option .editor-icon,
-.antigravity-option .editor-icon,
-.idea-option .editor-icon,
-.pycharm-option .editor-icon,
-.goland-option .editor-icon,
-.rustrover-option .editor-icon,
-.webstorm-option .editor-icon,
-.phpstorm-option .editor-icon,
-.androidstudio-option .editor-icon,
-.clion-option .editor-icon,
-.datagrip-option .editor-icon,
-.rider-option .editor-icon,
-.rubymine-option .editor-icon,
-.aqua-option .editor-icon {
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-  border-color: color-mix(in srgb, var(--accent) 25%, transparent);
-}
-
-.editor-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.editor-name {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-strong);
-}
-
-/* Trae 版本选择对话框 - 科技风 */
-.trae-version-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10000;
-  padding: 20px;
-  backdrop-filter: blur(4px);
-}
-
-.trae-version-modal {
-  background: var(--tech-glass-bg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--tech-glass-border);
-  border-radius: 18px;
-  max-width: 520px;
-  width: 100%;
-  max-height: 80vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35), var(--tech-border-glow);
-}
-
-.trae-version-modal .modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 22px 26px;
-  border-bottom: 1px solid var(--tech-glass-border);
-}
-
-.trae-version-modal .modal-header h3 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-strong);
-}
-
-.trae-version-modal .modal-body {
-  padding: 26px;
-  overflow-y: auto;
-  flex: 1;
-}
-
-.version-options {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.version-option {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 20px;
-  border: 1px solid var(--tech-glass-border);
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  width: 100%;
-  text-align: left;
-  font-family: inherit;
-}
-
-.version-option:hover {
-  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
-  box-shadow: 0 0 20px var(--tech-glow-primary);
-  transform: translateY(-2px);
-}
-
-.version-option:active {
-  transform: translateY(0);
-}
-
-.version-icon {
-  font-size: 32px;
-  flex-shrink: 0;
-  width: 50px;
-  height: 50px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: color-mix(in srgb, var(--bg-muted) 70%, transparent);
-  border: 1px solid var(--tech-glass-border);
-  border-radius: 12px;
-}
-
-.version-name {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-strong);
-}
-
-/* 响应式处理 */
-@media (max-width: 480px) {
-  .editor-modal {
-    width: 95%;
-    margin: 16px;
-    max-height: 90vh;
-    border-radius: 14px;
-  }
-
-  .editor-modal .modal-header {
-    padding: 16px 20px 12px;
-  }
-
-  .editor-modal .modal-header h3 {
-    font-size: 16px;
-  }
-
-  .editor-modal .modal-content {
-    padding: 16px 20px 20px;
-  }
-
-  .editor-section {
-    margin-bottom: 20px;
-    padding-bottom: 20px;
-  }
-
-  .jetbrains-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .editor-option {
-    padding: 12px 14px;
-    gap: 12px;
-    border-radius: 12px;
-  }
-
-  .editor-icon {
-    width: 42px;
-    height: 42px;
-    border-radius: 10px;
-  }
-
-  .editor-icon img {
-    width: 28px;
-    height: 28px;
-  }
-
-  .editor-name {
-    font-size: 15px;
-  }
-}
-</style>

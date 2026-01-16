@@ -1,393 +1,373 @@
 <template>
-  <div class="token-form-modal">
-    <div class="modal-overlay">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h2>{{ isEditing ? $t('tokenForm.editTitle') : $t('tokenForm.addTitle') }}</h2>
-          <button class="modal-close" @click="handleCancel">×</button>
+  <BaseModal
+    :visible="true"
+    :title="isEditing ? $t('tokenForm.editTitle') : $t('tokenForm.addTitle')"
+    :show-close="true"
+    :close-on-overlay="!isLoading && !isImportingSession"
+    :close-on-esc="!isLoading && !isImportingSession"
+    :body-scroll="activeTab === 'oauth'"
+    modal-class="max-w-[520px]"
+    @close="handleCancel"
+  >
+    <!-- Tab Navigation (只在添加模式显示) -->
+    <div v-if="!isEditing" class="mb-4 flex gap-1 justify-center rounded-lg border border-border bg-muted p-1">
+      <button
+        :class="[
+          'flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-all',
+          activeTab === 'oauth'
+            ? 'bg-surface text-text shadow-sm'
+            : 'text-text-muted hover:text-text'
+        ]"
+        @click="activeTab = 'oauth'"
+        type="button"
+      >
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" />
+        </svg>
+        {{ $t('tokenForm.oauthTab') }}
+      </button>
+      <button
+        :class="[
+          'flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-all',
+          activeTab === 'manual'
+            ? 'bg-surface text-text shadow-sm'
+            : 'text-text-muted hover:text-text'
+        ]"
+        @click="activeTab = 'manual'"
+        type="button"
+      >
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm0 4c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm6 12H6v-1.4c0-2 4-3.1 6-3.1s6 1.1 6 3.1V19z"/>
+        </svg>
+        {{ $t('tokenForm.manualTab') }}
+      </button>
+      <button
+        :class="[
+          'flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-all',
+          activeTab === 'session'
+            ? 'bg-surface text-text shadow-sm'
+            : 'text-text-muted hover:text-text'
+        ]"
+        @click="activeTab = 'session'"
+        type="button"
+      >
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M20 6h-2.18c.11-.31.18-.65.18-1 0-1.66-1.34-3-3-3-1.05 0-1.96.54-2.5 1.35l-.5.67-.5-.68C10.96 2.54 10.05 2 9 2 7.34 2 6 3.34 6 5c0 .35.07.69.18 1H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-5-2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM9 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm11 15H4v-2h16v2zm0-5H4V8h5.08L7 10.83 8.62 12 11 8.76l1-1.36 1 1.36L15.38 12 17 10.83 14.92 8H20v6z"/>
+        </svg>
+        {{ $t('tokenForm.sessionTab') }}
+      </button>
+    </div>
+
+    <!-- Manual Input Tab -->
+    <form v-if="activeTab === 'manual'" @submit.prevent="handleSubmit" class="space-y-4">
+      <div class="form-group">
+        <label for="tenantUrl" class="label">{{ $t('tokenForm.tenantUrl') }} *</label>
+        <input
+          id="tenantUrl"
+          v-model="formData.tenantUrl"
+          type="url"
+          class="input w-full"
+          placeholder="https://example.augmentcode.com/"
+          required
+          :disabled="isLoading"
+        >
+        <div v-if="errors.tenantUrl" class="text-xs text-error">{{ errors.tenantUrl }}</div>
+      </div>
+
+      <div class="form-group">
+        <label for="accessToken" class="label">{{ $t('tokenForm.accessToken') }} *</label>
+        <input
+          id="accessToken"
+          v-model="formData.accessToken"
+          type="text"
+          class="input w-full"
+          :placeholder="$t('tokenForm.accessTokenPlaceholder')"
+          required
+          :disabled="isLoading"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="none"
+          spellcheck="false"
+        >
+        <div v-if="errors.accessToken" class="text-xs text-error">{{ errors.accessToken }}</div>
+      </div>
+
+      <div class="form-group">
+        <label class="label">{{ $t('tokenForm.tagLabel') }} ({{ $t('tokenForm.optional') }})</label>
+        <div class="flex gap-2.5 items-center">
+          <div class="dropdown flex-1" @click="showTagSuggestions = true">
+            <input
+              id="tagName"
+              v-model="formData.tagName"
+              type="text"
+              class="input !pr-9"
+              :placeholder="$t('tokenForm.tagPlaceholder')"
+              :disabled="isLoading"
+              maxlength="20"
+              @input="handleTagInput"
+              @focus="showTagSuggestions = true"
+              @blur="handleTagBlur"
+              @click.stop="showTagSuggestions = true"
+            >
+            <button
+              v-if="formData.tagName"
+              type="button"
+              class="btn btn--ghost btn--icon-sm absolute right-1.5 top-1/2 -translate-y-1/2"
+              :title="$t('tokenForm.clearTag')"
+              @click="clearTag"
+              :disabled="isLoading"
+            >
+              ×
+            </button>
+            <Transition name="dropdown">
+              <div
+                v-if="showTagSuggestions && filteredTagSuggestions.length > 0"
+                class="dropdown-menu dropdown-menu--left w-full max-h-[200px] overflow-y-auto"
+                @mousedown.prevent
+              >
+                <div
+                  v-for="suggestion in filteredTagSuggestions"
+                  :key="suggestion.name"
+                  class="dropdown-item"
+                  @mousedown.prevent="selectTagSuggestion(suggestion)"
+                >
+                  <span
+                    class="w-4.5 h-4.5 rounded-md shrink-0 shadow-sm"
+                    :style="{ backgroundColor: suggestion.color }"
+                  ></span>
+                  <span class="text-[14px] text-text">{{ suggestion.name }}</span>
+                </div>
+              </div>
+            </Transition>
+          </div>
+          <div class="relative shrink-0">
+            <div
+              class="w-[42px] h-[42px] border-2 border-border rounded-full shadow-sm cursor-pointer"
+              :style="{ backgroundColor: formData.tagColor }"
+              @click="openTagColorPicker"
+            ></div>
+            <input
+              ref="tagColorInput"
+              type="color"
+              v-model="formData.tagColor"
+              :title="$t('tokenForm.tagColorPicker')"
+              class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              @input="handleTagColorInput"
+            >
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="portalUrl" class="label">{{ $t('tokenForm.portalUrl') }} ({{ $t('tokenForm.optional') }})</label>
+        <input
+          id="portalUrl"
+          v-model="formData.portalUrl"
+          type="url"
+          class="input w-full"
+          placeholder="https://portal.withorb.com/view?token=xxx"
+          :disabled="isLoading"
+        >
+        <div class="text-xs text-text-muted mt-1.5">{{ $t('tokenForm.portalUrlHelp') }}</div>
+        <div v-if="errors.portalUrl" class="text-xs text-error">{{ errors.portalUrl }}</div>
+      </div>
+
+      <div class="form-group">
+        <label for="emailNote" class="label">{{ $t('tokenForm.emailNote') }} ({{ $t('tokenForm.optional') }})</label>
+        <input
+          id="emailNote"
+          v-model="formData.emailNote"
+          type="text"
+          class="input w-full"
+          :placeholder="$t('tokenForm.emailNotePlaceholder')"
+          :disabled="isLoading"
+        >
+        <div class="text-xs text-text-muted mt-1.5">{{ $t('tokenForm.emailNoteHelp') }}</div>
+        <div v-if="errors.emailNote" class="text-xs text-error">{{ errors.emailNote }}</div>
+      </div>
+
+      <div class="flex gap-3 justify-end pt-4 border-t border-border">
+        <button type="button" @click="handleCancel" class="btn btn--secondary" :disabled="isLoading">
+          {{ $t('tokenForm.cancel') }}
+        </button>
+        <button type="submit" class="btn btn--primary" :disabled="isLoading || !isFormValid">
+          <span v-if="isLoading" class="inline-block w-3.5 h-3.5 border-2 border-transparent border-t-current rounded-full animate-spin"></span>
+          {{ isLoading ? $t('loading.saving') : (isEditing ? $t('tokenForm.update') : $t('tokenForm.save')) }}
+        </button>
+      </div>
+    </form>
+
+    <!-- OAuth Tab -->
+    <div v-if="activeTab === 'oauth'" class="flex flex-col gap-6">
+      <!-- Step 1: Generate Authorization URL -->
+      <div class="p-5 bg-muted rounded-lg border border-border">
+        <div class="flex items-center justify-between gap-4">
+          <h3 class="text-base font-semibold text-text-strong">{{ $t('tokenGenerator.step1') }}</h3>
+          <button
+            type="button"
+            @click="generateAuthUrl"
+            class="btn btn--primary"
+            :disabled="isGeneratingAuth"
+          >
+            {{ $t('tokenGenerator.generateUrl') }}
+          </button>
         </div>
 
-        <div class="modal-body">
-          <!-- Tab Navigation (只在添加模式显示) -->
-          <div v-if="!isEditing" class="tab-navigation">
-            <button
-              :class="['tab-btn', { active: activeTab === 'oauth' }]"
-              @click="activeTab = 'oauth'"
-              type="button"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" />
+        <div v-if="oauthData.authUrl" class="mt-4">
+          <label class="block mb-2 text-sm font-medium text-text">{{ $t('tokenGenerator.authUrlLabel') }}</label>
+          <div class="flex gap-2 items-center">
+            <input type="text" :value="oauthData.authUrl" readonly class="input flex-1 bg-surface text-text-muted font-mono text-sm">
+            <button type="button" @click="copyAuthUrl" class="btn btn--ghost btn--icon" :title="$t('tokenGenerator.copyUrl')">
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
               </svg>
-              {{ $t('tokenForm.oauthTab') }}
             </button>
-            <button
-              :class="['tab-btn', { active: activeTab === 'manual' }]"
-              @click="activeTab = 'manual'"
-              type="button"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm0 4c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm6 12H6v-1.4c0-2 4-3.1 6-3.1s6 1.1 6 3.1V19z"/>
+            <button type="button" @click="openAuthDialog" class="btn btn--ghost btn--icon" :title="$t('tokenGenerator.openAuthUrl')">
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
               </svg>
-              {{ $t('tokenForm.manualTab') }}
-            </button>
-            <button
-              :class="['tab-btn', { active: activeTab === 'session' }]"
-              @click="activeTab = 'session'"
-              type="button"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M20 6h-2.18c.11-.31.18-.65.18-1 0-1.66-1.34-3-3-3-1.05 0-1.96.54-2.5 1.35l-.5.67-.5-.68C10.96 2.54 10.05 2 9 2 7.34 2 6 3.34 6 5c0 .35.07.69.18 1H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-5-2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM9 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm11 15H4v-2h16v2zm0-5H4V8h5.08L7 10.83 8.62 12 11 8.76l1-1.36 1 1.36L15.38 12 17 10.83 14.92 8H20v6z"/>
-              </svg>
-              {{ $t('tokenForm.sessionTab') }}
             </button>
           </div>
+        </div>
+      </div>
 
-          <!-- Manual Input Tab -->
-          <form v-if="activeTab === 'manual'" @submit.prevent="handleSubmit" class="tab-content">
-            <div class="form-group">
-              <label for="tenantUrl">{{ $t('tokenForm.tenantUrl') }} *</label>
-              <input
-                id="tenantUrl"
-                v-model="formData.tenantUrl"
-                type="url"
-                placeholder="https://example.augmentcode.com/"
-                required
-                :disabled="isLoading"
-              >
-              <div v-if="errors.tenantUrl" class="error-message">{{ errors.tenantUrl }}</div>
-            </div>
+      <!-- Step 2: Input Authorization Code -->
+      <div v-if="oauthData.authUrl" class="p-5 bg-muted rounded-lg border border-border">
+        <h3 class="mb-2 text-base font-semibold text-text-strong">{{ $t('tokenGenerator.step2') }}</h3>
+        <p class="mb-4 text-sm text-text-muted">{{ $t('tokenForm.oauthStep2Desc') }}</p>
+        <input
+          type="text"
+          v-model="oauthData.authCode"
+          :placeholder="$t('tokenGenerator.authCodePlaceholder')"
+          :disabled="isGettingToken"
+          class="input w-full font-mono text-sm disabled:bg-muted disabled:text-text-muted disabled:cursor-not-allowed"
+        >
+        <div class="flex gap-3 justify-end mt-4">
+          <button
+            type="button"
+            @click="getAccessToken"
+            class="btn btn--primary"
+            :disabled="!canGetToken || isGettingToken"
+          >
+            {{ $t('tokenGenerator.getToken') }}
+          </button>
+        </div>
+      </div>
 
-            <div class="form-group">
-              <label for="accessToken">{{ $t('tokenForm.accessToken') }} *</label>
-              <input
-                id="accessToken"
-                v-model="formData.accessToken"
-                type="text"
-                :placeholder="$t('tokenForm.accessTokenPlaceholder')"
-                required
-                :disabled="isLoading"
-                autocomplete="off"
-                autocorrect="off"
-                autocapitalize="none"
-                spellcheck="false"
-              >
-              <div v-if="errors.accessToken" class="error-message">{{ errors.accessToken }}</div>
-            </div>
+      <!-- Step 3: Token Result and Save -->
+      <div v-if="oauthData.tokenResult" class="p-5 bg-muted rounded-lg border border-border">
+        <h3 class="mb-2 text-base font-semibold text-text-strong">{{ $t('tokenGenerator.step3') }}</h3>
+        <p class="mb-4 text-sm text-text-muted">{{ $t('tokenForm.oauthStep3Desc') }}</p>
 
-            <div class="form-group tag-group">
-              <label for="tagName">{{ $t('tokenForm.tagLabel') }} ({{ $t('tokenForm.optional') }})</label>
-              <div class="tag-input-row">
-                <div class="tag-autocomplete-wrapper">
-                  <input
-                    id="tagName"
-                    v-model="formData.tagName"
-                    type="text"
-                    class="tag-name-input"
-                    :placeholder="$t('tokenForm.tagPlaceholder')"
-                    :disabled="isLoading"
-                    @input="handleTagInput"
-                    @focus="showTagSuggestions = true"
-                    @blur="handleTagBlur"
-                    @keydown.down.prevent="navigateSuggestions(1)"
-                    @keydown.up.prevent="navigateSuggestions(-1)"
-                    @keydown.enter.prevent="selectSuggestion(selectedSuggestionIndex)"
-                    @keydown.escape="showTagSuggestions = false"
-                  >
-                  <button
-                    v-if="formData.tagName"
-                    type="button"
-                    class="tag-clear-btn"
-                    :title="$t('tokenForm.clearTag')"
-                    @click="clearTag"
-                    :disabled="isLoading"
-                  >
-                    ×
-                  </button>
-                  <Transition name="dropdown">
-                    <div v-if="showTagSuggestions && filteredTagSuggestions.length > 0" class="tag-suggestions">
-                      <div
-                        v-for="(suggestion, index) in filteredTagSuggestions"
-                        :key="suggestion.name"
-                        :class="['tag-suggestion-item', { selected: index === selectedSuggestionIndex }]"
-                        @mousedown.prevent="selectTagSuggestion(suggestion)"
-                        @mouseenter="selectedSuggestionIndex = index"
-                      >
-                        <span
-                          class="tag-preview"
-                          :style="{ backgroundColor: suggestion.color }"
-                        ></span>
-                        <span class="tag-suggestion-name">{{ suggestion.name }}</span>
-                      </div>
-                    </div>
-                  </Transition>
-                </div>
-                <div class="tag-color-wrapper">
-                  <button
-                    type="button"
-                    class="tag-color-display"
-                    :style="{ backgroundColor: formData.tagColor }"
-                    :title="$t('tokenForm.tagColorPicker')"
-                    :aria-label="$t('tokenForm.tagColorPicker')"
-                    @click="openTagColorPicker"
-                    :disabled="isLoading"
-                  ></button>
-                  <input
-                    ref="tagColorInput"
-                    type="color"
-                    v-model="formData.tagColor"
-                    class="hidden-color-input"
-                    tabindex="-1"
-                    aria-hidden="true"
-                    @input="handleTagColorInput"
-                  >
-                </div>
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label for="portalUrl">{{ $t('tokenForm.portalUrl') }} ({{ $t('tokenForm.optional') }})</label>
-              <input
-                id="portalUrl"
-                v-model="formData.portalUrl"
-                type="url"
-                placeholder="https://portal.withorb.com/view?token=xxx"
-                :disabled="isLoading"
-              >
-              <div class="help-text">{{ $t('tokenForm.portalUrlHelp') }}</div>
-              <div v-if="errors.portalUrl" class="error-message">{{ errors.portalUrl }}</div>
-            </div>
-
-            <div class="form-group">
-              <label for="emailNote">{{ $t('tokenForm.emailNote') }} ({{ $t('tokenForm.optional') }})</label>
-              <input
-                id="emailNote"
-                v-model="formData.emailNote"
-                type="text"
-                :placeholder="$t('tokenForm.emailNotePlaceholder')"
-                :disabled="isLoading"
-              >
-              <div class="help-text">{{ $t('tokenForm.emailNoteHelp') }}</div>
-              <div v-if="errors.emailNote" class="error-message">{{ errors.emailNote }}</div>
-            </div>
-
-            <div class="form-actions">
-              <button type="button" @click="handleCancel" class="btn secondary" :disabled="isLoading">
-                {{ $t('tokenForm.cancel') }}
+        <div class="flex flex-col gap-4">
+          <div class="flex flex-col gap-2">
+            <label class="text-sm font-medium text-text">{{ $t('tokenForm.accessToken') }}</label>
+            <div class="flex gap-2 items-center">
+              <input type="text" :value="oauthData.tokenResult.access_token" readonly class="input flex-1 bg-surface text-text-muted font-mono text-sm">
+              <button type="button" @click="copyAccessToken" class="btn btn--ghost btn--icon">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                </svg>
               </button>
-              <button type="submit" class="btn primary" :disabled="isLoading || !isFormValid">
-                <span v-if="isLoading" class="loading-spinner"></span>
-                {{ isLoading ? $t('loading.saving') : (isEditing ? $t('tokenForm.update') : $t('tokenForm.save')) }}
-              </button>
-            </div>
-          </form>
-
-          <!-- OAuth Tab -->
-          <div v-if="activeTab === 'oauth'" class="tab-content oauth-tab">
-            <!-- Step 1: Generate Authorization URL -->
-            <div class="oauth-section">
-              <h3>{{ $t('tokenGenerator.step1') }}</h3>
-              <p class="section-description">{{ $t('tokenForm.oauthStep1Desc') }}</p>
-              <button
-                type="button"
-                @click="generateAuthUrl"
-                :class="['btn', 'primary', { loading: isGeneratingAuth }]"
-                :disabled="isGeneratingAuth"
-              >
-                {{ $t('tokenGenerator.generateUrl') }}
-              </button>
-
-              <div v-if="oauthData.authUrl" class="url-section">
-                <label>{{ $t('tokenGenerator.authUrlLabel') }}</label>
-                <div class="input-with-copy">
-                  <input type="text" :value="oauthData.authUrl" readonly class="readonly-input">
-                  <button type="button" @click="copyAuthUrl" class="btn-icon copy-icon" :title="$t('tokenGenerator.copyUrl')">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-                    </svg>
-                  </button>
-                  <button
-                    type="button"
-                    @click="openAuthDialog"
-                    class="btn-icon copy-icon"
-                    :title="$t('tokenGenerator.openAuthUrl')"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Step 2: Input Authorization Code -->
-            <div v-if="oauthData.authUrl" class="oauth-section">
-              <h3>{{ $t('tokenGenerator.step2') }}</h3>
-              <p class="section-description">{{ $t('tokenForm.oauthStep2Desc') }}</p>
-              <textarea
-                v-model="oauthData.authCode"
-                :placeholder="$t('tokenGenerator.authCodePlaceholder')"
-                rows="4"
-                :disabled="isGettingToken"
-                class="oauth-code-textarea"
-              ></textarea>
-              <div class="button-container">
-                <button
-                  type="button"
-                  @click="getAccessToken"
-                  :class="['btn', 'primary', { loading: isGettingToken }]"
-                  :disabled="!canGetToken || isGettingToken"
-                >
-                  {{ $t('tokenGenerator.getToken') }}
-                </button>
-              </div>
-            </div>
-
-            <!-- Step 3: Token Result and Save -->
-            <div v-if="oauthData.tokenResult" class="oauth-section">
-              <h3>{{ $t('tokenGenerator.step3') }}</h3>
-              <p class="section-description">{{ $t('tokenForm.oauthStep3Desc') }}</p>
-
-              <div class="token-result">
-                <div class="result-item">
-                  <label>{{ $t('tokenForm.accessToken') }}</label>
-                  <div class="input-with-copy">
-                    <input type="text" :value="oauthData.tokenResult.access_token" readonly class="readonly-input">
-                    <button type="button" @click="copyAccessToken" class="btn-icon copy-icon">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-
-                <div class="result-item">
-                  <label>{{ $t('tokenForm.tenantUrl') }}</label>
-                  <input type="text" :value="oauthData.tokenResult.tenant_url" readonly class="readonly-input">
-                </div>
-
-                <!-- Optional Fields -->
-                <div class="form-group">
-                  <label for="oauth-portalUrl">{{ $t('tokenForm.portalUrl') }} ({{ $t('tokenForm.optional') }})</label>
-                  <input
-                    id="oauth-portalUrl"
-                    v-model="oauthData.portalUrl"
-                    type="url"
-                    :placeholder="$t('tokenForm.portalUrlPlaceholder')"
-                  >
-                </div>
-
-                <div class="form-group">
-                  <label for="oauth-emailNote">{{ $t('tokenForm.emailNote') }} ({{ $t('tokenForm.optional') }})</label>
-                  <input
-                    id="oauth-emailNote"
-                    v-model="oauthData.emailNote"
-                    type="text"
-                    :placeholder="$t('tokenForm.emailNotePlaceholder')"
-                  >
-                </div>
-
-                <div class="form-group tag-group">
-                  <label for="oauth-tagName">{{ $t('tokenForm.tagLabel') }} ({{ $t('tokenForm.optional') }})</label>
-                  <div class="tag-input-row">
-                    <div class="tag-autocomplete-wrapper">
-                      <input
-                        id="oauth-tagName"
-                        v-model="oauthData.tagName"
-                        type="text"
-                        class="tag-name-input"
-                        :placeholder="$t('tokenForm.tagPlaceholder')"
-                      >
-                    </div>
-                    <input
-                      type="color"
-                      v-model="oauthData.tagColor"
-                      class="tag-color-input"
-                      :title="$t('tokenForm.tagColor')"
-                    >
-                  </div>
-                </div>
-              </div>
-
-              <div class="button-container">
-                <button type="button" @click="saveOAuthToken" class="btn primary">
-                  {{ $t('tokenForm.saveToken') }}
-                </button>
-                <button type="button" @click="resetOAuthForm" class="btn primary">
-                  {{ $t('tokenForm.reset') }}
-                </button>
-                <button type="button" @click="handleCancel" class="btn secondary">
-                  {{ $t('tokenForm.cancel') }}
-                </button>
-              </div>
             </div>
           </div>
 
-          <!-- Session Import Tab -->
-          <div v-else-if="activeTab === 'session'" class="tab-content">
-            <div class="session-section">
-              <div class="session-header">
-                <h3>{{ $t('tokenForm.sessionImportTitle') }}</h3>
-              </div>
-              <p class="section-description">{{ $t('tokenForm.sessionImportDescription') }}</p>
+          <div class="flex flex-col gap-2">
+            <label class="text-sm font-medium text-text">{{ $t('tokenForm.tenantUrl') }}</label>
+            <input type="text" :value="oauthData.tokenResult.tenant_url" readonly class="input bg-surface text-text-muted font-mono text-sm">
+          </div>
 
-              <textarea
-                v-model="sessionInput"
-                :placeholder="$t('tokenForm.sessionPlaceholder')"
-                rows="6"
-                :disabled="isImportingSession"
-                class="session-textarea"
-              ></textarea>
+          <!-- Optional Fields -->
+          <div class="space-y-1.5">
+            <label for="oauth-portalUrl" class="block text-sm font-medium text-text">{{ $t('tokenForm.portalUrl') }} ({{ $t('tokenForm.optional') }})</label>
+            <input id="oauth-portalUrl" v-model="oauthData.portalUrl" type="url" class="input w-full" :placeholder="$t('tokenForm.portalUrlPlaceholder')">
+          </div>
 
-              <div class="button-container">
-                <button
-                  type="button"
-                  @click="importFromSession"
-                  class="btn primary"
-                  :disabled="!sessionInput.trim() || isImportingSession"
-                >
-                  {{ isImportingSession ? $t('loading.importing') : $t('tokenForm.importSession') }}
-                </button>
-                <button
-                  type="button"
-                  @click="openInternalBrowserForAutoImport"
-                  class="btn primary"
-                  :disabled="isImportingSession || isOpeningBrowser"
-                >
-                  {{ $t('tokenGenerator.autoImportSession') }}
-                </button>
-                <button
-                  type="button"
-                  @click="handleCancel"
-                  class="btn secondary"
-                  :disabled="isImportingSession"
-                >
-                  {{ $t('tokenForm.cancel') }}
-                </button>
-              </div>
+          <div class="space-y-1.5">
+            <label for="oauth-emailNote" class="block text-sm font-medium text-text">{{ $t('tokenForm.emailNote') }} ({{ $t('tokenForm.optional') }})</label>
+            <input id="oauth-emailNote" v-model="oauthData.emailNote" type="text" class="input w-full" :placeholder="$t('tokenForm.emailNotePlaceholder')">
+          </div>
 
-              <!-- Loading State -->
-              <div v-if="isImportingSession" class="session-loading">
-                <div class="session-spinner"></div>
-                <span>{{ sessionImportProgress }}</span>
-              </div>
+          <div class="space-y-1.5">
+            <label for="oauth-tagName" class="block text-sm font-medium text-text">{{ $t('tokenForm.tagLabel') }} ({{ $t('tokenForm.optional') }})</label>
+            <div class="flex items-center gap-3">
+              <input id="oauth-tagName" v-model="oauthData.tagName" type="text" class="input flex-1" :placeholder="$t('tokenForm.tagPlaceholder')">
+              <input type="color" v-model="oauthData.tagColor" class="w-8 h-8 rounded border border-border cursor-pointer" :title="$t('tokenForm.tagColor')">
             </div>
           </div>
         </div>
 
-
+        <div class="flex gap-3 justify-end mt-4 pt-4 border-t border-border">
+          <button type="button" @click="saveOAuthToken" class="btn btn--primary">
+            {{ $t('tokenForm.saveToken') }}
+          </button>
+          <button type="button" @click="resetOAuthForm" class="btn btn--secondary">
+            {{ $t('tokenForm.reset') }}
+          </button>
+          <button type="button" @click="handleCancel" class="btn btn--secondary">
+            {{ $t('tokenForm.cancel') }}
+          </button>
+        </div>
       </div>
     </div>
-  </div>
 
-  <Teleport to="body">
-    <ExternalLinkDialog
-      :show="showAuthUrlDialog"
-      :title="$t('dialogs.selectOpenMethod')"
-      :url="oauthData.authUrl"
-      :browser-title="$t('dialogs.authUrlTitle')"
-      @close="showAuthUrlDialog = false"
-    />
-  </Teleport>
+    <!-- Session Import Tab -->
+    <div v-else-if="activeTab === 'session'" class="space-y-4">
+      <div>
+        <h3 class="text-base font-semibold text-text-strong mb-1.5">{{ $t('tokenForm.sessionImportTitle') }}</h3>
+        <p class="text-sm text-text-muted leading-relaxed">{{ $t('tokenForm.sessionImportDescription') }}</p>
+      </div>
+
+      <textarea
+        v-model="sessionInput"
+        :placeholder="$t('tokenForm.sessionPlaceholder')"
+        rows="6"
+        :disabled="isImportingSession"
+        class="input w-full font-mono text-sm resize-y min-h-[100px] disabled:bg-muted disabled:text-text-muted disabled:cursor-not-allowed"
+      ></textarea>
+
+      <div class="flex gap-3 justify-end">
+        <button
+          type="button"
+          @click="importFromSession"
+          class="btn btn--primary"
+          :disabled="!sessionInput.trim() || isImportingSession"
+        >
+          {{ isImportingSession ? $t('loading.importing') : $t('tokenForm.importSession') }}
+        </button>
+        <button
+          type="button"
+          @click="openInternalBrowserForAutoImport"
+          class="btn btn--primary"
+          :disabled="isImportingSession || isOpeningBrowser"
+        >
+          {{ $t('tokenGenerator.autoImportSession') }}
+        </button>
+        <button
+          type="button"
+          @click="handleCancel"
+          class="btn btn--secondary"
+          :disabled="isImportingSession"
+        >
+          {{ $t('tokenForm.cancel') }}
+        </button>
+      </div>
+
+      <!-- Loading State -->
+      <div v-if="isImportingSession" class="flex items-center gap-3 p-4 mt-3 bg-muted rounded-lg border border-border">
+        <div class="w-5 h-5 shrink-0 border-2 border-border border-t-accent rounded-full animate-spin"></div>
+        <span class="text-sm text-text-muted">{{ sessionImportProgress }}</span>
+      </div>
+    </div>
+  </BaseModal>
+
+  <ExternalLinkDialog
+    :show="showAuthUrlDialog"
+    :title="$t('dialogs.selectOpenMethod')"
+    :url="oauthData.authUrl"
+    :browser-title="$t('dialogs.authUrlTitle')"
+    @close="showAuthUrlDialog = false"
+  />
 </template>
 
 <script setup>
@@ -395,6 +375,7 @@ import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { useI18n } from 'vue-i18n'
+import BaseModal from '../common/BaseModal.vue'
 import ExternalLinkDialog from '../common/ExternalLinkDialog.vue'
 
 const { t } = useI18n()
@@ -418,7 +399,14 @@ const props = defineProps({
 })
 
 // Emits
-const emit = defineEmits(['close', 'success', 'update-token', 'add-token', 'manual-import-completed'])
+const emit = defineEmits([
+  'close',
+  'success',
+  'update-token',
+  'add-token',
+  'auto-import-completed',
+  'manual-import-completed'
+])
 
 // Reactive data
 const defaultTagColor = resolveCssVar('--tag-default', '#f97316')
@@ -957,497 +945,3 @@ onUnmounted(() => {
   }
 })
 </script>
-
-<style scoped>
-/* ============================================
-   TokenForm - Modern Tech Style
-   ============================================ */
-
-.token-form-modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 3000;
-}
-
-.token-form-modal .modal-overlay {
-  padding: 20px;
-}
-
-.token-form-modal .modal-content {
-  width: 100%;
-  max-width: 520px;
-  max-height: 98vh;
-  overflow: hidden;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35), var(--tech-border-glow);
-}
-
-.token-form-modal .modal-body {
-  padding: 26px;
-  max-height: calc(98vh - 120px);
-  overflow-y: auto;
-}
-
-.tag-input-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.tag-autocomplete-wrapper {
-  flex: 1;
-  position: relative;
-}
-
-.tag-name-input {
-  width: 100%;
-  padding-right: 32px; /* 为清空按钮留出空间 */
-}
-
-.tag-clear-btn {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 4px;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: all 0.2s;
-}
-
-.tag-clear-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-
-.tag-clear-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.tag-suggestions {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  max-height: 200px;
-  overflow-y: auto;
-  z-index: 1000;
-}
-
-.tag-suggestion-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  cursor: pointer;
-  transition: background-color 0.15s;
-}
-
-.tag-suggestion-item:hover {
-  background: var(--bg-hover);
-}
-
-.tag-suggestion-item.selected {
-  background: var(--accent);
-}
-
-.tag-suggestion-item.selected .tag-suggestion-name {
-  color: var(--text-contrast);
-}
-
-.tag-preview {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-.tag-suggestion-name {
-  font-size: 14px;
-  color: var(--text);
-}
-
-.tag-color-wrapper {
-  position: relative;
-  flex-shrink: 0;
-}
-
-.tag-color-display {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 1px solid var(--border);
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  padding: 0;
-}
-
-.tag-color-display:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.tag-color-display:not(:disabled):hover,
-.tag-color-display:not(:disabled):focus {
-  transform: scale(1.05);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-  outline: none;
-}
-
-.hidden-color-input {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  opacity: 0;
-  width: 1px;
-  height: 1px;
-  pointer-events: none;
-}
-
-/* Dropdown transition */
-.dropdown-enter-active,
-.dropdown-leave-active {
-  transition: opacity 0.15s ease, transform 0.15s ease;
-}
-
-.dropdown-enter-from,
-.dropdown-leave-to {
-  opacity: 0;
-  transform: translateY(-4px);
-}
-
-.help-text {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-top: 6px;
-  line-height: 1.5;
-}
-
-.error-message {
-  color: #ef4444;
-  font-size: 12px;
-  margin-top: 6px;
-}
-
-/* 底部按钮区 */
-.form-actions {
-  display: flex;
-  gap: 14px;
-  justify-content: flex-end;
-  margin-top: 20px;
-  padding-top: 18px;
-  border-top: 1px solid var(--tech-glass-border);
-}
-
-.form-actions .btn {
-  min-width: 90px;
-  justify-content: center;
-}
-.loading-spinner {
-  width: 14px;
-  height: 14px;
-  border: 2px solid transparent;
-  border-top: 2px solid currentColor;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* Tab 导航 - 科技风 */
-.tab-navigation {
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-  margin-bottom: 18px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--tech-glass-border);
-}
-
-.tab-btn {
-  padding: 8px 16px;
-  border: 1px solid var(--tech-glass-border);
-  border-radius: 10px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  transition: all 0.2s ease;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
-  color: var(--text);
-}
-
-.tab-btn svg {
-  width: 14px;
-  height: 14px;
-}
-
-.tab-btn:hover {
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
-  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
-  color: var(--accent);
-}
-
-.tab-btn.active {
-  background: var(--accent);
-  color: #fff;
-  border-color: transparent;
-  box-shadow: 0 0 15px var(--tech-glow-primary);
-}
-
-.tab-btn.active:hover {
-  filter: brightness(1.1);
-}
-
-.tab-btn svg {
-  flex-shrink: 0;
-}
-
-/* Tab Content */
-.tab-content {
-  animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Session Import Styles */
-.session-section {
-  padding: 0;
-}
-
-.session-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 6px;
-}
-
-.session-header h3 {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text-strong);
-}
-
-.section-description {
-  margin: 4px 0 12px 0;
-  font-size: 13px;
-  color: var(--text-muted);
-  line-height: 1.4;
-}
-
-.session-textarea {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 13px;
-  font-family: monospace;
-  resize: vertical;
-  background: var(--bg-surface);
-  color: var(--text);
-  min-height: 100px;
-  margin-bottom: 12px;
-  box-sizing: border-box;
-}
-
-.session-textarea:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
-}
-
-.session-textarea:disabled {
-  background: var(--bg-muted);
-  color: var(--text-muted);
-  cursor: not-allowed;
-}
-
-.button-container {
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-}
-
-/* Session Loading State */
-.session-loading {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px;
-  margin-top: 12px;
-  background: var(--bg-muted);
-  border-radius: 8px;
-  border: 1px solid var(--border);
-}
-
-.session-spinner {
-  width: 20px;
-  height: 20px;
-  border: 2px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  flex-shrink: 0;
-}
-
-.session-loading span {
-  font-size: 14px;
-  color: var(--text-muted);
-}
-
-/* OAuth Tab Styles */
-.oauth-tab {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.oauth-section {
-  padding: 20px;
-  background: var(--bg-muted);
-  border-radius: 8px;
-  border: 1px solid var(--border);
-}
-
-.oauth-section h3 {
-  margin: 0 0 8px 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-strong);
-}
-
-.oauth-section .section-description {
-  margin: 0 0 16px 0;
-  font-size: 14px;
-  color: var(--text-muted);
-}
-
-.oauth-code-textarea {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-size: 14px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  line-height: 1.6;
-  background: var(--bg-surface);
-  color: var(--text);
-  min-height: 140px;
-  resize: vertical;
-  box-sizing: border-box;
-}
-
-.oauth-code-textarea:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
-}
-
-.oauth-code-textarea:disabled {
-  background: var(--bg-muted);
-  color: var(--text-muted);
-  cursor: not-allowed;
-}
-
-.url-section {
-  margin-top: 16px;
-}
-
-.url-section label {
-  display: block;
-  margin-bottom: 8px;
-  font-weight: 500;
-  color: var(--text);
-  font-size: 14px;
-}
-
-.input-with-copy {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.readonly-input {
-  flex: 1;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg-surface);
-  color: var(--text-muted);
-  font-size: 14px;
-  font-family: monospace;
-}
-
-.btn-icon.copy-icon {
-  padding: 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg-surface);
-  color: var(--text);
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.btn-icon.copy-icon:hover {
-  background: var(--bg-muted);
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.token-result {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.result-item {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.result-item label {
-  font-weight: 500;
-  color: var(--text);
-  font-size: 14px;
-}
-
-</style>

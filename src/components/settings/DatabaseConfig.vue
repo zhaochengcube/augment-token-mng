@@ -1,149 +1,165 @@
 <template>
-  <div class="database-config-modal">
-    <div class="modal-overlay">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h2>{{ $t('databaseConfig.title') }}</h2>
-          <button class="modal-close" @click="$emit('close')">×</button>
-        </div>
-        
-        <div class="modal-body">
-          <div class="config-form">
-            <div class="form-group">
-              <label for="host">{{ $t('databaseConfig.host') }}:</label>
-              <input
-                id="host"
-                v-model="config.host"
-                type="text"
-                :placeholder="$t('databaseConfig.placeholders.host')"
-                :disabled="isLoading"
-              >
-            </div>
+  <BaseModal
+    :visible="true"
+    :title="$t('databaseConfig.title')"
+    :body-scroll="false"
+    @close="$emit('close')"
+  >
+    <div class="flex flex-col gap-5">
+      <!-- Host -->
+      <div class="form-group !mb-0">
+        <label for="host" class="label">
+          {{ $t('databaseConfig.host') }}:
+        </label>
+        <input
+          id="host"
+          v-model="config.host"
+          type="text"
+          class="input"
+          :placeholder="$t('databaseConfig.placeholders.host')"
+          :disabled="isLoading"
+        >
+      </div>
 
-            <div class="form-group">
-              <label for="port">{{ $t('databaseConfig.port') }}:</label>
-              <input
-                id="port"
-                v-model.number="config.port"
-                type="number"
-                :placeholder="$t('databaseConfig.placeholders.port')"
-                :disabled="isLoading"
-              >
-            </div>
+      <!-- Port -->
+      <div class="form-group !mb-0">
+        <label for="port" class="label">
+          {{ $t('databaseConfig.port') }}:
+        </label>
+        <input
+          id="port"
+          v-model.number="config.port"
+          type="number"
+          class="input"
+          :placeholder="$t('databaseConfig.placeholders.port')"
+          :disabled="isLoading"
+        >
+      </div>
 
-            <div class="form-group">
-              <label for="database">{{ $t('databaseConfig.database') }}:</label>
-              <input
-                id="database"
-                v-model="config.database"
-                type="text"
-                :placeholder="$t('databaseConfig.placeholders.database')"
-                :disabled="isLoading"
-              >
-            </div>
+      <!-- Database -->
+      <div class="form-group !mb-0">
+        <label for="database" class="label">
+          {{ $t('databaseConfig.database') }}:
+        </label>
+        <input
+          id="database"
+          v-model="config.database"
+          type="text"
+          class="input"
+          :placeholder="$t('databaseConfig.placeholders.database')"
+          :disabled="isLoading"
+        >
+      </div>
 
-            <div class="form-group">
-              <label for="username">{{ $t('databaseConfig.username') }}:</label>
-              <input
-                id="username"
-                v-model="config.username"
-                type="text"
-                :placeholder="$t('databaseConfig.placeholders.username')"
-                :disabled="isLoading"
-              >
-            </div>
+      <!-- Username -->
+      <div class="form-group !mb-0">
+        <label for="username" class="label">
+          {{ $t('databaseConfig.username') }}:
+        </label>
+        <input
+          id="username"
+          v-model="config.username"
+          type="text"
+          class="input"
+          :placeholder="$t('databaseConfig.placeholders.username')"
+          :disabled="isLoading"
+        >
+      </div>
 
-            <div class="form-group">
-              <label for="password">{{ $t('databaseConfig.password') }}:</label>
-              <input
-                id="password"
-                v-model="config.password"
-                type="password"
-                :placeholder="$t('databaseConfig.placeholders.password')"
-                :disabled="isLoading"
-              >
-            </div>
+      <!-- Password -->
+      <div class="form-group !mb-0">
+        <label for="password" class="label">
+          {{ $t('databaseConfig.password') }}:
+        </label>
+        <input
+          id="password"
+          v-model="config.password"
+          type="password"
+          class="input"
+          :placeholder="$t('databaseConfig.placeholders.password')"
+          :disabled="isLoading"
+        >
+      </div>
 
-            <div class="form-group">
-              <label for="sslMode">{{ $t('databaseConfig.sslMode') }}:</label>
-              <select
-                id="sslMode"
-                v-model="config.sslMode"
-                :disabled="isLoading"
-              >
-                <option value="require">{{ $t('databaseConfig.sslModes.require') }}</option>
-                <option value="disable">{{ $t('databaseConfig.sslModes.disable') }}</option>
-              </select>
-            </div>
-
+      <!-- SSL Mode Dropdown -->
+      <div class="form-group !mb-0">
+        <label class="label">
+          {{ $t('databaseConfig.sslMode') }}:
+        </label>
+        <div ref="sslModeDropdownRef" class="dropdown w-full">
+          <button
+            type="button"
+            class="btn btn--secondary w-full justify-between"
+            :disabled="isLoading"
+            :aria-expanded="showSslModeMenu ? 'true' : 'false'"
+            aria-haspopup="listbox"
+            @click="toggleSslModeMenu"
+          >
+            <span>{{ sslModeLabel }}</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+          <div v-if="showSslModeMenu" class="dropdown-menu left-0 w-full z-50" role="listbox">
+            <button
+              v-for="option in sslModeOptions"
+              :key="option.value"
+              type="button"
+              class="dropdown-item"
+              role="option"
+              @click="selectSslMode(option.value)"
+            >
+              {{ option.label }}
+            </button>
           </div>
         </div>
-
-        <div class="modal-footer">
-          <button
-            @click="testConnection"
-            :class="['btn', 'secondary', { loading: isTesting }]"
-            :disabled="!canTest || isTesting"
-          >
-            <svg v-if="!isTesting" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-            </svg>
-            {{ $t('databaseConfig.testConnection') }}
-          </button>
-
-          <button
-            @click="saveConfig"
-            :class="['btn', 'primary', { loading: isSaving }]"
-            :disabled="!canSave || isSaving"
-          >
-            <svg v-if="!isSaving" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/>
-            </svg>
-            {{ $t('databaseConfig.saveConfig') }}
-          </button>
-
-          <button
-            v-if="hasExistingConfig"
-            @click="deleteConfig"
-            :class="['btn', 'danger', { loading: isDeleting }]"
-            :disabled="isDeleting"
-          >
-            <svg v-if="!isDeleting" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-            </svg>
-            {{ $t('databaseConfig.deleteConfig') }}
-          </button>
-        </div>
       </div>
     </div>
 
-    <!-- 删除确认对话框 -->
-    <div v-if="showConfirmDelete" class="confirm-dialog-overlay">
-      <div class="confirm-dialog">
-        <div class="confirm-dialog-header">
-          <h3>{{ $t('databaseConfig.deleteConfig') }}</h3>
-        </div>
-        <div class="confirm-dialog-body">
-          <p>{{ $t('databaseConfig.messages.confirmDelete') }}</p>
-        </div>
-        <div class="confirm-dialog-footer">
-          <button @click="cancelDelete" class="btn secondary">
-            {{ $t('databaseConfig.cancel') }}
-          </button>
-          <button @click="confirmDeleteConfig" class="btn danger" :disabled="isDeleting">
-            {{ isDeleting ? $t('loading.deleting') : $t('databaseConfig.deleteConfig') }}
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
+    <template #footer>
+      <button
+        @click="testConnection"
+        :class="['btn', 'btn--secondary', { loading: isTesting }]"
+        :disabled="!canTest || isTesting"
+      >
+        <svg v-if="!isTesting" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+        </svg>
+        {{ $t('databaseConfig.testConnection') }}
+      </button>
+
+      <button
+        @click="saveConfig"
+        :class="['btn', 'btn--primary', { loading: isSaving }]"
+        :disabled="!canSave || isSaving"
+      >
+        <svg v-if="!isSaving" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/>
+        </svg>
+        {{ $t('databaseConfig.saveConfig') }}
+      </button>
+
+      <button
+        v-if="hasExistingConfig"
+        @click="deleteConfig"
+        class="btn btn--danger"
+        :disabled="isDeleting"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+        </svg>
+        {{ $t('databaseConfig.deleteConfig') }}
+      </button>
+    </template>
+  </BaseModal>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from 'vue-i18n'
 import { useSettingsStore } from '../../stores/settings'
+import BaseModal from '../common/BaseModal.vue'
 
 // Props
 const props = defineProps({
@@ -179,14 +195,45 @@ const isSaving = ref(false)
 const isDeleting = ref(false)
 const hasExistingConfig = ref(false)
 const isConnectionTested = ref(false)
-const showConfirmDelete = ref(false)
+
+// SSL Mode dropdown
+const showSslModeMenu = ref(false)
+const sslModeDropdownRef = ref(null)
+
+const sslModeOptions = computed(() => [
+  { value: 'require', label: t('databaseConfig.sslModes.require') },
+  { value: 'disable', label: t('databaseConfig.sslModes.disable') }
+])
+
+const sslModeLabel = computed(() => {
+  const match = sslModeOptions.value.find(option => option.value === config.value.sslMode)
+  return match ? match.label : config.value.sslMode
+})
+
+const toggleSslModeMenu = () => {
+  if (isLoading.value) return
+  showSslModeMenu.value = !showSslModeMenu.value
+}
+
+const selectSslMode = (value) => {
+  config.value.sslMode = value
+  showSslModeMenu.value = false
+}
+
+const handleDocumentClick = (event) => {
+  if (!showSslModeMenu.value) return
+  const dropdownEl = sslModeDropdownRef.value
+  if (dropdownEl && !dropdownEl.contains(event.target)) {
+    showSslModeMenu.value = false
+  }
+}
 
 // Computed properties
 const canTest = computed(() => {
-  return config.value.host && 
-         config.value.port && 
-         config.value.database && 
-         config.value.username && 
+  return config.value.host &&
+         config.value.port &&
+         config.value.database &&
+         config.value.username &&
          config.value.password
 })
 
@@ -273,12 +320,17 @@ const saveConfig = async () => {
   }
 }
 
-const deleteConfig = () => {
-  showConfirmDelete.value = true
-}
+const deleteConfig = async () => {
+  const confirmed = await window.$confirm({
+    title: t('databaseConfig.deleteConfig'),
+    message: t('databaseConfig.messages.confirmDelete'),
+    confirmText: t('databaseConfig.deleteConfig'),
+    cancelText: t('databaseConfig.cancel'),
+    variant: 'danger'
+  })
 
-const confirmDeleteConfig = async () => {
-  showConfirmDelete.value = false
+  if (!confirmed) return
+
   isDeleting.value = true
 
   try {
@@ -297,10 +349,6 @@ const confirmDeleteConfig = async () => {
   }
 }
 
-const cancelDelete = () => {
-  showConfirmDelete.value = false
-}
-
 // Watch for config changes to reset connection test status
 watch(config, () => {
   isConnectionTested.value = false
@@ -308,136 +356,11 @@ watch(config, () => {
 
 // Lifecycle
 onMounted(() => {
-  // 从store加载配置,如果store中已有数据则不会重复请求
   loadConfig()
+  document.addEventListener('click', handleDocumentClick)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleDocumentClick)
 })
 </script>
-
-
-
-<style scoped>
-/* ============================================
-   DatabaseConfig - Modern Tech Style
-   ============================================ */
-
-.database-config-modal {
-  position: fixed;
-  inset: 0;
-  z-index: 3000;
-}
-
-.database-config-modal .modal-content {
-  width: 90%;
-  max-width: 600px;
-  max-height: 90vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.database-config-modal .modal-body {
-  padding: 26px;
-  flex: 1;
-  overflow-y: auto;
-  min-height: 0;
-}
-
-.config-form {
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-/* 底部按钮区 */
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 14px;
-  padding: 20px 26px;
-  border-top: 1px solid var(--tech-glass-border);
-  background: color-mix(in srgb, var(--bg-muted) 30%, transparent);
-  border-radius: 0 0 18px 18px;
-  flex-shrink: 0;
-}
-
-@media (max-width: 900px) {
-  .database-config-modal .modal-content {
-    width: 95%;
-    margin: 20px;
-  }
-
-  .modal-footer {
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .btn {
-    width: 100%;
-    justify-content: center;
-  }
-}
-
-/* 确认对话框 - 科技风 */
-.confirm-dialog-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.65);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 3100;
-  backdrop-filter: blur(4px);
-}
-
-.confirm-dialog {
-  background: var(--tech-glass-bg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--tech-glass-border);
-  border-radius: 16px;
-  width: 90%;
-  max-width: 400px;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35), var(--tech-border-glow);
-  overflow: hidden;
-}
-
-.confirm-dialog-header {
-  padding: 22px 26px 18px;
-  border-bottom: 1px solid var(--tech-glass-border);
-}
-
-.confirm-dialog-header h3 {
-  margin: 0;
-  color: var(--text-strong);
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.confirm-dialog-body {
-  padding: 18px 26px 22px;
-}
-
-.confirm-dialog-body p {
-  margin: 0;
-  color: var(--text-muted);
-  line-height: 1.6;
-}
-
-.confirm-dialog-footer {
-  padding: 18px 26px 22px;
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-  background: color-mix(in srgb, var(--bg-muted) 30%, transparent);
-  border-top: 1px solid var(--tech-glass-border);
-}
-</style>

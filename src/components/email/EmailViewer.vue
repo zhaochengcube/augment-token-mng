@@ -1,12 +1,12 @@
 <template>
   <div class="modal-overlay">
-    <div class="modal-content email-viewer" @click.stop>
+    <div class="modal-content modal-content-shell email-viewer" @click.stop>
       <div class="modal-header">
         <h3>{{ $t('emailViewer.title') }} - {{ email }}</h3>
         <button @click="$emit('close')" class="modal-close">×</button>
       </div>
 
-      <div class="modal-body">
+      <div class="modal-body modal-body-scroll">
         <!-- 文件夹选择和控制 -->
         <div class="controls-section">
           <div class="folder-selector">
@@ -296,7 +296,6 @@ onMounted(() => {
   font-size: 14px;
   color: var(--text-muted);
   white-space: nowrap;
-  font-family: var(--tech-mono-font);
 }
 
 .emails-section {
@@ -372,7 +371,6 @@ onMounted(() => {
 .email-date {
   font-size: 12px;
   color: var(--text-muted);
-  font-family: var(--tech-mono-font);
 }
 
 .email-content {

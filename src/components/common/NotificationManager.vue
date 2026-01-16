@@ -1,6 +1,6 @@
 <template>
-  <div class="notification-manager">
-    <transition-group name="notification" tag="div" class="notification-container">
+  <div class="fixed top-[22px] left-[22px] z-[9999] pointer-events-none max-sm:top-4 max-sm:left-3 max-sm:right-3">
+    <transition-group name="notification" tag="div" class="flex flex-col gap-3 max-h-[80vh] overflow-visible max-sm:max-h-[70vh]">
       <NotificationItem
         v-for="notification in notifications"
         :key="notification.id"
@@ -127,59 +127,21 @@ defineExpose({
 </script>
 
 <style scoped>
-/* ============================================
-   NotificationManager - Modern Tech Style
-   ============================================ */
-
-.notification-manager {
-  position: fixed;
-  top: 22px;
-  left: 22px;
-  z-index: 9999;
-  pointer-events: none;
-}
-
-.notification-container {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  max-height: 80vh;
-  overflow: visible;
-}
-
-/* 通知动画 - 科技风 */
+/* Vue transition-group 动画类 - 必须保留 */
 .notification-enter-active {
-  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  @apply transition-all duration-350 ease-[cubic-bezier(0.4,0,0.2,1)];
 }
 
 .notification-leave-active {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  @apply transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)];
 }
 
-.notification-enter-from {
-  opacity: 0;
-  transform: translateX(-100%) scale(0.9);
-}
-
+.notification-enter-from,
 .notification-leave-to {
-  opacity: 0;
-  transform: translateX(-100%) scale(0.9);
+  @apply opacity-0 -translate-x-full scale-90;
 }
 
 .notification-move {
-  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* 响应式设计 */
-@media (max-width: 640px) {
-  .notification-manager {
-    top: 16px;
-    left: 12px;
-    right: 12px;
-  }
-
-  .notification-container {
-    max-height: 70vh;
-  }
+  @apply transition-transform duration-350 ease-[cubic-bezier(0.4,0,0.2,1)];
 }
 </style>

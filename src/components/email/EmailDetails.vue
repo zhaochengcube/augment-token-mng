@@ -1,12 +1,12 @@
 <template>
   <div class="modal-overlay">
-    <div class="modal-content email-details" @click.stop>
+    <div class="modal-content modal-content-shell email-details" @click.stop>
       <div class="modal-header">
         <h3>邮件详情</h3>
         <button @click="$emit('close')" class="modal-close">×</button>
       </div>
 
-      <div class="modal-body">
+      <div class="modal-body modal-body-scroll">
         <div v-if="isLoading" class="loading-state">
           <div class="spinner"></div>
           <p>加载邮件详情中...</p>
@@ -140,8 +140,6 @@ onMounted(() => {
 
 .email-details .modal-body {
   padding: 26px;
-  overflow-y: auto;
-  flex: 1;
 }
 
 .loading-state,
@@ -240,7 +238,6 @@ onMounted(() => {
   border: 1px solid var(--tech-glass-border);
   border-radius: 12px;
   padding: 18px;
-  font-family: var(--tech-mono-font);
   font-size: 14px;
   white-space: pre-wrap;
   word-wrap: break-word;

@@ -1,12 +1,12 @@
 <template>
   <div :class="isPageMode ? 'page-container' : 'modal-overlay'">
-    <div :class="isPageMode ? 'page-content gptmail-manager' : 'modal-content gptmail-manager'" @click.stop>
+    <div :class="isPageMode ? 'page-content gptmail-manager' : ['modal-content', 'modal-content-shell', 'gptmail-manager']" @click.stop>
       <div :class="isPageMode ? 'page-header' : 'modal-header'">
         <h3>{{ $t('gptMailManager.title') }}</h3>
         <button v-if="!isPageMode" @click="$emit('close')" class="modal-close">×</button>
       </div>
 
-      <div :class="isPageMode ? 'page-body' : 'modal-body'">
+      <div :class="isPageMode ? 'page-body' : ['modal-body', 'modal-body-scroll']">
         <!-- 生成随机邮箱区域 -->
         <div class="generate-email-section">
           <h4>{{ $t('gptMailManager.generateEmail') }}</h4>
@@ -393,13 +393,11 @@ onBeforeUnmount(() => {
   width: 100%;
   max-width: 920px;
   height: 90vh;
-  overflow: hidden;
   position: relative;
 }
 
 .modal-content.gptmail-manager .modal-body {
   padding: 26px;
-  overflow-y: auto;
   height: calc(100% - 73px);
 }
 
@@ -426,13 +424,6 @@ onBeforeUnmount(() => {
   gap: 14px;
   margin-top: 18px;
   flex-wrap: wrap;
-}
-
-.input-hint {
-  margin-top: 8px;
-  font-size: 12px;
-  color: var(--text-muted);
-  font-style: italic;
 }
 
 .generated-email-display {

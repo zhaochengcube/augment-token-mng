@@ -26,8 +26,8 @@ export default {
   },
   app: {
     title: 'Augment Token Manager',
-    appHome: 'App Home',
-    pluginHome: 'Plugin Home',
+    appHome: 'App Repository',
+    pluginHome: 'Plugin Repository',
     telegramGroup: 'ATM Group Chat',
     viewTokens: 'View Tokens',
     bookmarkManager: 'Bookmark Manager',
@@ -85,7 +85,6 @@ export default {
     scoopCommand: 'Scoop Command',
     copyCommand: 'Copy Command',
     commandCopied: 'Command Copied',
-    checkingForUpdates: 'Checking for updates...',
     upToDate: 'You are up to date',
     checkFailed: 'Failed to check for updates',
     close: 'Close'
@@ -227,7 +226,6 @@ export default {
   },
   tokenList: {
     title: 'Token List',
-    empty: 'No saved tokens yet',
     loading: 'Loading tokens...',
     listTitle: 'Token List ({count})',
     refresh: 'Refresh',
@@ -273,13 +271,7 @@ export default {
     confirmDelete: 'Confirm Delete',
     deleting: 'Deleting...',
     searchPlaceholder: 'Token / Email / Session / Status...',
-    searchResults: 'Search results: {count}',
-    noSearchResults: 'No matching tokens found',
-    noFilterResults: 'No tokens match the current filter',
-    noDeletableTokens: 'No tokens to delete',
-    searchResults: 'Results: {count}',
-    noSearchResults: 'No matching tokens found',
-    noDeletableTokens: 'No deletable tokens',
+    noResults: 'No results',
     batchImport: 'Batch Import',
     batchImportTitle: 'Batch Import Tokens',
     sessionImportTab: 'Session Import',
@@ -471,7 +463,6 @@ export default {
     sessionImportDescription: 'Paste your Augment Session to automatically extract Token information',
     sessionPlaceholder: 'Please paste Session string...',
     importSession: 'Import',
-    oauthStep1Desc: 'Click the button to generate authorization link',
     oauthStep2Desc: 'After completing authorization in browser, paste the authorization code below',
     oauthStep3Desc: 'Token retrieved successfully! Fill in optional information and save',
     tagColor: 'Tag Color'
@@ -514,23 +505,6 @@ export default {
     autoImportSession: 'Auto Import',
     autoImportBrowserTitle: 'Augment Login - Auto Import',
     importingSession: 'Importing...'
-  },
-  sessionHelp: {
-    title: 'How to Get Auth Session',
-    step1Title: 'Step 1: Login to Augment',
-    step1Content: 'Login to your Augment account in your browser:',
-    step1LoginLink: 'https://login.augmentcode.com',
-    step1LinkPrefix: 'Then visit:',
-    step1Link: 'https://auth.augmentcode.com',
-    step2Title: 'Step 2: Open Browser DevTools',
-    step2Content: 'Press F12 or right-click on the page and select "Inspect" to open DevTools',
-    step3Title: 'Step 3: Find Cookie',
-    step3Content: 'In DevTools, click the Application tab, then expand Cookies in the left sidebar and select https://auth.augmentcode.com',
-    step4Title: 'Step 4: Copy session value',
-    step4Content: 'In the Cookie list, find the item named session, double-click its Value column and copy the complete session value',
-    step5Title: 'Step 5: Paste into input box',
-    step5Content: 'Paste the copied session value into the input box above, then click the "Import Session" button',
-    closeButton: 'Close'
   },
   storage: {
     localStorage: 'Local Storage',
@@ -774,6 +748,19 @@ export default {
       testFailedStatus: 'Failed'
     }
   },
+  fontConfig: {
+    title: 'Font Settings',
+    fontName: 'Font Name',
+    placeholder: 'Enter font name, e.g. Inter, Segoe UI',
+    help: 'Enter the name of a system-installed font, leave empty for default',
+    preview: 'Preview',
+    save: 'Save',
+    reset: 'Reset to Default',
+    saveSuccess: 'Font settings saved',
+    resetSuccess: 'Font reset to default',
+    customized: 'Customized',
+    default: 'Default'
+  },
   credit: {
     title: 'Credit Usage Statistics',
     viewUsage: 'View Usage Details',
@@ -882,8 +869,6 @@ export default {
       lastUsed: 'Last used',
       createdAt: 'Created at',
       quotaRefreshedAt: 'Quota refreshed at',
-      noAccounts: 'No accounts',
-      noAccountsHint: 'Click "Add Account" to get started',
       viewAllModels: 'View all models',
       modelsModalTitle: 'All Models',
       lastUpdated: 'Last updated',
@@ -960,6 +945,28 @@ export default {
         batchDeleteConfirm: 'Are you sure you want to delete {count} selected accounts?',
         noSelection: 'Please select accounts to operate'
       },
+      export: 'Export Accounts',
+      exportSuccess: 'Accounts exported successfully',
+      exportFailed: 'Export failed',
+      hideEmail: 'Hide Email',
+      showEmail: 'Show Email',
+      sortByTimeDesc: 'Newest First',
+      sortByTimeAsc: 'Oldest First',
+      sortByEmailAsc: 'Email A-Z',
+      sortByEmailDesc: 'Email Z-A',
+      allStatus: 'All Status',
+      sort: 'Sort',
+      export: 'Export Accounts',
+      exportSuccess: 'Accounts exported successfully',
+      exportFailed: 'Export failed',
+      hideEmail: 'Hide Email',
+      showEmail: 'Show Email',
+      sortByTimeDesc: 'Newest First',
+      sortByTimeAsc: 'Oldest First',
+      sortByEmailAsc: 'Email A-Z',
+      sortByEmailDesc: 'Email Z-A',
+      allStatus: 'All Status',
+      sort: 'Sort',
       allAccountsMarkedForSync: 'All {count} accounts marked for sync',
       quota: {
         gemini: 'Gemini',
@@ -974,5 +981,23 @@ export default {
         }
       }
     }
+  },
+  font: {
+    title: 'Font Settings',
+    customFont: 'Custom Font',
+    hint: 'Enter font names separated by commas. Leave empty to use default font.',
+    size: 'Font Size',
+    sizeHint: 'Unit: px. Recommended range: 10-24.',
+    preview: 'Preview',
+    previewText: 'The quick brown fox jumps over the lazy dog. 快速的棕色狐狸跳过懒狗。1234567890',
+    reset: 'Reset to Default',
+    apply: 'Apply',
+    currentFont: 'Current Font',
+    systemDefault: 'System Default',
+    applied: 'Font applied',
+    resetSuccess: 'Font reset to default',
+    applyFailed: 'Failed to apply font',
+    resetFailed: 'Failed to reset font',
+    managerNotFound: 'Font manager not found'
   }
 }

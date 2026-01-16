@@ -1,7 +1,7 @@
 <template>
   <div
     ref="wrapperRef"
-    class="tooltip-wrapper"
+    class="inline-flex max-w-full"
     @mouseenter="handleMouseEnter"
     @mouseleave="handleMouseLeave"
   >
@@ -11,7 +11,7 @@
         <div
           v-if="isVisible"
           ref="tooltipRef"
-          class="tooltip"
+          class="fixed z-[10000] px-2.5 py-1.5 bg-surface text-text rounded-md text-xs font-medium whitespace-nowrap pointer-events-none shadow-md border border-border-strong"
           :style="tooltipStyle"
         >
           {{ content }}
@@ -122,34 +122,15 @@ const updatePosition = () => {
 </script>
 
 <style scoped>
-.tooltip-wrapper {
-  display: inline-flex;
-  max-width: 100%;
-}
-
-.tooltip {
-  position: fixed;
-  z-index: 10000;
-  padding: 6px 10px;
-  background: var(--bg-surface-alt);
-  color: var(--text);
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 500;
-  white-space: nowrap;
-  pointer-events: none;
-  box-shadow: var(--shadow-elevated);
-  border: 1px solid var(--border-strong);
-}
-
+/* Vue transition 动画类 - 必须保留 */
 .tooltip-fade-enter-active,
 .tooltip-fade-leave-active {
-  transition: opacity 0.15s ease;
+  @apply transition-opacity duration-150 ease-out;
 }
 
 .tooltip-fade-enter-from,
 .tooltip-fade-leave-to {
-  opacity: 0;
+  @apply opacity-0;
 }
 </style>
 
