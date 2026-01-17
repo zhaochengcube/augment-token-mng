@@ -23,18 +23,24 @@ export const useSettingsStore = defineStore('settings', () => {
     username: 'postgres',
     ssl_mode: 'require'
   })
+  const antigravityConfig = ref({
+    useCustomPath: false,
+    customExecutablePath: ''
+  })
 
   // Loading states
   const isLoadingVersion = ref(false)
   const isLoadingServer = ref(false)
   const isLoadingProxy = ref(false)
   const isLoadingDatabase = ref(false)
+  const isLoadingAntigravity = ref(false)
 
   // 数据是否已加载标记 (应用生命周期内只加载一次)
   const versionLoaded = ref(false)
   const serverLoaded = ref(false)
   const proxyLoaded = ref(false)
   const databaseLoaded = ref(false)
+  const antigravityLoaded = ref(false)
 
   // Actions
   const loadAppVersion = async (force = false) => {
@@ -151,13 +157,41 @@ export const useSettingsStore = defineStore('settings', () => {
     }
   }
 
+  const loadAntigravityConfig = async (force = false) => {
+    // 如果已加载且不强制刷新,直接返回缓存数据
+    if (!force && antigravityLoaded.value) {
+      return antigravityConfig.value
+    }
+
+    isLoadingAntigravity.value = true
+    try {
+      const config = await invoke('antigravity_load_config')
+      antigravityConfig.value = {
+        useCustomPath: config?.useCustomPath || false,
+        customExecutablePath: config?.customExecutablePath || ''
+      }
+      antigravityLoaded.value = true
+      return antigravityConfig.value
+    } catch (error) {
+      console.error('Failed to load Antigravity config:', error)
+      antigravityConfig.value = {
+        useCustomPath: false,
+        customExecutablePath: ''
+      }
+      throw error
+    } finally {
+      isLoadingAntigravity.value = false
+    }
+  }
+
   // Load all settings
   const loadAllSettings = async (force = false) => {
     await Promise.all([
       loadAppVersion(force),
       loadServerStatus(force),
       loadProxyConfig(force),
-      loadDatabaseConfig(force)
+      loadDatabaseConfig(force),
+      loadAntigravityConfig(force)
     ])
   }
 
@@ -167,18 +201,21 @@ export const useSettingsStore = defineStore('settings', () => {
     serverStatus,
     proxyConfig,
     databaseConfig,
-    
+    antigravityConfig,
+
     // Loading states
     isLoadingVersion,
     isLoadingServer,
     isLoadingProxy,
     isLoadingDatabase,
-    
+    isLoadingAntigravity,
+
     // Actions
     loadAppVersion,
     loadServerStatus,
     loadProxyConfig,
     loadDatabaseConfig,
+    loadAntigravityConfig,
     loadAllSettings
   }
 })

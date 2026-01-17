@@ -93,6 +93,7 @@
     <ProxyConfig v-if="showProxyModal" @close="showProxyModal = false" />
     <DatabaseConfig v-if="showDatabaseModal" @close="showDatabaseModal = false" />
     <FontConfig v-if="showFontModal" @close="showFontModal = false" />
+    <AntigravityConfig v-if="showAntigravityModal" @close="showAntigravityModal = false" @config-saved="handleAntigravityConfigSaved" />
   </div>
 </template>
 
@@ -105,6 +106,7 @@ import ApiServerStatus from '../settings/ApiServerStatus.vue'
 import ProxyConfig from '../settings/ProxyConfig.vue'
 import DatabaseConfig from '../settings/DatabaseConfig.vue'
 import FontConfig from '../settings/FontConfig.vue'
+import AntigravityConfig from '../settings/AntigravityConfig.vue'
 
 // i18n
 const { t } = useI18n()
@@ -117,6 +119,7 @@ const showApiServerModal = ref(false)
 const showProxyModal = ref(false)
 const showDatabaseModal = ref(false)
 const showFontModal = ref(false)
+const showAntigravityModal = ref(false)
 
 // Update check
 const checkingUpdate = ref(false)
@@ -127,6 +130,7 @@ const serverStatus = computed(() => settingsStore.serverStatus)
 const proxyEnabled = computed(() => settingsStore.proxyConfig.enabled)
 const databaseConnected = computed(() => settingsStore.databaseConfig.enabled)
 const hasCustomFont = computed(() => !!localStorage.getItem('user-font-sans'))
+const antigravityConfigured = computed(() => settingsStore.antigravityConfig.useCustomPath)
 
 // Configuration cards data
 const configCards = computed(() => [
@@ -155,6 +159,14 @@ const configCards = computed(() => [
     showDot: true
   },
   {
+    id: 'antigravity',
+    titleKey: 'antigravityConfig.title',
+    isActive: antigravityConfigured.value,
+    activeTextKey: 'antigravityConfig.customized',
+    inactiveTextKey: 'antigravityConfig.default',
+    showDot: true
+  },
+  {
     id: 'font',
     titleKey: 'fontConfig.title',
     isActive: hasCustomFont.value,
@@ -176,10 +188,19 @@ const openModal = (cardId) => {
     case 'database':
       showDatabaseModal.value = true
       break
+    case 'antigravity':
+      showAntigravityModal.value = true
+      break
     case 'font':
       showFontModal.value = true
       break
   }
+}
+
+// Handle Antigravity config saved
+const handleAntigravityConfigSaved = async () => {
+  // 重新加载 Antigravity 配置
+  await settingsStore.loadAntigravityConfig(true)
 }
 
 // Methods

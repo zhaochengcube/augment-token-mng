@@ -272,6 +272,18 @@
             </div>
           </div>
 
+          <div v-if="oauthData.tokenResult.refresh_token" class="flex flex-col gap-2">
+            <label class="text-sm font-medium text-text">{{ $t('antigravity.refreshToken') }}</label>
+            <div class="flex gap-2 items-center">
+              <input type="text" :value="oauthData.tokenResult.refresh_token" readonly class="input flex-1 bg-surface text-text-muted font-mono text-sm">
+              <button type="button" @click="copyRefreshToken" class="btn btn--ghost btn--icon">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
           <div class="flex flex-col gap-2">
             <label class="text-sm font-medium text-text">{{ $t('tokenForm.tenantUrl') }}</label>
             <input type="text" :value="oauthData.tokenResult.tenant_url" readonly class="input bg-surface text-text-muted font-mono text-sm">
@@ -699,6 +711,14 @@ const copyAccessToken = async () => {
   const success = await copyToClipboard(oauthData.value.tokenResult.access_token)
   showStatus(
     success ? t('messages.accessTokenCopied') : t('messages.copyFailed'),
+    success ? 'success' : 'error'
+  )
+}
+
+const copyRefreshToken = async () => {
+  const success = await copyToClipboard(oauthData.value.tokenResult.refresh_token)
+  showStatus(
+    success ? t('messages.refreshTokenCopied') : t('messages.copyFailed'),
     success ? 'success' : 'error'
   )
 }

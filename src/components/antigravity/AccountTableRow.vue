@@ -74,6 +74,17 @@
           <div v-else class="h-3 w-3 border-2 border-accent/30 border-t-accent rounded-full animate-spin"></div>
         </button>
 
+        <!-- 复制 Refresh Token -->
+        <button
+          @click.stop="copyRefreshToken"
+          class="btn btn--ghost btn--icon-sm"
+          v-tooltip="$t('platform.antigravity.copyRefreshToken')"
+        >
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+          </svg>
+        </button>
+
         <!-- 刷新配额 -->
         <button
           @click.stop="$emit('refresh', account.id)"
@@ -147,6 +158,16 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['switch', 'refresh', 'delete', 'select', 'view-models'])
+
+const copyRefreshToken = async () => {
+  try {
+    await navigator.clipboard.writeText(props.account.token.refresh_token)
+    window.$notify?.success($t('messages.refreshTokenCopied'))
+  } catch (err) {
+    console.error('Failed to copy refresh token:', err)
+    window.$notify?.error($t('messages.copyFailed'))
+  }
+}
 
 const maskedEmail = computed(() => {
   const email = props.account.email

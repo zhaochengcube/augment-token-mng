@@ -5,4 +5,5 @@ pub mod quota;
 pub mod account;
 pub mod db;
 pub mod process;
+pub mod config;
 
