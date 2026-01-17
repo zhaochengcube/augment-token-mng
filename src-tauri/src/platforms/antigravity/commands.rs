@@ -1,6 +1,6 @@
 use tauri::{AppHandle, Manager};
 use crate::antigravity::models::{Account, QuotaData, TokenData};
-use crate::antigravity::modules::{storage, account, oauth, oauth_server, process, db};
+use crate::antigravity::modules::{storage, account, oauth, oauth_server, process, db, config};
 
 async fn internal_refresh_account_quota(app: &AppHandle, account: &mut Account) -> Result<QuotaData, String> {
     let quota = account::fetch_quota_with_retry(app, account).await?;
@@ -177,9 +177,9 @@ pub async fn antigravity_switch_account(
     acc.update_last_used();
     storage::save_account(&app, &acc).await?;
     
-    // 8. 启动 Antigravity
+    // 8. 启动 Antigravity（使用配置）
     std::thread::sleep(std::time::Duration::from_secs(1));
-    process::launch_antigravity()?;
+    process::launch_antigravity_with_config(Some(&app))?;
     Ok(format!(
         "Account switched and Antigravity started: {}",
         acc.email
@@ -198,10 +198,10 @@ pub async fn antigravity_is_running() -> Result<bool, String> {
     Ok(process::is_antigravity_running())
 }
 
-/// 启动 Antigravity
+/// 启动 Antigravity（自动使用配置）
 #[tauri::command]
-pub async fn antigravity_launch() -> Result<(), String> {
-    process::launch_antigravity()
+pub async fn antigravity_launch(app: AppHandle) -> Result<(), String> {
+    process::launch_antigravity_with_config(Some(&app))
 }
 
 /// 获取 OAuth 授权 URL
@@ -329,4 +329,83 @@ pub async fn antigravity_start_oauth_login(app: AppHandle) -> Result<Account, St
 pub async fn antigravity_cancel_oauth_login() -> Result<(), String> {
     oauth_server::cancel_oauth_flow();
     Ok(())
+}
+
+// ==================== Antigravity 配置相关命令 ====================
+
+/// 保存 Antigravity 配置
+#[tauri::command]
+pub async fn antigravity_save_config(
+    app: AppHandle,
+    use_custom_path: bool,
+    custom_executable_path: Option<String>,
+) -> Result<(), String> {
+    let config = config::AntigravityConfig {
+        use_custom_path,
+        custom_executable_path,
+    };
+
+    config::save_config(&app, &config)
+}
+
+/// 加载 Antigravity 配置
+#[tauri::command]
+pub async fn antigravity_load_config(app: AppHandle) -> Result<config::AntigravityConfig, String> {
+    config::load_config(&app)
+}
+
+/// 删除 Antigravity 配置
+#[tauri::command]
+pub async fn antigravity_delete_config(app: AppHandle) -> Result<(), String> {
+    config::delete_config(&app)
+}
+
+/// 检查 Antigravity 配置是否存在
+#[tauri::command]
+pub async fn antigravity_config_exists(app: AppHandle) -> Result<bool, String> {
+    Ok(config::config_exists(&app))
+}
+
+/// 验证 Antigravity 可执行文件路径
+#[tauri::command]
+pub async fn antigravity_validate_executable_path(path: String) -> Result<(), String> {
+    use std::path::PathBuf;
+    use std::fs;
+
+    let path_buf = PathBuf::from(&path);
+
+    if !path_buf.exists() {
+        return Err(format!("路径不存在: {}", path));
+    }
+
+    if !path_buf.is_file() {
+        return Err(format!("路径不是文件: {}", path));
+    }
+
+    // 在 Unix 系统上检查可执行权限
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let metadata = fs::metadata(&path_buf)
+            .map_err(|e| format!("无法读取文件元数据: {}", e))?;
+        let permissions = metadata.permissions();
+        if permissions.mode() & 0o111 == 0 {
+            return Err(format!("文件不可执行: {}", path));
+        }
+    }
+
+    Ok(())
+}
+
+/// 使用配置启动 Antigravity
+#[tauri::command]
+pub async fn antigravity_launch_with_config(app: AppHandle) -> Result<(), String> {
+    process::launch_antigravity_with_config(Some(&app))
+}
+
+/// 获取 Antigravity 可执行文件路径（用于显示）
+#[tauri::command]
+pub async fn antigravity_get_executable_path(app: AppHandle) -> Result<String, String> {
+    let path = process::get_antigravity_executable_path_with_config(Some(&app))?;
+    Ok(path.to_string_lossy().to_string())
 }

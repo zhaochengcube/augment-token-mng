@@ -1,6 +1,7 @@
 use std::process::Command;
 use std::path::PathBuf;
 use sysinfo::{System, ProcessRefreshKind, ProcessesToUpdate};
+use super::config;
 
 fn is_helper_process(name: &str, args: &str) -> bool {
     let name = name.to_lowercase();
@@ -169,27 +170,57 @@ pub fn kill_antigravity_processes() -> Result<(), String> {
     }
 }
 
-/// 获取 Antigravity 可执行文件路径
-pub fn get_antigravity_executable_path() -> Result<PathBuf, String> {
+/// 获取 Antigravity 可执行文件路径（支持自定义路径）
+pub fn get_antigravity_executable_path_with_config(
+    app_handle: Option<&tauri::AppHandle>
+) -> Result<PathBuf, String> {
+    // 如果提供了 app_handle，尝试加载配置
+    if let Some(handle) = app_handle {
+        if let Ok(config) = config::load_config(handle) {
+            // 如果启用了自定义路径
+            if config.use_custom_path {
+                if let Some(custom_path) = config.get_executable_path() {
+                    // 验证自定义路径
+                    if custom_path.exists() {
+                        return Ok(custom_path);
+                    } else {
+                        return Err(format!(
+                            "配置的自定义路径不存在: {}。请检查设置或使用默认路径。",
+                            custom_path.display()
+                        ));
+                    }
+                } else {
+                    return Err("启用了自定义路径但未设置路径。请在设置中配置 Antigravity 可执行文件路径。".to_string());
+                }
+            }
+        }
+    }
+
+    // 回退到默认查找逻辑
+    get_antigravity_executable_path_default()
+}
+
+/// 获取 Antigravity 可执行文件路径（默认查找逻辑）
+fn get_antigravity_executable_path_default() -> Result<PathBuf, String> {
     #[cfg(target_os = "macos")]
     {
         let path = PathBuf::from("/Applications/Antigravity.app/Contents/MacOS/Antigravity");
         if path.exists() {
             return Ok(path);
         }
-        Err("Antigravity not found in /Applications".to_string())
+        Err("Antigravity 未在 /Applications 中找到。请在设置中配置自定义路径。".to_string())
     }
-    
+
     #[cfg(target_os = "windows")]
     {
         use std::env;
-        
+
         let local_appdata = env::var("LOCALAPPDATA").ok();
         let program_files = env::var("ProgramFiles")
             .unwrap_or_else(|_| "C:\\Program Files".to_string());
-        
+
         let mut possible_paths = Vec::new();
-        
+
         if let Some(local) = local_appdata {
             possible_paths.push(
                 PathBuf::from(&local)
@@ -198,22 +229,22 @@ pub fn get_antigravity_executable_path() -> Result<PathBuf, String> {
                     .join("Antigravity.exe")
             );
         }
-        
+
         possible_paths.push(
             PathBuf::from(&program_files)
                 .join("Antigravity")
                 .join("Antigravity.exe")
         );
-        
+
         for path in possible_paths {
             if path.exists() {
                 return Ok(path);
             }
         }
-        
-        Err("Antigravity not found".to_string())
+
+        Err("Antigravity 未找到。请在设置中配置自定义路径。".to_string())
     }
-    
+
     #[cfg(target_os = "linux")]
     {
         let possible_paths = vec![
@@ -221,47 +252,83 @@ pub fn get_antigravity_executable_path() -> Result<PathBuf, String> {
             PathBuf::from("/usr/local/bin/antigravity"),
             PathBuf::from("/opt/Antigravity/antigravity"),
         ];
-        
+
         for path in possible_paths {
             if path.exists() {
                 return Ok(path);
             }
         }
-        
-        Err("Antigravity not found".to_string())
+
+        Err("Antigravity 未找到。请在设置中配置自定义路径。".to_string())
     }
 }
 
-/// 启动 Antigravity
-pub fn launch_antigravity() -> Result<(), String> {
+/// 获取 Antigravity 可执行文件路径（保持向后兼容）
+pub fn get_antigravity_executable_path() -> Result<PathBuf, String> {
+    get_antigravity_executable_path_default()
+}
+
+/// 启动 Antigravity（支持自定义路径）
+pub fn launch_antigravity_with_config(
+    app_handle: Option<&tauri::AppHandle>
+) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
+        // macOS 上优先尝试使用自定义路径
+        if let Some(handle) = app_handle {
+            if let Ok(config) = config::load_config(handle) {
+                if config.use_custom_path {
+                    if let Some(custom_path) = config.get_executable_path() {
+                        if custom_path.exists() {
+                            // 如果是 .app 包，使用 open 命令
+                            if custom_path.to_string_lossy().contains(".app") {
+                                Command::new("open")
+                                    .arg("-a")
+                                    .arg(&custom_path)
+                                    .spawn()
+                                    .map_err(|e| format!("启动 Antigravity 失败: {}", e))?;
+                            } else {
+                                // 否则直接执行
+                                Command::new(&custom_path)
+                                    .spawn()
+                                    .map_err(|e| format!("启动 Antigravity 失败: {}", e))?;
+                            }
+                            return Ok(());
+                        } else {
+                            return Err(format!(
+                                "配置的自定义路径不存在: {}",
+                                custom_path.display()
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+
+        // 回退到默认路径
         let app_path = PathBuf::from("/Applications/Antigravity.app");
         if !app_path.exists() {
-            return Err("Antigravity not found in /Applications".to_string());
+            return Err("Antigravity 未在 /Applications 中找到。请在设置中配置自定义路径。".to_string());
         }
         Command::new("open")
             .arg("-a")
             .arg(app_path)
             .spawn()
-            .map_err(|e| format!("Failed to launch Antigravity: {}", e))?;
+            .map_err(|e| format!("启动 Antigravity 失败: {}", e))?;
     }
-    
-    #[cfg(target_os = "windows")]
+
+    #[cfg(not(target_os = "macos"))]
     {
-        let exe_path = get_antigravity_executable_path()?;
+        let exe_path = get_antigravity_executable_path_with_config(app_handle)?;
         Command::new(exe_path)
             .spawn()
-            .map_err(|e| format!("Failed to launch Antigravity: {}", e))?;
+            .map_err(|e| format!("启动 Antigravity 失败: {}", e))?;
     }
-    
-    #[cfg(target_os = "linux")]
-    {
-        let exe_path = get_antigravity_executable_path()?;
-        Command::new(exe_path)
-            .spawn()
-            .map_err(|e| format!("Failed to launch Antigravity: {}", e))?;
-    }
-    
+
     Ok(())
+}
+
+/// 启动 Antigravity（保持向后兼容）
+pub fn launch_antigravity() -> Result<(), String> {
+    launch_antigravity_with_config(None)
 }

@@ -381,7 +381,16 @@ pub fn run() {
             proxy_config::load_proxy_config,
             proxy_config::test_proxy_config,
             proxy_config::delete_proxy_config,
-            proxy_config::proxy_config_exists
+            proxy_config::proxy_config_exists,
+
+            // Antigravity 配置命令
+            antigravity::antigravity_save_config,
+            antigravity::antigravity_load_config,
+            antigravity::antigravity_delete_config,
+            antigravity::antigravity_config_exists,
+            antigravity::antigravity_validate_executable_path,
+            antigravity::antigravity_launch_with_config,
+            antigravity::antigravity_get_executable_path
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
