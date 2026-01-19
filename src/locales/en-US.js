@@ -851,8 +851,75 @@ export default {
       subtitle: 'Manage your Augment access tokens'
     },
     windsurf: {
-      title: 'Windsurf Token Manager',
-      subtitle: 'Manage your Windsurf access tokens'
+      title: 'Windsurf Account Manager',
+      subtitle: 'Manage your Windsurf accounts and quotas',
+      addAccount: 'Add Account',
+      addByToken: 'Add by Token',
+      loginWithEmail: 'Email Login',
+      tokenPlaceholder: 'Paste Firebase Refresh Token',
+      tokenHint: 'Get refresh_token from Windsurf network requests',
+      emailPlaceholder: "your-email{'@'}example.com",
+      passwordPlaceholder: 'Enter password',
+      refreshQuota: 'Refresh Quota',
+      currentAccount: 'Current Account',
+      switching: 'Switching...',
+      switch: 'Switch',
+      refresh: 'Refresh',
+      delete: 'Delete',
+      createdAt: 'Created at',
+      quotaRefreshedAt: 'Quota refreshed at',
+      viewSyncQueueTooltip: 'Click to view pending sync queue',
+      noQuotaData: 'No quota data available',
+      searchPlaceholder: 'Search email...',
+      plan: {
+        free: 'Free',
+        pro: 'Pro',
+        enterprise: 'Enterprise'
+      },
+      quota: {
+        credits: 'Credits',
+        remaining: 'Remaining',
+        expires: 'Expires'
+      },
+      filter: {
+        all: 'All',
+        free: 'Free',
+        pro: 'Pro',
+        available: 'Available (>20%)',
+        low: 'Low (<20%)',
+        expired: 'Expired'
+      },
+      status: {
+        current: 'Current',
+        available: 'Available',
+        low: 'Low',
+        expired: 'Expired',
+        disabled: 'Disabled'
+      },
+      table: {
+        info: 'Account',
+        quota: 'Quota',
+        expires: 'Expires',
+        status: 'Status',
+        actions: 'Actions'
+      },
+      messages: {
+        switchSuccess: 'Account switched',
+        refreshSuccess: 'Quota refreshed',
+        addSuccess: 'Account added',
+        addFailed: 'Failed to add account',
+        deleteSuccess: 'Account deleted',
+        loginFailed: 'Login failed',
+        noSelection: 'Please select account first'
+      },
+      sortByQuota: 'Sort by Quota',
+      syncQueueTitle: 'Windsurf Sync Queue',
+      syncQueueUpsertsTitle: 'Pending Uploads',
+      syncQueueDeletionsTitle: 'Pending Deletions',
+      syncQueueEmpty: 'No pending sync data',
+      fullSync: 'Full Sync',
+      sync: 'Sync',
+      allAccountsMarkedForSync: '{count} accounts marked for sync'
     },
     antigravity: {
       title: 'Antigravity Account Manager',
@@ -999,5 +1066,26 @@ export default {
     applyFailed: 'Failed to apply font',
     resetFailed: 'Failed to reset font',
     managerNotFound: 'Font manager not found'
+  },
+  customPath: {
+    currentPath: 'Current Path',
+    defaultPath: 'Default Path',
+    selecting: 'Selecting...',
+    browse: 'Browse',
+    pathValid: '✓ Path is valid',
+    pathInvalid: '✗ Invalid path',
+    resetToDefault: 'Reset to Default',
+    save: 'Save',
+    saving: 'Saving...',
+    pathSaved: 'Path saved',
+    selectFailed: 'Failed to select path',
+    saveFailed: 'Failed to save path',
+    resetSuccess: 'Reset to default path',
+    resetFailed: 'Failed to reset path',
+    customPathButton: 'Custom Path',
+    windsurfTitle: 'Custom Windsurf Path',
+    windsurfDescription: 'Configure custom path for Windsurf application. Leave empty to use default path.',
+    antigravityTitle: 'Custom Antigravity Path',
+    antigravityDescription: 'Configure custom path for Antigravity application. Leave empty to use default path.'
   }
 }

@@ -2,6 +2,7 @@ use std::process::Command;
 use std::path::PathBuf;
 use sysinfo::{System, ProcessRefreshKind, ProcessesToUpdate};
 
+#[allow(dead_code)]
 fn is_helper_process(name: &str, args: &str) -> bool {
     let name = name.to_lowercase();
     let args = args.to_lowercase();
@@ -45,6 +46,7 @@ fn is_antigravity_process(process: &sysinfo::Process) -> bool {
     }
 }
 
+#[allow(dead_code)]
 fn get_antigravity_pids() -> Vec<u32> {
     let mut sys = System::new();
     sys.refresh_processes_specifics(ProcessesToUpdate::All, true, ProcessRefreshKind::new());
@@ -67,7 +69,7 @@ pub fn is_antigravity_running() -> bool {
 }
 
 /// 温和关闭 Antigravity（优先主进程）
-pub fn close_antigravity(timeout_secs: u64) -> Result<(), String> {
+pub fn close_antigravity(_timeout_secs: u64) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
         let pids = get_antigravity_pids();
@@ -262,6 +264,110 @@ pub fn launch_antigravity() -> Result<(), String> {
             .spawn()
             .map_err(|e| format!("Failed to launch Antigravity: {}", e))?;
     }
-    
+
     Ok(())
+}
+
+/// 使用自定义路径启动 Antigravity
+pub fn launch_antigravity_with_path(custom_path: Option<&str>) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        let app_path = if let Some(path) = custom_path {
+            PathBuf::from(path)
+        } else {
+            PathBuf::from("/Applications/Antigravity.app")
+        };
+
+        if !app_path.exists() {
+            return Err(format!("Antigravity not found at {:?}", app_path));
+        }
+
+        Command::new("open")
+            .arg("-a")
+            .arg(app_path)
+            .spawn()
+            .map_err(|e| format!("Failed to launch Antigravity: {}", e))?;
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let exe_path = if let Some(path) = custom_path {
+            let p = PathBuf::from(path);
+            if !p.exists() {
+                return Err(format!("Antigravity not found at {:?}", p));
+            }
+            p
+        } else {
+            get_antigravity_executable_path()?
+        };
+
+        Command::new(exe_path)
+            .spawn()
+            .map_err(|e| format!("Failed to launch Antigravity: {}", e))?;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let exe_path = if let Some(path) = custom_path {
+            let p = PathBuf::from(path);
+            if !p.exists() {
+                return Err(format!("Antigravity not found at {:?}", p));
+            }
+            p
+        } else {
+            get_antigravity_executable_path()?
+        };
+
+        Command::new(exe_path)
+            .spawn()
+            .map_err(|e| format!("Failed to launch Antigravity: {}", e))?;
+    }
+
+    Ok(())
+}
+
+/// 验证 Antigravity 可执行文件路径
+pub fn validate_antigravity_path(path: &str) -> Result<bool, String> {
+    let path = PathBuf::from(path);
+
+    if !path.exists() {
+        return Ok(false);
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        // Windows: 检查是否是 .exe 文件且文件名包含 antigravity
+        let is_exe = path.extension()
+            .map(|ext| ext.eq_ignore_ascii_case("exe"))
+            .unwrap_or(false);
+        let name_matches = path.file_name()
+            .and_then(|n| n.to_str())
+            .map(|n| n.to_lowercase().contains("antigravity"))
+            .unwrap_or(false);
+        Ok(is_exe && name_matches)
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        // macOS: 检查是否是 .app 包或可执行文件
+        let is_app = path.extension()
+            .map(|ext| ext == "app")
+            .unwrap_or(false);
+        let name_matches = path.file_name()
+            .and_then(|n| n.to_str())
+            .map(|n| n.to_lowercase().contains("antigravity"))
+            .unwrap_or(false);
+        Ok((is_app || path.is_file()) && name_matches)
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        // Linux: 检查是否是可执行文件且文件名包含 antigravity
+        let is_executable = path.is_file();
+        let name_matches = path.file_name()
+            .and_then(|n| n.to_str())
+            .map(|n| n.to_lowercase().contains("antigravity"))
+            .unwrap_or(false);
+        Ok(is_executable && name_matches)
+    }
 }

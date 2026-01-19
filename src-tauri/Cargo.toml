@@ -50,11 +50,35 @@ arboard = "3"
 rusqlite = { version = "0.32", features = ["bundled"] }
 sysinfo = "0.32"
 
+# Windsurf 功能依赖 - 跨平台加密
+aes = "0.8"
+cbc = "0.1"
+pbkdf2 = "0.12"
+sha1 = "0.10"
+hmac = "0.12"
+
 [dev-dependencies]
 tempfile = "3.0"
 
 [target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\"))".dependencies]
 tauri-plugin-single-instance = { version = "2.0", features = ["deep-link"] }
+
+# macOS Keychain
+[target.'cfg(target_os = "macos")'.dependencies]
+security-framework = "2.9"
+
+# Linux Secret Service
+[target.'cfg(target_os = "linux")'.dependencies]
+secret-service = { version = "4.0", features = ["rt-tokio-crypto-rust"] }
+
+# Windows DPAPI
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.58", features = [
+    "Win32_Security_Cryptography",
+    "Win32_System_Registry",
+    "Win32_Foundation"
+] }
+winreg = "0.52"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem

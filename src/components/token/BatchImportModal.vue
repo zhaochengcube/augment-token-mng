@@ -147,7 +147,7 @@
         class="btn btn--primary"
         :disabled="isImporting || !canImport"
       >
-        <div v-if="isImporting" class="h-3.5 w-3.5 border-2 border-current/30 border-t-current rounded-full animate-spin"></div>
+        <span v-if="isImporting" class="btn-spinner btn-spinner--sm" aria-hidden="true"></span>
         {{ importButtonText }}
       </button>
     </template>

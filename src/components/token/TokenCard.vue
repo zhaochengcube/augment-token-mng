@@ -184,7 +184,7 @@
               <svg v-else-if="!isRefreshingOrLoading && token.skip_check" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
               </svg>
-              <div v-else class="h-4 w-4 border-2 border-accent/30 border-t-accent rounded-full animate-spin"></div>
+              <span v-else class="btn-spinner text-accent" aria-hidden="true"></span>
             </button>
           </template>
           <template #default="{ close }">
@@ -206,7 +206,7 @@
               <svg v-if="!isRefreshingSession" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
               </svg>
-              <div v-else class="h-3.5 w-3.5 border-2 border-accent/30 border-t-accent rounded-full animate-spin"></div>
+              <span v-else class="btn-spinner btn-spinner--sm text-accent" aria-hidden="true"></span>
               <span>{{ $t('tokenCard.refreshSession') }}</span>
             </button>
           </template>

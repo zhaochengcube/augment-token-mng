@@ -76,17 +76,19 @@
       <button
         v-if="!serverStatus.running"
         @click="startServer"
-        :class="['btn', 'btn--primary', { loading: isLoading }]"
+        class="btn btn--primary"
         :disabled="isLoading"
       >
+        <span v-if="isLoading" class="btn-spinner" aria-hidden="true"></span>
         {{ $t('apiServer.startServer') }}
       </button>
       <button
         v-else
         @click="stopServer"
-        :class="['btn', 'btn--danger', { loading: isLoading }]"
+        class="btn btn--danger"
         :disabled="isLoading"
       >
+        <span v-if="isLoading" class="btn-spinner" aria-hidden="true"></span>
         {{ $t('apiServer.stopServer') }}
       </button>
     </template>

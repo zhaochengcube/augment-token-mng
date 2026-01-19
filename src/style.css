@@ -207,25 +207,20 @@
     @apply text-[14px];
   }
 
-  .btn.loading {
-    @apply pointer-events-none opacity-70;
+  .btn-spinner {
+    @apply h-4 w-4 rounded-full border-2 border-current/30 border-t-current animate-spin;
   }
 
-  .btn.loading::before {
-    content: '';
-    display: inline-block;
-    width: 14px;
-    height: 14px;
-    border: 2px solid currentColor;
-    border-top-color: transparent;
-    border-radius: 50%;
-    animation: btn-spin 0.6s linear infinite;
+  .btn-spinner--xs {
+    @apply h-3 w-3;
   }
 
-  @keyframes btn-spin {
-    to {
-      transform: rotate(360deg);
-    }
+  .btn-spinner--sm {
+    @apply h-3.5 w-3.5;
+  }
+
+  .btn-spinner--lg {
+    @apply h-5 w-5;
   }
 
   .btn--icon {

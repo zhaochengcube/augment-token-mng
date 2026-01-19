@@ -25,7 +25,7 @@
         class="btn btn--danger"
         :disabled="loading"
       >
-        <div v-if="loading" class="h-3.5 w-3.5 border-2 border-current/30 border-t-current rounded-full animate-spin"></div>
+        <span v-if="loading" class="btn-spinner btn-spinner--sm" aria-hidden="true"></span>
         {{ loading ? $t('tokenList.deleting') : $t('tokenList.confirmDelete') }}
       </button>
       <button @click="handleClose" class="btn btn--secondary" :disabled="loading">

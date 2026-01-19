@@ -30,8 +30,9 @@
             <button
               @click="addAccount"
               :disabled="!canAddAccount || isAdding"
-              :class="['btn', 'primary', { loading: isAdding }]"
+              class="btn primary"
             >
+              <span v-if="isAdding" class="btn-spinner" aria-hidden="true"></span>
               {{ isAdding ? $t('outlookManager.status.checking') : $t('outlookManager.addAccountBtn') }}
             </button>
           </div>

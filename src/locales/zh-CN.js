@@ -22,7 +22,11 @@ export default {
     noSearchResults: '未找到匹配结果',
     openDataFolder: '打开数据文件夹',
     switchToTable: '切换到列表视图',
-    switchToCard: '切换到卡片视图'
+    switchToCard: '切换到卡片视图',
+    email: '邮箱',
+    password: '密码',
+    login: '登录',
+    add: '添加'
   },
   app: {
     title: 'Augment Token Manager',
@@ -853,8 +857,75 @@ export default {
       subtitle: '管理你的 Augment 访问令牌'
     },
     windsurf: {
-      title: 'Windsurf Token 管理',
-      subtitle: '管理你的 Windsurf 访问令牌'
+      title: 'Windsurf 账号管理',
+      subtitle: '管理你的 Windsurf 账号和配额',
+      addAccount: '添加账号',
+      addByToken: '通过 Token 添加',
+      loginWithEmail: '邮箱登录',
+      tokenPlaceholder: '粘贴 Firebase Refresh Token',
+      tokenHint: '从 Windsurf 的网络请求中获取 refresh_token',
+      emailPlaceholder: "your-email{'@'}example.com",
+      passwordPlaceholder: '输入密码',
+      refreshQuota: '刷新配额',
+      currentAccount: '当前账号',
+      switching: '切换中...',
+      switch: '切换',
+      refresh: '刷新',
+      delete: '删除',
+      createdAt: '创建时间',
+      quotaRefreshedAt: '配额刷新时间',
+      viewSyncQueueTooltip: '点击查看待同步队列',
+      noQuotaData: '暂无配额数据',
+      searchPlaceholder: '搜索邮箱...',
+      plan: {
+        free: 'Free',
+        pro: 'Pro',
+        enterprise: 'Enterprise'
+      },
+      quota: {
+        credits: '积分',
+        remaining: '剩余',
+        expires: '到期时间'
+      },
+      filter: {
+        all: '全部',
+        free: 'Free',
+        pro: 'Pro',
+        available: '配额充足 (>20%)',
+        low: '配额不足 (<20%)',
+        expired: '已用尽'
+      },
+      status: {
+        current: '当前',
+        available: '可用',
+        low: '配额低',
+        expired: '已用尽',
+        disabled: '已禁用'
+      },
+      table: {
+        info: '账号信息',
+        quota: '配额',
+        expires: '到期时间',
+        status: '状态',
+        actions: '操作'
+      },
+      messages: {
+        switchSuccess: '切换成功',
+        refreshSuccess: '配额刷新成功',
+        addSuccess: '账号添加成功',
+        addFailed: '添加账号失败',
+        deleteSuccess: '账号删除成功',
+        loginFailed: '登录失败',
+        noSelection: '请先选择账号'
+      },
+      sortByQuota: '按配额排序',
+      syncQueueTitle: 'Windsurf 同步队列',
+      syncQueueUpsertsTitle: '待上传账号',
+      syncQueueDeletionsTitle: '待删除账号',
+      syncQueueEmpty: '暂无待同步数据',
+      fullSync: '全量同步',
+      sync: '同步',
+      allAccountsMarkedForSync: '已标记 {count} 个账号待同步'
     },
     antigravity: {
       title: 'Antigravity 账号管理',
@@ -990,5 +1061,26 @@ export default {
     applyFailed: '应用字体失败',
     resetFailed: '重置字体失败',
     managerNotFound: '字体管理器未找到'
+  },
+  customPath: {
+    currentPath: '当前路径',
+    defaultPath: '默认路径',
+    selecting: '选择中...',
+    browse: '浏览',
+    pathValid: '✓ 路径有效',
+    pathInvalid: '✗ 无效的路径',
+    resetToDefault: '重置为默认',
+    save: '保存',
+    saving: '保存中...',
+    pathSaved: '路径已保存',
+    selectFailed: '选择路径失败',
+    saveFailed: '保存路径失败',
+    resetSuccess: '已重置为默认路径',
+    resetFailed: '重置路径失败',
+    customPathButton: '自定义路径',
+    windsurfTitle: '自定义 Windsurf 路径',
+    windsurfDescription: '配置 Windsurf 应用程序的自定义路径。留空则使用默认路径。',
+    antigravityTitle: '自定义 Antigravity 路径',
+    antigravityDescription: '配置 Antigravity 应用程序的自定义路径。留空则使用默认路径。'
   }
 }

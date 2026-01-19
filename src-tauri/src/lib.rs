@@ -1,6 +1,7 @@
 pub mod platforms {
     pub mod antigravity;
     pub mod augment;
+    pub mod windsurf;
 }
 
 pub mod features {
@@ -12,6 +13,7 @@ pub mod core {
     pub mod api_server;
     pub mod app_commands;
     pub mod http_client;
+    pub mod path_manager;
     pub mod proxy_config;
     pub mod proxy_helper;
 }
@@ -25,13 +27,13 @@ pub mod data {
 pub use core::{api_server, http_client, proxy_config, proxy_helper};
 pub use data::{database, storage};
 pub use features::{bookmarks, mail};
-pub use platforms::{antigravity, augment};
+pub use platforms::{antigravity, augment, windsurf};
 
 use crate::features::mail::{gptmail, outlook};
 use crate::platforms::augment::models::AugmentOAuthState;
 use outlook::OutlookManager;
 use database::{DatabaseConfigManager, DatabaseManager};
-use storage::{DualStorage, AntigravityDualStorage};
+use storage::{DualStorage, AntigravityDualStorage, WindsurfDualStorage};
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use std::time::SystemTime;
@@ -52,7 +54,8 @@ pub struct AppState {
     outlook_manager: Mutex<OutlookManager>,
     pub storage_manager: Arc<Mutex<Option<Arc<DualStorage>>>>,
     pub antigravity_storage_manager: Arc<Mutex<Option<Arc<AntigravityDualStorage>>>>,
-    database_manager: Arc<Mutex<Option<Arc<DatabaseManager>>>>,
+    pub windsurf_storage_manager: Arc<Mutex<Option<Arc<WindsurfDualStorage>>>>,
+    pub database_manager: Arc<Mutex<Option<Arc<DatabaseManager>>>>,
     // App session 缓存: key 为 auth_session, value 为缓存的 app_session
     pub app_session_cache: Arc<Mutex<HashMap<String, AppSessionCache>>>,
     // App handle for emitting events
@@ -88,6 +91,7 @@ pub fn run() {
                 outlook_manager: Mutex::new(OutlookManager::new()),
                 storage_manager: Arc::new(Mutex::new(None)),
                 antigravity_storage_manager: Arc::new(Mutex::new(None)),
+                windsurf_storage_manager: Arc::new(Mutex::new(None)),
                 database_manager: Arc::new(Mutex::new(None)),
                 app_session_cache: Arc::new(Mutex::new(HashMap::new())),
                 app_handle: app.handle().clone(),
@@ -144,6 +148,18 @@ pub fn run() {
                                                                 eprintln!("Failed to check Antigravity tables on startup: {}", e);
                                                             }
                                                         }
+                                                        match database::windsurf::check_tables_exist(&client).await {
+                                                            Ok(exists) => {
+                                                                if !exists {
+                                                                    if let Err(e) = database::windsurf::create_tables(&client).await {
+                                                                        eprintln!("Failed to create Windsurf tables on startup: {}", e);
+                                                                    }
+                                                                }
+                                                            }
+                                                            Err(e) => {
+                                                                eprintln!("Failed to check Windsurf tables on startup: {}", e);
+                                                            }
+                                                        }
                                                 }
                                                 Err(e) => {
                                                     eprintln!("Failed to get database client on startup: {}", e);
@@ -167,6 +183,9 @@ pub fn run() {
                 }
                 if let Err(e) = storage::initialize_antigravity_storage_manager(&app_handle, &state).await {
                     eprintln!("Failed to initialize Antigravity storage manager: {}", e);
+                }
+                if let Err(e) = storage::initialize_windsurf_storage_manager(&app_handle, &state).await {
+                    eprintln!("Failed to initialize Windsurf storage manager: {}", e);
                 }
             });
 
@@ -199,6 +218,7 @@ pub fn run() {
                         outlook_manager: Mutex::new(OutlookManager::new()),
                         storage_manager: state.storage_manager.clone(),
                         antigravity_storage_manager: state.antigravity_storage_manager.clone(),
+                        windsurf_storage_manager: state.windsurf_storage_manager.clone(),
                         database_manager: state.database_manager.clone(),
                         app_session_cache: state.app_session_cache.clone(),
                         app_handle: app_handle_for_api.clone(),
@@ -321,6 +341,31 @@ pub fn run() {
             antigravity::antigravity_exchange_code,
             antigravity::antigravity_start_oauth_login,
             antigravity::antigravity_cancel_oauth_login,
+            antigravity::antigravity_get_custom_path,
+            antigravity::antigravity_set_custom_path,
+            antigravity::antigravity_validate_path,
+            antigravity::antigravity_get_default_path,
+            antigravity::antigravity_select_executable_path,
+
+            // Windsurf 管理命令
+            windsurf::windsurf_login,
+            windsurf::windsurf_add_account,
+            windsurf::windsurf_list_accounts,
+            windsurf::windsurf_delete_account,
+            windsurf::windsurf_switch_account,
+            windsurf::windsurf_fetch_quota,
+            windsurf::windsurf_fetch_all_quotas,
+            windsurf::windsurf_get_payment_link,
+            windsurf::windsurf_get_custom_path,
+            windsurf::windsurf_set_custom_path,
+            windsurf::windsurf_validate_path,
+            windsurf::windsurf_get_default_path,
+            windsurf::windsurf_select_executable_path,
+            // Windsurf 同步命令
+            data::storage::windsurf::windsurf_sync_accounts_to_database,
+            data::storage::windsurf::windsurf_sync_accounts_from_database,
+            data::storage::windsurf::windsurf_bidirectional_sync_accounts,
+            data::storage::windsurf::windsurf_sync_accounts,
 
             // 书签管理命令
             bookmarks::add_bookmark,
@@ -350,7 +395,6 @@ pub fn run() {
             storage::antigravity::antigravity_sync_accounts_from_database,
             storage::antigravity::antigravity_bidirectional_sync_accounts,
             storage::antigravity::antigravity_sync_accounts,
-            storage::antigravity::get_antigravity_storage_status,
             storage::antigravity::antigravity_get_sync_status,
 
             // API 服务器管理命令

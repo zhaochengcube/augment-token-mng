@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use super::{TokenData, QuotaData};
+use crate::data::storage::common::SyncableAccount;
 
 /// Antigravity 账号数据结构
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -22,6 +23,40 @@ pub struct Account {
     pub version: i64,
     #[serde(default)]
     pub deleted: bool,
+}
+
+impl SyncableAccount for Account {
+    fn id(&self) -> &str {
+        &self.id
+    }
+
+    fn email(&self) -> &str {
+        &self.email
+    }
+
+    fn updated_at(&self) -> i64 {
+        self.updated_at
+    }
+
+    fn version(&self) -> i64 {
+        self.version
+    }
+
+    fn set_version(&mut self, version: i64) {
+        self.version = version;
+    }
+
+    fn is_deleted(&self) -> bool {
+        self.deleted
+    }
+
+    fn set_deleted(&mut self, deleted: bool) {
+        self.deleted = deleted;
+    }
+
+    fn platform_name() -> &'static str {
+        "antigravity"
+    }
 }
 
 impl Account {

@@ -11,8 +11,8 @@
         <div class="generate-email-section">
           <h4>{{ $t('gptMailManager.generateEmail') }}</h4>
           <div class="form-actions">
-            <button @click="generateRandomEmail" :disabled="isGenerating"
-              :class="['btn', 'primary', { loading: isGenerating }]">
+            <button @click="generateRandomEmail" :disabled="isGenerating" class="btn primary">
+              <span v-if="isGenerating" class="btn-spinner" aria-hidden="true"></span>
               {{ isGenerating ? $t('gptMailManager.generating') : $t('gptMailManager.generateBtn') }}
             </button>
           </div>
@@ -41,8 +41,8 @@
           </div>
 
           <div class="form-actions">
-            <button @click="fetchEmails" :disabled="!canFetchEmails || isFetching"
-              :class="['btn', 'primary', { loading: isFetching }]">
+            <button @click="fetchEmails" :disabled="!canFetchEmails || isFetching" class="btn primary">
+              <span v-if="isFetching" class="btn-spinner" aria-hidden="true"></span>
               {{ isFetching ? $t('gptMailManager.fetching') : $t('gptMailManager.fetchBtn') }}
             </button>
             <button @click="toggleAutoPolling" class="btn primary"

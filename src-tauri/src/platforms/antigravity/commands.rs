@@ -71,12 +71,12 @@ pub async fn antigravity_get_current_account(app: AppHandle) -> Result<Option<Ac
     }
 }
 
-/// 刷新账号配额
+/// 刷新账号配额，返回更新后的完整账户数据
 #[tauri::command]
 pub async fn antigravity_fetch_quota(
     app: AppHandle,
     account_id: String,
-) -> Result<QuotaData, String> {
+) -> Result<Account, String> {
     println!("=== antigravity_fetch_quota ===");
     println!("account_id: {}", account_id);
 
@@ -89,7 +89,9 @@ pub async fn antigravity_fetch_quota(
     account::update_account_quota(&app, &account_id, quota.clone()).await?;
     println!("Updated account quota");
 
-    Ok(quota)
+    // 重新加载账户以获取更新后的完整数据
+    let updated_acc = storage::load_account(&app, &account_id).await?;
+    Ok(updated_acc)
 }
 
 #[derive(serde::Serialize)]
@@ -176,10 +178,13 @@ pub async fn antigravity_switch_account(
     // 7. 更新最后使用时间
     acc.update_last_used();
     storage::save_account(&app, &acc).await?;
-    
-    // 8. 启动 Antigravity
+
+    // 8. 获取自定义路径并启动 Antigravity
     std::thread::sleep(std::time::Duration::from_secs(1));
-    process::launch_antigravity()?;
+    use crate::core::path_manager::{read_custom_path_from_config, ANTIGRAVITY_CONFIG};
+    let custom_path = read_custom_path_from_config(&app, &ANTIGRAVITY_CONFIG);
+
+    process::launch_antigravity_with_path(custom_path.as_deref())?;
     Ok(format!(
         "Account switched and Antigravity started: {}",
         acc.email
@@ -329,4 +334,41 @@ pub async fn antigravity_start_oauth_login(app: AppHandle) -> Result<Account, St
 pub async fn antigravity_cancel_oauth_login() -> Result<(), String> {
     oauth_server::cancel_oauth_flow();
     Ok(())
+}
+
+/// 获取自定义 Antigravity 路径
+#[tauri::command]
+pub async fn antigravity_get_custom_path(app: AppHandle) -> Result<Option<String>, String> {
+    use crate::core::path_manager::{get_custom_path, ANTIGRAVITY_CONFIG};
+    get_custom_path(&app, &ANTIGRAVITY_CONFIG)
+}
+
+/// 设置自定义 Antigravity 路径
+#[tauri::command]
+pub async fn antigravity_set_custom_path(
+    app: AppHandle,
+    path: Option<String>,
+) -> Result<(), String> {
+    use crate::core::path_manager::{set_custom_path, ANTIGRAVITY_CONFIG};
+    set_custom_path(&app, &ANTIGRAVITY_CONFIG, path, |p| process::validate_antigravity_path(p))
+}
+
+/// 验证 Antigravity 路径
+#[tauri::command]
+pub async fn antigravity_validate_path(path: String) -> Result<bool, String> {
+    process::validate_antigravity_path(&path)
+}
+
+/// 获取默认 Antigravity 路径
+#[tauri::command]
+pub async fn antigravity_get_default_path() -> Result<String, String> {
+    process::get_antigravity_executable_path()
+        .map(|p| p.to_string_lossy().to_string())
+}
+
+/// 打开文件选择对话框选择 Antigravity 可执行文件
+#[tauri::command]
+pub async fn antigravity_select_executable_path() -> Result<Option<String>, String> {
+    use crate::core::path_manager::{select_executable_path, ANTIGRAVITY_CONFIG};
+    select_executable_path(&ANTIGRAVITY_CONFIG)
 }

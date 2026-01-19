@@ -119,10 +119,11 @@
     <template #footer>
       <button
         @click="testConnection"
-        :class="['btn', 'btn--secondary', { loading: isTesting }]"
+        class="btn btn--secondary"
         :disabled="!canTest || isTesting"
       >
-        <svg v-if="!isTesting" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+        <span v-if="isTesting" class="btn-spinner" aria-hidden="true"></span>
+        <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
           <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
         </svg>
         {{ $t('databaseConfig.testConnection') }}
@@ -130,10 +131,11 @@
 
       <button
         @click="saveConfig"
-        :class="['btn', 'btn--primary', { loading: isSaving }]"
+        class="btn btn--primary"
         :disabled="!canSave || isSaving"
       >
-        <svg v-if="!isSaving" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+        <span v-if="isSaving" class="btn-spinner" aria-hidden="true"></span>
+        <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
           <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/>
         </svg>
         {{ $t('databaseConfig.saveConfig') }}

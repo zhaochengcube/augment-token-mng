@@ -75,7 +75,7 @@
               <svg v-if="!isSyncing" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" />
               </svg>
-              <div v-else class="h-4 w-4 border-2 border-accent/30 border-t-accent rounded-full animate-spin"></div>
+              <span v-else class="btn-spinner text-accent" aria-hidden="true"></span>
             </button>
             <button
               class="btn btn--icon btn--ghost"
@@ -86,9 +86,7 @@
               <svg v-if="!isRefreshing" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
               </svg>
-              <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="currentColor" class="animate-spin">
-                <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
-              </svg>
+              <span v-else class="btn-spinner text-accent" aria-hidden="true"></span>
             </button>
             <button class="btn btn--icon btn--ghost" @click="setToolbarMode('more')" v-tooltip="'更多'">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -381,6 +379,19 @@
           </svg>
           <span>{{ $t('common.batchDelete') }}</span>
         </button>
+
+        <!-- 自定义 Antigravity 路径按钮 -->
+        <button
+          class="btn btn--ghost btn--sm inline-flex items-center gap-2"
+          @click="showCustomPathDialog = true"
+          v-tooltip="$t('customPath.antigravityDescription')"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/>
+          </svg>
+          <span>{{ $t('customPath.customPathButton') }}</span>
+          <span v-if="customAntigravityPath" class="text-xs text-accent">•</span>
+        </button>
       </div>
     </ActionToolbar>
 
@@ -444,11 +455,25 @@
       @sync="handleSync"
       @mark-all-for-sync="handleMarkAllForSync"
     />
+
+    <!-- 自定义路径对话框 -->
+    <CustomPathDialog
+      :visible="showCustomPathDialog"
+      :title="$t('customPath.antigravityTitle')"
+      :description="$t('customPath.antigravityDescription')"
+      :current-path="customAntigravityPath"
+      :default-path="defaultAntigravityPath"
+      select-command="antigravity_select_executable_path"
+      validate-command="antigravity_validate_path"
+      save-command="antigravity_set_custom_path"
+      @close="showCustomPathDialog = false"
+      @saved="handleCustomPathSaved"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from 'vue-i18n'
 import AccountCard from '../antigravity/AccountCard.vue'
@@ -460,6 +485,8 @@ import Pagination from '../common/Pagination.vue'
 import BatchToolbar from '../common/BatchToolbar.vue'
 import ActionToolbar from '../common/ActionToolbar.vue'
 import FixedPaginationLayout from '../common/FixedPaginationLayout.vue'
+import CustomPathDialog from '../common/CustomPathDialog.vue'
+import { useStorageSync } from '@/composables/useStorageSync'
 
 const { t: $t } = useI18n()
 
@@ -479,26 +506,43 @@ const isLoading = ref(false)
 const isRefreshing = ref(false)
 const switchingAccountId = ref(null)
 const refreshingIds = ref(new Set())
-const isDatabaseAvailable = ref(false)
-const isStorageInitializing = ref(false)
-const isSyncing = ref(false)
-const isSyncNeeded = ref(false)
-const isLoadingFromSync = ref(false)
 const showModelsModal = ref(false)
 const activeModelsAccount = ref(null)
-const showSyncQueueModal = ref(false)
 
-const STORAGE_KEY_LAST_VERSION = 'atm-antigravity-sync-last-version'
-const STORAGE_KEY_PENDING_UPSERTS = 'atm-antigravity-sync-pending-upserts'
-const STORAGE_KEY_PENDING_DELETIONS = 'atm-antigravity-sync-pending-deletions'
+// 使用存储同步 composable
+const {
+  isDatabaseAvailable,
+  isStorageInitializing,
+  isSyncing,
+  isSyncNeeded,
+  isLoadingFromSync,
+  hasPendingChanges,
+  pendingUpsertsList,
+  pendingDeletionsList,
+  storageStatusText,
+  storageStatusClass,
+  showSyncQueueModal,
+  initSync,
+  markItemUpsert,
+  markItemDeletion,
+  markItemUpsertById,
+  markAllForSync,
+  openSyncQueue,
+  closeSyncQueue,
+  handleSync
+} = useStorageSync({
+  platform: 'antigravity',
+  syncCommand: 'antigravity_sync_accounts',
+  items: accounts,
+  currentItemId: currentAccountId,
+  itemKey: 'account',
+  labelField: 'email'
+})
 
-const lastVersion = ref(0)
-const pendingUpserts = ref(new Map())
-const pendingDeletions = ref(new Map())
-
-const hasPendingChanges = computed(() => pendingUpserts.value.size > 0 || pendingDeletions.value.size > 0)
-const pendingUpsertsList = computed(() => Array.from(pendingUpserts.value.values()))
-const pendingDeletionsList = computed(() => Array.from(pendingDeletions.value.values()))
+// 自定义路径相关状态
+const showCustomPathDialog = ref(false)
+const customAntigravityPath = ref(null)
+const defaultAntigravityPath = ref('')
 
 // 搜索和筛选
 const searchQuery = ref('')
@@ -553,32 +597,6 @@ const statusStatistics = computed(() => {
   })
 
   return stats
-})
-
-const storageStatusText = computed(() => {
-  if (isStorageInitializing.value) {
-    return $t('storage.initializing')
-  }
-
-  if (isDatabaseAvailable.value) {
-    return hasPendingChanges.value
-      ? `${$t('storage.dualStorage')}-${$t('storage.notSynced')}`
-      : $t('storage.dualStorage')
-  }
-
-  return $t('storage.localStorage')
-})
-
-const storageStatusClass = computed(() => {
-  if (isStorageInitializing.value) {
-    return 'badge--accent-tech'
-  }
-
-  if (isDatabaseAvailable.value && hasPendingChanges.value) {
-    return 'badge--warning-tech'
-  }
-
-  return 'badge--success-tech'
 })
 
 const filteredAccounts = computed(() => {
@@ -678,154 +696,12 @@ const loadAccounts = async () => {
   }
 }
 
-const loadLastVersion = () => {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY_LAST_VERSION)
-    if (stored) {
-      const version = parseInt(stored, 10)
-      if (!isNaN(version) && version >= 0) {
-        return version
-      }
-    }
-  } catch (error) {
-    console.warn('Failed to load Antigravity lastVersion:', error)
-  }
-  return 0
-}
-
-const saveLastVersion = (version) => {
-  try {
-    localStorage.setItem(STORAGE_KEY_LAST_VERSION, version.toString())
-  } catch (error) {
-    console.error('Failed to save Antigravity lastVersion:', error)
-  }
-}
-
-const savePendingChanges = () => {
-  try {
-    const upsertsArr = Array.from(pendingUpserts.value.entries()).map(([id, account]) => ({ id, account }))
-    const deletionsArr = Array.from(pendingDeletions.value.values())
-
-    localStorage.setItem(STORAGE_KEY_PENDING_UPSERTS, JSON.stringify(upsertsArr))
-    localStorage.setItem(STORAGE_KEY_PENDING_DELETIONS, JSON.stringify(deletionsArr))
-  } catch (error) {
-    console.error('Failed to save Antigravity pending changes:', error)
-  }
-}
-
-const loadPendingChanges = () => {
-  try {
-    const upsertsJson = localStorage.getItem(STORAGE_KEY_PENDING_UPSERTS)
-    if (upsertsJson) {
-      const arr = JSON.parse(upsertsJson)
-      if (Array.isArray(arr)) {
-        pendingUpserts.value = new Map(
-          arr
-            .filter(item => item && item.id && item.account)
-            .map(item => [item.id, item.account])
-        )
-      }
-    }
-
-    const deletionsJson = localStorage.getItem(STORAGE_KEY_PENDING_DELETIONS)
-    if (deletionsJson) {
-      const arr = JSON.parse(deletionsJson)
-      if (Array.isArray(arr)) {
-        pendingDeletions.value = new Map(
-          arr
-            .filter(item => item && item.id)
-            .map(item => [item.id, { id: item.id, email: item.email || null }])
-        )
-      }
-    }
-
-    if (pendingUpserts.value.size > 0 || pendingDeletions.value.size > 0) {
-      isSyncNeeded.value = true
-    }
-  } catch (error) {
-    console.warn('Failed to load Antigravity pending changes:', error)
-  }
-}
-
-let storageCheckTimer = null
-
-const getStorageStatus = async () => {
-  try {
-    const status = await invoke('get_antigravity_storage_status')
-
-    // 检查是否正在初始化
-    if (status?.is_initializing) {
-      isStorageInitializing.value = true
-      isDatabaseAvailable.value = false
-
-      // 启动定时器，每 500ms 检查一次
-      if (!storageCheckTimer) {
-        storageCheckTimer = setInterval(async () => {
-          await getStorageStatus()
-        }, 500)
-      }
-    } else {
-      // 初始化完成
-      isStorageInitializing.value = false
-      isDatabaseAvailable.value = status?.is_database_available || false
-
-      // 停止定时器
-      if (storageCheckTimer) {
-        clearInterval(storageCheckTimer)
-        storageCheckTimer = null
-      }
-    }
-  } catch (error) {
-    console.error('Failed to get Antigravity storage status:', error)
-    isDatabaseAvailable.value = false
-    isStorageInitializing.value = false
-
-    // 停止定时器
-    if (storageCheckTimer) {
-      clearInterval(storageCheckTimer)
-      storageCheckTimer = null
-    }
-  }
-}
-
-const markAccountUpsert = (account) => {
-  if (!account?.id) return
-  pendingUpserts.value.set(account.id, account)
-  pendingDeletions.value.delete(account.id)
-  savePendingChanges()
-  if (isDatabaseAvailable.value) {
-    isSyncNeeded.value = true
-  }
-}
-
-const markAccountDeletion = (account) => {
-  if (!account?.id) return
-  const wasOnlyLocal = pendingUpserts.value.has(account.id)
-  pendingUpserts.value.delete(account.id)
-  if (!wasOnlyLocal) {
-    pendingDeletions.value.set(account.id, { id: account.id, email: account.email || null })
-  } else {
-    pendingDeletions.value.delete(account.id)
-  }
-  savePendingChanges()
-  if (isDatabaseAvailable.value) {
-    isSyncNeeded.value = pendingUpserts.value.size > 0 || pendingDeletions.value.size > 0
-  }
-}
-
-const markAccountUpsertById = (accountId) => {
-  const account = accounts.value.find(a => a.id === accountId)
-  if (account) {
-    markAccountUpsert(account)
-  }
-}
-
 const handleSwitch = async (accountId) => {
   switchingAccountId.value = accountId
   try {
     await invoke('antigravity_switch_account', { accountId })
     await loadAccounts()
-    markAccountUpsertById(accountId)
+    markItemUpsertById(accountId)
   } catch (error) {
     console.error('Failed to switch account:', error)
     alert(error)
@@ -837,15 +713,44 @@ const handleSwitch = async (accountId) => {
 const handleRefreshQuota = async (accountId) => {
   refreshingIds.value.add(accountId)
   try {
-    await invoke('antigravity_fetch_quota', { accountId })
-    await loadAccounts()
-    markAccountUpsertById(accountId)
+    // 调用后端刷新配额，返回更新后的账户数据
+    const updatedAccount = await invoke('antigravity_fetch_quota', { accountId })
+
+    // 只更新该账户的数据，而不是重新加载整个列表
+    const index = accounts.value.findIndex(a => a.id === accountId)
+    if (index !== -1 && updatedAccount) {
+      // 使用响应式更新，保持滚动位置
+      accounts.value[index] = updatedAccount
+    } else {
+      // 如果后端没有返回更新后的账户，则从本地文件重新加载该账户
+      await loadSingleAccount(accountId)
+    }
+
+    markItemUpsertById(accountId)
     window.$notify?.success($t('platform.antigravity.messages.refreshSuccess'))
   } catch (error) {
     console.error('Failed to refresh quota:', error)
     window.$notify?.error($t('platform.antigravity.messages.refreshFailed', { error: error?.message || error }))
   } finally {
     refreshingIds.value.delete(accountId)
+  }
+}
+
+// 单独加载一个账户的数据（用于刷新后更新）
+const loadSingleAccount = async (accountId) => {
+  try {
+    const jsonString = await invoke('antigravity_load_accounts_json')
+    const data = JSON.parse(jsonString)
+    const updatedAccount = (data.accounts || []).find(a => a.id === accountId)
+
+    if (updatedAccount) {
+      const index = accounts.value.findIndex(a => a.id === accountId)
+      if (index !== -1) {
+        accounts.value[index] = updatedAccount
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load single account:', error)
   }
 }
 
@@ -860,7 +765,7 @@ const handleRefresh = async () => {
     await invoke('antigravity_refresh_all_quotas')
     await loadAccounts()
     for (const account of accounts.value) {
-      markAccountUpsert(account)
+      markItemUpsert(account)
     }
     window.$notify?.success($t('platform.antigravity.messages.refreshSuccess'))
   } catch (error) {
@@ -887,7 +792,7 @@ const handleAccountAdded = async (account) => {
   showAddDialog.value = false
   await loadAccounts()
   if (account?.id) {
-    markAccountUpsertById(account.id)
+    markItemUpsertById(account.id)
   }
   window.$notify?.success($t('platform.antigravity.messages.addSuccess'))
 }
@@ -897,7 +802,7 @@ const handleDelete = async (accountId) => {
     const account = accounts.value.find(a => a.id === accountId)
     await invoke('antigravity_delete_account', { accountId })
     if (account) {
-      markAccountDeletion(account)
+      markItemDeletion(account)
     }
     await loadAccounts()
     window.$notify?.success($t('platform.antigravity.messages.deleteSuccess'))
@@ -1029,7 +934,7 @@ const handleBatchDeleteSelected = async () => {
       const account = accounts.value.find(a => a.id === accountId)
       await invoke('antigravity_delete_account', { accountId })
       if (account) {
-        markAccountDeletion(account)
+        markItemDeletion(account)
       }
     }
     selectedAccountIds.value = new Set()
@@ -1049,27 +954,8 @@ const handleBatchDelete = () => {
   showBatchDeleteSelectedConfirm()
 }
 
-const openSyncQueue = () => {
-  if (!isDatabaseAvailable.value) {
-    window.$notify.info($t('storage.databaseNotAvailable'))
-    return
-  }
-  showSyncQueueModal.value = true
-}
-
-const closeSyncQueue = () => {
-  showSyncQueueModal.value = false
-}
-
 const handleMarkAllForSync = () => {
-  if (accounts.value.length === 0) {
-    window.$notify.warning($t('platform.antigravity.messages.noSelection'))
-    return
-  }
-  pendingUpserts.value = new Map(accounts.value.map(account => [account.id, account]))
-  pendingDeletions.value.clear()
-  savePendingChanges()
-  isSyncNeeded.value = true
+  markAllForSync()
   window.$notify.success($t('platform.antigravity.allAccountsMarkedForSync', { count: accounts.value.length }))
 }
 
@@ -1089,81 +975,32 @@ const refreshModelsModal = async () => {
   activeModelsAccount.value = accounts.value.find(a => a.id === activeModelsAccount.value.id) || activeModelsAccount.value
 }
 
-const handleSync = async () => {
-  if (isSyncing.value) return
-  if (!isDatabaseAvailable.value) {
-    window.$notify.warning($t('messages.databaseNotAvailable'))
-    return
-  }
-
-  isSyncing.value = true
-  try {
-    window.$notify.info($t('messages.syncingData'))
-
-    const req = {
-      last_version: lastVersion.value,
-      upserts: Array.from(pendingUpserts.value.values()).map(account => ({ account })),
-      deletions: Array.from(pendingDeletions.value.values()).map(item => ({ id: item.id })),
-    }
-
-    const res = await invoke('antigravity_sync_accounts', { reqJson: JSON.stringify(req) })
-
-    isLoadingFromSync.value = true
-
-    for (const serverAccount of res.upserts) {
-      const idx = accounts.value.findIndex(a => a.id === serverAccount.id)
-      if (idx !== -1) {
-        accounts.value[idx] = serverAccount
-      } else {
-        accounts.value.push(serverAccount)
-      }
-    }
-
-    for (const id of res.deletions) {
-      const idx = accounts.value.findIndex(a => a.id === id)
-      if (idx !== -1) {
-        accounts.value.splice(idx, 1)
-      }
-      if (currentAccountId.value === id) {
-        currentAccountId.value = null
-      }
-    }
-
-    lastVersion.value = res.new_version
-    saveLastVersion(res.new_version)
-
-    pendingUpserts.value.clear()
-    pendingDeletions.value.clear()
-    savePendingChanges()
-
-    await new Promise(resolve => setTimeout(resolve, 1200))
-    isLoadingFromSync.value = false
-    isSyncNeeded.value = false
-
-    window.$notify.success($t('messages.syncComplete'))
-  } catch (error) {
-    window.$notify.error(`${$t('messages.syncFailed')}: ${error}`)
-  } finally {
-    isSyncing.value = false
-  }
-}
-
 // 监听搜索和筛选变化，重置分页
 watch([searchQuery, selectedStatusFilter], () => {
   currentPage.value = 1
 })
 
-onMounted(async () => {
-  lastVersion.value = loadLastVersion()
-  loadPendingChanges()
-  await getStorageStatus()
-  await loadAccounts()
-})
-
-onUnmounted(() => {
-  if (storageCheckTimer) {
-    clearInterval(storageCheckTimer)
-    storageCheckTimer = null
+// 自定义 Antigravity 路径相关函数
+const loadCustomPath = async () => {
+  try {
+    customAntigravityPath.value = await invoke('antigravity_get_custom_path')
+    try {
+      defaultAntigravityPath.value = await invoke('antigravity_get_default_path')
+    } catch (e) {
+      defaultAntigravityPath.value = ''
+    }
+  } catch (error) {
+    console.error('Failed to load custom path:', error)
   }
+}
+
+const handleCustomPathSaved = (newPath) => {
+  customAntigravityPath.value = newPath
+}
+
+onMounted(async () => {
+  await initSync()
+  await loadAccounts()
+  await loadCustomPath()
 })
 </script>

@@ -2,6 +2,7 @@ pub mod connection;
 pub mod config;
 pub mod augment;
 pub mod antigravity;
+pub mod windsurf;
 
 pub use config::*;
 pub use connection::*;
@@ -68,6 +69,17 @@ pub async fn save_database_config(
                 } else {
                     antigravity::add_new_fields_if_not_exist(&client).await
                         .map_err(|e| format!("Failed to add new fields to Antigravity tables: {}", e))?;
+                }
+
+                let windsurf_tables_exist = windsurf::check_tables_exist(&client).await
+                    .map_err(|e| format!("Failed to check Windsurf tables: {}", e))?;
+
+                if !windsurf_tables_exist {
+                    windsurf::create_tables(&client).await
+                        .map_err(|e| format!("Failed to create Windsurf tables: {}", e))?;
+                } else {
+                    windsurf::ensure_columns(&client).await
+                        .map_err(|e| format!("Failed to update Windsurf tables: {}", e))?;
                 }
             }
 

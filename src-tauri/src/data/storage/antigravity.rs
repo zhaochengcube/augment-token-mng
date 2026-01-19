@@ -1,16 +1,26 @@
 pub mod traits;
-pub mod local_storage;
-pub mod postgres_storage;
-pub mod dual_storage;
+pub mod mapper;
 
 pub use traits::*;
-pub use local_storage::*;
-pub use postgres_storage::*;
-pub use dual_storage::*;
+pub use mapper::*;
 
+use crate::data::storage::common::{
+    GenericLocalStorage, GenericPostgreSQLStorage, GenericDualStorage,
+    AccountSyncManager as CommonAccountSyncManager,
+};
+use crate::platforms::antigravity::models::Account;
 use crate::AppState;
 use std::sync::Arc;
 use tauri::State;
+
+/// Antigravity 本地存储类型别名
+pub type AntigravityLocalStorage = GenericLocalStorage<Account>;
+
+/// Antigravity PostgreSQL 存储类型别名
+pub type AntigravityPostgreSQLStorage = GenericPostgreSQLStorage<Account, AntigravityAccountMapper>;
+
+/// Antigravity 双层存储类型别名
+pub type AntigravityDualStorage = GenericDualStorage<Account, AntigravityAccountMapper>;
 
 #[tauri::command]
 pub async fn antigravity_sync_accounts_to_database(
@@ -55,75 +65,17 @@ pub async fn antigravity_bidirectional_sync_accounts(
 pub async fn antigravity_sync_accounts(
     req_json: String,
     state: State<'_, AppState>,
-) -> Result<ServerAccountSyncResponse, String> {
+) -> Result<ServerAccountSyncResponse<Account>, String> {
     let storage_manager = {
         let guard = state.antigravity_storage_manager.lock().unwrap();
         guard.clone().ok_or("Antigravity storage manager not initialized")?
     };
 
-    let req: ClientAccountSyncRequest = serde_json::from_str(&req_json)
+    let req: ClientAccountSyncRequest<Account> = serde_json::from_str(&req_json)
         .map_err(|e| format!("Failed to parse sync request: {}", e))?;
 
     storage_manager.sync_accounts(req).await
         .map_err(|e| format!("Sync failed: {}", e))
-}
-
-#[tauri::command]
-pub async fn get_antigravity_storage_status(
-    app: tauri::AppHandle,
-    state: State<'_, AppState>,
-) -> Result<serde_json::Value, String> {
-    let mut needs_reinit = false;
-    {
-        let guard = state.antigravity_storage_manager.lock().unwrap();
-        if let Some(manager) = guard.as_ref() {
-            if !manager.is_database_available() {
-                let db_guard = state.database_manager.lock().unwrap();
-                if db_guard.is_some() {
-                    needs_reinit = true;
-                }
-            }
-        } else {
-            return Ok(serde_json::json!({
-                "is_available": false,
-                "storage_type": "initializing",
-                "is_database_available": false,
-                "is_initializing": true
-            }));
-        }
-    }
-
-    if needs_reinit {
-        if let Err(e) = initialize_antigravity_storage_manager(&app, &state).await {
-            eprintln!("Failed to reinitialize Antigravity storage manager: {}", e);
-        }
-    }
-
-    let storage_manager = {
-        let guard = state.antigravity_storage_manager.lock().unwrap();
-        guard.clone()
-    };
-
-    if storage_manager.is_none() {
-        return Ok(serde_json::json!({
-            "is_available": false,
-            "storage_type": "initializing",
-            "is_database_available": false,
-            "is_initializing": true
-        }));
-    }
-
-    let storage_manager = storage_manager.unwrap();
-    let is_available = storage_manager.is_available().await;
-    let storage_type = storage_manager.storage_type();
-    let is_database_available = storage_manager.is_database_available();
-
-    Ok(serde_json::json!({
-        "is_available": is_available,
-        "storage_type": storage_type,
-        "is_database_available": is_database_available,
-        "is_initializing": false
-    }))
 }
 
 #[tauri::command]

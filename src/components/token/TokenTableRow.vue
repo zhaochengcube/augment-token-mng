@@ -150,7 +150,7 @@
                 <span>{{ $t('tokenCard.copyAuthSession') }}</span>
               </button>
               <button v-if="token.auth_session" @click="handleCopyMenuClick('payment')" class="dropdown-item" :disabled="isFetchingPaymentLink">
-                <div v-if="isFetchingPaymentLink" class="w-3.5 h-3.5 rounded-full border-2 border-accent/30 border-t-accent animate-spin"></div>
+                <span v-if="isFetchingPaymentLink" class="btn-spinner btn-spinner--sm text-accent" aria-hidden="true"></span>
                 <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
                 </svg>
@@ -175,7 +175,7 @@
             <svg v-else-if="token.skip_check" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
               <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
             </svg>
-            <div v-else class="h-3.5 w-3.5 border-2 border-accent/30 border-t-accent rounded-full animate-spin"></div>
+            <span v-else class="btn-spinner btn-spinner--sm text-accent" aria-hidden="true"></span>
           </button>
           <Transition name="dropdown">
             <div v-if="showCheckMenu" class="dropdown-menu" @click.stop>
@@ -197,7 +197,7 @@
                 <svg v-if="!isRefreshingSession" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
                 </svg>
-                <div v-else class="h-3.5 w-3.5 border-2 border-accent/30 border-t-accent rounded-full animate-spin"></div>
+                <span v-else class="btn-spinner btn-spinner--sm text-accent" aria-hidden="true"></span>
                 <span>{{ $t('tokenCard.refreshSession') }}</span>
               </button>
             </div>

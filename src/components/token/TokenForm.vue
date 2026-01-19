@@ -191,7 +191,7 @@
           {{ $t('tokenForm.cancel') }}
         </button>
         <button type="submit" class="btn btn--primary" :disabled="isLoading || !isFormValid">
-          <span v-if="isLoading" class="inline-block w-3.5 h-3.5 border-2 border-transparent border-t-current rounded-full animate-spin"></span>
+          <span v-if="isLoading" class="btn-spinner btn-spinner--sm" aria-hidden="true"></span>
           {{ isLoading ? $t('loading.saving') : (isEditing ? $t('tokenForm.update') : $t('tokenForm.save')) }}
         </button>
       </div>

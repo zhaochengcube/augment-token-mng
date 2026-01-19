@@ -53,6 +53,7 @@
 import { computed, ref } from 'vue'
 import AugmentTokenManager from '../platform/AugmentTokenManager.vue'
 import AntigravityAccountManager from '../platform/AntigravityAccountManager.vue'
+import WindsurfAccountManager from '../platform/WindsurfAccountManager.vue'
 
 const props = defineProps({
   isDarkTheme: {
@@ -84,8 +85,8 @@ const platforms = computed(() => [
     id: 'windsurf',
     name: 'Windsurf',
     icon: '/icons/windsurf.svg',
-    component: null,
-    enabled: false
+    component: WindsurfAccountManager,
+    enabled: true
   }
 ])
 

@@ -88,7 +88,7 @@
                 <path
                   d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" />
               </svg>
-              <div v-else class="h-4 w-4 border-2 border-accent/30 border-t-accent rounded-full animate-spin"></div>
+              <span v-else class="btn-spinner text-accent" aria-hidden="true"></span>
             </button>
             <button
               class="btn btn--icon btn--ghost"
@@ -99,7 +99,7 @@
               <svg v-if="!isRefreshing" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
               </svg>
-              <div v-else class="h-4 w-4 border-2 border-accent/30 border-t-accent rounded-full animate-spin"></div>
+              <span v-else class="btn-spinner text-accent" aria-hidden="true"></span>
             </button>
             <button class="btn btn--icon btn--ghost" @click="setToolbarMode('more')" v-tooltip="'更多'">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -660,6 +660,7 @@ import Pagination from '../common/Pagination.vue'
 import BatchToolbar from '../common/BatchToolbar.vue'
 import ActionToolbar from '../common/ActionToolbar.vue'
 import FixedPaginationLayout from '../common/FixedPaginationLayout.vue'
+import { useStorageSync } from '@/composables/useStorageSync'
 
 const { t } = useI18n()
 
@@ -680,112 +681,45 @@ const props = defineProps({
 const internalTokens = ref([])
 const tokens = computed(() => props.tokens !== null ? props.tokens : internalTokens.value)
 const isLoading = ref(false)
-const isDatabaseAvailable = ref(false)
-const isStorageInitializing = ref(false)
 
 // 初始化就绪标记
 const isReady = ref(false)
-
-// 同步状态标记 - 用于防止同步时触发自动保存
-const isSyncing = ref(false)
-const isLoadingFromSync = ref(false)
 
 // Session 刷新相关状态
 const showSessionRefreshModal = ref(false)
 const isRefreshingSessions = ref(false)
 
-// 同步需求标记 - 标识本地有未同步到数据库的更改
-const isSyncNeeded = ref(false)
-
-// === 新增量同步协议状态 ===
-// localStorage 中的存储键
-const STORAGE_KEY_LAST_VERSION = 'atm-sync-last-version'
-const STORAGE_KEY_PENDING_UPSERTS = 'atm-sync-pending-upserts'
-const STORAGE_KEY_PENDING_DELETIONS = 'atm-sync-pending-deletions'
-
-// 上次同步的版本号（从 localStorage 读取）
-const lastVersion = ref(0)
-
-// 待同步的本地变更
-const pendingUpserts = ref(new Map())   // id -> token
-const pendingDeletions = ref(new Map()) // id -> { id, email_note }
-
-// 加载上次同步版本号
-const loadLastVersion = () => {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY_LAST_VERSION)
-    if (stored) {
-      const version = parseInt(stored, 10)
-      if (!isNaN(version) && version >= 0) {
-        return version
-      }
-    }
-  } catch (error) {
-    console.warn('Failed to load lastVersion from localStorage:', error)
+// 使用存储同步 composable
+const {
+  isDatabaseAvailable,
+  isStorageInitializing,
+  isSyncing,
+  isSyncNeeded,
+  isLoadingFromSync,
+  hasPendingChanges,
+  pendingUpsertsList,
+  pendingDeletionsList,
+  storageStatusText,
+  storageStatusClass,
+  showSyncQueueModal,
+  initSync,
+  markItemUpsert,
+  markItemDeletion,
+  markAllForSync,
+  openSyncQueue,
+  closeSyncQueue,
+  handleSync: composableHandleSync
+} = useStorageSync({
+  platform: 'augment',
+  syncCommand: 'sync_tokens',
+  items: internalTokens,
+  itemKey: 'token',
+  labelField: 'email_note',
+  onSyncComplete: async () => {
+    // 同步完成后保存到本地文件
+    await handleSave()
   }
-  return 0
-}
-
-// 保存版本号到 localStorage
-const saveLastVersion = (version) => {
-  try {
-    localStorage.setItem(STORAGE_KEY_LAST_VERSION, version.toString())
-  } catch (error) {
-    console.error('Failed to save lastVersion to localStorage:', error)
-  }
-}
-
-// 保存待同步变更到 localStorage
-const savePendingChanges = () => {
-  try {
-    const upsertsArr = Array.from(pendingUpserts.value.entries()).map(([id, token]) => ({ id, token }))
-    const deletionsArr = Array.from(pendingDeletions.value.values())
-
-    localStorage.setItem(STORAGE_KEY_PENDING_UPSERTS, JSON.stringify(upsertsArr))
-    localStorage.setItem(STORAGE_KEY_PENDING_DELETIONS, JSON.stringify(deletionsArr))
-  } catch (error) {
-    console.error('Failed to save pending changes to localStorage:', error)
-  }
-}
-
-// 从 localStorage 加载待同步变更
-const loadPendingChanges = () => {
-  try {
-    const upsertsJson = localStorage.getItem(STORAGE_KEY_PENDING_UPSERTS)
-    if (upsertsJson) {
-      const arr = JSON.parse(upsertsJson)
-      if (Array.isArray(arr)) {
-        pendingUpserts.value = new Map(
-          arr
-            .filter(item => item && item.id && item.token)
-            .map(item => [item.id, item.token])
-        )
-      }
-    }
-
-    const deletionsJson = localStorage.getItem(STORAGE_KEY_PENDING_DELETIONS)
-    if (deletionsJson) {
-      const arr = JSON.parse(deletionsJson)
-      if (Array.isArray(arr)) {
-        pendingDeletions.value = new Map(
-          arr
-            .filter(item => item && item.id)
-            .map(item => [item.id, { id: item.id, email_note: item.email_note || null }])
-        )
-      }
-    }
-
-    // 如果存在未同步的本地变更，标记需要同步
-    if (pendingUpserts.value.size > 0 || pendingDeletions.value.size > 0) {
-      isSyncNeeded.value = true
-    }
-  } catch (error) {
-    console.warn('Failed to load pending changes from localStorage:', error)
-  }
-}
-
-// 存储状态检查定时器
-let storageCheckTimer = null
+})
 
 // 事件监听器取消函数
 let unlistenTokensUpdated = null
@@ -1781,20 +1715,13 @@ const batchRefreshSessionsSelected = async () => {
           token.updated_at = now
 
           // 添加到待同步队列
-          pendingUpserts.value.set(token.id, token)
-          pendingDeletions.value.delete(token.id)
+          markItemUpsert(token)
         }
       } else {
         failCount++
         console.error(`Failed to refresh session for token ${result.token_id}:`, result.error)
       }
     })
-
-    // 标记需要同步
-    if (successCount > 0) {
-      isSyncNeeded.value = true
-      savePendingChanges()
-    }
 
     // 保存更新后的 tokens（由前端统一处理双向存储）
     await saveTokens()
@@ -1938,39 +1865,23 @@ const executeBatchDeleteSelected = async () => {
     const index = internalTokens.value.findIndex(t => t.id === tokenId)
     if (index !== -1) {
       const tokenToDelete = internalTokens.value[index]
-      const emailNote = tokenToDelete?.email_note || null
-
-      // 检查是否是仅在本地新增但从未同步过的 token
-      const wasOnlyLocal = pendingUpserts.value.has(tokenId)
-
       internalTokens.value.splice(index, 1)
       deletedCount++
 
-      // 从待更新队列中移除
-      pendingUpserts.value.delete(tokenId)
-
-      // 只有已同步到服务器的 token 才需要记录到待删除队列
-      if (!wasOnlyLocal) {
-        pendingDeletions.value.set(tokenId, { id: tokenId, email_note: emailNote })
-      }
+      // 标记删除
+      markItemDeletion(tokenToDelete)
     }
   }
-  
-  // 标记需要同步（如果还有待同步内容）
-  isSyncNeeded.value = pendingUpserts.value.size > 0 || pendingDeletions.value.size > 0
-  
-  // 持久化待同步队列
-  savePendingChanges()
-  
+
   // 关闭对话框
   showSelectedDeleteDialog.value = false
-  
+
   // 清除选择
   clearSelection()
-  
+
   // 保存更改
   await saveTokens()
-  
+
   window.$notify.success(t('tokenList.batchDeleteSelectedSuccess', { count: deletedCount }))
 }
 
@@ -1990,16 +1901,9 @@ const handleBatchTagSave = async ({ tagName, tagColor }) => {
       updatedCount++
 
       // 添加到待更新队列
-      pendingUpserts.value.set(tokenId, token)
-      pendingDeletions.value.delete(tokenId)
+      markItemUpsert(token)
     }
   }
-
-  // 标记需要同步
-  isSyncNeeded.value = true
-  
-  // 持久化待同步队列
-  savePendingChanges()
 
   // 保存更改
   await saveTokens()
@@ -2024,18 +1928,11 @@ const handleBatchTagClear = async () => {
       token.tag_color = ''
       token.updated_at = new Date().toISOString()
       clearedCount++
-      
+
       // 添加到待更新队列
-      pendingUpserts.value.set(tokenId, token)
-      pendingDeletions.value.delete(tokenId)
+      markItemUpsert(token)
     }
   }
-
-  // 标记需要同步
-  isSyncNeeded.value = true
-  
-  // 持久化待同步队列
-  savePendingChanges()
 
   // 保存更改
   await saveTokens()
@@ -2541,33 +2438,16 @@ const executeBatchDelete = async () => {
     let deletedCount = 0
 
     for (const token of tokensToDelete) {
-      const tokenId = token.id
-      const emailNote = token.email_note || null
-
-      // 检查是否是仅在本地新增但从未同步过的 token
-      const wasOnlyLocal = pendingUpserts.value.has(tokenId)
-
       // 从本地列表移除
-      const index = internalTokens.value.findIndex(t => t.id === tokenId)
+      const index = internalTokens.value.findIndex(t => t.id === token.id)
       if (index !== -1) {
         internalTokens.value.splice(index, 1)
         deletedCount++
       }
 
-      // 从待更新队列中移除
-      pendingUpserts.value.delete(tokenId)
-
-      // 只有已同步到服务器的 token 才需要记录到待删除队列
-      if (!wasOnlyLocal) {
-        pendingDeletions.value.set(tokenId, { id: tokenId, email_note: emailNote })
-      }
+      // 标记删除
+      markItemDeletion(token)
     }
-
-    // 标记需要同步（如果还有待同步内容）
-    isSyncNeeded.value = pendingUpserts.value.size > 0 || pendingDeletions.value.size > 0
-
-    // 持久化待同步队列
-    savePendingChanges()
 
     // 关闭对话框
     showBatchDeleteDialog.value = false
@@ -2599,21 +2479,6 @@ const editingToken = ref(null)
 // Token card refs for accessing child methods
 const tokenCardRefs = ref({})
 
-// 存储状态展示与同步队列查看
-const showSyncQueueModal = ref(false)
-
-const pendingUpsertsList = computed(() => Array.from(pendingUpserts.value.values()))
-const pendingDeletionsList = computed(() => Array.from(pendingDeletions.value.values()))
-
-const openSyncQueue = () => {
-  if (!isDatabaseAvailable.value) return
-  showSyncQueueModal.value = true
-}
-
-const closeSyncQueue = () => {
-  showSyncQueueModal.value = false
-}
-
 // 打开 Session 刷新 Modal
 const openSessionRefreshModal = () => {
   showSessionRefreshModal.value = true
@@ -2630,12 +2495,7 @@ const handleSingleRefreshSession = async ({ tokenId, newSession, updatedAt }) =>
       token.updated_at = updatedAt
 
       // 添加到待同步队列
-      pendingUpserts.value.set(token.id, token)
-      pendingDeletions.value.delete(token.id)
-
-      // 标记需要同步
-      isSyncNeeded.value = true
-      savePendingChanges()
+      markItemUpsert(token)
 
       // 保存更新后的 tokens
       await saveTokens()
@@ -2689,20 +2549,13 @@ const handleBatchRefreshSessions = async () => {
           token.updated_at = now
 
           // 添加到待同步队列
-          pendingUpserts.value.set(token.id, token)
-          pendingDeletions.value.delete(token.id)
+          markItemUpsert(token)
         }
       } else {
         failCount++
         console.error(`Failed to refresh session for token ${result.token_id}:`, result.error)
       }
     })
-
-    // 标记需要同步
-    if (successCount > 0) {
-      isSyncNeeded.value = true
-      savePendingChanges()
-    }
 
     // 保存更新后的 tokens（由前端统一处理双向存储）
     await saveTokens()
@@ -2725,95 +2578,15 @@ const handleBatchRefreshSessions = async () => {
   }
 }
 
-// 标记所有 token 为待同步
+// 标记所有 token 为待同步（使用 composable 的 markAllForSync）
 const handleMarkAllForSync = () => {
   if (tokens.value.length === 0) {
     window.$notify.warning(t('messages.noTokensToSync'))
     return
   }
-  
-  for (const token of tokens.value) {
-    pendingUpserts.value.set(token.id, token)
-  }
-  
-  // 持久化队列
-  savePendingChanges()
-  
-  // 标记需要同步
-  isSyncNeeded.value = true
-  
-  window.$notify.success(t('messages.allTokensMarkedForSync', { count: tokens.value.length }))
-}
 
-// 是否有待同步的变更（基于队列是否为空）
-const hasPendingChanges = computed(() => {
-  return pendingUpserts.value.size > 0 || pendingDeletions.value.size > 0
-})
-
-// Computed properties for storage status display
-const storageStatusText = computed(() => {
-  if (isStorageInitializing.value) {
-    return t('storage.initializing')
-  }
-  if (isDatabaseAvailable.value) {
-    return hasPendingChanges.value
-      ? `${t('storage.dualStorage')}-${t('storage.notSynced')}`
-      : t('storage.dualStorage')
-  }
-  return t('storage.localStorage')
-})
-
-const storageStatusClass = computed(() => {
-  // 如果正在初始化，显示加载样式
-  if (isStorageInitializing.value) {
-    return 'badge--accent-tech'
-  }
-  // 如果是双向存储且有未同步变更，显示警告样式
-  if (isDatabaseAvailable.value && hasPendingChanges.value) {
-    return 'badge--warning-tech'
-  }
-  return 'badge--success-tech'
-})
-
-
-
-// 存储状态管理方法
-const getStorageStatus = async () => {
-  try {
-    const status = await invoke('get_storage_status')
-
-    // 检查是否正在初始化
-    if (status?.is_initializing) {
-      isStorageInitializing.value = true
-      isDatabaseAvailable.value = false
-
-      // 启动定时器，每 500ms 检查一次
-      if (!storageCheckTimer) {
-        storageCheckTimer = setInterval(async () => {
-          await getStorageStatus()
-        }, 500)
-      }
-    } else {
-      // 初始化完成
-      isStorageInitializing.value = false
-      isDatabaseAvailable.value = status?.is_database_available || false
-
-      // 停止定时器
-      if (storageCheckTimer) {
-        clearInterval(storageCheckTimer)
-        storageCheckTimer = null
-      }
-    }
-  } catch (error) {
-    console.error('Failed to get storage status:', error)
-    isDatabaseAvailable.value = false
-    isStorageInitializing.value = false
-
-    // 停止定时器
-    if (storageCheckTimer) {
-      clearInterval(storageCheckTimer)
-      storageCheckTimer = null
-    }
+  if (markAllForSync()) {
+    window.$notify.success(t('messages.allTokensMarkedForSync', { count: tokens.value.length }))
   }
 }
 
@@ -2844,15 +2617,8 @@ const setTokenCardRef = (el, tokenId) => {
 const handleTokenUpdated = async (updatedToken) => {
   // 如果有 updatedToken 参数，记录到待更新集合
   if (updatedToken && updatedToken.id) {
-    pendingUpserts.value.set(updatedToken.id, updatedToken)
-    pendingDeletions.value.delete(updatedToken.id)
+    markItemUpsert(updatedToken)
 
-    // 标记需要同步
-    isSyncNeeded.value = true
-
-    // 持久化待同步队列
-    savePendingChanges()
-    
     // 保存到本地文件
     await saveTokens()
   }
@@ -3054,31 +2820,15 @@ const deleteToken = async (tokenId) => {
     return
   }
 
-  // 获取要删除的 token 信息（用于记录邮箱）
+  // 获取要删除的 token 信息
   const tokenToDelete = internalTokens.value[tokenIndex]
-  const emailNote = tokenToDelete?.email_note || null
-
-  // 检查是否是仅在本地新增但从未同步过的 token
-  const wasOnlyLocal = pendingUpserts.value.has(tokenId)
 
   // 从内存中删除
   internalTokens.value = internalTokens.value.filter(token => token.id !== tokenId)
   window.$notify.success(t('messages.tokenDeleted'))
 
-  // 从待更新队列中移除
-  pendingUpserts.value.delete(tokenId)
-
-  // 只有已同步到服务器的 token 才需要记录到待删除队列
-  // 如果 token 仅在本地存在（从未同步），则无需通知服务器删除
-  if (!wasOnlyLocal) {
-    pendingDeletions.value.set(tokenId, { id: tokenId, email_note: emailNote })
-  }
-
-  // 标记需要同步（如果还有待同步内容）
-  isSyncNeeded.value = pendingUpserts.value.size > 0 || pendingDeletions.value.size > 0
-
-  // 持久化待同步队列
-  savePendingChanges()
+  // 标记删除
+  markItemDeletion(tokenToDelete)
 
   // 保存到本地文件
   await saveTokens()
@@ -3139,14 +2889,7 @@ const handleUpdateToken = async (updatedTokenData) => {
     internalTokens.value[index] = updatedToken
 
     // 记录到待更新集合
-    pendingUpserts.value.set(updatedToken.id, updatedToken)
-    pendingDeletions.value.delete(updatedToken.id)
-
-    // 标记需要同步
-    isSyncNeeded.value = true
-
-    // 持久化待同步队列
-    savePendingChanges()
+    markItemUpsert(updatedToken)
 
     // 保存到本地文件
     await saveTokens()
@@ -3238,12 +2981,7 @@ const addToken = async (tokenData) => {
   internalTokens.value.push(newToken)
 
   // 记录到待更新集合
-  pendingUpserts.value.set(newToken.id, newToken)
-  pendingDeletions.value.delete(newToken.id)
-  isSyncNeeded.value = true
-
-  // 持久化待同步队列
-  savePendingChanges()
+  markItemUpsert(newToken)
 
   // 保存到本地文件
   await saveTokens()
@@ -3524,77 +3262,8 @@ const handleSave = async () => {
   }
 }
 
-// 新的基于 version + tombstone 的增量同步方法
-const handleSync = async () => {
-  if (isSyncing.value) return
-  if (!isDatabaseAvailable.value) {
-    window.$notify.warning(t('messages.databaseNotAvailable'))
-    return
-  }
-
-  isSyncing.value = true
-  try {
-    window.$notify.info(t('messages.syncingData'))
-
-    // 构建同步请求
-    const req = {
-      last_version: lastVersion.value,
-      upserts: Array.from(pendingUpserts.value.values()).map(token => ({ token })),
-      deletions: Array.from(pendingDeletions.value.values()).map(item => ({ id: item.id })),
-    }
-
-    // 调用新的增量同步接口
-    const res = await invoke('sync_tokens', { reqJson: JSON.stringify(req) })
-
-    // 标记正在从同步加载，避免触发自动保存
-    isLoadingFromSync.value = true
-
-    // 应用服务器的 upserts
-    for (const serverToken of res.upserts) {
-      const idx = internalTokens.value.findIndex(t => t.id === serverToken.id)
-      if (idx !== -1) {
-        internalTokens.value[idx] = serverToken
-      } else {
-        internalTokens.value.push(serverToken)
-      }
-    }
-
-    // 应用服务器 deletions
-    for (const id of res.deletions) {
-      const idx = internalTokens.value.findIndex(t => t.id === id)
-      if (idx !== -1) {
-        internalTokens.value.splice(idx, 1)
-      }
-    }
-
-    // 更新 lastVersion
-    lastVersion.value = res.new_version
-    saveLastVersion(res.new_version)
-
-    // 清空本地 pending 变更
-    pendingUpserts.value.clear()
-    pendingDeletions.value.clear()
-
-    // 持久化空队列
-    savePendingChanges()
-
-    // 把最终 tokens 全量写入本地文件
-    await handleSave()
-
-    // 延迟重置标记
-    await new Promise(resolve => setTimeout(resolve, 2100))
-    isLoadingFromSync.value = false
-
-    // 同步完成，清除同步需求标记
-    isSyncNeeded.value = false
-
-    window.$notify.success(t('messages.syncComplete'))
-  } catch (error) {
-    window.$notify.error(`${t('messages.syncFailed')}: ${error}`)
-  } finally {
-    isSyncing.value = false
-  }
-}
+// 使用 composable 提供的 handleSync
+const handleSync = composableHandleSync
 
 // 保留旧的双向同步方法作为兼容，内部调用新的 handleSync
 const handleBidirectionalSync = handleSync
@@ -3610,17 +3279,11 @@ onMounted(async () => {
   // 加载默认输入框数量配置
   defaultInputCount.value = loadDefaultInputCount()
 
-  // 加载上次同步版本号
-  lastVersion.value = loadLastVersion()
-
-  // 加载未同步的本地变更
-  loadPendingChanges()
-
   // 初始化输入框
   initializeSessionInputs(defaultInputCount.value)
 
-  // 首先获取存储状态
-  await getStorageStatus()
+  // 初始化同步状态（从 composable）
+  await initSync()
 
   // 使用 isLoadingFromSync 标记初始加载，避免触发自动保存
   isLoadingFromSync.value = true
@@ -3645,10 +3308,6 @@ onMounted(async () => {
 
 // 组件卸载时清理定时器和事件监听器
 onUnmounted(() => {
-  if (storageCheckTimer) {
-    clearInterval(storageCheckTimer)
-    storageCheckTimer = null
-  }
 
   // 取消事件监听
   if (unlistenTokensUpdated) {
