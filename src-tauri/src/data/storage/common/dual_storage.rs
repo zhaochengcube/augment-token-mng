@@ -335,25 +335,55 @@ where
             let account = &change.account;
             if let Ok(Some(existing)) = postgres.get_account(account.id()).await {
                 if account.updated_at() > existing.updated_at() {
-                    let _ = postgres.save_account_with_version(account).await;
+                    if let Err(e) = postgres.save_account_with_version(account).await {
+                        eprintln!("Failed to save account {} to postgres: {:?}", account.id(), e);
+                    }
                 }
             } else {
-                let _ = postgres.save_account_with_version(account).await;
+                if let Err(e) = postgres.save_account_with_version(account).await {
+                    eprintln!("Failed to save account {} to postgres: {:?}", account.id(), e);
+                }
             }
         }
 
         // 处理删除
         for deletion in &req.deletions {
-            let _ = postgres.delete_account_with_tombstone(&deletion.id).await;
+            if let Err(e) = postgres.delete_account_with_tombstone(&deletion.id).await {
+                eprintln!("Failed to delete account {} from postgres: {:?}", deletion.id, e);
+            }
         }
 
         // 获取服务端变更
-        let server_upserts = postgres.load_accounts_since_version(req.last_version).await?;
-        let server_deletions = postgres.load_tombstones_since_version(req.last_version).await?;
-        let new_version = postgres.get_max_version().await?;
+        let server_upserts = match postgres.load_accounts_since_version(req.last_version).await {
+            Ok(upserts) => upserts,
+            Err(e) => {
+                eprintln!("Failed to load accounts since version {}: {:?}", req.last_version, e);
+                return Err(e);
+            }
+        };
+        let server_deletions = match postgres.load_tombstones_since_version(req.last_version).await {
+            Ok(deletions) => deletions,
+            Err(e) => {
+                eprintln!("Failed to load tombstones since version {}: {:?}", req.last_version, e);
+                return Err(e);
+            }
+        };
+        let new_version = match postgres.get_max_version().await {
+            Ok(version) => version,
+            Err(e) => {
+                eprintln!("Failed to get max version: {:?}", e);
+                return Err(e);
+            }
+        };
 
         // 更新本地存储
-        let all_accounts = postgres.load_accounts().await?;
+        let all_accounts = match postgres.load_accounts().await {
+            Ok(accounts) => accounts,
+            Err(e) => {
+                eprintln!("Failed to load all accounts: {:?}", e);
+                return Err(e);
+            }
+        };
         let all_deletions = postgres
             .load_tombstones_since_version(0)
             .await
@@ -384,4 +414,3 @@ where
         })
     }
 }
-

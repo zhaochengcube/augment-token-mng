@@ -74,8 +74,23 @@ pub async fn windsurf_sync_accounts(
     let req: ClientAccountSyncRequest<Account> = serde_json::from_str(&req_json)
         .map_err(|e| format!("Failed to parse sync request: {}", e))?;
 
-    storage_manager.sync_accounts(req).await
-        .map_err(|e| format!("Sync failed: {}", e))
+    let upserts_len = req.upserts.len();
+    let deletions_len = req.deletions.len();
+    let last_version = req.last_version;
+
+    match storage_manager.sync_accounts(req).await {
+        Ok(res) => Ok(res),
+        Err(e) => {
+            println!(
+                "Windsurf sync_accounts failed (last_version={}, upserts={}, deletions={}): {}",
+                last_version,
+                upserts_len,
+                deletions_len,
+                e
+            );
+            Err(format!("Sync failed: {}", e))
+        }
+    }
 }
 
 pub async fn initialize_windsurf_storage_manager(
@@ -103,4 +118,3 @@ pub async fn initialize_windsurf_storage_manager(
 
     Ok(())
 }
-

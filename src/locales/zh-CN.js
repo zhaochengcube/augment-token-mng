@@ -408,6 +408,11 @@ export default {
     team: '团队',
     manageTeam: '管理团队'
   },
+  accountCard: {
+    copyRefreshToken: '复制Refresh Token',
+    copyProjectId: '复制Project ID',
+    copyPaymentLink: '复制绑卡链接'
+  },
   team: {
     title: '团队管理',
     teamInfo: '团队信息',
@@ -667,7 +672,11 @@ export default {
     sessionErrorOrAccountBanned: 'Session错误或账号已被封禁',
     tagUpdated: '标签已更新',
     tagCleared: '标签已清除',
-    comingSoon: '即将推出'
+    comingSoon: '即将推出',
+    refreshTokenCopied: 'Refresh Token已复制到剪贴板!',
+    noRefreshToken: '该账号没有Refresh Token',
+    projectIdCopied: 'Project ID已复制到剪贴板!',
+    noProjectId: '该账号没有Project ID'
   },
   validation: {
     required: '此字段为必填项',

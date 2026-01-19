@@ -69,7 +69,7 @@ pub fn is_antigravity_running() -> bool {
 }
 
 /// 温和关闭 Antigravity（优先主进程）
-pub fn close_antigravity(_timeout_secs: u64) -> Result<(), String> {
+pub fn close_antigravity(timeout_secs: u64) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
         let pids = get_antigravity_pids();

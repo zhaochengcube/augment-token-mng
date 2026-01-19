@@ -207,8 +207,6 @@ pub async fn windsurf_switch_account(
         &api_server_url,
         &name,
         &acc.email,
-        acc.allowed_command_model_configs_proto_binary_base64.clone(),
-        acc.user_status_proto_binary_base64.clone(),
     )?;
 
     // 6. 更新当前账号

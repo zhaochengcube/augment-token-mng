@@ -40,6 +40,8 @@ pub async fn create_tables(client: &Client) -> Result<(), Box<dyn std::error::Er
             project_id TEXT,
             session_id TEXT,
             quota JSONB,
+            tag TEXT,
+            tag_color TEXT,
             disabled BOOLEAN NOT NULL DEFAULT FALSE,
             disabled_reason TEXT,
             disabled_at BIGINT,
@@ -79,6 +81,14 @@ pub async fn add_new_fields_if_not_exist(_client: &Client) -> Result<(), Box<dyn
     ).await?;
     _client.execute(
         "ALTER TABLE antigravity_accounts ADD COLUMN IF NOT EXISTS disabled_at BIGINT",
+        &[],
+    ).await?;
+    _client.execute(
+        "ALTER TABLE antigravity_accounts ADD COLUMN IF NOT EXISTS tag TEXT",
+        &[],
+    ).await?;
+    _client.execute(
+        "ALTER TABLE antigravity_accounts ADD COLUMN IF NOT EXISTS tag_color TEXT",
         &[],
     ).await?;
     Ok(())

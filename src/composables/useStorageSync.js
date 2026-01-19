@@ -351,4 +351,3 @@ export function useStorageSync(options) {
     cleanup
   }
 }
-

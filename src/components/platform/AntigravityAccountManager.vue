@@ -128,11 +128,13 @@
             :is-selected="selectedAccountIds.has(account.id)"
             :selection-mode="isSelectionMode"
             :show-real-email="showRealEmail"
+            :all-accounts="accounts"
             @switch="handleSwitch"
             @refresh="handleRefreshQuota"
             @delete="handleDelete"
             @select="toggleAccountSelection"
             @view-models="openModelsModal"
+            @account-updated="handleAccountUpdated"
           />
         </div>
 
@@ -957,6 +959,13 @@ const handleBatchDelete = () => {
 const handleMarkAllForSync = () => {
   markAllForSync()
   window.$notify.success($t('platform.antigravity.allAccountsMarkedForSync', { count: accounts.value.length }))
+}
+
+// 账户更新处理
+const handleAccountUpdated = (updatedAccount) => {
+  if (updatedAccount && updatedAccount.id) {
+    markItemUpsert(updatedAccount)
+  }
 }
 
 const openModelsModal = (account) => {

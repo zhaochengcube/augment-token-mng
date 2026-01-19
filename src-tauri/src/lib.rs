@@ -154,6 +154,8 @@ pub fn run() {
                                                                     if let Err(e) = database::windsurf::create_tables(&client).await {
                                                                         eprintln!("Failed to create Windsurf tables on startup: {}", e);
                                                                     }
+                                                                } else if let Err(e) = database::windsurf::add_new_fields_if_not_exist(&client).await {
+                                                                    eprintln!("Failed to update Windsurf tables on startup: {}", e);
                                                                 }
                                                             }
                                                             Err(e) => {

@@ -179,8 +179,6 @@ pub fn write_windsurf_auth_state(
     api_server_url: &str,
     name: &str,
     email: &str,
-    allowed_configs: Option<Vec<String>>,
-    user_status: Option<String>,
 ) -> Result<(), String> {
     let mut conn = Connection::open(db_path)
         .map_err(|e| format!("Failed to open database: {}", e))?;
@@ -217,37 +215,16 @@ pub fn write_windsurf_auth_state(
     let sessions_key = r#"secret://{"extensionId":"codeium.windsurf","key":"windsurf_auth.sessions"}"#;
     write_item(&tx, sessions_key, &encrypted_json)?;
 
-    // windsurfAuthStatus - 根据是否有 proto 字段决定格式
-    let auth_status_json = if allowed_configs.is_some() || user_status.is_some() {
-        // 新版格式：包含 proto 字段
-        let mut auth_status_map = serde_json::Map::new();
-        auth_status_map.insert("apiKey".to_string(), serde_json::Value::String(api_key.to_string()));
-        if let Some(configs) = allowed_configs {
-            auth_status_map.insert(
-                "allowedCommandModelConfigsProtoBinaryBase64".to_string(),
-                serde_json::Value::Array(configs.into_iter().map(serde_json::Value::String).collect()),
-            );
-        }
-        if let Some(status) = user_status {
-            auth_status_map.insert(
-                "userStatusProtoBinaryBase64".to_string(),
-                serde_json::Value::String(status),
-            );
-        }
-        serde_json::to_string(&auth_status_map)
-            .map_err(|e| format!("Failed to serialize windsurfAuthStatus: {}", e))?
-    } else {
-        // 旧版格式：完整的 AuthStatus
-        let legacy = AuthStatus {
-            name: name.to_string(),
-            api_key: api_key.to_string(),
-            email: email.to_string(),
-            team_id: Uuid::new_v4().to_string(),
-            plan_name: "Pro".to_string(),
-        };
-        serde_json::to_string(&legacy)
-            .map_err(|e| format!("Failed to serialize windsurfAuthStatus: {}", e))?
+    // windsurfAuthStatus 使用旧版格式
+    let legacy = AuthStatus {
+        name: name.to_string(),
+        api_key: api_key.to_string(),
+        email: email.to_string(),
+        team_id: Uuid::new_v4().to_string(),
+        plan_name: "Pro".to_string(),
     };
+    let auth_status_json = serde_json::to_string(&legacy)
+        .map_err(|e| format!("Failed to serialize windsurfAuthStatus: {}", e))?;
 
     // 验证序列化结果
     if auth_status_json == "null" || auth_status_json.is_empty() {

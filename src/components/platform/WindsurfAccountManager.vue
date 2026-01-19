@@ -126,10 +126,12 @@
             :is-selected="selectedAccountIds.has(account.id)"
             :selection-mode="isSelectionMode"
             :show-real-email="showRealEmail"
+            :all-accounts="accounts"
             @switch="handleSwitch"
             @refresh="handleRefreshQuota"
             @delete="handleDelete"
             @select="toggleAccountSelection"
+            @account-updated="handleAccountUpdated"
           />
         </div>
 
@@ -669,6 +671,13 @@ const handleMarkAllForSync = () => {
     window.$notify?.success($t('platform.windsurf.allAccountsMarkedForSync', { count: accounts.value.length }))
   } else {
     window.$notify?.warning($t('platform.windsurf.messages.noSelection'))
+  }
+}
+
+// 账户更新处理
+const handleAccountUpdated = (updatedAccount) => {
+  if (updatedAccount && updatedAccount.id) {
+    markItemUpsert(updatedAccount)
   }
 }
 

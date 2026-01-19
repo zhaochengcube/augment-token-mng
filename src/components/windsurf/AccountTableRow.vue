@@ -29,8 +29,8 @@
           <span class="text-copyable__content">{{ showRealEmail ? account.email : maskedEmail }}</span>
           <span :class="planBadgeClasses">{{ planLabel }}</span>
         </div>
-        <div v-if="account.note" class="text-xs text-text-muted truncate max-w-[200px]" v-tooltip="account.note">
-          {{ account.note }}
+        <div v-if="account.tag" class="text-xs text-text-muted truncate max-w-[200px]" v-tooltip="account.tag">
+          {{ account.tag }}
         </div>
       </div>
     </td>

@@ -38,15 +38,14 @@ pub async fn create_tables(client: &Client) -> Result<(), Box<dyn std::error::Er
             user_id TEXT,
             api_key TEXT,
             api_server_url TEXT,
-            allowed_command_model_configs_proto_binary_base64 JSONB,
-            user_status_proto_binary_base64 TEXT,
             disabled BOOLEAN NOT NULL DEFAULT FALSE,
             disabled_reason TEXT,
             disabled_at BIGINT,
             created_at BIGINT NOT NULL,
             last_used BIGINT NOT NULL,
             quota JSONB,
-            note TEXT,
+            tag TEXT,
+            tag_color TEXT,
             updated_at BIGINT NOT NULL,
             deleted BOOLEAN NOT NULL DEFAULT FALSE,
             version BIGINT NOT NULL DEFAULT nextval('windsurf_account_version_seq')
@@ -63,15 +62,7 @@ pub async fn create_tables(client: &Client) -> Result<(), Box<dyn std::error::Er
     Ok(())
 }
 
-pub async fn ensure_columns(client: &Client) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    client.execute(
-        "ALTER TABLE windsurf_accounts ADD COLUMN IF NOT EXISTS allowed_command_model_configs_proto_binary_base64 JSONB",
-        &[],
-    ).await?;
-    client.execute(
-        "ALTER TABLE windsurf_accounts ADD COLUMN IF NOT EXISTS user_status_proto_binary_base64 TEXT",
-        &[],
-    ).await?;
+pub async fn add_new_fields_if_not_exist(client: &Client) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     Ok(())
 }
 

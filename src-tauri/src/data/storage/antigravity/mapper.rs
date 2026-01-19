@@ -29,20 +29,22 @@ impl AccountDbMapper<Account> for AntigravityAccountMapper {
                 session_id: row.get(9),
             },
             quota,
-            disabled: row.get(11),
-            disabled_reason: row.get(12),
-            disabled_at: row.get(13),
-            created_at: row.get(14),
-            last_used: row.get(15),
-            updated_at: row.get(16),
-            version: row.get(17),
+            tag: row.get(11),
+            tag_color: row.get(12),
+            disabled: row.get(13),
+            disabled_reason: row.get(14),
+            disabled_at: row.get(15),
+            created_at: row.get(16),
+            last_used: row.get(17),
+            updated_at: row.get(18),
+            version: row.get(19),
             deleted: false,
         })
     }
 
     fn select_columns() -> &'static str {
         "id, email, name, access_token, refresh_token, expires_in, expiry_timestamp, token_type, \
-         project_id, session_id, quota, disabled, disabled_reason, disabled_at, \
+         project_id, session_id, quota, tag, tag_color, disabled, disabled_reason, disabled_at, \
          created_at, last_used, updated_at, version"
     }
 
@@ -50,9 +52,9 @@ impl AccountDbMapper<Account> for AntigravityAccountMapper {
         r#"
         INSERT INTO antigravity_accounts 
             (id, email, name, access_token, refresh_token, expires_in, expiry_timestamp, token_type,
-             project_id, session_id, quota, disabled, disabled_reason, disabled_at,
+             project_id, session_id, quota, tag, tag_color, disabled, disabled_reason, disabled_at,
              created_at, last_used, updated_at, version, deleted)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
         ON CONFLICT (id) DO UPDATE SET
             email = EXCLUDED.email,
             name = EXCLUDED.name,
@@ -64,6 +66,8 @@ impl AccountDbMapper<Account> for AntigravityAccountMapper {
             project_id = EXCLUDED.project_id,
             session_id = EXCLUDED.session_id,
             quota = EXCLUDED.quota,
+            tag = EXCLUDED.tag,
+            tag_color = EXCLUDED.tag_color,
             disabled = EXCLUDED.disabled,
             disabled_reason = EXCLUDED.disabled_reason,
             disabled_at = EXCLUDED.disabled_at,
@@ -90,6 +94,8 @@ impl AccountDbMapper<Account> for AntigravityAccountMapper {
             Box::new(account.token.project_id.clone()),
             Box::new(account.token.session_id.clone()),
             Box::new(quota_json),
+            Box::new(account.tag.clone()),
+            Box::new(account.tag_color.clone()),
             Box::new(account.disabled),
             Box::new(account.disabled_reason.clone()),
             Box::new(account.disabled_at),
@@ -101,4 +107,3 @@ impl AccountDbMapper<Account> for AntigravityAccountMapper {
         ]
     }
 }
-

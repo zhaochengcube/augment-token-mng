@@ -78,7 +78,7 @@ pub async fn save_database_config(
                     windsurf::create_tables(&client).await
                         .map_err(|e| format!("Failed to create Windsurf tables: {}", e))?;
                 } else {
-                    windsurf::ensure_columns(&client).await
+                    windsurf::add_new_fields_if_not_exist(&client).await
                         .map_err(|e| format!("Failed to update Windsurf tables: {}", e))?;
                 }
             }

@@ -10,6 +10,10 @@ pub struct Account {
     pub name: Option<String>,
     pub token: TokenData,
     pub quota: Option<QuotaData>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tag: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tag_color: Option<String>,
     #[serde(default)]
     pub disabled: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -68,6 +72,8 @@ impl Account {
             name: None,
             token,
             quota: None,
+            tag: None,
+            tag_color: None,
             disabled: false,
             disabled_reason: None,
             disabled_at: None,
