@@ -7,10 +7,10 @@
     />
 
     <div class="absolute inset-0 flex items-center justify-between px-3 text-xs font-medium font-mono leading-none gap-2">
-      <span v-if="label" class="pl-1 text-text flex items-center min-w-0 flex-1 truncate leading-normal" v-tooltip="label">
+      <span v-if="label" class="pl-1 text-text flex items-center min-w-8 flex-1 truncate leading-normal" v-tooltip="tooltipLabel || label">
         {{ label }}
       </span>
-      <div class="flex items-center gap-2 pr-1 shrink-0">
+      <div class="flex items-center gap-2 pr-1 shrink min-w-0">
         <span v-if="refresh" class="text-text-muted flex items-center">R: {{ refresh }}</span>
         <span v-if="showPercent" class="font-semibold flex items-center" :class="percentClass">
           {{ percent }}%
@@ -41,6 +41,11 @@ const props = defineProps({
   },
   /** 左侧标签文字 */
   label: {
+    type: String,
+    default: ''
+  },
+  /** 标签悬浮提示文字，默认使用 label */
+  tooltipLabel: {
     type: String,
     default: ''
   },

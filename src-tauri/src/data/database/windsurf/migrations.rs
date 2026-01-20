@@ -62,7 +62,7 @@ pub async fn create_tables(client: &Client) -> Result<(), Box<dyn std::error::Er
     Ok(())
 }
 
-pub async fn add_new_fields_if_not_exist(client: &Client) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+pub async fn add_new_fields_if_not_exist(_client: &Client) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     Ok(())
 }
 

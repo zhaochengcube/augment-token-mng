@@ -117,13 +117,6 @@
             </svg>
             <span>{{ $t('accountCard.copyRefreshToken') }}</span>
           </button>
-          <button @click="handleCopyMenuClick('payment', close)" class="dropdown-item" :disabled="isFetchingPaymentLink">
-            <span v-if="isFetchingPaymentLink" class="btn-spinner btn-spinner--sm text-accent" aria-hidden="true"></span>
-            <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
-            </svg>
-            <span>{{ isFetchingPaymentLink ? $t('tokenCard.fetchingPaymentLink') : $t('accountCard.copyPaymentLink') }}</span>
-          </button>
         </template>
       </FloatingDropdown>
 
@@ -187,7 +180,6 @@ const emit = defineEmits(['switch', 'refresh', 'delete', 'select', 'account-upda
 
 // 复制菜单状态
 const copyMenuRef = ref(null)
-const isFetchingPaymentLink = ref(false)
 const showTagEditor = ref(false)
 
 const maskedEmail = computed(() => {
@@ -312,16 +304,11 @@ const formatDate = (timestamp) => {
 
 // 复制菜单操作
 const handleCopyMenuClick = async (type, close) => {
-  if (type !== 'payment') {
-    close?.()
-  }
+  close?.()
 
   switch (type) {
     case 'refreshToken':
       await copyRefreshToken()
-      break
-    case 'payment':
-      await copyPaymentLink(close)
       break
   }
 }
@@ -338,25 +325,6 @@ const copyRefreshToken = async () => {
   } catch (err) {
     console.error('Failed to copy refresh token:', err)
     window.$notify?.error($t('messages.copyFailed'))
-  }
-}
-
-const copyPaymentLink = async (close) => {
-  isFetchingPaymentLink.value = true
-  try {
-    const paymentLink = await invoke('windsurf_get_payment_link', { accountId: props.account.id })
-    if (paymentLink) {
-      await navigator.clipboard.writeText(paymentLink)
-      window.$notify?.success($t('messages.paymentLinkCopied'))
-    } else {
-      window.$notify?.error($t('messages.copyPaymentLinkFailed'))
-    }
-  } catch (err) {
-    console.error('Failed to get payment link:', err)
-    window.$notify?.error($t('messages.copyPaymentLinkFailed') + ': ' + err)
-  } finally {
-    isFetchingPaymentLink.value = false
-    close?.()
   }
 }
 

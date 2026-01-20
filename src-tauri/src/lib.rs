@@ -357,7 +357,6 @@ pub fn run() {
             windsurf::windsurf_switch_account,
             windsurf::windsurf_fetch_quota,
             windsurf::windsurf_fetch_all_quotas,
-            windsurf::windsurf_get_payment_link,
             windsurf::windsurf_get_custom_path,
             windsurf::windsurf_set_custom_path,
             windsurf::windsurf_validate_path,

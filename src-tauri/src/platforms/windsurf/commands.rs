@@ -310,25 +310,6 @@ pub async fn windsurf_fetch_all_quotas(
 }
 
 
-/// 获取支付绑卡链接
-#[tauri::command]
-pub async fn windsurf_get_payment_link(
-    app: AppHandle,
-    account_id: String,
-) -> Result<String, String> {
-    let mut acc = storage::load_account(&app, &account_id).await?;
-
-    // 确保 Token 有效
-    let token = auth::ensure_fresh_token(&acc.token).await?;
-    if token.access_token != acc.token.access_token {
-        acc.token = token.clone();
-        storage::save_account(&app, &acc).await?;
-    }
-
-    // 获取支付链接
-    api::get_payment_link(&acc.token.access_token).await
-}
-
 /// 获取自定义 Windsurf 路径
 #[tauri::command]
 pub async fn windsurf_get_custom_path(app: AppHandle) -> Result<Option<String>, String> {

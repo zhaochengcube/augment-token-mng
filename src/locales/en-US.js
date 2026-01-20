@@ -907,6 +907,7 @@ export default {
       },
       table: {
         info: 'Account',
+        tag: 'Tag',
         quota: 'Quota',
         expires: 'Expires',
         status: 'Status',

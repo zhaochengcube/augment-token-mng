@@ -72,15 +72,18 @@
     </div>
 
     <!-- Quota Display -->
-    <div v-if="account.quota && !account.quota.is_forbidden && filteredModels.length > 0" class="flex flex-col gap-3">
-      <div v-for="model in filteredModels" :key="model.name" class="flex w-full">
-        <QuotaBar
-          :label="formatModelName(model.name)"
-          :percent="model.percentage"
-          :refresh="formatResetCountdown(model.reset_time)"
-          :low-threshold="20"
-          :medium-threshold="50"
-        />
+    <div v-if="account.quota && !account.quota.is_forbidden && filteredModels.length > 0" class="flex flex-col gap-2">
+      <div v-for="(row, rowIndex) in quotaRows" :key="rowIndex" class="grid grid-cols-2 gap-2">
+        <div v-for="model in row" :key="model.name" class="flex w-full">
+          <QuotaBar
+            :label="formatModelNameShort(model.name)"
+            :tooltip-label="formatModelName(model.name)"
+            :percent="model.percentage"
+            :refresh="formatResetCountdown(model.reset_time)"
+            :low-threshold="20"
+            :medium-threshold="50"
+          />
+        </div>
       </div>
       <button
         class="self-end border-0 bg-transparent px-0 py-0.5 text-xs font-semibold text-accent cursor-pointer hover:text-accent/80 hover:underline transition-all"
@@ -229,7 +232,7 @@ const showTagEditor = ref(false)
 const maskedEmail = computed(() => {
   const email = props.account.email
   if (!email || !email.includes('@')) return email
-  return 'hello@augmentcode.com'
+  return 'hello@antigravity.com'
 })
 
 // 过滤并排序模型,只显示优先模型
@@ -238,13 +241,11 @@ const filteredModels = computed(() => {
 
   const priorityModels = [
     'claude-opus-4-5-thinking',
-    'claude-sonnet-4-5-thinking',
-    'claude-sonnet-4-5',
     'gemini-3-pro-high',
     'gemini-3-pro-image',
     'gemini-3-flash'
   ]
-  const maxDisplay = 6
+  const maxDisplay = 4
   const normalizedPriority = priorityModels.map((model) => model.toLowerCase())
 
   const prioritized = props.account.quota.models
@@ -261,6 +262,16 @@ const filteredModels = computed(() => {
     .sort((a, b) => a.name.localeCompare(b.name))
 
   return [...prioritized, ...fallback].slice(0, maxDisplay)
+})
+
+// 将模型分组为每行2个
+const quotaRows = computed(() => {
+  const rows = []
+  const models = filteredModels.value
+  for (let i = 0; i < models.length; i += 2) {
+    rows.push(models.slice(i, i + 2))
+  }
+  return rows
 })
 
 const isAvailable = computed(() => {
@@ -363,34 +374,27 @@ const copyEmail = async () => {
   }
 }
 
+// 模型名称完整显示 - 只处理4个优先模型
 const formatModelName = (name) => {
   const lowerName = name.toLowerCase()
 
-  // Claude 模型
   if (lowerName.includes('claude-opus-4-5-thinking')) return 'Claude Opus 4.5 Thinking'
-  if (lowerName.includes('claude-sonnet-4-5-thinking')) return 'Claude Sonnet 4.5 Thinking'
-  if (lowerName.includes('claude-sonnet-4-5')) return 'Claude Sonnet 4.5'
-  if (lowerName.includes('claude-opus')) return 'Claude Opus'
-  if (lowerName.includes('claude-sonnet')) return 'Claude Sonnet'
-  if (lowerName.includes('claude')) return 'Claude'
-
-  // Gemini 模型
-  if (lowerName.includes('gemini-2.5-pro')) return 'Gemini 2.5 Pro'
-  if (lowerName.includes('gemini-2.5-flash-thinking')) return 'Gemini 2.5 Flash Thinking'
-  if (lowerName.includes('gemini-2.5-flash-lite')) return 'Gemini 2.5 Flash Lite'
-  if (lowerName.includes('gemini-2.5-flash')) return 'Gemini 2.5 Flash'
   if (lowerName.includes('gemini-3-pro-high')) return 'Gemini 3 Pro (High)'
-  if (lowerName.includes('gemini-3-pro-low')) return 'Gemini 3 Pro (Low)'
   if (lowerName.includes('gemini-3-pro-image')) return 'Gemini 3 Pro (Image)'
   if (lowerName.includes('gemini-3-flash')) return 'Gemini 3 Flash'
-  if (lowerName.includes('gemini-3-pro')) return 'Gemini 3 Pro'
-  if (lowerName.includes('gemini')) return 'Gemini'
 
-  if (lowerName.includes('gpt-oss-120b-medium')) return 'GPT OSS 120B Medium'
-  if (lowerName.includes('rev19-uic3-1p')) return 'Rev19 UIC3 1P'
-  if (lowerName.startsWith('chat_')) return `Chat ${name.replace(/^chat_/, '')}`
+  return name
+}
 
-  // 返回原始名称
+// 模型名称简写 - 只处理4个优先模型
+const formatModelNameShort = (name) => {
+  const lowerName = name.toLowerCase()
+
+  if (lowerName.includes('claude-opus-4-5-thinking')) return 'C O4.5 T'
+  if (lowerName.includes('gemini-3-pro-high')) return 'G3 Pro'
+  if (lowerName.includes('gemini-3-pro-image')) return 'G3 Image'
+  if (lowerName.includes('gemini-3-flash')) return 'G3 Flash'
+
   return name
 }
 

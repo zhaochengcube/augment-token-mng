@@ -219,6 +219,7 @@ pub mod platform {
     }
     
     /// Windows DPAPI 加密
+    #[allow(dead_code)]
     fn dpapi_encrypt(data: &[u8]) -> Result<Vec<u8>, String> {
         use windows::Win32::Security::Cryptography::{
             CryptProtectData, CRYPT_INTEGER_BLOB, CRYPTPROTECT_UI_FORBIDDEN,

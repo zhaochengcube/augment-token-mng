@@ -153,8 +153,9 @@
                   </div>
                 </th>
                 <th class="th w-[100px] text-center">{{ $t('platform.windsurf.table.status') }}</th>
-                <th class="th w-[220px]">{{ $t('platform.windsurf.table.info') }}</th>
-                <th class="th">{{ $t('platform.windsurf.table.quota') }}</th>
+                <th class="th w-24">{{ $t('platform.windsurf.table.tag') }}</th>
+                <th class="th">{{ $t('platform.windsurf.table.info') }}</th>
+                <th class="th w-[85px] text-center">{{ $t('platform.windsurf.table.quota') }}</th>
                 <th class="th w-[100px]">{{ $t('platform.windsurf.table.expires') }}</th>
                 <th class="th w-[120px] text-center">{{ $t('platform.windsurf.table.actions') }}</th>
               </tr>
@@ -346,6 +347,17 @@
           <span>{{ showRealEmail ? $t('tokenList.hideRealEmail') : $t('tokenList.showRealEmail') }}</span>
         </button>
 
+        <button
+          class="btn btn--ghost btn--sm inline-flex items-center gap-2"
+          @click="openDataFolder"
+          v-tooltip="$t('common.openDataFolder')"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z" />
+          </svg>
+          <span>{{ $t('common.openDataFolder') }}</span>
+        </button>
+
         <!-- 自定义 Windsurf 路径按钮 -->
         <button
           class="btn btn--ghost btn--sm inline-flex items-center gap-2"
@@ -360,6 +372,59 @@
         </button>
       </div>
     </ActionToolbar>
+
+    <!-- 批量操作工具栏 -->
+    <BatchToolbar
+      :visible="isSelectionMode"
+      :selected-count="selectedAccountIds.size"
+      @select-all="selectAllOnPage"
+      @clear="clearSelection"
+    >
+      <template #actions>
+        <!-- 批量刷新 -->
+        <button
+          @click="batchRefreshSelected"
+          class="btn btn--icon btn--ghost"
+          :disabled="isBatchRefreshing"
+          v-tooltip="$t('platform.windsurf.batchRefresh')"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
+          </svg>
+        </button>
+
+        <!-- 批量编辑标签 -->
+        <button
+          @click="showBatchTagEditor = true"
+          class="btn btn--icon btn--ghost"
+          v-tooltip="$t('tokenList.batchEditTag')"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"/>
+          </svg>
+        </button>
+
+        <!-- 批量删除 -->
+        <button
+          @click="batchDeleteSelected"
+          class="btn btn--icon btn--ghost text-danger hover:bg-danger-muted"
+          v-tooltip="$t('common.batchDelete')"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+          </svg>
+        </button>
+      </template>
+    </BatchToolbar>
+
+    <!-- 批量编辑标签模态框 -->
+    <TagEditorModal
+      v-model:visible="showBatchTagEditor"
+      :tokens="selectedAccounts"
+      :all-tokens="allAccountsAsTokens"
+      @save="handleBatchTagSave"
+      @clear="handleBatchTagClear"
+    />
 
     <!-- 自定义路径对话框 -->
     <CustomPathDialog
@@ -408,9 +473,11 @@ import AccountTableRow from '../windsurf/AccountTableRow.vue'
 import AddAccountDialog from '../windsurf/AddAccountDialog.vue'
 import Pagination from '../common/Pagination.vue'
 import ActionToolbar from '../common/ActionToolbar.vue'
+import BatchToolbar from '../common/BatchToolbar.vue'
 import FixedPaginationLayout from '../common/FixedPaginationLayout.vue'
 import CustomPathDialog from '../common/CustomPathDialog.vue'
 import SyncQueueModal from '../common/SyncQueueModal.vue'
+import TagEditorModal from '../token/TagEditorModal.vue'
 import { useStorageSync } from '@/composables/useStorageSync'
 
 const { t: $t } = useI18n()
@@ -458,7 +525,11 @@ const {
   items: accounts,
   currentItemId: currentAccountId,
   itemKey: 'account',
-  labelField: 'email'
+  labelField: 'email',
+  onSyncComplete: async () => {
+    // 同步完成后重新从本地加载，确保数据一致性
+    await loadAccounts()
+  }
 })
 
 // 自定义路径相关状态
@@ -487,9 +558,30 @@ const pageSizeOptions = [10, 20, 50, 100, 200]
 
 // 批量操作
 const selectedAccountIds = ref(new Set())
+const isBatchRefreshing = ref(false)
+const showBatchTagEditor = ref(false)
 
 // 计算属性
 const isSelectionMode = computed(() => selectedAccountIds.value.size > 0)
+
+// 选中的账户列表（用于批量编辑标签）
+const selectedAccounts = computed(() => {
+  return accounts.value
+    .filter(a => selectedAccountIds.value.has(a.id))
+    .map(acc => ({
+      id: acc.id,
+      tag_name: acc.tag || '',
+      tag_color: acc.tag_color || ''
+    }))
+})
+
+// 所有账户转换为 TagEditorModal 需要的格式
+const allAccountsAsTokens = computed(() =>
+  accounts.value.map(acc => ({
+    tag_name: acc.tag || '',
+    tag_color: acc.tag_color || ''
+  }))
+)
 
 const statusStatistics = computed(() => {
   const stats = { total: accounts.value.length, available: 0, low: 0, expired: 0 }
@@ -689,6 +781,14 @@ const setToolbarMode = (mode) => {
   }
 }
 
+const openDataFolder = async () => {
+  try {
+    await invoke('open_data_folder')
+  } catch (error) {
+    console.error('Failed to open data folder:', error)
+  }
+}
+
 const selectStatusFilter = (filter) => {
   selectedStatusFilter.value = filter
   currentPage.value = 1
@@ -735,6 +835,109 @@ const toggleSelectAll = () => {
     currentIds.forEach(id => newSet.add(id))
   }
   selectedAccountIds.value = newSet
+}
+
+const selectAllOnPage = () => {
+  const newSet = new Set(selectedAccountIds.value)
+  paginatedAccounts.value.forEach(a => newSet.add(a.id))
+  selectedAccountIds.value = newSet
+}
+
+const clearSelection = () => {
+  selectedAccountIds.value = new Set()
+}
+
+// 批量刷新选中账户
+const batchRefreshSelected = async () => {
+  if (selectedAccountIds.value.size === 0 || isBatchRefreshing.value) return
+
+  isBatchRefreshing.value = true
+  try {
+    for (const accountId of selectedAccountIds.value) {
+      await handleRefreshQuota(accountId)
+    }
+  } finally {
+    isBatchRefreshing.value = false
+  }
+}
+
+// 批量删除选中账户
+const batchDeleteSelected = async () => {
+  if (selectedAccountIds.value.size === 0) return
+
+  try {
+    for (const accountId of selectedAccountIds.value) {
+      const account = accounts.value.find(a => a.id === accountId)
+      await invoke('windsurf_delete_account', { accountId })
+      if (account) {
+        markItemDeletion(account)
+      }
+    }
+    selectedAccountIds.value = new Set()
+    await loadAccounts()
+    window.$notify?.success($t('platform.windsurf.messages.deleteSuccess'))
+  } catch (error) {
+    console.error('Failed to batch delete accounts:', error)
+    window.$notify?.error(error?.message || error)
+  }
+}
+
+// 批量编辑标签 - 保存
+const handleBatchTagSave = async ({ tagName, tagColor }) => {
+  if (selectedAccountIds.value.size === 0) return
+
+  const selectedIds = Array.from(selectedAccountIds.value)
+  let updatedCount = 0
+
+  for (const accountId of selectedIds) {
+    const account = accounts.value.find(a => a.id === accountId)
+    if (account) {
+      account.tag = tagName
+      account.tag_color = tagColor
+      account.updated_at = Math.floor(Date.now() / 1000)
+      updatedCount++
+      markItemUpsert(account)
+    }
+  }
+
+  // 保存更改到本地
+  try {
+    await invoke('windsurf_save_accounts', { accounts: accounts.value })
+  } catch (error) {
+    console.error('Failed to save accounts:', error)
+  }
+
+  clearSelection()
+  window.$notify?.success($t('tokenList.batchTagUpdated', { count: updatedCount }))
+}
+
+// 批量编辑标签 - 清除
+const handleBatchTagClear = async () => {
+  if (selectedAccountIds.value.size === 0) return
+
+  const selectedIds = Array.from(selectedAccountIds.value)
+  let clearedCount = 0
+
+  for (const accountId of selectedIds) {
+    const account = accounts.value.find(a => a.id === accountId)
+    if (account) {
+      account.tag = ''
+      account.tag_color = ''
+      account.updated_at = Math.floor(Date.now() / 1000)
+      clearedCount++
+      markItemUpsert(account)
+    }
+  }
+
+  // 保存更改到本地
+  try {
+    await invoke('windsurf_save_accounts', { accounts: accounts.value })
+  } catch (error) {
+    console.error('Failed to save accounts:', error)
+  }
+
+  clearSelection()
+  window.$notify?.success($t('tokenList.batchTagCleared', { count: clearedCount }))
 }
 
 watch([searchQuery, selectedStatusFilter], () => {

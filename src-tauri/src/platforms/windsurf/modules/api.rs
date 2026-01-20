@@ -1,5 +1,5 @@
 //! Windsurf API 模块
-//! 实现配额查询、获取 API Key、支付链接等功能
+//! 实现配额查询、获取 API Key 等功能
 
 use crate::http_client::create_proxy_client;
 use serde::{Deserialize, Serialize};
@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 // Windsurf API 端点
 const WINDSURF_REGISTER_API: &str = "https://register.windsurf.com/exa.seat_management_pb.SeatManagementService/RegisterUser";
 const WINDSURF_PLAN_STATUS_API: &str = "https://web-backend.windsurf.com/exa.seat_management_pb.SeatManagementService/GetPlanStatus";
-const WINDSURF_PAYMENT_LINK_API: &str = "https://web-backend.windsurf.com/exa.billing_pb.BillingService/GetStripeCheckoutLink";
 
 /// RegisterUser API 响应
 #[derive(Debug, Deserialize)]
@@ -51,13 +50,6 @@ pub struct QuotaResult {
     pub usage_percentage: i64,
     pub expires_at: Option<String>,
     pub plan_start: Option<String>,
-}
-
-/// 支付链接响应
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PaymentLinkResponse {
-    pub checkout_url: Option<String>,
 }
 
 /// 使用 Firebase ID Token 获取 Windsurf API Key
@@ -143,37 +135,6 @@ pub async fn get_plan_status(access_token: &str) -> Result<QuotaResult, String> 
         expires_at: plan_status.plan_end,
         plan_start: plan_status.plan_start,
     })
-}
-
-/// 获取支付绑卡链接 (用于升级 Pro)
-pub async fn get_payment_link(access_token: &str) -> Result<String, String> {
-    let client = create_proxy_client()?;
-
-    let body = serde_json::json!({
-        "auth_token": access_token
-    });
-
-    let response = client
-        .post(WINDSURF_PAYMENT_LINK_API)
-        .header("Content-Type", "application/json")
-        .header("X-Auth-Token", access_token)
-        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| format!("GetPaymentLink request failed: {}", e))?;
-
-    if !response.status().is_success() {
-        let status = response.status();
-        let error_text = response.text().await.unwrap_or_default();
-        return Err(format!("GetPaymentLink failed ({}): {}", status, error_text));
-    }
-
-    let resp: PaymentLinkResponse = response.json().await
-        .map_err(|e| format!("Failed to parse PaymentLink response: {}", e))?;
-
-    resp.checkout_url
-        .ok_or_else(|| "No checkout URL in response".to_string())
 }
 
 impl Default for PlanStatus {

@@ -69,6 +69,7 @@ pub fn is_antigravity_running() -> bool {
 }
 
 /// 温和关闭 Antigravity（优先主进程）
+#[allow(unused_variables)]
 pub fn close_antigravity(timeout_secs: u64) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {

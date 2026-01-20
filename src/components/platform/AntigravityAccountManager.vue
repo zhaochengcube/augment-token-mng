@@ -144,7 +144,7 @@
             <thead>
               <tr>
                 <th class="th w-11 text-center">
-                  <div class="inline-flex cursor-pointer" @click="toggleSelectAll">
+                  <div class="inline-flex items-center justify-center h-5 cursor-pointer" @click="toggleSelectAll">
                     <div class="checkbox-inner" :class="{ 'checked': isAllSelected || isPartialSelected }">
                       <svg v-if="isAllSelected" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
@@ -371,17 +371,6 @@
           <span>{{ $t('common.openDataFolder') }}</span>
         </button>
 
-        <button
-          class="btn btn--ghost btn--sm inline-flex items-center gap-2"
-          @click="handleBatchDelete"
-          v-tooltip="$t('common.batchDelete')"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
-          </svg>
-          <span>{{ $t('common.batchDelete') }}</span>
-        </button>
-
         <!-- 自定义 Antigravity 路径按钮 -->
         <button
           class="btn btn--ghost btn--sm inline-flex items-center gap-2"
@@ -417,6 +406,17 @@
           </svg>
         </button>
 
+        <!-- 批量编辑标签 -->
+        <button
+          @click="showBatchTagEditor = true"
+          class="btn btn--icon btn--ghost"
+          v-tooltip="$t('tokenList.batchEditTag')"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"/>
+          </svg>
+        </button>
+
         <!-- 批量删除 -->
         <button
           @click="showBatchDeleteSelectedConfirm"
@@ -429,6 +429,15 @@
         </button>
       </template>
     </BatchToolbar>
+
+    <!-- 批量编辑标签模态框 -->
+    <TagEditorModal
+      v-model:visible="showBatchTagEditor"
+      :tokens="selectedAccounts"
+      :all-tokens="allAccountsAsTokens"
+      @save="handleBatchTagSave"
+      @clear="handleBatchTagClear"
+    />
 
     <!-- Add Account Dialog -->
     <AddAccountDialog v-if="showAddDialog" @close="showAddDialog = false" @add="handleAddAccount" @added="handleAccountAdded" />
@@ -488,6 +497,7 @@ import BatchToolbar from '../common/BatchToolbar.vue'
 import ActionToolbar from '../common/ActionToolbar.vue'
 import FixedPaginationLayout from '../common/FixedPaginationLayout.vue'
 import CustomPathDialog from '../common/CustomPathDialog.vue'
+import TagEditorModal from '../token/TagEditorModal.vue'
 import { useStorageSync } from '@/composables/useStorageSync'
 
 const { t: $t } = useI18n()
@@ -538,7 +548,11 @@ const {
   items: accounts,
   currentItemId: currentAccountId,
   itemKey: 'account',
-  labelField: 'email'
+  labelField: 'email',
+  onSyncComplete: async () => {
+    // 同步完成后重新从本地加载，确保数据一致性
+    await loadAccounts()
+  }
 })
 
 // 自定义路径相关状态
@@ -571,9 +585,29 @@ const pageSizeOptions = [10, 20, 50, 100, 200]
 // 批量操作
 const selectedAccountIds = ref(new Set())
 const isBatchRefreshing = ref(false)
+const showBatchTagEditor = ref(false)
 
 // 计算属性
 const isSelectionMode = computed(() => selectedAccountIds.value.size > 0)
+
+// 选中的账户列表（用于批量编辑标签）
+const selectedAccounts = computed(() => {
+  return accounts.value
+    .filter(a => selectedAccountIds.value.has(a.id))
+    .map(acc => ({
+      id: acc.id,
+      tag_name: acc.tag || '',
+      tag_color: acc.tag_color || ''
+    }))
+})
+
+// 所有账户转换为 TagEditorModal 需要的格式
+const allAccountsAsTokens = computed(() =>
+  accounts.value.map(acc => ({
+    tag_name: acc.tag || '',
+    tag_color: acc.tag_color || ''
+  }))
+)
 
 const statusStatistics = computed(() => {
   const stats = {
@@ -948,17 +982,67 @@ const handleBatchDeleteSelected = async () => {
   }
 }
 
-const handleBatchDelete = () => {
-  if (selectedAccountIds.value.size === 0) {
-    alert($t('platform.antigravity.messages.noSelection'))
-    return
-  }
-  showBatchDeleteSelectedConfirm()
-}
-
 const handleMarkAllForSync = () => {
   markAllForSync()
   window.$notify.success($t('platform.antigravity.allAccountsMarkedForSync', { count: accounts.value.length }))
+}
+
+// 批量编辑标签 - 保存
+const handleBatchTagSave = async ({ tagName, tagColor }) => {
+  if (selectedAccountIds.value.size === 0) return
+
+  const selectedIds = Array.from(selectedAccountIds.value)
+  let updatedCount = 0
+
+  for (const accountId of selectedIds) {
+    const account = accounts.value.find(a => a.id === accountId)
+    if (account) {
+      account.tag = tagName
+      account.tag_color = tagColor
+      account.updated_at = Math.floor(Date.now() / 1000)
+      updatedCount++
+      markItemUpsert(account)
+    }
+  }
+
+  // 保存更改到本地
+  try {
+    await invoke('antigravity_save_accounts', { accounts: accounts.value })
+  } catch (error) {
+    console.error('Failed to save accounts:', error)
+  }
+
+  clearSelection()
+  window.$notify?.success($t('tokenList.batchTagUpdated', { count: updatedCount }))
+}
+
+// 批量编辑标签 - 清除
+const handleBatchTagClear = async () => {
+  if (selectedAccountIds.value.size === 0) return
+
+  const selectedIds = Array.from(selectedAccountIds.value)
+  let clearedCount = 0
+
+  for (const accountId of selectedIds) {
+    const account = accounts.value.find(a => a.id === accountId)
+    if (account) {
+      account.tag = ''
+      account.tag_color = ''
+      account.updated_at = Math.floor(Date.now() / 1000)
+      clearedCount++
+      markItemUpsert(account)
+    }
+  }
+
+  // 保存更改到本地
+  try {
+    await invoke('antigravity_save_accounts', { accounts: accounts.value })
+  } catch (error) {
+    console.error('Failed to save accounts:', error)
+  }
+
+  clearSelection()
+  window.$notify?.success($t('tokenList.batchTagCleared', { count: clearedCount }))
 }
 
 // 账户更新处理

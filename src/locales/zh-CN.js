@@ -913,6 +913,7 @@ export default {
       },
       table: {
         info: '账号信息',
+        tag: '标签',
         quota: '配额',
         expires: '到期时间',
         status: '状态',
