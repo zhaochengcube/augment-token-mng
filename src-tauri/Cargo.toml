@@ -1,6 +1,6 @@
 [package]
 name = "atm"
-version = "1.6.3"
+version = "1.7.0"
 description = "Augment Token Manager - 用于生成和管理 Augment OAuth 访问令牌的桌面应用"
 authors = ["cubezhao"]
 license = "MIT"
