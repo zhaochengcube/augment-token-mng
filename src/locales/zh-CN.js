@@ -13,6 +13,10 @@ export default {
     search: '搜索',
     sort: '排序',
     sortByTime: '按时间排序',
+    sortDirection: '排序方向',
+    sortBy: '排序字段',
+    ascending: '升序',
+    descending: '降序',
     filter: '筛选',
     today: '今天',
     yesterday: '昨天',
@@ -32,6 +36,9 @@ export default {
     add: '添加',
     edit: '编辑',
     save: '保存',
+    copy: '点击复制',
+    copySuccess: '复制成功',
+    copyFailed: '复制失败',
     actions: '操作'
   },
   app: {
@@ -1255,6 +1262,15 @@ export default {
       tagColor: '标签颜色',
       notes: '备注'
     },
+    filters: {
+      all: '全部',
+      expiry: '到期时间',
+      expired: '已到期',
+      within7Days: '7天内',
+      within30Days: '30天内',
+      after30Days: '大于30天',
+      tag: '标签'
+    },
     placeholders: {
       website: '例如: Netflix, Spotify',
       websiteUrl: '例如: https://www.netflix.com',
@@ -1275,6 +1291,8 @@ export default {
       deleteSuccess: '订阅删除成功',
       saveFailed: '保存订阅失败',
       deleteFailed: '删除订阅失败'
-    }
+    },
+    sortByCreated: '按创建时间',
+    sortByExpiry: '按到期时间'
   }
 }

@@ -31,6 +31,17 @@
                   <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5z" />
                 </svg>
               </button>
+              <button class="btn btn--icon btn--ghost" @click="setToolbarMode('filter')" v-tooltip="$t('common.filter')">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/>
+                </svg>
+              </button>
+              <button class="btn btn--icon btn--ghost" @click="setToolbarMode('sort')" v-tooltip="$t('common.sort')">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <path d="M7 16V6M4 9l3-3 3 3" />
+                  <path d="M17 8v10M14 15l3 3 3-3" />
+                </svg>
+              </button>
               <button
                 class="btn btn--icon btn--ghost"
                 @click="toggleViewMode"
@@ -118,9 +129,10 @@
             <thead>
               <tr>
                 <th class="th">{{ $t('subscriptions.fields.website') }}</th>
-                <th class="th">{{ $t('subscriptions.fields.email') }}</th>
+                <th class="th w-[200px]">{{ $t('subscriptions.fields.websiteUrl') }}</th>
                 <th class="th w-[120px]">{{ $t('subscriptions.fields.expiryDate') }}</th>
                 <th class="th w-[100px]">{{ $t('subscriptions.fields.cost') }}</th>
+                <th class="th w-[220px]">{{ $t('subscriptions.fields.notes') }}</th>
                 <th class="th w-[120px]">{{ $t('subscriptions.fields.tag') }}</th>
                 <th class="th w-[100px] text-center">{{ $t('common.actions') }}</th>
               </tr>
@@ -142,7 +154,8 @@
         <Pagination
           v-model:current-page="currentPage"
           v-model:page-size="pageSize"
-          :total="filteredSubscriptions.length"
+          :total-pages="totalPages"
+          :total-items="filteredSubscriptions.length"
           :page-size-options="[10, 20, 50, 100]"
         />
       </template>
@@ -170,6 +183,137 @@
             <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
           </svg>
         </button>
+      </div>
+    </ActionToolbar>
+
+    <!-- Filter Toolbar -->
+    <ActionToolbar
+      :visible="toolbarMode === 'filter'"
+      :title="$t('common.filter')"
+      max-width="720px"
+      @close="setToolbarMode('hidden')">
+      <div class="flex flex-col gap-4">
+        <!-- Expiry Filter -->
+        <div class="flex flex-col gap-2">
+          <span class="label">{{ $t('subscriptions.filters.expiry') }}</span>
+          <div class="flex flex-wrap gap-2">
+            <button
+              :class="['btn btn--sm', selectedExpiryFilter === 'all' ? 'btn--primary' : 'btn--secondary']"
+              @click="setExpiryFilter('all')"
+            >
+              {{ $t('subscriptions.filters.all') }}
+            </button>
+            <button
+              :class="['btn btn--sm', selectedExpiryFilter === 'expired' ? 'btn--primary' : 'btn--secondary']"
+              @click="setExpiryFilter('expired')"
+            >
+              {{ $t('subscriptions.filters.expired') }}
+            </button>
+            <button
+              :class="['btn btn--sm', selectedExpiryFilter === '7d' ? 'btn--primary' : 'btn--secondary']"
+              @click="setExpiryFilter('7d')"
+            >
+              {{ $t('subscriptions.filters.within7Days') }}
+            </button>
+            <button
+              :class="['btn btn--sm', selectedExpiryFilter === '30d' ? 'btn--primary' : 'btn--secondary']"
+              @click="setExpiryFilter('30d')"
+            >
+              {{ $t('subscriptions.filters.within30Days') }}
+            </button>
+            <button
+              :class="['btn btn--sm', selectedExpiryFilter === 'gt30' ? 'btn--primary' : 'btn--secondary']"
+              @click="setExpiryFilter('gt30')"
+            >
+              {{ $t('subscriptions.filters.after30Days') }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Tag Filter -->
+        <div class="flex flex-col gap-2">
+          <span class="label">{{ $t('subscriptions.filters.tag') }}</span>
+          <div class="flex flex-wrap gap-2">
+            <button
+              :class="['btn btn--sm', selectedTagFilter === null ? 'btn--primary' : 'btn--secondary']"
+              @click="selectedTagFilter = null"
+            >
+              {{ $t('subscriptions.filters.all') }}
+            </button>
+            <button
+              v-for="tag in tagOptions"
+              :key="tag.name"
+              :class="['btn btn--sm', selectedTagFilter === tag.name ? 'btn--primary' : 'btn--secondary']"
+              @click="selectedTagFilter = tag.name"
+            >
+              {{ tag.name }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </ActionToolbar>
+
+    <!-- Sort Toolbar -->
+    <ActionToolbar
+      :visible="toolbarMode === 'sort'"
+      :title="$t('common.sort')"
+      @close="setToolbarMode('hidden')">
+      <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <!-- 排序方向 -->
+        <div class="flex items-center gap-3">
+          <span class="label">{{ $t('common.sortDirection') }}</span>
+          <div class="flex items-center gap-2 flex-wrap">
+            <button
+              :class="[
+                'btn btn--sm',
+                sortOrder === 'asc' ? 'btn--primary' : 'btn--secondary'
+              ]"
+              @click="setSortType(sortType, 'asc')"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M8 14l4-4 4 4H8z" />
+              </svg>
+              <span class="ml-1">{{ $t('common.ascending') }}</span>
+            </button>
+            <button
+              :class="[
+                'btn btn--sm',
+                sortOrder === 'desc' ? 'btn--primary' : 'btn--secondary'
+              ]"
+              @click="setSortType(sortType, 'desc')"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M16 10l-4 4-4-4h8z" />
+              </svg>
+              <span class="ml-1">{{ $t('common.descending') }}</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 排序字段 -->
+        <div class="flex items-center gap-3">
+          <span class="label">{{ $t('common.sortBy') }}</span>
+          <div class="flex items-center gap-2 flex-wrap">
+            <button
+              :class="[
+                'btn btn--sm',
+                sortType === 'created' ? 'btn--primary' : 'btn--secondary'
+              ]"
+              @click="setSortType('created', sortOrder)"
+            >
+              {{ $t('subscriptions.sortByCreated') }}
+            </button>
+            <button
+              :class="[
+                'btn btn--sm',
+                sortType === 'expiry' ? 'btn--primary' : 'btn--secondary'
+              ]"
+              @click="setSortType('expiry', sortOrder)"
+            >
+              {{ $t('subscriptions.sortByExpiry') }}
+            </button>
+          </div>
+        </div>
       </div>
     </ActionToolbar>
 
@@ -204,7 +348,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick, inject } from 'vue'
+import { ref, computed, onMounted, nextTick, toRefs } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { invoke } from '@tauri-apps/api/core'
 import { useStorageSync } from '@/composables/useStorageSync'
@@ -218,8 +362,14 @@ import SubscriptionDialog from '../subscription/SubscriptionDialog.vue'
 
 const { t: $t } = useI18n()
 
-// 侧边栏状态
-const isSidebarCollapsed = inject('isSidebarCollapsed', ref(false))
+const props = defineProps({
+  isSidebarCollapsed: {
+    type: Boolean,
+    default: false
+  }
+})
+
+const { isSidebarCollapsed } = toRefs(props)
 
 // 本地存储键（用于视图模式）
 const VIEW_MODE_KEY = 'atm-subscriptions-view-mode'
@@ -234,6 +384,12 @@ const viewMode = ref('card')
 const searchQuery = ref('')
 const toolbarMode = ref('hidden')
 const searchInputRef = ref(null)
+const selectedExpiryFilter = ref('all')
+const selectedTagFilter = ref(null)
+
+// 排序状态
+const sortType = ref('created')
+const sortOrder = ref('desc')
 
 // 分页状态
 const currentPage = ref(1)
@@ -276,15 +432,69 @@ const handleMarkAllForSync = () => {
   markAllForSync()
 }
 
-// 计算属性：过滤后的订阅列表
+// 计算属性：过滤并排序后的订阅列表
 const filteredSubscriptions = computed(() => {
-  if (!searchQuery.value.trim()) return subscriptions.value
-  const query = searchQuery.value.toLowerCase()
-  return subscriptions.value.filter(sub =>
-    sub.website?.toLowerCase().includes(query) ||
-    sub.website_url?.toLowerCase().includes(query) ||
-    sub.tag?.toLowerCase().includes(query)
-  )
+  let result = subscriptions.value
+
+  // 搜索过滤
+  if (searchQuery.value.trim()) {
+    const query = searchQuery.value.toLowerCase()
+    result = result.filter(sub =>
+      sub.website?.toLowerCase().includes(query) ||
+      sub.website_url?.toLowerCase().includes(query) ||
+      sub.tag?.toLowerCase().includes(query)
+    )
+  }
+
+  // 过滤：到期时间
+  if (selectedExpiryFilter.value !== 'all') {
+    result = result.filter((sub) => {
+      if (!sub.expiry_date) return false
+      const expiryTime = new Date(sub.expiry_date).getTime()
+      const daysLeft = Math.ceil((expiryTime - Date.now()) / (1000 * 60 * 60 * 24))
+      if (selectedExpiryFilter.value === 'expired') return daysLeft < 0
+      if (selectedExpiryFilter.value === '7d') return daysLeft >= 0 && daysLeft <= 7
+      if (selectedExpiryFilter.value === '30d') return daysLeft >= 0 && daysLeft <= 30
+      if (selectedExpiryFilter.value === 'gt30') return daysLeft > 30
+      return true
+    })
+  }
+
+  // 过滤：标签
+  if (selectedTagFilter.value) {
+    result = result.filter(sub => sub.tag === selectedTagFilter.value)
+  }
+
+  // 排序
+  result = [...result].sort((a, b) => {
+    if (sortType.value === 'created') {
+      const timeA = a.created_at || 0
+      const timeB = b.created_at || 0
+      return sortOrder.value === 'desc' ? timeB - timeA : timeA - timeB
+    } else if (sortType.value === 'expiry') {
+      // 将日期字符串转为时间戳进行比较，无日期的放到最后
+      const getExpiryTime = (sub) => {
+        if (!sub.expiry_date) return sortOrder.value === 'desc' ? -Infinity : Infinity
+        return new Date(sub.expiry_date).getTime()
+      }
+      const timeA = getExpiryTime(a)
+      const timeB = getExpiryTime(b)
+      return sortOrder.value === 'desc' ? timeB - timeA : timeA - timeB
+    }
+    return 0
+  })
+
+  return result
+})
+
+const tagOptions = computed(() => {
+  const tagMap = new Map()
+  subscriptions.value.forEach((sub) => {
+    if (sub.tag && !tagMap.has(sub.tag)) {
+      tagMap.set(sub.tag, { name: sub.tag })
+    }
+  })
+  return Array.from(tagMap.values()).sort((a, b) => a.name.localeCompare(b.name))
 })
 
 // 分页后的订阅列表
@@ -295,7 +505,9 @@ const paginatedSubscriptions = computed(() => {
 })
 
 // 是否显示分页
-const shouldShowPagination = computed(() => filteredSubscriptions.value.length > pageSize.value)
+const totalPages = computed(() => Math.ceil(filteredSubscriptions.value.length / pageSize.value))
+
+const shouldShowPagination = computed(() => !isLoading.value && filteredSubscriptions.value.length > 0)
 
 // 空状态判断
 const showEmptyState = computed(() => filteredSubscriptions.value.length === 0)
@@ -308,10 +520,20 @@ const setToolbarMode = (mode) => {
   }
 }
 
+const setExpiryFilter = (value) => {
+  selectedExpiryFilter.value = value
+}
+
 // 视图模式切换
 const toggleViewMode = () => {
   viewMode.value = viewMode.value === 'card' ? 'table' : 'card'
   saveViewMode()
+}
+
+// 排序设置
+const setSortType = (type, order) => {
+  sortType.value = type
+  sortOrder.value = order
 }
 
 // 加载订阅数据
@@ -453,4 +675,3 @@ onMounted(async () => {
   await loadSubscriptions()
 })
 </script>
-

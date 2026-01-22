@@ -42,12 +42,31 @@
               @click="navigateToView('platforms')"
               v-tooltip="$t('platforms.title')"
             >
-              <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>
+              <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+                <path d="M12 3l2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3z"/>
               </svg>
               <span v-if="!isSidebarCollapsed" class="flex-1 min-w-0 truncate">{{ $t('platforms.title') }}</span>
             </button>
+            
+            <!-- Subscriptions Button -->
+            <button
+              :class="[
+                'btn btn--ghost btn--lg min-w-0 w-full',
+                isSidebarCollapsed ? 'justify-center px-2 py-2.5' : 'justify-start px-3 py-2.5',
+                activeView === 'subscriptions'
+                  ? 'text-accent'
+                  : '',
+              ]"
+              @click="navigateToView('subscriptions')"
+              v-tooltip="$t('subscriptions.title')"
+            >
+              <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+                <path d="M12 3l7 7-7 11-7-11 7-7z"/>
+              </svg>
+              <span v-if="!isSidebarCollapsed" class="flex-1 min-w-0 truncate">{{ $t('subscriptions.title') }}</span>
+            </button>
 
+            <!-- 
             <button
               :class="[
                 'btn btn--ghost btn--lg min-w-0 w-full',
@@ -81,24 +100,7 @@
               </svg>
               <span v-if="!isSidebarCollapsed" class="flex-1 min-w-0 truncate">{{ $t('emails.title') }}</span>
             </button>
-
-            <!-- Subscriptions Button -->
-            <button
-              :class="[
-                'btn btn--ghost btn--lg min-w-0 w-full',
-                isSidebarCollapsed ? 'justify-center px-2 py-2.5' : 'justify-start px-3 py-2.5',
-                activeView === 'subscriptions'
-                  ? 'text-accent'
-                  : '',
-              ]"
-              @click="navigateToView('subscriptions')"
-              v-tooltip="$t('subscriptions.title')"
-            >
-              <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
-              </svg>
-              <span v-if="!isSidebarCollapsed" class="flex-1 min-w-0 truncate">{{ $t('subscriptions.title') }}</span>
-            </button>
+            -->
 
           </nav>
 
@@ -201,7 +203,11 @@
         <EmailPage v-if="activeView === 'emails'" :key="'emails-' + viewRefreshKey" />
 
         <!-- Subscriptions View -->
-        <SubscriptionPage v-if="activeView === 'subscriptions'" :key="'subscriptions-' + viewRefreshKey" />
+        <SubscriptionPage
+          v-if="activeView === 'subscriptions'"
+          :key="'subscriptions-' + viewRefreshKey"
+          :is-sidebar-collapsed="isSidebarCollapsed"
+        />
 
         <!-- Settings View -->
         <SettingsPage v-if="activeView === 'settings'" :key="'settings-' + viewRefreshKey" />

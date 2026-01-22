@@ -13,6 +13,10 @@ export default {
     search: 'Search',
     sort: 'Sort',
     sortByTime: 'Sort by Time',
+    sortDirection: 'Direction',
+    sortBy: 'Sort By',
+    ascending: 'Ascending',
+    descending: 'Descending',
     filter: 'Filter',
     today: 'Today',
     yesterday: 'Yesterday',
@@ -32,6 +36,9 @@ export default {
     add: 'Add',
     edit: 'Edit',
     save: 'Save',
+    copy: 'Click to copy',
+    copySuccess: 'Copied successfully',
+    copyFailed: 'Failed to copy',
     actions: 'Actions'
   },
   app: {
@@ -1256,6 +1263,15 @@ export default {
       tagColor: 'Tag Color',
       notes: 'Notes'
     },
+    filters: {
+      all: 'All',
+      expiry: 'Expiry',
+      expired: 'Expired',
+      within7Days: 'Within 7 days',
+      within30Days: 'Within 30 days',
+      after30Days: 'After 30 days',
+      tag: 'Tag'
+    },
     placeholders: {
       website: 'e.g. Netflix, Spotify',
       websiteUrl: 'e.g. https://www.netflix.com',
@@ -1275,6 +1291,8 @@ export default {
       deleteSuccess: 'Subscription deleted successfully',
       saveFailed: 'Failed to save subscription',
       deleteFailed: 'Failed to delete subscription'
-    }
+    },
+    sortByCreated: 'By Created',
+    sortByExpiry: 'By Expiry'
   }
 }

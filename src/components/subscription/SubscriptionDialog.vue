@@ -197,6 +197,21 @@ const emit = defineEmits(['save', 'close'])
 
 const isEditing = computed(() => !!props.subscription)
 
+// 格式化日期为 YYYY-MM-DD 格式（用于 date input）
+const formatDateForInput = (dateStr) => {
+  if (!dateStr) return ''
+  try {
+    const date = new Date(dateStr)
+    if (isNaN(date.getTime())) return ''
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  } catch {
+    return ''
+  }
+}
+
 // 表单数据
 const formData = ref({
   website: '',
@@ -290,9 +305,9 @@ onMounted(() => {
     formData.value = {
       website: props.subscription.website || '',
       website_url: props.subscription.website_url || '',
-      start_date: props.subscription.start_date || '',
+      start_date: formatDateForInput(props.subscription.start_date),
       duration_months: props.subscription.duration_months || null,
-      expiry_date: props.subscription.expiry_date || '',
+      expiry_date: formatDateForInput(props.subscription.expiry_date),
       cost: props.subscription.cost || null,
       tag: props.subscription.tag || '',
       tag_color: props.subscription.tag_color || '#3b82f6',
@@ -319,4 +334,3 @@ onMounted(() => {
   }
 }
 </style>
-

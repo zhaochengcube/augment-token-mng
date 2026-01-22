@@ -32,7 +32,7 @@
         @click.stop
       >
         <!-- 工具栏内容 -->
-        <div class="px-6 py-4 max-h-[calc(100vh-200px)] overflow-y-auto">
+        <div class="px-6 py-4 max-h-[calc(100vh-200px)] overflow-y-auto" @click="handleContentClick">
           <!-- 内容插槽 -->
           <slot></slot>
         </div>
@@ -64,6 +64,10 @@ const props = defineProps({
   maxWidth: {
     type: String,
     default: '600px'
+  },
+  autoCloseOnAction: {
+    type: Boolean,
+    default: true
   }
 })
 
@@ -71,6 +75,17 @@ const emit = defineEmits(['close', 'open'])
 
 const handleClose = () => {
   emit('close')
+}
+
+const handleContentClick = (event) => {
+  if (!props.autoCloseOnAction) return
+  const target = event.target
+  if (!(target instanceof Element)) return
+  if (target.closest('[data-toolbar-keep-open]')) return
+  const actionTarget = target.closest('button, [role="button"], [data-toolbar-action]')
+  if (actionTarget) {
+    handleClose()
+  }
 }
 
 // ESC 键关闭
@@ -94,4 +109,3 @@ onUnmounted(() => {
   document.removeEventListener('keydown', handleEscape)
 })
 </script>
-

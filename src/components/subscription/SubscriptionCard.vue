@@ -96,7 +96,11 @@
           </svg>
           <span>{{ $t('subscriptions.fields.notes') }}</span>
         </div>
-        <div class="flex-1 text-xs text-text-secondary leading-relaxed line-clamp-2">{{ subscription.notes }}</div>
+        <div
+          class="flex-1 text-xs text-text-secondary leading-relaxed line-clamp-2 cursor-pointer hover:text-text"
+          v-tooltip="$t('common.copy')"
+          @click.stop="copyNotes"
+        >{{ subscription.notes }}</div>
       </div>
     </div>
   </div>
@@ -107,7 +111,7 @@ import { computed } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from 'vue-i18n'
 
-const { t: $t } = useI18n()
+const { t: $t, locale } = useI18n()
 
 const props = defineProps({
   subscription: {
@@ -117,6 +121,19 @@ const props = defineProps({
 })
 
 defineEmits(['edit', 'delete'])
+
+const copyNotes = async () => {
+  if (!props.subscription.notes) return
+  try {
+    await navigator.clipboard.writeText(props.subscription.notes)
+    window.$notify?.success($t('common.copySuccess'))
+  } catch (error) {
+    window.$notify?.error($t('common.copyFailed'))
+  }
+}
+
+// 日期格式化 locale 映射
+const dateLocale = computed(() => locale.value === 'zh-CN' ? 'zh-CN' : 'en-US')
 
 // 打开外部链接
 const openExternalUrl = async () => {
@@ -147,7 +164,11 @@ const displayUrl = computed(() => {
 const formattedExpiryDate = computed(() => {
   if (!props.subscription.expiry_date) return $t('subscriptions.noExpiry')
   const date = new Date(props.subscription.expiry_date)
-  return date.toLocaleDateString()
+  return date.toLocaleDateString(dateLocale.value, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  })
 })
 
 // 剩余天数
@@ -156,6 +177,19 @@ const daysLeft = computed(() => {
   const now = new Date()
   const expiry = new Date(props.subscription.expiry_date)
   return Math.ceil((expiry - now) / (1000 * 60 * 60 * 24))
+})
+
+const totalDurationDays = computed(() => {
+  if (!props.subscription.start_date || !props.subscription.expiry_date) return null
+  const start = new Date(props.subscription.start_date)
+  const expiry = new Date(props.subscription.expiry_date)
+  const duration = Math.ceil((expiry - start) / (1000 * 60 * 60 * 24))
+  return duration > 0 ? duration : null
+})
+
+const remainingRatio = computed(() => {
+  if (daysLeft.value === null || totalDurationDays.value === null) return null
+  return daysLeft.value / totalDurationDays.value
 })
 
 // 剩余天数文案
@@ -170,6 +204,11 @@ const daysLeftText = computed(() => {
 const expiryStatusClass = computed(() => {
   if (daysLeft.value === null) return 'text-text-muted'
   if (daysLeft.value < 0) return 'text-danger'
+  if (remainingRatio.value !== null) {
+    if (remainingRatio.value <= 0.2) return 'text-warning'
+    if (remainingRatio.value <= 0.5) return 'text-text-secondary'
+    return 'text-success'
+  }
   if (daysLeft.value <= 7) return 'text-warning'
   if (daysLeft.value <= 30) return 'text-text-secondary'
   return 'text-success'
@@ -193,4 +232,3 @@ const getContrastColor = (bgColor) => {
   return brightness > 128 ? '#333' : '#fff'
 }
 </script>
-

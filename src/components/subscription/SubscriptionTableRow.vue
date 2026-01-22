@@ -5,11 +5,17 @@
       <span class="font-medium text-text">{{ subscription.website }}</span>
     </td>
     
-    <!-- 邮箱 -->
+    <!-- 网站地址 -->
     <td class="td">
-      <span class="text-text-secondary">{{ subscription.account_email || '-' }}</span>
+      <a
+        v-if="subscription.website_url"
+        :href="normalizedUrl"
+        class="text-accent no-underline hover:underline"
+        @click.stop.prevent="openExternalUrl"
+      >{{ displayUrl }}</a>
+      <span v-else class="text-text-muted">-</span>
     </td>
-    
+
     <!-- 过期时间 -->
     <td class="td">
       <span :class="expiryStatusClass">{{ formattedExpiryDate }}</span>
@@ -20,6 +26,20 @@
       <span class="text-text">{{ formattedCost || '-' }}</span>
     </td>
     
+    <!-- 备注 -->
+    <td class="td">
+      <span
+        v-if="subscription.notes"
+        class="text-text-secondary truncate block max-w-[200px] cursor-pointer hover:text-text"
+        :title="subscription.notes"
+        v-tooltip="$t('common.copy')"
+        @click.stop="copyNotes"
+      >
+        {{ subscription.notes }}
+      </span>
+      <span v-else class="text-text-muted">-</span>
+    </td>
+
     <!-- 标签 -->
     <td class="td">
       <span
@@ -52,9 +72,10 @@
 
 <script setup>
 import { computed } from 'vue'
+import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from 'vue-i18n'
 
-const { t: $t } = useI18n()
+const { t: $t, locale } = useI18n()
 
 const props = defineProps({
   subscription: {
@@ -65,23 +86,88 @@ const props = defineProps({
 
 defineEmits(['edit', 'delete'])
 
+const copyNotes = async () => {
+  if (!props.subscription.notes) return
+  try {
+    await navigator.clipboard.writeText(props.subscription.notes)
+    window.$notify?.success($t('common.copySuccess'))
+  } catch (error) {
+    window.$notify?.error($t('common.copyFailed'))
+  }
+}
+
+// 日期格式化 locale 映射
+const dateLocale = computed(() => locale.value === 'zh-CN' ? 'zh-CN' : 'en-US')
+
+// 打开外部链接
+const openExternalUrl = async () => {
+  const url = normalizedUrl.value
+  if (!url) return
+  try {
+    await invoke('open_url', { url })
+  } catch (error) {
+    console.error('Failed to open URL:', error)
+  }
+}
+
+// 标准化 URL（确保有协议前缀）
+const normalizedUrl = computed(() => {
+  const url = props.subscription.website_url
+  if (!url) return ''
+  if (/^https?:\/\//i.test(url)) return url
+  return `https://${url}`
+})
+
+// 简化显示的 URL（移除 https:// 等前缀）
+const displayUrl = computed(() => {
+  if (!props.subscription.website_url) return ''
+  return props.subscription.website_url.replace(/^https?:\/\//i, '').replace(/\/$/, '')
+})
+
 // 格式化过期日期
 const formattedExpiryDate = computed(() => {
-  if (!props.subscription.expiry_date) return '-'
+  if (!props.subscription.expiry_date) return $t('subscriptions.noExpiry')
   const date = new Date(props.subscription.expiry_date)
-  return date.toLocaleDateString()
+  return date.toLocaleDateString(dateLocale.value, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  })
+})
+
+const totalDurationDays = computed(() => {
+  if (!props.subscription.start_date || !props.subscription.expiry_date) return null
+  const start = new Date(props.subscription.start_date)
+  const expiry = new Date(props.subscription.expiry_date)
+  const duration = Math.ceil((expiry - start) / (1000 * 60 * 60 * 24))
+  return duration > 0 ? duration : null
+})
+
+const daysLeft = computed(() => {
+  if (!props.subscription.expiry_date) return null
+  const now = new Date()
+  const expiry = new Date(props.subscription.expiry_date)
+  return Math.ceil((expiry - now) / (1000 * 60 * 60 * 24))
+})
+
+const remainingRatio = computed(() => {
+  if (daysLeft.value === null || totalDurationDays.value === null) return null
+  return daysLeft.value / totalDurationDays.value
 })
 
 // 过期状态样式
 const expiryStatusClass = computed(() => {
   if (!props.subscription.expiry_date) return 'text-text-muted'
-  const now = new Date()
-  const expiry = new Date(props.subscription.expiry_date)
-  const daysLeft = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24))
-  
-  if (daysLeft < 0) return 'text-danger'
-  if (daysLeft <= 7) return 'text-warning'
-  return 'text-text-secondary'
+  if (daysLeft.value === null) return 'text-text-muted'
+  if (daysLeft.value < 0) return 'text-danger'
+  if (remainingRatio.value !== null) {
+    if (remainingRatio.value <= 0.2) return 'text-warning'
+    if (remainingRatio.value <= 0.5) return 'text-text-secondary'
+    return 'text-success'
+  }
+  if (daysLeft.value <= 7) return 'text-warning'
+  if (daysLeft.value <= 30) return 'text-text-secondary'
+  return 'text-success'
 })
 
 // 格式化费用
@@ -102,4 +188,3 @@ const getContrastColor = (bgColor) => {
   return brightness > 128 ? '#333' : '#fff'
 }
 </script>
-
