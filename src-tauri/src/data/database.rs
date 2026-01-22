@@ -3,6 +3,7 @@ pub mod config;
 pub mod augment;
 pub mod antigravity;
 pub mod windsurf;
+pub mod cursor;
 
 pub use config::*;
 pub use connection::*;
@@ -10,7 +11,7 @@ pub use connection::*;
 use std::sync::Arc;
 use tauri::{AppHandle, State};
 use crate::AppState;
-use crate::storage::{initialize_storage_manager, initialize_antigravity_storage_manager};
+use crate::storage::{initialize_storage_manager, initialize_antigravity_storage_manager, initialize_cursor_storage_manager};
 
 // 数据库配置相关命令
 #[tauri::command]
@@ -81,6 +82,17 @@ pub async fn save_database_config(
                     windsurf::add_new_fields_if_not_exist(&client).await
                         .map_err(|e| format!("Failed to update Windsurf tables: {}", e))?;
                 }
+
+                let cursor_tables_exist = cursor::check_tables_exist(&client).await
+                    .map_err(|e| format!("Failed to check Cursor tables: {}", e))?;
+
+                if !cursor_tables_exist {
+                    cursor::create_tables(&client).await
+                        .map_err(|e| format!("Failed to create Cursor tables: {}", e))?;
+                } else {
+                    cursor::add_new_fields_if_not_exist(&client).await
+                        .map_err(|e| format!("Failed to update Cursor tables: {}", e))?;
+                }
             }
 
             *state.database_manager.lock().unwrap() = Some(Arc::new(db_manager));
@@ -89,6 +101,8 @@ pub async fn save_database_config(
                 .map_err(|e| format!("Failed to initialize storage: {}", e))?;
             initialize_antigravity_storage_manager(&app, &state).await
                 .map_err(|e| format!("Failed to initialize Antigravity storage: {}", e))?;
+            initialize_cursor_storage_manager(&app, &state).await
+                .map_err(|e| format!("Failed to initialize Cursor storage: {}", e))?;
 
             Ok(())
         }

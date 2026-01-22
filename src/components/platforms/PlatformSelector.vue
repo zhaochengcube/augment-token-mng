@@ -54,6 +54,7 @@ import { computed, ref } from 'vue'
 import AugmentTokenManager from '../platform/AugmentTokenManager.vue'
 import AntigravityAccountManager from '../platform/AntigravityAccountManager.vue'
 import WindsurfAccountManager from '../platform/WindsurfAccountManager.vue'
+import CursorAccountManager from '../platform/CursorAccountManager.vue'
 
 const props = defineProps({
   isDarkTheme: {
@@ -86,6 +87,13 @@ const platforms = computed(() => [
     name: 'Windsurf',
     icon: '/icons/windsurf.svg',
     component: WindsurfAccountManager,
+    enabled: true
+  },
+  {
+    id: 'cursor',
+    name: 'Cursor',
+    icon: '/icons/cursor.svg',
+    component: CursorAccountManager,
     enabled: true
   }
 ])

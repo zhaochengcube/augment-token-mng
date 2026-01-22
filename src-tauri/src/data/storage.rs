@@ -1,6 +1,7 @@
 pub mod augment;
 pub mod antigravity;
 pub mod windsurf;
+pub mod cursor;
 pub mod common;
 
 pub use augment::*;
@@ -29,4 +30,15 @@ pub use windsurf::{
     windsurf_sync_accounts_from_database,
     windsurf_bidirectional_sync_accounts,
     windsurf_sync_accounts,
+};
+pub use cursor::{
+    CursorDualStorage,
+    CursorLocalStorage,
+    CursorPostgreSQLStorage,
+    initialize_cursor_storage_manager,
+    cursor_sync_accounts_to_database,
+    cursor_sync_accounts_from_database,
+    cursor_bidirectional_sync_accounts,
+    cursor_sync_accounts,
+    cursor_get_sync_status,
 };

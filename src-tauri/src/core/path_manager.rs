@@ -36,6 +36,14 @@ pub const ANTIGRAVITY_CONFIG: PlatformPathConfig = PlatformPathConfig {
     path_keyword: "antigravity",
 };
 
+/// Cursor 平台配置
+pub const CURSOR_CONFIG: PlatformPathConfig = PlatformPathConfig {
+    config_filename: "cursor_config.json",
+    app_name: "Cursor",
+    windows_exe_name: "Cursor.exe",
+    path_keyword: "cursor",
+};
+
 /// 获取配置文件路径
 pub fn get_config_path(app: &AppHandle, config: &PlatformPathConfig) -> Result<PathBuf, String> {
     use tauri::Manager;

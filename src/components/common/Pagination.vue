@@ -45,7 +45,7 @@
             :class="[
               'btn min-w-[34px] h-[34px] px-2.5 rounded-[10px] text-sm font-semibold font-mono',
               page === currentPage
-                ? 'bg-accent border-transparent text-white'
+                ? 'bg-accent border-transparent text-text-inverse'
                 : 'btn--secondary'
             ]"
             @click="goToPage(page)"

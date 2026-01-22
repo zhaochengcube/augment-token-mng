@@ -2,6 +2,7 @@ pub mod platforms {
     pub mod antigravity;
     pub mod augment;
     pub mod windsurf;
+    pub mod cursor;
 }
 
 pub mod features {
@@ -21,19 +22,21 @@ pub mod core {
 pub mod data {
     pub mod database;
     pub mod storage;
+    pub mod subscription;
 }
 
 // Backwards-compatible re-exports for existing module paths.
 pub use core::{api_server, http_client, proxy_config, proxy_helper};
 pub use data::{database, storage};
 pub use features::{bookmarks, mail};
-pub use platforms::{antigravity, augment, windsurf};
+pub use platforms::{antigravity, augment, windsurf, cursor};
 
 use crate::features::mail::{gptmail, outlook};
 use crate::platforms::augment::models::AugmentOAuthState;
 use outlook::OutlookManager;
 use database::{DatabaseConfigManager, DatabaseManager};
-use storage::{DualStorage, AntigravityDualStorage, WindsurfDualStorage};
+use storage::{DualStorage, AntigravityDualStorage, WindsurfDualStorage, CursorDualStorage};
+use crate::data::subscription::SubscriptionDualStorage;
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use std::time::SystemTime;
@@ -55,6 +58,8 @@ pub struct AppState {
     pub storage_manager: Arc<Mutex<Option<Arc<DualStorage>>>>,
     pub antigravity_storage_manager: Arc<Mutex<Option<Arc<AntigravityDualStorage>>>>,
     pub windsurf_storage_manager: Arc<Mutex<Option<Arc<WindsurfDualStorage>>>>,
+    pub cursor_storage_manager: Arc<Mutex<Option<Arc<CursorDualStorage>>>>,
+    pub subscription_storage_manager: Arc<Mutex<Option<Arc<SubscriptionDualStorage>>>>,
     pub database_manager: Arc<Mutex<Option<Arc<DatabaseManager>>>>,
     // App session 缓存: key 为 auth_session, value 为缓存的 app_session
     pub app_session_cache: Arc<Mutex<HashMap<String, AppSessionCache>>>,
@@ -92,6 +97,8 @@ pub fn run() {
                 storage_manager: Arc::new(Mutex::new(None)),
                 antigravity_storage_manager: Arc::new(Mutex::new(None)),
                 windsurf_storage_manager: Arc::new(Mutex::new(None)),
+                cursor_storage_manager: Arc::new(Mutex::new(None)),
+                subscription_storage_manager: Arc::new(Mutex::new(None)),
                 database_manager: Arc::new(Mutex::new(None)),
                 app_session_cache: Arc::new(Mutex::new(HashMap::new())),
                 app_handle: app.handle().clone(),
@@ -162,6 +169,34 @@ pub fn run() {
                                                                 eprintln!("Failed to check Windsurf tables on startup: {}", e);
                                                             }
                                                         }
+                                                        match database::cursor::check_tables_exist(&client).await {
+                                                            Ok(exists) => {
+                                                                if !exists {
+                                                                    if let Err(e) = database::cursor::create_tables(&client).await {
+                                                                        eprintln!("Failed to create Cursor tables on startup: {}", e);
+                                                                    }
+                                                                } else if let Err(e) = database::cursor::add_new_fields_if_not_exist(&client).await {
+                                                                    eprintln!("Failed to update Cursor tables on startup: {}", e);
+                                                                }
+                                                            }
+                                                            Err(e) => {
+                                                                eprintln!("Failed to check Cursor tables on startup: {}", e);
+                                                            }
+                                                        }
+                                                        match crate::data::subscription::migrations::check_tables_exist(&client).await {
+                                                            Ok(exists) => {
+                                                                if !exists {
+                                                                    if let Err(e) = crate::data::subscription::migrations::create_tables(&client).await {
+                                                                        eprintln!("Failed to create Subscription tables on startup: {}", e);
+                                                                    }
+                                                                } else if let Err(e) = crate::data::subscription::migrations::add_new_fields_if_not_exist(&client).await {
+                                                                    eprintln!("Failed to update Subscription tables on startup: {}", e);
+                                                                }
+                                                            }
+                                                            Err(e) => {
+                                                                eprintln!("Failed to check Subscription tables on startup: {}", e);
+                                                            }
+                                                        }
                                                 }
                                                 Err(e) => {
                                                     eprintln!("Failed to get database client on startup: {}", e);
@@ -188,6 +223,12 @@ pub fn run() {
                 }
                 if let Err(e) = storage::initialize_windsurf_storage_manager(&app_handle, &state).await {
                     eprintln!("Failed to initialize Windsurf storage manager: {}", e);
+                }
+                if let Err(e) = storage::initialize_cursor_storage_manager(&app_handle, &state).await {
+                    eprintln!("Failed to initialize Cursor storage manager: {}", e);
+                }
+                if let Err(e) = crate::data::subscription::initialize_subscription_storage_manager(&app_handle, &state).await {
+                    eprintln!("Failed to initialize Subscription storage manager: {}", e);
                 }
             });
 
@@ -221,6 +262,8 @@ pub fn run() {
                         storage_manager: state.storage_manager.clone(),
                         antigravity_storage_manager: state.antigravity_storage_manager.clone(),
                         windsurf_storage_manager: state.windsurf_storage_manager.clone(),
+                        cursor_storage_manager: state.cursor_storage_manager.clone(),
+                        subscription_storage_manager: state.subscription_storage_manager.clone(),
                         database_manager: state.database_manager.clone(),
                         app_session_cache: state.app_session_cache.clone(),
                         app_handle: app_handle_for_api.clone(),
@@ -368,6 +411,21 @@ pub fn run() {
             data::storage::windsurf::windsurf_bidirectional_sync_accounts,
             data::storage::windsurf::windsurf_sync_accounts,
 
+            // Cursor 管理命令
+            cursor::cursor_add_account_with_session,
+            cursor::cursor_list_accounts,
+            cursor::cursor_delete_account,
+            cursor::cursor_switch_account,
+            cursor::cursor_get_custom_path,
+            cursor::cursor_set_custom_path,
+            cursor::cursor_validate_path,
+            cursor::cursor_get_default_path,
+            cursor::cursor_select_executable_path,
+            cursor::cursor_validate_account,
+            cursor::cursor_get_subscription_info,
+            cursor::cursor_get_aggregated_usage,
+            cursor::cursor_get_filtered_usage_events,
+
             // 书签管理命令
             bookmarks::add_bookmark,
             bookmarks::update_bookmark,
@@ -397,6 +455,23 @@ pub fn run() {
             storage::antigravity::antigravity_bidirectional_sync_accounts,
             storage::antigravity::antigravity_sync_accounts,
             storage::antigravity::antigravity_get_sync_status,
+            // Cursor 同步命令
+            storage::cursor::cursor_sync_accounts_to_database,
+            storage::cursor::cursor_sync_accounts_from_database,
+            storage::cursor::cursor_bidirectional_sync_accounts,
+            storage::cursor::cursor_sync_accounts,
+            storage::cursor::cursor_get_sync_status,
+
+            // 订阅同步命令
+            data::subscription::subscription_sync_accounts,
+            data::subscription::subscription_sync_to_database,
+            data::subscription::subscription_sync_from_database,
+            data::subscription::subscription_bidirectional_sync,
+            // 订阅 CRUD 命令
+            data::subscription::subscription_list,
+            data::subscription::subscription_add,
+            data::subscription::subscription_update,
+            data::subscription::subscription_delete,
 
             // API 服务器管理命令
             api_server::get_api_server_status,

@@ -68,10 +68,16 @@
   --border: #e5e5e5;
   --border-muted: #f0f0f0;
   --border-strong: #d4d4d4;
-      
+
+  /* shadcn/ui 黑色系配色方案 (Zinc) - 浅色模式 */
+  --accent: #18181b;           /* zinc-900 */
+  --accent-hover: #27272a;     /* zinc-800 */
+  --accent-muted: #f4f4f5;     /* zinc-100 */
+  /* 原始蓝色配色 (备份)
   --accent: #2563eb;
   --accent-hover: #1d4ed8;
   --accent-muted: #dbeafe;
+  */
   --success: #16a34a;
   --success-muted: #dcfce7;
   --warning: #ca8a04;
@@ -98,11 +104,17 @@
   --border: #2e2e2e;
   --border-muted: #262626;
   --border-strong: #404040;
-      
+
+  /* shadcn/ui 黑色系配色方案 (Zinc) - 深色模式 */
+  --accent: #fafafa;           /* zinc-50 */
+  --accent-hover: #e4e4e7;     /* zinc-200 */
+  --accent-muted: #27272a;     /* zinc-800 */
+  /* 原始蓝色配色 (备份)
   --accent: #60a5fa;
   --accent-hover: #93c5fd;
   --accent-muted: #1e3a5f;
-      
+  */
+
   --success: #4ade80;
   --success-muted: #14532d;
   --warning: #facc15;
@@ -317,6 +329,10 @@
 
   .badge--danger-tech {
     @apply bg-danger-tech text-danger border-border-danger-tech;
+  }
+
+  .badge--sm {
+    @apply px-1.5 py-0.5 text-[10px];
   }
 
   .badge--md {

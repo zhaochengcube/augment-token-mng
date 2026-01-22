@@ -360,17 +360,6 @@
           <span>{{ showRealEmail ? $t('tokenList.hideRealEmail') : $t('tokenList.showRealEmail') }}</span>
         </button>
 
-        <button
-          class="btn btn--ghost btn--sm inline-flex items-center gap-2"
-          @click="openDataFolder"
-          v-tooltip="$t('common.openDataFolder')"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z" />
-          </svg>
-          <span>{{ $t('common.openDataFolder') }}</span>
-        </button>
-
         <!-- 自定义 Antigravity 路径按钮 -->
         <button
           class="btn btn--ghost btn--sm inline-flex items-center gap-2"

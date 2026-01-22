@@ -114,6 +114,8 @@ pub async fn start_api_server_cmd(state: State<'_, AppState>) -> Result<(), Stri
             storage_manager: state.storage_manager.clone(),
             antigravity_storage_manager: state.antigravity_storage_manager.clone(),
             windsurf_storage_manager: state.windsurf_storage_manager.clone(),
+            cursor_storage_manager: state.cursor_storage_manager.clone(),
+            subscription_storage_manager: state.subscription_storage_manager.clone(),
             database_manager: state.database_manager.clone(),
             app_session_cache: state.app_session_cache.clone(),
             app_handle: state.app_handle.clone(),

@@ -7,6 +7,8 @@ export default {
     loading: 'Loading...',
     refresh: 'Refresh',
     refreshing: 'Refreshing...',
+    refreshSuccess: 'Refreshed successfully',
+    refreshFailed: 'Refresh failed',
     clear: 'Clear',
     search: 'Search',
     sort: 'Sort',
@@ -19,10 +21,18 @@ export default {
     selectAllPage: 'Select all on page',
     cancelSelection: 'Cancel selection',
     batchDelete: 'Batch delete',
+    delete: 'Delete',
     noSearchResults: 'No matching results found',
     openDataFolder: 'Open data folder',
     switchToTable: 'Switch to table view',
-    switchToCard: 'Switch to card view'
+    switchToCard: 'Switch to card view',
+    email: 'Email',
+    password: 'Password',
+    login: 'Login',
+    add: 'Add',
+    edit: 'Edit',
+    save: 'Save',
+    actions: 'Actions'
   },
   app: {
     title: 'Augment Token Manager',
@@ -407,7 +417,10 @@ export default {
   accountCard: {
     copyRefreshToken: 'Copy Refresh Token',
     copyProjectId: 'Copy Project ID',
-    copyPaymentLink: 'Copy Payment Link'
+    copyPaymentLink: 'Copy Payment Link',
+    copyMachineId: 'Copy Machine ID',
+    copyAccessToken: 'Copy Access Token',
+    copySessionToken: 'Copy Session Token'
   },
   team: {
     title: 'Team Management',
@@ -668,7 +681,13 @@ export default {
     refreshTokenCopied: 'Refresh Token copied to clipboard!',
     noRefreshToken: 'No Refresh Token for this account',
     projectIdCopied: 'Project ID copied to clipboard!',
-    noProjectId: 'No Project ID for this account'
+    noProjectId: 'No Project ID for this account',
+    machineIdCopied: 'Machine ID copied to clipboard!',
+    noMachineId: 'No Machine ID for this account',
+    accessTokenCopied: 'Access Token copied to clipboard!',
+    noAccessToken: 'No Access Token for this account',
+    sessionTokenCopied: 'Session Token copied to clipboard!',
+    noSessionToken: 'No Session Token for this account'
   },
   validation: {
     required: 'This field is required',
@@ -788,6 +807,22 @@ export default {
     refresh: 'Refresh',
     close: 'Close',
     percentage: 'Percentage'
+  },
+  cursorUsage: {
+    title: 'Usage Details',
+    membershipType: 'Membership',
+    totalInputTokens: 'Input Tokens',
+    totalOutputTokens: 'Output Tokens',
+    totalCost: 'Total Cost',
+    tab1Day: '1 Day',
+    tab1Week: '1 Week',
+    tab1Month: '1 Month',
+    timestamp: 'Time',
+    model: 'Model',
+    inputTokens: 'Input Tokens',
+    outputTokens: 'Output Tokens',
+    cost: 'Cost',
+    noEvents: 'No usage records'
   },
   gptMailManager: {
     title: 'GPTMail',
@@ -1057,6 +1092,101 @@ export default {
           daysAgo: '{count} days ago'
         }
       }
+    },
+    cursor: {
+      title: 'Cursor Account Manager',
+      subtitle: 'Manage your Cursor accounts and quotas',
+      accountCount: '{count} accounts',
+      refreshQuota: 'Refresh Quota',
+      addAccount: 'Add Account',
+      currentAccount: 'Current Account',
+      switching: 'Switching...',
+      switch: 'Switch',
+      switchTooltip: 'Switch to this account',
+      refresh: 'Refresh',
+      refreshing: 'Refreshing...',
+      delete: 'Delete',
+      lastUsed: 'Last used',
+      createdAt: 'Created at',
+      accessTokenExpiry: 'Access Token Expiry',
+      sessionExpiry: 'Session Token Expiry',
+      quotaRefreshedAt: 'Quota refreshed at',
+      viewSyncQueueTooltip: 'Click to view pending sync queue',
+      syncQueueTitle: 'Sync Queue',
+      syncQueueUpsertsTitle: 'Pending Updates',
+      syncQueueDeletionsTitle: 'Pending Deletions',
+      syncQueueEmpty: 'No pending changes',
+      fullSync: 'Full Sync',
+      sync: 'Sync',
+      noQuotaData: 'No quota data available',
+      searchPlaceholder: 'Search email...',
+      sortByQuota: 'Sort by Quota',
+      batchRefresh: 'Batch refresh',
+      allAccountsMarkedForSync: 'All {count} accounts marked for sync',
+      filter: {
+        all: 'All',
+        available: 'Available',
+        low: 'Low Quota',
+        forbidden: 'Forbidden'
+      },
+      status: {
+        current: 'Current',
+        available: 'Available',
+        moderate: 'Moderate',
+        low: 'Low Quota',
+        forbidden: 'Forbidden'
+      },
+      quota: {
+        premium: 'Premium Requests',
+        basic: 'Basic Requests',
+        used: 'Used',
+        remaining: 'Remaining'
+      },
+      table: {
+        info: 'Account',
+        status: 'Status',
+        tag: 'Tag',
+        quota: 'Quota',
+        time: 'Time Info',
+        actions: 'Actions'
+      },
+      actions: {
+        switch: 'Switch account',
+        refresh: 'Refresh quota',
+        delete: 'Delete account'
+      },
+      addAccountDialog: {
+        title: 'Add Cursor Account',
+        sessionMethod: 'Session Method',
+        manualMethod: 'Manual Add',
+        sessionInfo: 'Use Cursor Session Token to automatically get account info and quota',
+        sessionToken: 'Session Token',
+        sessionTokenPlaceholder: 'Paste your Cursor Session Token...',
+        sessionTokenHint: 'Get WorkosCursorSessionToken from Cursor browser cookie',
+        email: 'Email Address',
+        emailPlaceholder: "your-email{'@'}example.com",
+        accessToken: 'Access Token',
+        accessTokenPlaceholder: 'Paste your Access Token...',
+        adding: 'Adding...',
+        add: 'Add Account',
+        addFailed: 'Failed to add account'
+      },
+      messages: {
+        switchSuccess: 'Account switched successfully',
+        switchFailed: 'Switch failed: {error}',
+        refreshSuccess: 'Quota refreshed successfully',
+        refreshFailed: 'Refresh quota failed: {error}',
+        addSuccess: 'Account added successfully',
+        addFailed: 'Add account failed: {error}',
+        deleteConfirm: 'Are you sure you want to delete this account?',
+        deleteSuccess: 'Account deleted successfully',
+        deleteFailed: 'Delete failed: {error}',
+        batchDeleteConfirm: 'Are you sure you want to delete {count} selected accounts?',
+        noSelection: 'Please select accounts to operate'
+      },
+      batchRefresh: 'Batch refresh quota',
+      batchRefreshSuccess: 'Refreshed quota for {count} accounts',
+      batchDeleteSuccess: 'Deleted {count} accounts'
     }
   },
   font: {
@@ -1093,9 +1223,58 @@ export default {
     resetSuccess: 'Reset to default path',
     resetFailed: 'Failed to reset path',
     customPathButton: 'Custom Path',
+    cursorTitle: 'Custom Cursor Path',
+    cursorDescription: 'Configure custom path for Cursor application. Leave empty to use default path.',
     windsurfTitle: 'Custom Windsurf Path',
     windsurfDescription: 'Configure custom path for Windsurf application. Leave empty to use default path.',
     antigravityTitle: 'Custom Antigravity Path',
     antigravityDescription: 'Configure custom path for Antigravity application. Leave empty to use default path.'
+  },
+  subscriptions: {
+    title: 'Subscriptions',
+    items: 'items',
+    add: 'Add Subscription',
+    addFirst: 'Add your first subscription',
+    addTitle: 'Add Subscription',
+    editTitle: 'Edit Subscription',
+    emptyState: 'No subscriptions yet',
+    noExpiry: 'Permanent',
+    expired: 'Expired',
+    expirestoday: 'Expires today',
+    daysLeft: '{days} days left',
+    searchPlaceholder: 'Search website, email or tag...',
+    fields: {
+      website: 'Website/Service Name',
+      websiteUrl: 'Website URL',
+      subscription: 'Subscription Period',
+      startDate: 'Start Date',
+      duration: 'Duration',
+      months: 'months',
+      expiryDate: 'Expiry Date',
+      cost: 'Subscription Cost',
+      tag: 'Tag',
+      tagColor: 'Tag Color',
+      notes: 'Notes'
+    },
+    placeholders: {
+      website: 'e.g. Netflix, Spotify',
+      websiteUrl: 'e.g. https://www.netflix.com',
+      duration: '12',
+      cost: 'e.g. 15.00',
+      tag: 'e.g. Entertainment, Tools',
+      notes: 'Add some notes...'
+    },
+    expiryHint: 'Fill in start date and duration to auto-calculate expiry, or enter expiry date directly',
+    deleteConfirm: {
+      title: 'Delete Subscription',
+      message: 'Are you sure you want to delete "{name}"? This action cannot be undone.'
+    },
+    messages: {
+      addSuccess: 'Subscription added successfully',
+      updateSuccess: 'Subscription updated successfully',
+      deleteSuccess: 'Subscription deleted successfully',
+      saveFailed: 'Failed to save subscription',
+      deleteFailed: 'Failed to delete subscription'
+    }
   }
 }

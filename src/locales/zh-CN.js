@@ -7,6 +7,8 @@ export default {
     loading: '加载中...',
     refresh: '刷新',
     refreshing: '刷新中...',
+    refreshSuccess: '刷新成功',
+    refreshFailed: '刷新失败',
     clear: '清除',
     search: '搜索',
     sort: '排序',
@@ -19,6 +21,7 @@ export default {
     selectAllPage: '全选当前页',
     cancelSelection: '取消选择',
     batchDelete: '批量删除',
+    delete: '删除',
     noSearchResults: '未找到匹配结果',
     openDataFolder: '打开数据文件夹',
     switchToTable: '切换到列表视图',
@@ -26,7 +29,10 @@ export default {
     email: '邮箱',
     password: '密码',
     login: '登录',
-    add: '添加'
+    add: '添加',
+    edit: '编辑',
+    save: '保存',
+    actions: '操作'
   },
   app: {
     title: 'Augment Token Manager',
@@ -411,7 +417,10 @@ export default {
   accountCard: {
     copyRefreshToken: '复制Refresh Token',
     copyProjectId: '复制Project ID',
-    copyPaymentLink: '复制绑卡链接'
+    copyPaymentLink: '复制绑卡链接',
+    copyMachineId: '复制Machine ID',
+    copyAccessToken: '复制Access Token',
+    copySessionToken: '复制Session Token'
   },
   team: {
     title: '团队管理',
@@ -676,7 +685,13 @@ export default {
     refreshTokenCopied: 'Refresh Token已复制到剪贴板!',
     noRefreshToken: '该账号没有Refresh Token',
     projectIdCopied: 'Project ID已复制到剪贴板!',
-    noProjectId: '该账号没有Project ID'
+    noProjectId: '该账号没有Project ID',
+    machineIdCopied: 'Machine ID已复制到剪贴板!',
+    noMachineId: '该账号没有Machine ID',
+    accessTokenCopied: 'Access Token已复制到剪贴板!',
+    noAccessToken: '该账号没有Access Token',
+    sessionTokenCopied: 'Session Token已复制到剪贴板!',
+    noSessionToken: '该账号没有Session Token'
   },
   validation: {
     required: '此字段为必填项',
@@ -794,6 +809,22 @@ export default {
     refresh: '刷新',
     close: '关闭',
     percentage: '占比'
+  },
+  cursorUsage: {
+    title: '使用详情',
+    membershipType: '会员类型',
+    totalInputTokens: '输入 Tokens',
+    totalOutputTokens: '输出 Tokens',
+    totalCost: '总费用',
+    tab1Day: '1 天',
+    tab1Week: '1 周',
+    tab1Month: '1 月',
+    timestamp: '时间',
+    model: '模型',
+    inputTokens: '输入 Tokens',
+    outputTokens: '输出 Tokens',
+    cost: '费用',
+    noEvents: '暂无使用记录'
   },
   gptMailManager: {
     title: 'GPTMail',
@@ -1052,6 +1083,101 @@ export default {
           daysAgo: '{count} 天前'
         }
       }
+    },
+    cursor: {
+      title: 'Cursor 账号管理',
+      subtitle: '管理你的 Cursor 账号和配额',
+      accountCount: '{count} 个账号',
+      refreshQuota: '刷新配额',
+      addAccount: '添加账号',
+      currentAccount: '当前账号',
+      switching: '切换中...',
+      switch: '切换',
+      switchTooltip: '切换到此账号',
+      refresh: '刷新',
+      refreshing: '刷新中...',
+      delete: '删除',
+      lastUsed: '最后使用',
+      createdAt: '创建时间',
+      accessTokenExpiry: 'Access Token 过期时间',
+      sessionExpiry: 'Session Token 过期时间',
+      quotaRefreshedAt: '配额刷新时间',
+      viewSyncQueueTooltip: '点击查看待同步队列',
+      syncQueueTitle: '同步队列',
+      syncQueueUpsertsTitle: '待更新',
+      syncQueueDeletionsTitle: '待删除',
+      syncQueueEmpty: '暂无待同步内容',
+      fullSync: '全部同步',
+      sync: '同步',
+      noQuotaData: '暂无配额数据',
+      searchPlaceholder: '搜索邮箱...',
+      sortByQuota: '按配额排序',
+      batchRefresh: '批量刷新',
+      allAccountsMarkedForSync: '已将 {count} 个账号标记为待同步',
+      filter: {
+        all: '全部',
+        available: '可用',
+        low: '配额低',
+        forbidden: '已禁用'
+      },
+      status: {
+        current: '当前',
+        available: '可用',
+        moderate: '配额一般',
+        low: '配额低',
+        forbidden: '已禁用'
+      },
+      quota: {
+        premium: '高级请求',
+        basic: '基础请求',
+        used: '已用',
+        remaining: '剩余'
+      },
+      table: {
+        info: '账号信息',
+        status: '状态',
+        tag: '标签',
+        quota: '配额',
+        time: '时间信息',
+        actions: '操作'
+      },
+      actions: {
+        switch: '切换账号',
+        refresh: '刷新配额',
+        delete: '删除账号'
+      },
+      addAccountDialog: {
+        title: '添加 Cursor 账号',
+        sessionMethod: 'Session 方式',
+        manualMethod: '手动添加',
+        sessionInfo: '使用 Cursor 的 Session Token 自动获取账号信息和配额',
+        sessionToken: 'Session Token',
+        sessionTokenPlaceholder: '粘贴你的 Cursor Session Token...',
+        sessionTokenHint: '从 Cursor 的浏览器 Cookie 中获取 WorkosCursorSessionToken',
+        email: '邮箱地址',
+        emailPlaceholder: "your-email{'@'}example.com",
+        accessToken: 'Access Token',
+        accessTokenPlaceholder: '粘贴你的 Access Token...',
+        adding: '添加中...',
+        add: '添加账号',
+        addFailed: '添加账号失败'
+      },
+      messages: {
+        switchSuccess: '账号切换成功',
+        switchFailed: '切换失败: {error}',
+        refreshSuccess: '配额刷新成功',
+        refreshFailed: '刷新配额失败: {error}',
+        addSuccess: '账号添加成功',
+        addFailed: '添加账号失败: {error}',
+        deleteConfirm: '确定要删除这个账号吗？',
+        deleteSuccess: '账号删除成功',
+        deleteFailed: '删除失败: {error}',
+        batchDeleteConfirm: '确定要删除选中的 {count} 个账号吗？',
+        noSelection: '请先选择要操作的账号'
+      },
+      batchRefresh: '批量刷新配额',
+      batchRefreshSuccess: '已刷新 {count} 个账号的配额',
+      batchDeleteSuccess: '已删除 {count} 个账号'
     }
   },
   font: {
@@ -1088,9 +1214,67 @@ export default {
     resetSuccess: '已重置为默认路径',
     resetFailed: '重置路径失败',
     customPathButton: '自定义路径',
+    cursorTitle: '自定义 Cursor 路径',
+    cursorDescription: '配置 Cursor 应用程序的自定义路径。留空则使用默认路径。',
     windsurfTitle: '自定义 Windsurf 路径',
     windsurfDescription: '配置 Windsurf 应用程序的自定义路径。留空则使用默认路径。',
     antigravityTitle: '自定义 Antigravity 路径',
     antigravityDescription: '配置 Antigravity 应用程序的自定义路径。留空则使用默认路径。'
+  },
+  subscriptions: {
+    title: '订阅管理',
+    items: '项',
+    add: '添加订阅',
+    addFirst: '添加第一个订阅',
+    addTitle: '添加订阅',
+    editTitle: '编辑订阅',
+    emptyState: '暂无订阅记录',
+    noExpiry: '永久',
+    expired: '已过期',
+    expirestoday: '今天到期',
+    daysLeft: '剩余 {days} 天',
+    searchPlaceholder: '搜索网站、邮箱或标签...',
+    // 同步相关
+    syncQueueTitle: '订阅同步队列',
+    syncQueueUpsertsTitle: '待同步',
+    syncQueueDeletionsTitle: '待删除',
+    syncQueueEmpty: '没有待同步的订阅',
+    fullSync: '全量同步',
+    sync: '同步',
+    viewSyncQueueTooltip: '查看同步队列',
+    fields: {
+      website: '网站/服务名称',
+      websiteUrl: '网站地址',
+      subscription: '订阅时间',
+      startDate: '开始时间',
+      duration: '时长',
+      months: '月',
+      expiryDate: '到期时间',
+      cost: '订阅费用',
+      tag: '标签',
+      tagColor: '标签颜色',
+      notes: '备注'
+    },
+    placeholders: {
+      website: '例如: Netflix, Spotify',
+      websiteUrl: '例如: https://www.netflix.com',
+      duration: '12',
+      cost: '例如: 15.00',
+      tag: '例如: 娱乐, 工具',
+      notes: '添加一些备注信息...'
+    },
+    expiryHint: '填写开始时间和时长后自动计算到期时间，或直接填写到期时间',
+    tagHint: '点击颜色块可自定义标签颜色',
+    deleteConfirm: {
+      title: '删除订阅',
+      message: '确定要删除 "{name}" 吗？此操作无法撤销。'
+    },
+    messages: {
+      addSuccess: '订阅添加成功',
+      updateSuccess: '订阅更新成功',
+      deleteSuccess: '订阅删除成功',
+      saveFailed: '保存订阅失败',
+      deleteFailed: '删除订阅失败'
+    }
   }
 }

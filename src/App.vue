@@ -10,7 +10,27 @@
         ]">
         <div class="flex h-full flex-col">
           <!-- Sidebar Navigation -->
-          <nav class="flex-1 space-y-3">
+          <nav class="flex-1">
+            <!-- Expand/Collapse Sidebar Button (最顶部) -->
+            <button
+              type="button"
+              :class="[
+                'btn btn--ghost btn--lg min-w-0 w-full',
+                isSidebarCollapsed ? 'justify-center px-2 py-2.5' : 'justify-start px-3 py-2.5',
+              ]"
+              @click="toggleSidebar"
+              :aria-label="isSidebarCollapsed ? '展开侧边栏' : '收起侧边栏'"
+              v-tooltip="isSidebarCollapsed ? '展开侧边栏' : '收起侧边栏'"
+            >
+              <svg v-if="isSidebarCollapsed" class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+              <svg v-else class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+              <span v-if="!isSidebarCollapsed" class="flex-1 min-w-0 truncate">{{ isSidebarCollapsed ? '展开侧边栏' : '收起侧边栏' }}</span>
+            </button>
+            <!-- Platform Selection Button -->
             <button
               :class="[
                 'btn btn--ghost btn--lg min-w-0 w-full',
@@ -62,27 +82,42 @@
               <span v-if="!isSidebarCollapsed" class="flex-1 min-w-0 truncate">{{ $t('emails.title') }}</span>
             </button>
 
+            <!-- Subscriptions Button -->
+            <button
+              :class="[
+                'btn btn--ghost btn--lg min-w-0 w-full',
+                isSidebarCollapsed ? 'justify-center px-2 py-2.5' : 'justify-start px-3 py-2.5',
+                activeView === 'subscriptions'
+                  ? 'text-accent'
+                  : '',
+              ]"
+              @click="navigateToView('subscriptions')"
+              v-tooltip="$t('subscriptions.title')"
+            >
+              <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+              </svg>
+              <span v-if="!isSidebarCollapsed" class="flex-1 min-w-0 truncate">{{ $t('subscriptions.title') }}</span>
+            </button>
+
           </nav>
 
           <!-- Sidebar Bottom: Controls -->
-          <div class="mt-auto space-y-3 border-t border-border mb-3">
+          <div class="mt-auto border-t border-border mb-3">
+            <!-- Open Data Folder Button -->
             <button
               type="button"
               :class="[
                 'btn btn--ghost btn--lg min-w-0 w-full',
                 isSidebarCollapsed ? 'justify-center px-2 py-2.5' : 'justify-start px-3 py-2.5',
               ]"
-              @click="toggleSidebar"
-              :aria-label="isSidebarCollapsed ? '展开侧边栏' : '收起侧边栏'"
-              v-tooltip="isSidebarCollapsed ? '展开侧边栏' : '收起侧边栏'"
+              @click="openDataFolder"
+              v-tooltip="$t('common.openDataFolder')"
             >
-              <svg v-if="isSidebarCollapsed" class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="9 18 15 12 9 6" />
+              <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z" />
               </svg>
-              <svg v-else class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-              <span v-if="!isSidebarCollapsed" class="flex-1 min-w-0 truncate">{{ isSidebarCollapsed ? '展开侧边栏' : '收起侧边栏' }}</span>
+              <span v-if="!isSidebarCollapsed" class="flex-1 min-w-0 truncate">{{ $t('common.openDataFolder') }}</span>
             </button>
             <!-- Theme Toggle -->
             <button
@@ -165,6 +200,9 @@
         <!-- Emails View -->
         <EmailPage v-if="activeView === 'emails'" :key="'emails-' + viewRefreshKey" />
 
+        <!-- Subscriptions View -->
+        <SubscriptionPage v-if="activeView === 'subscriptions'" :key="'subscriptions-' + viewRefreshKey" />
+
         <!-- Settings View -->
         <SettingsPage v-if="activeView === 'settings'" :key="'settings-' + viewRefreshKey" />
       </main>
@@ -214,6 +252,7 @@ import PlatformSelector from './components/platforms/PlatformSelector.vue'
 import BookmarkPage from './components/pages/BookmarkPage.vue'
 import EmailPage from './components/pages/EmailPage.vue'
 import SettingsPage from './components/pages/SettingsPage.vue'
+import SubscriptionPage from './components/pages/SubscriptionPage.vue'
 
 const { t, locale } = useI18n()
 
@@ -253,6 +292,16 @@ const toggleSidebar = () => {
     localStorage.setItem('sidebar-collapsed', isSidebarCollapsed.value.toString())
   } catch (error) {
     console.warn('Failed to save sidebar state', error)
+  }
+}
+
+// 打开数据文件夹
+const openDataFolder = async () => {
+  try {
+    await invoke('open_data_folder')
+  } catch (error) {
+    console.error('Failed to open data folder:', error)
+    window.$notify?.error(`${t('bookmarkManager.messages.openFolderFailed')}: ${error}`)
   }
 }
 
