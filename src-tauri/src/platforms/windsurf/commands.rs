@@ -112,6 +112,15 @@ pub async fn windsurf_list_accounts(app: AppHandle) -> Result<AccountListRespons
     })
 }
 
+/// 更新账号（标签等属性）
+#[tauri::command]
+pub async fn windsurf_update_account(
+    app: AppHandle,
+    account: Account,
+) -> Result<(), String> {
+    storage::save_account(&app, &account).await
+}
+
 /// 删除账号
 #[tauri::command]
 pub async fn windsurf_delete_account(

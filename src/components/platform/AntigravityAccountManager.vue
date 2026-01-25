@@ -1034,10 +1034,22 @@ const handleBatchTagClear = async () => {
   window.$notify?.success($t('tokenList.batchTagCleared', { count: clearedCount }))
 }
 
-// 账户更新处理
-const handleAccountUpdated = (updatedAccount) => {
-  if (updatedAccount && updatedAccount.id) {
+// 账户更新处理（标签等属性）
+const handleAccountUpdated = async (updatedAccount) => {
+  if (!updatedAccount?.id) return
+  try {
+    // 更新本地状态
+    const index = accounts.value.findIndex(a => a.id === updatedAccount.id)
+    if (index !== -1) {
+      accounts.value[index] = { ...accounts.value[index], ...updatedAccount }
+    }
+    // 调用后端保存到本地存储
+    await invoke('antigravity_update_account', { account: updatedAccount })
+    // 标记待同步到远程
     markItemUpsert(updatedAccount)
+  } catch (error) {
+    console.error('Failed to update account:', error)
+    window.$notify?.error($t('messages.updateFailed'))
   }
 }
 

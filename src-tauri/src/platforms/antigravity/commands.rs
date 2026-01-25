@@ -52,6 +52,15 @@ pub async fn antigravity_add_account(
     Ok(account)
 }
 
+/// 更新账号（标签等属性）
+#[tauri::command]
+pub async fn antigravity_update_account(
+    app: AppHandle,
+    account: Account,
+) -> Result<(), String> {
+    storage::save_account(&app, &account).await
+}
+
 /// 删除账号
 #[tauri::command]
 pub async fn antigravity_delete_account(
