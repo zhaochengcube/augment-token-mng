@@ -125,16 +125,16 @@
 
         <!-- 列表布局 -->
         <div v-else class="table-container">
-          <table class="table">
+          <table class="table table-fixed">
             <thead>
               <tr>
-                <th class="th">{{ $t('subscriptions.fields.website') }}</th>
-                <th class="th w-[200px]">{{ $t('subscriptions.fields.websiteUrl') }}</th>
-                <th class="th w-[120px]">{{ $t('subscriptions.fields.expiryDate') }}</th>
-                <th class="th w-[100px]">{{ $t('subscriptions.fields.cost') }}</th>
-                <th class="th w-[220px]">{{ $t('subscriptions.fields.notes') }}</th>
-                <th class="th w-[120px]">{{ $t('subscriptions.fields.tag') }}</th>
-                <th class="th w-[100px] text-center">{{ $t('common.actions') }}</th>
+                <th class="th w-[120px]">{{ $t('subscriptions.fields.website') }}</th>
+                <th class="th">{{ $t('subscriptions.fields.websiteUrl') }}</th>
+                <th class="th w-[100px]">{{ $t('subscriptions.fields.expiryDate') }}</th>
+                <th class="th w-[80px]">{{ $t('subscriptions.fields.cost') }}</th>
+                <th class="th">{{ $t('subscriptions.fields.notes') }}</th>
+                <th class="th w-[60px]">{{ $t('subscriptions.fields.tag') }}</th>
+                <th class="th w-[80px] text-center">{{ $t('common.actions') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -201,31 +201,36 @@
               :class="['btn btn--sm', selectedExpiryFilter === 'all' ? 'btn--primary' : 'btn--secondary']"
               @click="setExpiryFilter('all')"
             >
-              {{ $t('subscriptions.filters.all') }}
+              <span>{{ $t('subscriptions.filters.all') }}</span>
+              <span class="ml-1 opacity-70">({{ expiryStatistics.all }})</span>
             </button>
             <button
               :class="['btn btn--sm', selectedExpiryFilter === 'expired' ? 'btn--primary' : 'btn--secondary']"
               @click="setExpiryFilter('expired')"
             >
-              {{ $t('subscriptions.filters.expired') }}
+              <span>{{ $t('subscriptions.filters.expired') }}</span>
+              <span class="ml-1 opacity-70">({{ expiryStatistics.expired }})</span>
             </button>
             <button
               :class="['btn btn--sm', selectedExpiryFilter === '7d' ? 'btn--primary' : 'btn--secondary']"
               @click="setExpiryFilter('7d')"
             >
-              {{ $t('subscriptions.filters.within7Days') }}
+              <span>{{ $t('subscriptions.filters.within7Days') }}</span>
+              <span class="ml-1 opacity-70">({{ expiryStatistics['7d'] }})</span>
             </button>
             <button
               :class="['btn btn--sm', selectedExpiryFilter === '30d' ? 'btn--primary' : 'btn--secondary']"
               @click="setExpiryFilter('30d')"
             >
-              {{ $t('subscriptions.filters.within30Days') }}
+              <span>{{ $t('subscriptions.filters.within30Days') }}</span>
+              <span class="ml-1 opacity-70">({{ expiryStatistics['30d'] }})</span>
             </button>
             <button
               :class="['btn btn--sm', selectedExpiryFilter === 'gt30' ? 'btn--primary' : 'btn--secondary']"
               @click="setExpiryFilter('gt30')"
             >
-              {{ $t('subscriptions.filters.after30Days') }}
+              <span>{{ $t('subscriptions.filters.after30Days') }}</span>
+              <span class="ml-1 opacity-70">({{ expiryStatistics.gt30 }})</span>
             </button>
           </div>
         </div>
@@ -238,7 +243,8 @@
               :class="['btn btn--sm', selectedTagFilter === null ? 'btn--primary' : 'btn--secondary']"
               @click="selectedTagFilter = null"
             >
-              {{ $t('subscriptions.filters.all') }}
+              <span>{{ $t('subscriptions.filters.all') }}</span>
+              <span class="ml-1 opacity-70">({{ tagStatistics.all }})</span>
             </button>
             <button
               v-for="tag in tagOptions"
@@ -246,7 +252,8 @@
               :class="['btn btn--sm', selectedTagFilter === tag.name ? 'btn--primary' : 'btn--secondary']"
               @click="selectedTagFilter = tag.name"
             >
-              {{ tag.name }}
+              <span>{{ tag.name }}</span>
+              <span class="ml-1 opacity-70">({{ tagStatistics[tag.name] || 0 }})</span>
             </button>
           </div>
         </div>
@@ -432,11 +439,30 @@ const handleMarkAllForSync = () => {
   markAllForSync()
 }
 
-// 计算属性：过滤并排序后的订阅列表
-const filteredSubscriptions = computed(() => {
-  let result = subscriptions.value
+// 辅助函数：计算订阅的剩余天数
+const getDaysLeft = (sub) => {
+  if (!sub.expiry_date) return null
+  const expiryTime = new Date(sub.expiry_date).getTime()
+  return Math.ceil((expiryTime - Date.now()) / (1000 * 60 * 60 * 24))
+}
 
-  // 搜索过滤
+// 辅助函数：应用到期时间过滤
+const applyExpiryFilter = (subs, filter) => {
+  if (filter === 'all') return subs
+  return subs.filter((sub) => {
+    const daysLeft = getDaysLeft(sub)
+    if (daysLeft === null) return false
+    if (filter === 'expired') return daysLeft < 0
+    if (filter === '7d') return daysLeft >= 0 && daysLeft <= 7
+    if (filter === '30d') return daysLeft >= 0 && daysLeft <= 30
+    if (filter === 'gt30') return daysLeft > 30
+    return true
+  })
+}
+
+// 只应用搜索的订阅列表
+const searchFilteredSubscriptions = computed(() => {
+  let result = subscriptions.value
   if (searchQuery.value.trim()) {
     const query = searchQuery.value.toLowerCase()
     result = result.filter(sub =>
@@ -445,20 +471,63 @@ const filteredSubscriptions = computed(() => {
       sub.tag?.toLowerCase().includes(query)
     )
   }
+  return result
+})
 
-  // 过滤：到期时间
-  if (selectedExpiryFilter.value !== 'all') {
-    result = result.filter((sub) => {
-      if (!sub.expiry_date) return false
-      const expiryTime = new Date(sub.expiry_date).getTime()
-      const daysLeft = Math.ceil((expiryTime - Date.now()) / (1000 * 60 * 60 * 24))
-      if (selectedExpiryFilter.value === 'expired') return daysLeft < 0
-      if (selectedExpiryFilter.value === '7d') return daysLeft >= 0 && daysLeft <= 7
-      if (selectedExpiryFilter.value === '30d') return daysLeft >= 0 && daysLeft <= 30
-      if (selectedExpiryFilter.value === 'gt30') return daysLeft > 30
-      return true
-    })
+// 应用搜索 + 标签筛选（用于计算到期时间统计）
+const tagFilteredSubscriptions = computed(() => {
+  let result = searchFilteredSubscriptions.value
+  if (selectedTagFilter.value) {
+    result = result.filter(sub => sub.tag === selectedTagFilter.value)
   }
+  return result
+})
+
+// 应用搜索 + 到期时间筛选（用于计算标签统计）
+const expiryFilteredSubscriptions = computed(() => {
+  return applyExpiryFilter(searchFilteredSubscriptions.value, selectedExpiryFilter.value)
+})
+
+// 到期时间统计 - 基于搜索+标签筛选
+const expiryStatistics = computed(() => {
+  const subs = tagFilteredSubscriptions.value
+  const stats = {
+    all: subs.length,
+    expired: 0,
+    '7d': 0,
+    '30d': 0,
+    gt30: 0
+  }
+  subs.forEach(sub => {
+    const daysLeft = getDaysLeft(sub)
+    if (daysLeft === null) return
+    if (daysLeft < 0) stats.expired++
+    else if (daysLeft <= 7) stats['7d']++
+    else if (daysLeft <= 30) stats['30d']++
+    else stats.gt30++
+  })
+  return stats
+})
+
+// 标签统计 - 基于搜索+到期时间筛选
+const tagStatistics = computed(() => {
+  const subs = expiryFilteredSubscriptions.value
+  let taggedCount = 0
+  const stats = {}
+  subs.forEach(sub => {
+    if (sub.tag) {
+      stats[sub.tag] = (stats[sub.tag] || 0) + 1
+      taggedCount++
+    }
+  })
+  stats.all = taggedCount
+  return stats
+})
+
+// 计算属性：过滤并排序后的订阅列表
+const filteredSubscriptions = computed(() => {
+  // 应用到期时间筛选
+  let result = applyExpiryFilter(searchFilteredSubscriptions.value, selectedExpiryFilter.value)
 
   // 过滤：标签
   if (selectedTagFilter.value) {

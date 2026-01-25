@@ -2,15 +2,19 @@
   <tr class="border-b border-border hover:bg-hover transition-colors">
     <!-- 网站名称 -->
     <td class="td">
-      <span class="font-medium text-text">{{ subscription.website }}</span>
+      <span
+        class="font-medium text-text block"
+        v-tooltip="subscription.website"
+      >{{ subscription.website }}</span>
     </td>
-    
+
     <!-- 网站地址 -->
     <td class="td">
       <a
         v-if="subscription.website_url"
         :href="normalizedUrl"
-        class="text-accent no-underline hover:underline"
+        class="text-accent no-underline hover:underline truncate block"
+        v-tooltip="subscription.website_url"
         @click.stop.prevent="openExternalUrl"
       >{{ displayUrl }}</a>
       <span v-else class="text-text-muted">-</span>
@@ -23,16 +27,15 @@
     
     <!-- 费用 -->
     <td class="td">
-      <span class="text-text">{{ formattedCost || '-' }}</span>
+      <span class="text-text truncate block max-w-[50px]">{{ formattedCost || '-' }}</span>
     </td>
     
     <!-- 备注 -->
     <td class="td">
       <span
         v-if="subscription.notes"
-        class="text-text-secondary truncate block max-w-[200px] cursor-pointer hover:text-text"
-        :title="subscription.notes"
-        v-tooltip="$t('common.copy')"
+        class="text-text-secondary truncate block cursor-pointer hover:text-text"
+        v-tooltip="subscription.notes"
         @click.stop="copyNotes"
       >
         {{ subscription.notes }}
@@ -44,7 +47,7 @@
     <td class="td">
       <span
         v-if="subscription.tag"
-        class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
+        class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium min-w-[40px]"
         :style="{ backgroundColor: subscription.tag_color || '#e5e5e5', color: getContrastColor(subscription.tag_color) }"
       >
         {{ subscription.tag }}
@@ -135,14 +138,6 @@ const formattedExpiryDate = computed(() => {
   })
 })
 
-const totalDurationDays = computed(() => {
-  if (!props.subscription.start_date || !props.subscription.expiry_date) return null
-  const start = new Date(props.subscription.start_date)
-  const expiry = new Date(props.subscription.expiry_date)
-  const duration = Math.ceil((expiry - start) / (1000 * 60 * 60 * 24))
-  return duration > 0 ? duration : null
-})
-
 const daysLeft = computed(() => {
   if (!props.subscription.expiry_date) return null
   const now = new Date()
@@ -150,23 +145,13 @@ const daysLeft = computed(() => {
   return Math.ceil((expiry - now) / (1000 * 60 * 60 * 24))
 })
 
-const remainingRatio = computed(() => {
-  if (daysLeft.value === null || totalDurationDays.value === null) return null
-  return daysLeft.value / totalDurationDays.value
-})
-
 // 过期状态样式
 const expiryStatusClass = computed(() => {
   if (!props.subscription.expiry_date) return 'text-text-muted'
   if (daysLeft.value === null) return 'text-text-muted'
   if (daysLeft.value < 0) return 'text-danger'
-  if (remainingRatio.value !== null) {
-    if (remainingRatio.value <= 0.2) return 'text-warning'
-    if (remainingRatio.value <= 0.5) return 'text-text-secondary'
-    return 'text-success'
-  }
-  if (daysLeft.value <= 7) return 'text-warning'
-  if (daysLeft.value <= 30) return 'text-text-secondary'
+  if (daysLeft.value < 10) return 'text-danger'
+  if (daysLeft.value < 20) return 'text-warning'
   return 'text-success'
 })
 

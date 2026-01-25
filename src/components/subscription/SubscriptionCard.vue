@@ -97,8 +97,8 @@
           <span>{{ $t('subscriptions.fields.notes') }}</span>
         </div>
         <div
-          class="flex-1 text-xs text-text-secondary leading-relaxed line-clamp-2 cursor-pointer hover:text-text"
-          v-tooltip="$t('common.copy')"
+          class="flex-1 text-xs text-text-secondary truncate cursor-pointer hover:text-text"
+          v-tooltip="subscription.notes"
           @click.stop="copyNotes"
         >{{ subscription.notes }}</div>
       </div>
@@ -204,13 +204,8 @@ const daysLeftText = computed(() => {
 const expiryStatusClass = computed(() => {
   if (daysLeft.value === null) return 'text-text-muted'
   if (daysLeft.value < 0) return 'text-danger'
-  if (remainingRatio.value !== null) {
-    if (remainingRatio.value <= 0.2) return 'text-warning'
-    if (remainingRatio.value <= 0.5) return 'text-text-secondary'
-    return 'text-success'
-  }
-  if (daysLeft.value <= 7) return 'text-warning'
-  if (daysLeft.value <= 30) return 'text-text-secondary'
+  if (daysLeft.value < 10) return 'text-danger'
+  if (daysLeft.value < 20) return 'text-warning'
   return 'text-success'
 })
 
