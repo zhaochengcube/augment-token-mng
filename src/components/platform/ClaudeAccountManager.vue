@@ -135,7 +135,7 @@
             <thead>
               <tr>
                 <th class="th w-11 text-center">
-                  <div class="inline-flex items-center justify-center h-5 cursor-pointer" @click="toggleSelectAll">
+                  <div class="inline-flex items-center justify-center h-5 cursor-pointer align-middle leading-none" @click="toggleSelectAll">
                     <div class="checkbox-inner" :class="{ 'checked': isAllSelected || isPartialSelected }">
                       <svg v-if="isAllSelected" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />

@@ -32,9 +32,17 @@
       </div>
     </div>
 
-    <!-- 右上角按钮组（悬停显示） -->
+    <!-- 右上角状态徽章 -->
+    <div class="absolute right-3 top-3 z-10 flex items-center gap-1.5">
+      <!-- 当前账号指示器 -->
+      <span v-if="isCurrent" :class="['badge', statusBadgeClass]">
+        <span class="status-dot" :class="statusDotClass"></span>
+        {{ statusLabel }}
+      </span>
+    </div>
+    <!-- 右上角按钮组（悬停显示，z-index 更高，覆盖状态徽章） -->
     <div
-      class="absolute top-2 right-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+      class="absolute right-3 top-3 z-20 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
       :class="{ 'opacity-100': isMenuOpen }"
       @click.stop
     >
@@ -278,6 +286,34 @@ const menuRef = ref(null)
 const showTagEditor = ref(false)
 const isMenuOpen = ref(false)
 const DEFAULT_TAG_COLOR = '#f97316'
+
+// 状态相关
+const statusClass = computed(() => {
+  return props.isCurrent ? 'current' : ''
+})
+
+const statusBadgeClass = computed(() => {
+  switch (statusClass.value) {
+    case 'current':
+      return 'badge--success-tech'
+    default:
+      return ''
+  }
+})
+
+const statusDotClass = computed(() => {
+  switch (statusClass.value) {
+    case 'current':
+      return 'text-success'
+    default:
+      return ''
+  }
+})
+
+const statusLabel = computed(() => {
+  if (props.isCurrent) return $t('platform.antigravity.status.current')
+  return ''
+})
 
 // 隐藏邮箱
 const maskedEmail = computed(() => {

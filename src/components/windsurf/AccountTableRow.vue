@@ -3,7 +3,7 @@
     <!-- 选择框 -->
     <td class="w-10 text-center align-middle">
       <div
-        class="inline-flex items-center justify-center cursor-pointer"
+        class="inline-flex items-center justify-center h-5 cursor-pointer align-middle leading-none"
         @click.stop="toggleSelection"
       >
         <div class="checkbox-inner" :class="{ 'checked': isSelected }">

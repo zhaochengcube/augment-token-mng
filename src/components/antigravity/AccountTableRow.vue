@@ -9,7 +9,7 @@
   >
     <!-- 多选框 -->
     <td class="w-11 text-center px-2.5 py-3.5 border-b border-border/50 align-top whitespace-nowrap text-[13px] text-text relative first-cell">
-      <div class="inline-flex cursor-pointer" @click.stop="toggleSelection">
+      <div class="inline-flex items-center justify-center h-5 cursor-pointer align-middle leading-none" @click.stop="toggleSelection">
         <div class="checkbox-inner" :class="{ 'checked': isSelected }">
           <svg v-if="isSelected" class="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
             <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />

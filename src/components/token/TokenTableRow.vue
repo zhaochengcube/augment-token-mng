@@ -10,7 +10,7 @@
     <!-- 多选框 -->
     <td class="w-11 text-center py-3.5 px-2.5 border-b border-border/50 align-middle whitespace-nowrap bg-inherit first:relative">
       <div
-        class="inline-flex cursor-pointer"
+        class="inline-flex items-center justify-center h-5 cursor-pointer align-middle leading-none"
         @click.stop="toggleSelection"
       >
         <div class="checkbox-inner" :class="{ 'checked': isSelected }">

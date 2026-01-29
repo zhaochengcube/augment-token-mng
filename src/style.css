@@ -430,6 +430,10 @@
     @apply w-5 h-5 rounded-md border-[1.5px] border-border bg-surface flex items-center justify-center cursor-pointer transition-all duration-200;
   }
 
+  .checkbox-inner svg {
+    display: block;
+  }
+
   .checkbox-inner:hover {
     @apply border-accent;
     background: color-mix(in srgb, var(--accent) 10%, transparent);
@@ -437,7 +441,7 @@
   }
 
   .checkbox-inner.checked {
-    @apply bg-accent border-transparent text-white;
+    @apply bg-accent border-transparent text-text-inverse;
     box-shadow: 0 0 10px var(--tech-glow-primary);
   }
 
