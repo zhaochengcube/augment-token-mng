@@ -109,12 +109,15 @@ pub async fn start_api_server_cmd(state: State<'_, AppState>) -> Result<(), Stri
     let server = start_api_server(
         Arc::new(AppState {
             augment_oauth_state: Mutex::new(None),
+            openai_oauth_sessions: state.openai_oauth_sessions.clone(),
             api_server: Mutex::new(None),
             outlook_manager: Mutex::new(OutlookManager::new()),
             storage_manager: state.storage_manager.clone(),
             antigravity_storage_manager: state.antigravity_storage_manager.clone(),
             windsurf_storage_manager: state.windsurf_storage_manager.clone(),
             cursor_storage_manager: state.cursor_storage_manager.clone(),
+            openai_storage_manager: state.openai_storage_manager.clone(),
+            claude_storage_manager: state.claude_storage_manager.clone(),
             subscription_storage_manager: state.subscription_storage_manager.clone(),
             database_manager: state.database_manager.clone(),
             app_session_cache: state.app_session_cache.clone(),

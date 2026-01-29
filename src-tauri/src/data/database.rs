@@ -4,6 +4,8 @@ pub mod augment;
 pub mod antigravity;
 pub mod windsurf;
 pub mod cursor;
+pub mod openai;
+pub mod claude;
 
 pub use config::*;
 pub use connection::*;
@@ -11,7 +13,7 @@ pub use connection::*;
 use std::sync::Arc;
 use tauri::{AppHandle, State};
 use crate::AppState;
-use crate::storage::{initialize_storage_manager, initialize_antigravity_storage_manager, initialize_cursor_storage_manager};
+use crate::storage::{initialize_storage_manager, initialize_antigravity_storage_manager, initialize_cursor_storage_manager, initialize_openai_storage_manager, initialize_claude_storage_manager};
 
 // 数据库配置相关命令
 #[tauri::command]
@@ -93,6 +95,28 @@ pub async fn save_database_config(
                     cursor::add_new_fields_if_not_exist(&client).await
                         .map_err(|e| format!("Failed to update Cursor tables: {}", e))?;
                 }
+
+                let openai_tables_exist = openai::check_tables_exist(&client).await
+                    .map_err(|e| format!("Failed to check OpenAI tables: {}", e))?;
+
+                if !openai_tables_exist {
+                    openai::create_tables(&client).await
+                        .map_err(|e| format!("Failed to create OpenAI tables: {}", e))?;
+                } else {
+                    openai::add_new_fields_if_not_exist(&client).await
+                        .map_err(|e| format!("Failed to update OpenAI tables: {}", e))?;
+                }
+
+                let claude_tables_exist = claude::check_tables_exist(&client).await
+                    .map_err(|e| format!("Failed to check Claude tables: {}", e))?;
+
+                if !claude_tables_exist {
+                    claude::create_tables(&client).await
+                        .map_err(|e| format!("Failed to create Claude tables: {}", e))?;
+                } else {
+                    claude::add_new_fields_if_not_exist(&client).await
+                        .map_err(|e| format!("Failed to update Claude tables: {}", e))?;
+                }
             }
 
             *state.database_manager.lock().unwrap() = Some(Arc::new(db_manager));
@@ -103,6 +127,10 @@ pub async fn save_database_config(
                 .map_err(|e| format!("Failed to initialize Antigravity storage: {}", e))?;
             initialize_cursor_storage_manager(&app, &state).await
                 .map_err(|e| format!("Failed to initialize Cursor storage: {}", e))?;
+            initialize_openai_storage_manager(&app, &state).await
+                .map_err(|e| format!("Failed to initialize OpenAI storage: {}", e))?;
+            initialize_claude_storage_manager(&app, &state).await
+                .map_err(|e| format!("Failed to initialize Claude storage: {}", e))?;
 
             Ok(())
         }
@@ -159,6 +187,10 @@ pub async fn delete_database_config(
         .map_err(|e| format!("Failed to reinitialize storage: {}", e))?;
     initialize_antigravity_storage_manager(&app, &state).await
         .map_err(|e| format!("Failed to reinitialize Antigravity storage: {}", e))?;
+    initialize_openai_storage_manager(&app, &state).await
+        .map_err(|e| format!("Failed to reinitialize OpenAI storage: {}", e))?;
+    initialize_claude_storage_manager(&app, &state).await
+        .map_err(|e| format!("Failed to reinitialize Claude storage: {}", e))?;
 
     Ok(())
 }

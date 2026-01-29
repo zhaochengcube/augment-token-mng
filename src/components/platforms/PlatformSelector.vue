@@ -55,6 +55,8 @@ import AugmentTokenManager from '../platform/AugmentTokenManager.vue'
 import AntigravityAccountManager from '../platform/AntigravityAccountManager.vue'
 import WindsurfAccountManager from '../platform/WindsurfAccountManager.vue'
 import CursorAccountManager from '../platform/CursorAccountManager.vue'
+import OpenAIAccountManager from '../platform/OpenAIAccountManager.vue'
+import ClaudeAccountManager from '../platform/ClaudeAccountManager.vue'
 
 const props = defineProps({
   isDarkTheme: {
@@ -94,6 +96,20 @@ const platforms = computed(() => [
     name: 'Cursor',
     icon: '/icons/cursor.svg',
     component: CursorAccountManager,
+    enabled: true
+  },
+  {
+    id: 'openai',
+    name: 'OpenAI',
+    icon: '/icons/openai.svg',
+    component: OpenAIAccountManager,
+    enabled: true
+  },
+  {
+    id: 'claude',
+    name: 'Claude Code',
+    icon: '/icons/claude.svg',
+    component: ClaudeAccountManager,
     enabled: true
   }
 ])

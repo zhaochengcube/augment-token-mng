@@ -1069,6 +1069,7 @@ export default {
       export: '导出账号',
       exportSuccess: '账号导出成功',
       exportFailed: '导出失败',
+      fileSavedIn: '文件已保存在: {path}',
       hideEmail: '隐藏邮箱',
       showEmail: '显示邮箱',
       sortByTimeDesc: '最新添加',
@@ -1185,6 +1186,210 @@ export default {
       batchRefresh: '批量刷新配额',
       batchRefreshSuccess: '已刷新 {count} 个账号的配额',
       batchDeleteSuccess: '已删除 {count} 个账号'
+    },
+    openai: {
+      title: 'OpenAI 账号管理',
+      subtitle: '管理你的 OpenAI 账号',
+      accountCount: '{count} 个账号',
+      refreshQuota: '刷新',
+      refreshAllQuota: '刷新本页配额',
+      addAccount: '添加账号',
+      currentAccount: '当前账号',
+      switching: '切换中...',
+      switch: '切换',
+      refresh: '刷新',
+      refreshing: '刷新中...',
+      delete: '删除',
+      createdAt: '创建时间',
+      updatedAt: '更新时间',
+      tokenExpiresAt: 'Token 过期时间',
+      viewSyncQueueTooltip: '点击查看待同步队列',
+      syncQueueTitle: '同步队列',
+      syncQueueUpsertsTitle: '待更新',
+      syncQueueDeletionsTitle: '待删除',
+      syncQueueEmpty: '暂无待同步内容',
+      fullSync: '全部同步',
+      sync: '同步',
+      searchPlaceholder: '搜索邮箱...',
+      batchRefresh: '批量刷新',
+      batchRefreshToken: '批量刷新 Token',
+      allAccountsMarkedForSync: '已将 {count} 个账号标记为待同步',
+      export: '导出账号',
+      exportSuccess: '账号导出成功',
+      exportFailed: '导出失败',
+      fileSavedIn: '文件已保存在: {path}',
+      filter: {
+        all: '全部',
+        active: '可用',
+        expired: '已过期'
+      },
+      status: {
+        current: '当前',
+        active: '可用',
+        expired: '已过期'
+      },
+      table: {
+        info: '账号信息',
+        tag: '标签',
+        status: '状态',
+        email: '邮箱',
+        time: '时间',
+        quota: '配额',
+        actions: '操作'
+      },
+      quota5h: '5h配额',
+      quota7d: '7d配额',
+      actions: {
+        switch: '切换账号',
+        refresh: '刷新账号',
+        refreshQuota: '刷新配额',
+        refreshToken: '刷新 Token',
+        delete: '删除账号'
+      },
+      addAccountDialog: {
+        title: '添加 OpenAI 账号',
+        oauthMethod: 'OAuth 授权',
+        manualMethod: '手动添加',
+        oauthInfo: '点击下方按钮将打开 OpenAI 授权页面，授权完成后自动添加账号',
+        openaiLogin: '使用 OpenAI 账号登录',
+        oauthManualTitle: '手动流程（可复制链接）',
+        generateAuthLink: '生成授权链接',
+        copyAuthLink: '复制授权链接',
+        callbackLabel: '回调链接或授权码',
+        callbackPlaceholder: '粘贴回调链接或授权码',
+        callbackHint: '可粘贴浏览器地址栏中的回调链接，或直接粘贴 code 参数',
+        exchangeCode: '使用授权码添加',
+        authLinkCopied: '授权链接已复制',
+        invalidCallback: '未识别到有效的授权码',
+        missingRedirectUri: '缺少 redirect_uri，请先生成授权链接',
+        emailExists: '该邮箱已存在，请勿重复添加',
+        oauthExchangeFailed: '授权码交换失败',
+        email: '邮箱地址',
+        emailPlaceholder: "your-email{'@'}example.com",
+        refreshToken: 'Refresh Token',
+        refreshTokenPlaceholder: '粘贴你的 Refresh Token...',
+        refreshTokenHint: '从 OpenAI 的数据库或网络请求中获取 refresh_token',
+        adding: '添加中...',
+        add: '添加账号'
+      },
+      messages: {
+        switchSuccess: '账号切换成功',
+        switchFailed: '切换失败: {error}',
+        refreshSuccess: '账号刷新成功',
+        refreshFailed: '刷新失败: {error}',
+        quotaRefreshSuccess: '配额刷新成功',
+        quotaRefreshFailed: '刷新配额失败: {error}',
+        addSuccess: '账号添加成功',
+        addFailed: '添加账号失败: {error}',
+        deleteConfirm: '确定要删除这个账号吗？',
+        deleteSuccess: '账号删除成功',
+        deleteFailed: '删除失败: {error}',
+        batchDeleteConfirm: '确定要删除选中的 {count} 个账号吗？',
+        noSelection: '请先选择要操作的账号'
+      }
+    },
+    claude: {
+      title: 'Claude 账号管理',
+      subtitle: '管理你的 Claude 账号',
+      accountCount: '{count} 个账号',
+      addAccount: '添加账号',
+      addFirst: '添加第一个 Claude 账号',
+      emptyState: '暂无 Claude 账号',
+      refresh: '刷新',
+      delete: '删除',
+      createdAt: '创建时间',
+      switch: '切换账号',
+      currentAccount: '当前账号',
+      viewSyncQueueTooltip: '点击查看待同步队列',
+      syncQueueTitle: 'Claude 同步队列',
+      syncQueueUpsertsTitle: '待上传账号',
+      syncQueueDeletionsTitle: '待删除账号',
+      syncQueueEmpty: '暂无待同步数据',
+      fullSync: '全量同步',
+      sync: '同步',
+      allAccountsMarkedForSync: '已将 {count} 个账号标记为待同步',
+      searchPlaceholder: '搜索服务名称、网址或标签...',
+      table: {
+        serviceName: '服务名称',
+        websiteUrl: '网站地址',
+        expiryDate: '到期时间',
+        tag: '标签',
+        actions: '操作'
+      },
+      deleteConfirm: {
+        title: '确认删除',
+        message: '确定要删除 Claude 账号 "{name}" 吗？'
+      },
+      switchConfirm: {
+        title: '确认切换账号',
+        message: '确定要切换到账号 "{name}" 吗？这将会更新 ~/.claude/settings.json 文件。'
+      },
+      batchDeleteConfirm: {
+        title: '确认批量删除',
+        message: '确定要删除选中的 {count} 个账号吗？'
+      },
+      messages: {
+        addSuccess: 'Claude 账号添加成功',
+        updateSuccess: 'Claude 账号更新成功',
+        deleteSuccess: 'Claude 账号删除成功',
+        switchSuccess: '已切换到指定账号',
+        saveFailed: '保存账号失败',
+        deleteFailed: '删除账号失败',
+        switchFailed: '切换账号失败',
+        batchDeleteSuccess: '已删除 {count} 个账号'
+      },
+      dialog: {
+        addTitle: '添加 Claude 账号',
+        editTitle: '编辑 Claude 账号',
+        expiryHint: '到期时间会根据开始时间和时长自动计算',
+        tabs: {
+          basic: '基础信息',
+          api: 'API 配置'
+        },
+        fields: {
+          serviceName: '服务名称',
+          websiteUrl: '网站地址',
+          subscription: '订阅时间',
+          startDate: '开始时间',
+          duration: '时长',
+          expiryDate: '到期时间',
+          tag: '标签',
+          tagColor: '标签颜色',
+          notes: '备注',
+          apiConfig: 'API 配置',
+          baseUrl: 'Base URL',
+          authToken: 'Auth Token',
+          defaultModels: '默认模型',
+          opusModel: 'Opus 模型',
+          sonnetModel: 'Sonnet 模型',
+          haikuModel: 'Haiku 模型',
+          useModel: '使用模型'
+        },
+        useModels: {
+          default: '默认',
+          opus: 'Opus',
+          haiku: 'Haiku'
+        },
+        useModelHint: '选择默认时将使用 Claude 的默认模型选择',
+        durationUnits: {
+          days: '天',
+          weeks: '周',
+          months: '月',
+          years: '年'
+        },
+        placeholders: {
+          serviceName: '例如: Claude Official',
+          websiteUrl: '例如: https://claude.ai',
+          durationDays: '30',
+          tag: '输入标签名称',
+          notes: '可选备注信息',
+          baseUrl: 'https://api.anthropic.com',
+          authToken: 'sk-ant-xxx...',
+          opusModel: 'claude-4-5-opus',
+          sonnetModel: 'claude-4-5-sonnet',
+          haikuModel: 'claude-4-5-haiku'
+        }
+      }
     }
   },
   font: {
@@ -1255,12 +1460,17 @@ export default {
       subscription: '订阅时间',
       startDate: '开始时间',
       duration: '时长',
-      months: '月',
       expiryDate: '到期时间',
       cost: '订阅费用',
       tag: '标签',
       tagColor: '标签颜色',
       notes: '备注'
+    },
+    durationUnits: {
+      days: '天',
+      weeks: '周',
+      months: '月',
+      years: '年'
     },
     filters: {
       all: '全部',

@@ -7,7 +7,7 @@ import { useI18n } from 'vue-i18n'
  * 通用的存储同步逻辑，支持 Antigravity、Windsurf 账号管理和 Token 管理
  *
  * @param {Object} options 配置选项
- * @param {string} options.platform - 平台标识 ('antigravity' | 'windsurf' | 'augment')
+ * @param {string} options.platform - 平台标识 ('antigravity' | 'windsurf' | 'augment' | 'openai')
  * @param {string} options.syncCommand - 同步命令
  * @param {Ref<Array>} options.items - 数据列表的响应式引用（accounts 或 tokens）
  * @param {Ref<string|null>} [options.currentItemId] - 当前选中项ID的响应式引用（可选）

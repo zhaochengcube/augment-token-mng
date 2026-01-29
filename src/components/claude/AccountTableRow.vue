@@ -18,54 +18,34 @@
       </div>
     </td>
 
-    <!-- 网站名称 -->
+    <!-- 服务名称 -->
     <td class="px-2.5 py-3.5 border-b border-border/50 align-middle text-[13px] text-text">
-      <span
-        class="font-medium text-text block truncate"
-        v-tooltip="subscription.website"
-      >{{ subscription.website }}</span>
+      <span class="font-medium text-text block truncate" v-tooltip="account.service_name">{{ account.service_name }}</span>
     </td>
 
     <!-- 网站地址 -->
     <td class="px-2.5 py-3.5 border-b border-border/50 align-middle text-[13px] text-text">
       <a
-        v-if="subscription.website_url"
-        :href="normalizedUrl"
+        v-if="account.website_url"
+        :href="account.website_url"
         class="text-accent no-underline hover:underline truncate block"
-        v-tooltip="subscription.website_url"
+        v-tooltip="account.website_url"
         @click.stop.prevent="openExternalUrl"
       >{{ displayUrl }}</a>
       <span v-else class="text-text-muted">-</span>
     </td>
 
-    <!-- 过期时间 -->
+    <!-- 到期时间 -->
     <td class="px-2.5 py-3.5 border-b border-border/50 align-middle text-[13px] text-text">
       <span :class="expiryStatusClass">{{ formattedExpiryDate }}</span>
-    </td>
-
-    <!-- 费用 -->
-    <td class="px-2.5 py-3.5 border-b border-border/50 align-middle text-[13px] text-text">
-      <span class="text-text truncate block">{{ formattedCost || '-' }}</span>
-    </td>
-
-    <!-- 备注 -->
-    <td class="px-2.5 py-3.5 border-b border-border/50 align-middle text-[13px] text-text">
-      <span
-        v-if="subscription.notes"
-        class="text-text-secondary truncate block cursor-pointer hover:text-text"
-        v-tooltip="subscription.notes"
-        @click.stop="copyNotes"
-      >
-        {{ subscription.notes }}
-      </span>
-      <span v-else class="text-text-muted">-</span>
+      <span v-if="daysLeftText" class="text-[11px] opacity-80 ml-1">({{ daysLeftText }})</span>
     </td>
 
     <!-- 标签 -->
     <td class="px-2.5 py-3.5 border-b border-border/50 align-middle text-[13px] text-text">
       <!-- 添加标签按钮（无标签时显示） -->
       <span
-        v-if="!subscription.tag"
+        v-if="!account.tag"
         class="inline-flex items-center gap-0.5 px-1.5 py-0.5 border border-dashed border-border rounded text-text-muted text-xs cursor-pointer hover:border-accent hover:text-accent transition-colors"
         @click.stop="openTagEditor"
       >
@@ -77,20 +57,20 @@
       <span
         v-else
         class="badge editable badge--sm"
-        :style="{ '--tag-color': subscription.tag_color }"
+        :style="{ '--tag-color': account.tag_color || DEFAULT_TAG_COLOR }"
         @click.stop="openTagEditor"
-      >{{ subscription.tag }}</span>
+      >{{ account.tag }}</span>
     </td>
 
     <!-- 操作 -->
     <td class="px-2.5 py-3.5 border-b border-border/50 align-middle whitespace-nowrap text-[13px] text-text">
       <div class="flex items-center justify-center gap-1.5">
-        <button class="btn btn--ghost btn--icon-sm" @click="$emit('edit', subscription)" v-tooltip="$t('common.edit')">
+        <button class="btn btn--ghost btn--icon-sm" @click="$emit('edit', account)" v-tooltip="$t('common.edit')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
             <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
           </svg>
         </button>
-        <button class="btn btn--ghost btn--icon-sm text-danger" @click="$emit('delete', subscription)" v-tooltip="$t('common.delete')">
+        <button class="btn btn--ghost btn--icon-sm text-danger" @click="$emit('delete', account)" v-tooltip="$t('common.delete')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
             <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
           </svg>
@@ -102,8 +82,8 @@
   <!-- 标签编辑模态框 -->
   <TagEditorModal
     v-model:visible="showTagEditor"
-    :token="subscriptionAsToken"
-    :all-tokens="allSubscriptionsAsTokens"
+    :token="accountAsToken"
+    :all-tokens="allAccountsAsTokens"
     @save="handleTagSave"
     @clear="handleTagClear"
   />
@@ -115,12 +95,12 @@ import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from 'vue-i18n'
 import TagEditorModal from '../token/TagEditorModal.vue'
 
-const { t: $t, locale } = useI18n()
+const { t: $t } = useI18n()
 
 const DEFAULT_TAG_COLOR = '#f97316'
 
 const props = defineProps({
-  subscription: {
+  account: {
     type: Object,
     required: true
   },
@@ -132,37 +112,39 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
-  allSubscriptions: {
+  allAccounts: {
     type: Array,
     default: () => []
   }
 })
 
-const emit = defineEmits(['edit', 'delete', 'select', 'subscription-updated'])
+const emit = defineEmits(['edit', 'delete', 'select', 'account-updated'])
 
 const showTagEditor = ref(false)
 
 // 选择和点击
 const toggleSelection = () => {
-  emit('select', props.subscription.id)
+  emit('select', props.account.id)
 }
 
 const handleRowClick = () => {
   if (props.selectionMode) {
     toggleSelection()
+  } else {
+    emit('edit', props.account)
   }
 }
 
 // 标签相关
-const subscriptionAsToken = computed(() => ({
-  tag_name: props.subscription.tag || '',
-  tag_color: props.subscription.tag_color || ''
+const accountAsToken = computed(() => ({
+  tag_name: props.account.tag || '',
+  tag_color: props.account.tag_color || ''
 }))
 
-const allSubscriptionsAsTokens = computed(() =>
-  props.allSubscriptions.map(sub => ({
-    tag_name: sub.tag || '',
-    tag_color: sub.tag_color || ''
+const allAccountsAsTokens = computed(() =>
+  props.allAccounts.map(acc => ({
+    tag_name: acc.tag || '',
+    tag_color: acc.tag_color || ''
   }))
 )
 
@@ -171,37 +153,24 @@ const openTagEditor = () => {
 }
 
 const handleTagSave = ({ tagName, tagColor }) => {
-  props.subscription.tag = tagName
-  props.subscription.tag_color = tagColor
-  props.subscription.updated_at = Math.floor(Date.now() / 1000)
-  emit('subscription-updated', props.subscription)
+  props.account.tag = tagName
+  props.account.tag_color = tagColor
+  props.account.updated_at = Math.floor(Date.now() / 1000)
+  emit('account-updated', props.account)
   window.$notify?.success($t('messages.tagUpdated'))
 }
 
 const handleTagClear = () => {
-  props.subscription.tag = ''
-  props.subscription.tag_color = ''
-  props.subscription.updated_at = Math.floor(Date.now() / 1000)
-  emit('subscription-updated', props.subscription)
+  props.account.tag = ''
+  props.account.tag_color = ''
+  props.account.updated_at = Math.floor(Date.now() / 1000)
+  emit('account-updated', props.account)
   window.$notify?.success($t('messages.tagCleared'))
 }
 
-const copyNotes = async () => {
-  if (!props.subscription.notes) return
-  try {
-    await navigator.clipboard.writeText(props.subscription.notes)
-    window.$notify?.success($t('common.copySuccess'))
-  } catch (error) {
-    window.$notify?.error($t('common.copyFailed'))
-  }
-}
-
-// 日期格式化 locale 映射
-const dateLocale = computed(() => locale.value === 'zh-CN' ? 'zh-CN' : 'en-US')
-
 // 打开外部链接
 const openExternalUrl = async () => {
-  const url = normalizedUrl.value
+  const url = props.account.website_url
   if (!url) return
   try {
     await invoke('open_url', { url })
@@ -210,25 +179,17 @@ const openExternalUrl = async () => {
   }
 }
 
-// 标准化 URL（确保有协议前缀）
-const normalizedUrl = computed(() => {
-  const url = props.subscription.website_url
-  if (!url) return ''
-  if (/^https?:\/\//i.test(url)) return url
-  return `https://${url}`
-})
-
 // 简化显示的 URL（移除 https:// 等前缀）
 const displayUrl = computed(() => {
-  if (!props.subscription.website_url) return ''
-  return props.subscription.website_url.replace(/^https?:\/\//i, '').replace(/\/$/, '')
+  if (!props.account.website_url) return ''
+  return props.account.website_url.replace(/^https?:\/\//i, '').replace(/\/$/, '')
 })
 
-// 格式化过期日期
+// 格式化到期日期
 const formattedExpiryDate = computed(() => {
-  if (!props.subscription.expiry_date) return $t('subscriptions.noExpiry')
-  const date = new Date(props.subscription.expiry_date)
-  return date.toLocaleDateString(dateLocale.value, {
+  if (!props.account.expiry_date) return $t('subscriptions.noExpiry')
+  const date = new Date(props.account.expiry_date * 1000)
+  return date.toLocaleDateString('zh-CN', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit'
@@ -236,37 +197,26 @@ const formattedExpiryDate = computed(() => {
 })
 
 const daysLeft = computed(() => {
-  if (!props.subscription.expiry_date) return null
-  const now = new Date()
-  const expiry = new Date(props.subscription.expiry_date)
+  if (!props.account.expiry_date) return null
+  const now = Date.now()
+  const expiry = props.account.expiry_date * 1000
   return Math.ceil((expiry - now) / (1000 * 60 * 60 * 24))
+})
+
+const daysLeftText = computed(() => {
+  if (daysLeft.value === null) return ''
+  if (daysLeft.value < 0) return $t('subscriptions.expired')
+  if (daysLeft.value === 0) return $t('subscriptions.expirestoday')
+  return $t('subscriptions.daysLeft', { days: daysLeft.value })
 })
 
 // 过期状态样式
 const expiryStatusClass = computed(() => {
-  if (!props.subscription.expiry_date) return 'text-text-muted'
+  if (!props.account.expiry_date) return 'text-text-muted'
   if (daysLeft.value === null) return 'text-text-muted'
   if (daysLeft.value < 0) return 'text-danger'
   if (daysLeft.value < 10) return 'text-danger'
   if (daysLeft.value < 20) return 'text-warning'
   return 'text-success'
 })
-
-// 格式化费用
-const formattedCost = computed(() => {
-  const cost = props.subscription.cost
-  if (!cost) return ''
-  return typeof cost === 'number' ? `¥${cost.toFixed(2)}` : cost
-})
-
-// 获取对比色
-const getContrastColor = (bgColor) => {
-  if (!bgColor) return '#333'
-  const hex = bgColor.replace('#', '')
-  const r = parseInt(hex.substr(0, 2), 16)
-  const g = parseInt(hex.substr(2, 2), 16)
-  const b = parseInt(hex.substr(4, 2), 16)
-  const brightness = (r * 299 + g * 587 + b * 114) / 1000
-  return brightness > 128 ? '#333' : '#fff'
-}
 </script>

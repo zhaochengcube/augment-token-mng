@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col h-full w-full min-h-0">
+  <div class="flex flex-col h-full w-full min-h-0" @click.stop="handlePageContentClick">
     <FixedPaginationLayout
       :show-pagination="shouldShowPagination"
       :scroll-key="currentPage"
@@ -17,7 +17,7 @@
             <!-- 存储状态徽章 -->
             <div
               :class="['badge', storageStatusClass, { clickable: isDatabaseAvailable }]"
-              v-tooltip="isDatabaseAvailable ? $t('subscriptions.viewSyncQueueTooltip') : ''"
+              v-tooltip="isDatabaseAvailable ? $t('platform.claude.viewSyncQueueTooltip') : ''"
               @click="isDatabaseAvailable && openSyncQueue()"
             >
               <span :class="['status-dot', storageStatusClass]"></span>
@@ -59,7 +59,7 @@
 
           <!-- 右侧：主要操作按钮 -->
           <div class="flex items-center gap-2 shrink-0" @click.stop>
-            <button @click="showAddDialog = true" class="btn btn--icon btn--ghost" v-tooltip="$t('subscriptions.add')">
+            <button @click="showAddDialog = true" class="btn btn--icon btn--ghost" v-tooltip="$t('platform.claude.addAccount')">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
               </svg>
@@ -100,31 +100,32 @@
       <!-- Empty State -->
       <div v-else-if="showEmptyState" class="flex flex-col items-center justify-center py-[60px] px-5 text-text-secondary">
         <div class="text-text-muted mb-[18px] opacity-60">
-          <svg width="64" height="64" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
-          </svg>
+          <img src="/icons/claude.svg" alt="Claude" width="64" height="64" />
         </div>
-        <p class="mt-4 text-sm">{{ searchQuery ? $t('common.noSearchResults') : $t('subscriptions.emptyState') }}</p>
+        <p class="mt-4 text-sm">{{ searchQuery ? $t('common.noSearchResults') : $t('platform.claude.emptyState') }}</p>
         <button v-if="!searchQuery" class="btn btn--primary mt-4" @click="showAddDialog = true">
-          {{ $t('subscriptions.addFirst') }}
+          {{ $t('platform.claude.addFirst') }}
         </button>
       </div>
 
-      <!-- Subscription List -->
+      <!-- Account List -->
       <template v-else>
         <!-- 卡片布局 -->
         <div v-if="viewMode === 'card'" class="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3 p-1">
-          <SubscriptionCard
-            v-for="sub in paginatedSubscriptions"
-            :key="sub.id"
-            :subscription="sub"
-            :is-selected="selectedSubscriptionIds.has(sub.id)"
+          <AccountCard
+            v-for="account in paginatedAccounts"
+            :key="account.id"
+            :account="account"
+            :is-current="account.id === currentAccountId"
+            :is-switching="isSwitching"
+            :is-selected="selectedAccountIds.has(account.id)"
             :selection-mode="isSelectionMode"
-            :all-subscriptions="subscriptions"
+            :all-accounts="accounts"
             @edit="handleEdit"
             @delete="handleDelete"
-            @select="toggleSubscriptionSelection"
-            @subscription-updated="handleSubscriptionUpdated"
+            @switch="handleSwitch"
+            @select="toggleAccountSelection"
+            @account-updated="handleAccountUpdated"
           />
         </div>
 
@@ -145,26 +146,28 @@
                     </div>
                   </div>
                 </th>
-                <th class="th w-[120px]">{{ $t('subscriptions.fields.website') }}</th>
-                <th class="th">{{ $t('subscriptions.fields.websiteUrl') }}</th>
-                <th class="th w-[100px]">{{ $t('subscriptions.fields.expiryDate') }}</th>
-                <th class="th w-[80px]">{{ $t('subscriptions.fields.cost') }}</th>
-                <th class="th">{{ $t('subscriptions.fields.notes') }}</th>
+                <th class="th w-[120px]">{{ $t('platform.claude.table.serviceName') }}</th>
+                <th class="th">{{ $t('platform.claude.table.websiteUrl') }}</th>
+                <th class="th w-[100px]">{{ $t('platform.claude.table.expiryDate') }}</th>
                 <th class="th w-[60px]">{{ $t('subscriptions.fields.tag') }}</th>
                 <th class="th w-[80px] text-center">{{ $t('common.actions') }}</th>
               </tr>
             </thead>
             <tbody>
-              <SubscriptionTableRow
-                v-for="sub in paginatedSubscriptions"
-                :key="sub.id"
-                :subscription="sub"
-                :is-selected="selectedSubscriptionIds.has(sub.id)"
+              <AccountTableRow
+                v-for="account in paginatedAccounts"
+                :key="account.id"
+                :account="account"
+                :is-current="account.id === currentAccountId"
+                :is-switching="isSwitching"
+                :is-selected="selectedAccountIds.has(account.id)"
                 :selection-mode="isSelectionMode"
+                :all-accounts="accounts"
                 @edit="handleEdit"
                 @delete="handleDelete"
-                @select="toggleSubscriptionSelection"
-                @subscription-updated="handleSubscriptionUpdated"
+                @switch="handleSwitch"
+                @select="toggleAccountSelection"
+                @account-updated="handleAccountUpdated"
               />
             </tbody>
           </table>
@@ -176,7 +179,7 @@
           v-model:current-page="currentPage"
           v-model:page-size="pageSize"
           :total-pages="totalPages"
-          :total-items="filteredSubscriptions.length"
+          :total-items="filteredAccounts.length"
           :page-size-options="[10, 20, 50, 100]"
         />
       </template>
@@ -195,7 +198,7 @@
           ref="searchInputRef"
           type="text"
           v-model="searchQuery"
-          :placeholder="$t('subscriptions.searchPlaceholder')"
+          :placeholder="$t('platform.claude.searchPlaceholder')"
           class="flex-1 bg-transparent border-none outline-none text-sm text-text placeholder:text-text-muted"
           @keydown.escape="setToolbarMode('hidden')"
         />
@@ -346,10 +349,10 @@
     </ActionToolbar>
 
     <!-- Add/Edit Dialog -->
-    <SubscriptionDialog
-      v-if="showAddDialog || editingSubscription"
-      :subscription="editingSubscription"
-      :all-subscriptions="subscriptions"
+    <AccountDialog
+      v-if="showAddDialog || editingAccount"
+      :account="editingAccount"
+      :all-accounts="accounts"
       @save="handleSave"
       @close="closeDialog"
     />
@@ -360,14 +363,14 @@
       :pending-upserts="pendingUpsertsList"
       :pending-deletions="pendingDeletionsList"
       :syncing="isSyncing"
-      :total-count="subscriptions.length"
-      :title="$t('subscriptions.syncQueueTitle')"
-      :upserts-title="$t('subscriptions.syncQueueUpsertsTitle')"
-      :deletions-title="$t('subscriptions.syncQueueDeletionsTitle')"
-      :empty-text="$t('subscriptions.syncQueueEmpty')"
-      :full-sync-text="$t('subscriptions.fullSync')"
-      :sync-text="$t('subscriptions.sync')"
-      label-field="website"
+      :total-count="accounts.length"
+      :title="$t('platform.claude.syncQueueTitle')"
+      :upserts-title="$t('platform.claude.syncQueueUpsertsTitle')"
+      :deletions-title="$t('platform.claude.syncQueueDeletionsTitle')"
+      :empty-text="$t('platform.claude.syncQueueEmpty')"
+      :full-sync-text="$t('platform.claude.fullSync')"
+      :sync-text="$t('platform.claude.sync')"
+      label-field="service_name"
       fallback-field="id"
       @sync="handleSync"
       @mark-all-for-sync="handleMarkAllForSync"
@@ -376,7 +379,7 @@
     <!-- 批量操作工具栏 -->
     <BatchToolbar
       :visible="isSelectionMode"
-      :selected-count="selectedSubscriptionIds.size"
+      :selected-count="selectedAccountIds.size"
       @select-all="selectAllOnPage"
       @clear="clearSelection"
     >
@@ -394,7 +397,7 @@
 
         <!-- 批量删除 -->
         <button
-          @click="handleBatchDeleteSelected"
+          @click="showBatchDeleteConfirm"
           class="btn btn--icon btn--ghost text-danger hover:bg-danger-muted"
           v-tooltip="$t('common.batchDelete')"
         >
@@ -408,8 +411,8 @@
     <!-- 批量编辑标签模态框 -->
     <TagEditorModal
       v-model:visible="showBatchTagEditor"
-      :tokens="selectedSubscriptions"
-      :all-tokens="allSubscriptionsAsTokens"
+      :tokens="selectedAccounts"
+      :all-tokens="allAccountsAsTokens"
       @save="handleBatchTagSave"
       @clear="handleBatchTagClear"
     />
@@ -427,9 +430,9 @@ import Pagination from '../common/Pagination.vue'
 import SyncQueueModal from '../common/SyncQueueModal.vue'
 import BatchToolbar from '../common/BatchToolbar.vue'
 import TagEditorModal from '../token/TagEditorModal.vue'
-import SubscriptionCard from '../subscription/SubscriptionCard.vue'
-import SubscriptionTableRow from '../subscription/SubscriptionTableRow.vue'
-import SubscriptionDialog from '../subscription/SubscriptionDialog.vue'
+import AccountCard from '../claude/AccountCard.vue'
+import AccountTableRow from '../claude/AccountTableRow.vue'
+import AccountDialog from '../claude/AccountDialog.vue'
 
 const { t: $t } = useI18n()
 
@@ -443,14 +446,16 @@ const props = defineProps({
 const { isSidebarCollapsed } = toRefs(props)
 
 // 本地存储键（用于视图模式）
-const VIEW_MODE_KEY = 'atm-subscriptions-view-mode'
+const VIEW_MODE_KEY = 'atm-claude-accounts-view-mode'
 
 // 状态
-const subscriptions = ref([])
+const accounts = ref([])
 const isLoading = ref(false)
 const isRefreshing = ref(false)
+const isSwitching = ref(false)
 const showAddDialog = ref(false)
-const editingSubscription = ref(null)
+const editingAccount = ref(null)
+const currentAccountId = ref(null)
 const viewMode = ref('card')
 const searchQuery = ref('')
 const toolbarMode = ref('hidden')
@@ -467,7 +472,7 @@ const currentPage = ref(1)
 const pageSize = ref(20)
 
 // 批量操作状态
-const selectedSubscriptionIds = ref(new Set())
+const selectedAccountIds = ref(new Set())
 const showBatchTagEditor = ref(false)
 
 // 使用双向存储同步
@@ -486,18 +491,17 @@ const {
   openSyncQueue,
   handleSync
 } = useStorageSync({
-  platform: 'subscription',
-  syncCommand: 'subscription_sync_accounts',
-  items: subscriptions,
+  platform: 'claude',
+  syncCommand: 'claude_sync_accounts',
+  items: accounts,
   itemKey: 'account',
-  labelField: 'website',
+  labelField: 'service_name',
   onSyncComplete: async () => {
-    // 同步完成后重新加载数据以确保本地文件更新
     try {
-      const response = await invoke('subscription_list')
-      subscriptions.value = response?.subscriptions || []
+      const response = await invoke('claude_list')
+      accounts.value = response.accounts || []
     } catch (error) {
-      console.error('Failed to reload subscriptions after sync:', error)
+      console.error('Failed to reload accounts after sync:', error)
     }
   }
 })
@@ -507,18 +511,18 @@ const handleMarkAllForSync = () => {
   markAllForSync()
 }
 
-// 辅助函数：计算订阅的剩余天数
-const getDaysLeft = (sub) => {
-  if (!sub.expiry_date) return null
-  const expiryTime = new Date(sub.expiry_date).getTime()
+// 辅助函数：计算账户的剩余天数
+const getDaysLeft = (account) => {
+  if (!account.expiry_date) return null
+  const expiryTime = account.expiry_date * 1000
   return Math.ceil((expiryTime - Date.now()) / (1000 * 60 * 60 * 24))
 }
 
 // 辅助函数：应用到期时间过滤
-const applyExpiryFilter = (subs, filter) => {
-  if (filter === 'all') return subs
-  return subs.filter((sub) => {
-    const daysLeft = getDaysLeft(sub)
+const applyExpiryFilter = (accs, filter) => {
+  if (filter === 'all') return accs
+  return accs.filter((account) => {
+    const daysLeft = getDaysLeft(account)
     if (daysLeft === null) return false
     if (filter === 'expired') return daysLeft < 0
     if (filter === '7d') return daysLeft >= 0 && daysLeft <= 7
@@ -528,46 +532,46 @@ const applyExpiryFilter = (subs, filter) => {
   })
 }
 
-// 只应用搜索的订阅列表
-const searchFilteredSubscriptions = computed(() => {
-  let result = subscriptions.value
+// 只应用搜索的账户列表
+const searchFilteredAccounts = computed(() => {
+  let result = accounts.value
   if (searchQuery.value.trim()) {
     const query = searchQuery.value.toLowerCase()
-    result = result.filter(sub =>
-      sub.website?.toLowerCase().includes(query) ||
-      sub.website_url?.toLowerCase().includes(query) ||
-      sub.tag?.toLowerCase().includes(query)
+    result = result.filter(acc =>
+      acc.service_name?.toLowerCase().includes(query) ||
+      acc.website_url?.toLowerCase().includes(query) ||
+      acc.tag?.toLowerCase().includes(query)
     )
   }
   return result
 })
 
 // 应用搜索 + 标签筛选（用于计算到期时间统计）
-const tagFilteredSubscriptions = computed(() => {
-  let result = searchFilteredSubscriptions.value
+const tagFilteredAccounts = computed(() => {
+  let result = searchFilteredAccounts.value
   if (selectedTagFilter.value) {
-    result = result.filter(sub => sub.tag === selectedTagFilter.value)
+    result = result.filter(acc => acc.tag === selectedTagFilter.value)
   }
   return result
 })
 
 // 应用搜索 + 到期时间筛选（用于计算标签统计）
-const expiryFilteredSubscriptions = computed(() => {
-  return applyExpiryFilter(searchFilteredSubscriptions.value, selectedExpiryFilter.value)
+const expiryFilteredAccounts = computed(() => {
+  return applyExpiryFilter(searchFilteredAccounts.value, selectedExpiryFilter.value)
 })
 
 // 到期时间统计 - 基于搜索+标签筛选
 const expiryStatistics = computed(() => {
-  const subs = tagFilteredSubscriptions.value
+  const accs = tagFilteredAccounts.value
   const stats = {
-    all: subs.length,
+    all: accs.length,
     expired: 0,
     '7d': 0,
     '30d': 0,
     gt30: 0
   }
-  subs.forEach(sub => {
-    const daysLeft = getDaysLeft(sub)
+  accs.forEach(acc => {
+    const daysLeft = getDaysLeft(acc)
     if (daysLeft === null) return
     if (daysLeft < 0) stats.expired++
     else if (daysLeft <= 7) stats['7d']++
@@ -579,12 +583,12 @@ const expiryStatistics = computed(() => {
 
 // 标签统计 - 基于搜索+到期时间筛选
 const tagStatistics = computed(() => {
-  const subs = expiryFilteredSubscriptions.value
+  const accs = expiryFilteredAccounts.value
   let taggedCount = 0
   const stats = {}
-  subs.forEach(sub => {
-    if (sub.tag) {
-      stats[sub.tag] = (stats[sub.tag] || 0) + 1
+  accs.forEach(acc => {
+    if (acc.tag) {
+      stats[acc.tag] = (stats[acc.tag] || 0) + 1
       taggedCount++
     }
   })
@@ -592,27 +596,33 @@ const tagStatistics = computed(() => {
   return stats
 })
 
-// 计算属性：过滤并排序后的订阅列表
-const filteredSubscriptions = computed(() => {
+// 计算属性：过滤并排序后的账户列表
+const filteredAccounts = computed(() => {
   // 应用到期时间筛选
-  let result = applyExpiryFilter(searchFilteredSubscriptions.value, selectedExpiryFilter.value)
+  let result = applyExpiryFilter(searchFilteredAccounts.value, selectedExpiryFilter.value)
 
   // 过滤：标签
   if (selectedTagFilter.value) {
-    result = result.filter(sub => sub.tag === selectedTagFilter.value)
+    result = result.filter(acc => acc.tag === selectedTagFilter.value)
   }
 
-  // 排序
+  // 排序：当前账号始终在第一位，其他账号按排序方式排列
   result = [...result].sort((a, b) => {
+    // 当前账号优先
+    const aIsCurrent = a.id === currentAccountId.value
+    const bIsCurrent = b.id === currentAccountId.value
+    if (aIsCurrent && !bIsCurrent) return -1
+    if (!aIsCurrent && bIsCurrent) return 1
+
+    // 其他排序逻辑
     if (sortType.value === 'created') {
       const timeA = a.created_at || 0
       const timeB = b.created_at || 0
       return sortOrder.value === 'desc' ? timeB - timeA : timeA - timeB
     } else if (sortType.value === 'expiry') {
-      // 将日期字符串转为时间戳进行比较，无日期的放到最后
-      const getExpiryTime = (sub) => {
-        if (!sub.expiry_date) return sortOrder.value === 'desc' ? -Infinity : Infinity
-        return new Date(sub.expiry_date).getTime()
+      const getExpiryTime = (acc) => {
+        if (!acc.expiry_date) return sortOrder.value === 'desc' ? -Infinity : Infinity
+        return acc.expiry_date * 1000
       }
       const timeA = getExpiryTime(a)
       const timeB = getExpiryTime(b)
@@ -626,55 +636,55 @@ const filteredSubscriptions = computed(() => {
 
 const tagOptions = computed(() => {
   const tagMap = new Map()
-  subscriptions.value.forEach((sub) => {
-    if (sub.tag && !tagMap.has(sub.tag)) {
-      tagMap.set(sub.tag, { name: sub.tag })
+  accounts.value.forEach((acc) => {
+    if (acc.tag && !tagMap.has(acc.tag)) {
+      tagMap.set(acc.tag, { name: acc.tag })
     }
   })
   return Array.from(tagMap.values()).sort((a, b) => a.name.localeCompare(b.name))
 })
 
-// 分页后的订阅列表
-const paginatedSubscriptions = computed(() => {
+// 分页后的账户列表
+const paginatedAccounts = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
   const end = start + pageSize.value
-  return filteredSubscriptions.value.slice(start, end)
+  return filteredAccounts.value.slice(start, end)
 })
 
 // 是否显示分页
-const totalPages = computed(() => Math.ceil(filteredSubscriptions.value.length / pageSize.value))
+const totalPages = computed(() => Math.ceil(filteredAccounts.value.length / pageSize.value))
 
-const shouldShowPagination = computed(() => !isLoading.value && filteredSubscriptions.value.length > 0)
+const shouldShowPagination = computed(() => !isLoading.value && filteredAccounts.value.length > 0)
 
 // 空状态判断
-const showEmptyState = computed(() => filteredSubscriptions.value.length === 0)
+const showEmptyState = computed(() => filteredAccounts.value.length === 0)
 
 // 批量操作计算属性
-const isSelectionMode = computed(() => selectedSubscriptionIds.value.size > 0)
+const isSelectionMode = computed(() => selectedAccountIds.value.size > 0)
 
-const selectedSubscriptions = computed(() => {
-  return subscriptions.value
-    .filter(s => selectedSubscriptionIds.value.has(s.id))
-    .map(sub => ({
-      id: sub.id,
-      tag_name: sub.tag || '',
-      tag_color: sub.tag_color || ''
+const selectedAccounts = computed(() => {
+  return accounts.value
+    .filter(a => selectedAccountIds.value.has(a.id))
+    .map(acc => ({
+      id: acc.id,
+      tag_name: acc.tag || '',
+      tag_color: acc.tag_color || ''
     }))
 })
 
-const allSubscriptionsAsTokens = computed(() =>
-  subscriptions.value.map(sub => ({
-    tag_name: sub.tag || '',
-    tag_color: sub.tag_color || ''
+const allAccountsAsTokens = computed(() =>
+  accounts.value.map(acc => ({
+    tag_name: acc.tag || '',
+    tag_color: acc.tag_color || ''
   }))
 )
 
 const isAllSelected = computed(() => {
-  return paginatedSubscriptions.value.length > 0 && paginatedSubscriptions.value.every(s => selectedSubscriptionIds.value.has(s.id))
+  return paginatedAccounts.value.length > 0 && paginatedAccounts.value.every(a => selectedAccountIds.value.has(a.id))
 })
 
 const isPartialSelected = computed(() => {
-  return selectedSubscriptionIds.value.size > 0 && !isAllSelected.value
+  return selectedAccountIds.value.size > 0 && !isAllSelected.value
 })
 
 // 工具栏模式切换
@@ -701,19 +711,31 @@ const setSortType = (type, order) => {
   sortOrder.value = order
 }
 
-// 加载订阅数据
-const loadSubscriptions = async () => {
+// 加载账户数据
+const loadAccounts = async () => {
   isLoading.value = true
   try {
     await initSync()
-    // 从后端加载订阅列表
-    const response = await invoke('subscription_list')
-    subscriptions.value = response?.subscriptions || []
+    const response = await invoke('claude_list')
+    accounts.value = response.accounts || []
+    // 加载当前账户ID
+    await loadCurrentAccountId()
   } catch (error) {
-    console.error('Failed to load subscriptions:', error)
-    subscriptions.value = []
+    console.error('Failed to load accounts:', error)
+    accounts.value = []
   } finally {
     isLoading.value = false
+  }
+}
+
+// 加载当前账户ID
+const loadCurrentAccountId = async () => {
+  try {
+    const currentId = await invoke('claude_get_current_account_id')
+    currentAccountId.value = currentId
+  } catch (error) {
+    console.error('Failed to load current account ID:', error)
+    currentAccountId.value = null
   }
 }
 
@@ -722,14 +744,33 @@ const handleRefresh = async () => {
   isRefreshing.value = true
   try {
     await initSync()
-    const response = await invoke('subscription_list')
-    subscriptions.value = response?.subscriptions || []
+    const response = await invoke('claude_list')
+    accounts.value = response.accounts || []
+    await loadCurrentAccountId()
     window.$notify?.success($t('common.refreshSuccess'))
   } catch (error) {
-    console.error('Failed to refresh subscriptions:', error)
+    console.error('Failed to refresh accounts:', error)
     window.$notify?.error($t('common.refreshFailed'))
   } finally {
     isRefreshing.value = false
+  }
+}
+
+// 切换账户
+const handleSwitch = async (accountId) => {
+  const account = accounts.value.find(a => a.id === accountId)
+  if (!account) return
+
+  isSwitching.value = true
+  try {
+    await invoke('claude_switch_account', { accountId })
+    currentAccountId.value = accountId
+    window.$notify?.success($t('platform.claude.messages.switchSuccess'))
+  } catch (error) {
+    console.error('Failed to switch account:', error)
+    window.$notify?.error($t('platform.claude.messages.switchFailed'))
+  } finally {
+    isSwitching.value = false
   }
 }
 
@@ -747,34 +788,32 @@ const loadViewMode = () => {
 }
 
 // 生成唯一ID
-const generateId = () => `sub_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+const generateId = () => `claude_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
-// 保存订阅（新增或编辑）
+// 保存账户（新增或编辑）
 const handleSave = async (formData) => {
   const now = Math.floor(Date.now() / 1000)
 
   try {
-    if (editingSubscription.value) {
+    if (editingAccount.value) {
       // 编辑模式
       const updated = {
-        ...editingSubscription.value,
+        ...editingAccount.value,
         ...formData,
         updated_at: now
       }
 
-      // 调用后端更新
-      await invoke('subscription_update', { subscription: updated })
+      await invoke('claude_update', { account: updated })
 
-      // 更新前端状态
-      const index = subscriptions.value.findIndex(s => s.id === editingSubscription.value.id)
+      const index = accounts.value.findIndex(a => a.id === editingAccount.value.id)
       if (index !== -1) {
-        subscriptions.value[index] = updated
+        accounts.value[index] = updated
       }
       markItemUpsert(updated)
-      window.$notify?.success($t('subscriptions.messages.updateSuccess'))
+      window.$notify?.success($t('platform.claude.messages.updateSuccess'))
     } else {
       // 新增模式
-      const newSub = {
+      const newAccount = {
         id: generateId(),
         ...formData,
         created_at: now,
@@ -783,47 +822,43 @@ const handleSave = async (formData) => {
         deleted: false
       }
 
-      // 调用后端添加
-      await invoke('subscription_add', { subscription: newSub })
+      await invoke('claude_add', { account: newAccount })
 
-      // 更新前端状态
-      subscriptions.value.unshift(newSub)
-      markItemUpsert(newSub)
-      window.$notify?.success($t('subscriptions.messages.addSuccess'))
+      accounts.value.unshift(newAccount)
+      markItemUpsert(newAccount)
+      window.$notify?.success($t('platform.claude.messages.addSuccess'))
     }
     closeDialog()
   } catch (error) {
-    console.error('Failed to save subscription:', error)
-    window.$notify?.error($t('subscriptions.messages.saveFailed'))
+    console.error('Failed to save account:', error)
+    window.$notify?.error($t('platform.claude.messages.saveFailed'))
   }
 }
 
-// 编辑订阅
-const handleEdit = (subscription) => {
-  editingSubscription.value = subscription
+// 编辑账户
+const handleEdit = (account) => {
+  editingAccount.value = account
 }
 
-// 删除订阅
-const handleDelete = async (subscription) => {
+// 删除账户
+const handleDelete = async (account) => {
   const confirmed = await window.$confirm?.({
-    title: $t('subscriptions.deleteConfirm.title'),
-    message: $t('subscriptions.deleteConfirm.message', { name: subscription.website }),
+    title: $t('platform.claude.deleteConfirm.title'),
+    message: $t('platform.claude.deleteConfirm.message', { name: account.service_name }),
     confirmText: $t('common.delete'),
     cancelText: $t('common.cancel'),
     type: 'danger'
   })
   if (confirmed) {
     try {
-      // 调用后端删除
-      await invoke('subscription_delete', { id: subscription.id })
+      await invoke('claude_delete', { id: account.id })
 
-      // 更新前端状态
-      subscriptions.value = subscriptions.value.filter(s => s.id !== subscription.id)
-      markItemDeletion(subscription)
-      window.$notify?.success($t('subscriptions.messages.deleteSuccess'))
+      accounts.value = accounts.value.filter(a => a.id !== account.id)
+      markItemDeletion(account)
+      window.$notify?.success($t('platform.claude.messages.deleteSuccess'))
     } catch (error) {
-      console.error('Failed to delete subscription:', error)
-      window.$notify?.error($t('subscriptions.messages.deleteFailed'))
+      console.error('Failed to delete account:', error)
+      window.$notify?.error($t('platform.claude.messages.deleteFailed'))
     }
   }
 }
@@ -831,158 +866,160 @@ const handleDelete = async (subscription) => {
 // 关闭弹窗
 const closeDialog = () => {
   showAddDialog.value = false
-  editingSubscription.value = null
+  editingAccount.value = null
 }
 
 // 批量操作方法
-const toggleSubscriptionSelection = (subscriptionId) => {
-  const newSet = new Set(selectedSubscriptionIds.value)
-  if (newSet.has(subscriptionId)) {
-    newSet.delete(subscriptionId)
+const toggleAccountSelection = (accountId) => {
+  const newSet = new Set(selectedAccountIds.value)
+  if (newSet.has(accountId)) {
+    newSet.delete(accountId)
   } else {
-    newSet.add(subscriptionId)
+    newSet.add(accountId)
   }
-  selectedSubscriptionIds.value = newSet
+  selectedAccountIds.value = newSet
 }
 
 const toggleSelectAll = () => {
-  const currentIds = paginatedSubscriptions.value.map(s => s.id)
-  const allSelected = currentIds.every(id => selectedSubscriptionIds.value.has(id))
+  const currentIds = paginatedAccounts.value.map(a => a.id)
+  const allSelected = currentIds.every(id => selectedAccountIds.value.has(id))
 
-  const newSet = new Set(selectedSubscriptionIds.value)
+  const newSet = new Set(selectedAccountIds.value)
   if (allSelected) {
     currentIds.forEach(id => newSet.delete(id))
   } else {
     currentIds.forEach(id => newSet.add(id))
   }
-  selectedSubscriptionIds.value = newSet
+  selectedAccountIds.value = newSet
 }
 
 const selectAllOnPage = () => {
-  const newSet = new Set(selectedSubscriptionIds.value)
-  paginatedSubscriptions.value.forEach(s => newSet.add(s.id))
-  selectedSubscriptionIds.value = newSet
+  const newSet = new Set(selectedAccountIds.value)
+  paginatedAccounts.value.forEach(a => newSet.add(a.id))
+  selectedAccountIds.value = newSet
 }
 
 const clearSelection = () => {
-  selectedSubscriptionIds.value = new Set()
+  selectedAccountIds.value = new Set()
 }
 
-// 批量删除
-const handleBatchDeleteSelected = async () => {
+const showBatchDeleteConfirm = async () => {
   const confirmed = await window.$confirm?.({
-    title: $t('subscriptions.batchDeleteConfirm.title'),
-    message: $t('subscriptions.batchDeleteConfirm.message', { count: selectedSubscriptionIds.value.size }),
+    title: $t('platform.claude.batchDeleteConfirm.title'),
+    message: $t('platform.claude.batchDeleteConfirm.message', { count: selectedAccountIds.value.size }),
     confirmText: $t('common.delete'),
     cancelText: $t('common.cancel'),
     type: 'danger'
   })
   if (confirmed) {
     try {
-      for (const subscriptionId of selectedSubscriptionIds.value) {
-        const subscription = subscriptions.value.find(s => s.id === subscriptionId)
-        await invoke('subscription_delete', { id: subscriptionId })
-        if (subscription) {
-          markItemDeletion(subscription)
+      for (const accountId of selectedAccountIds.value) {
+        const account = accounts.value.find(a => a.id === accountId)
+        await invoke('claude_delete', { id: accountId })
+        if (account) {
+          markItemDeletion(account)
         }
       }
-      selectedSubscriptionIds.value = new Set()
-      await loadSubscriptions()
-      window.$notify?.success($t('subscriptions.messages.batchDeleteSuccess'))
+      selectedAccountIds.value = new Set()
+      await loadAccounts()
+      window.$notify?.success($t('platform.claude.messages.batchDeleteSuccess'))
     } catch (error) {
-      console.error('Failed to batch delete subscriptions:', error)
-      window.$notify?.error($t('subscriptions.messages.deleteFailed'))
+      console.error('Failed to batch delete accounts:', error)
+      window.$notify?.error($t('platform.claude.messages.deleteFailed'))
     }
   }
 }
 
-// 批量编辑标签 - 保存
 const handleBatchTagSave = async ({ tagName, tagColor }) => {
-  if (selectedSubscriptionIds.value.size === 0) return
+  if (selectedAccountIds.value.size === 0) return
 
-  const selectedIds = Array.from(selectedSubscriptionIds.value)
+  const selectedIds = Array.from(selectedAccountIds.value)
   let updatedCount = 0
 
-  for (const subscriptionId of selectedIds) {
-    const subscription = subscriptions.value.find(s => s.id === subscriptionId)
-    if (subscription) {
-      subscription.tag = tagName
-      subscription.tag_color = tagColor
-      subscription.updated_at = Math.floor(Date.now() / 1000)
+  for (const accountId of selectedIds) {
+    const account = accounts.value.find(a => a.id === accountId)
+    if (account) {
+      account.tag = tagName
+      account.tag_color = tagColor
+      account.updated_at = Math.floor(Date.now() / 1000)
       updatedCount++
-      markItemUpsert(subscription)
+      markItemUpsert(account)
     }
   }
 
-  // 保存更改到后端
   try {
-    for (const subscriptionId of selectedIds) {
-      const subscription = subscriptions.value.find(s => s.id === subscriptionId)
-      if (subscription) {
-        await invoke('subscription_update', { subscription })
+    for (const accountId of selectedIds) {
+      const account = accounts.value.find(a => a.id === accountId)
+      if (account) {
+        await invoke('claude_update', { account })
       }
     }
   } catch (error) {
-    console.error('Failed to save subscriptions:', error)
+    console.error('Failed to save accounts:', error)
   }
 
   clearSelection()
   window.$notify?.success($t('tokenList.batchTagUpdated', { count: updatedCount }))
 }
 
-// 批量编辑标签 - 清除
 const handleBatchTagClear = async () => {
-  if (selectedSubscriptionIds.value.size === 0) return
+  if (selectedAccountIds.value.size === 0) return
 
-  const selectedIds = Array.from(selectedSubscriptionIds.value)
+  const selectedIds = Array.from(selectedAccountIds.value)
   let clearedCount = 0
 
-  for (const subscriptionId of selectedIds) {
-    const subscription = subscriptions.value.find(s => s.id === subscriptionId)
-    if (subscription) {
-      subscription.tag = ''
-      subscription.tag_color = ''
-      subscription.updated_at = Math.floor(Date.now() / 1000)
+  for (const accountId of selectedIds) {
+    const account = accounts.value.find(a => a.id === accountId)
+    if (account) {
+      account.tag = ''
+      account.tag_color = ''
+      account.updated_at = Math.floor(Date.now() / 1000)
       clearedCount++
-      markItemUpsert(subscription)
+      markItemUpsert(account)
     }
   }
 
-  // 保存更改到后端
   try {
-    for (const subscriptionId of selectedIds) {
-      const subscription = subscriptions.value.find(s => s.id === subscriptionId)
-      if (subscription) {
-        await invoke('subscription_update', { subscription })
+    for (const accountId of selectedIds) {
+      const account = accounts.value.find(a => a.id === accountId)
+      if (account) {
+        await invoke('claude_update', { account })
       }
     }
   } catch (error) {
-    console.error('Failed to save subscriptions:', error)
+    console.error('Failed to save accounts:', error)
   }
 
   clearSelection()
   window.$notify?.success($t('tokenList.batchTagCleared', { count: clearedCount }))
 }
 
-// 订阅更新处理（标签等属性）
-const handleSubscriptionUpdated = async (updatedSubscription) => {
-  if (!updatedSubscription?.id) return
+const handleAccountUpdated = async (updatedAccount) => {
+  if (!updatedAccount?.id) return
   try {
-    const index = subscriptions.value.findIndex(s => s.id === updatedSubscription.id)
+    const index = accounts.value.findIndex(a => a.id === updatedAccount.id)
     if (index !== -1) {
-      subscriptions.value[index] = { ...subscriptions.value[index], ...updatedSubscription }
+      accounts.value[index] = { ...accounts.value[index], ...updatedAccount }
     }
-    await invoke('subscription_update', { subscription: updatedSubscription })
-    markItemUpsert(updatedSubscription)
+    await invoke('claude_update', { account: updatedAccount })
+    markItemUpsert(updatedAccount)
   } catch (error) {
-    console.error('Failed to update subscription:', error)
+    console.error('Failed to update account:', error)
     window.$notify?.error($t('messages.updateFailed'))
   }
 }
 
-// 初始化
+const handlePageContentClick = () => {
+  // 工具栏会自动处理点击外部关闭
+}
+
+// 监听搜索和筛选变化，重置分页
+watch([searchQuery, selectedExpiryFilter], () => {
+  currentPage.value = 1
+})
+
 onMounted(async () => {
   loadViewMode()
-  await loadSubscriptions()
+  await loadAccounts()
 })
 </script>

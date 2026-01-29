@@ -17,7 +17,7 @@
             <!-- 存储状态徽章 -->
             <div
               :class="['badge', storageStatusClass, { clickable: isDatabaseAvailable }]"
-              v-tooltip="isDatabaseAvailable ? $t('platform.antigravity.viewSyncQueueTooltip') : ''"
+              v-tooltip="isDatabaseAvailable ? $t('platform.openai.viewSyncQueueTooltip') : ''"
               @click="isDatabaseAvailable && openSyncQueue()"
             >
               <span :class="['status-dot', storageStatusClass]"></span>
@@ -60,7 +60,7 @@
 
           <!-- 右侧：主要操作按钮 -->
           <div class="flex items-center gap-2 shrink-0" @click.stop>
-            <button @click="showAddDialog = true" class="btn btn--icon btn--ghost" v-tooltip="$t('platform.antigravity.addAccount')">
+            <button @click="showAddDialog = true" class="btn btn--icon btn--ghost" v-tooltip="$t('platform.openai.addAccount')">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
               </svg>
@@ -79,12 +79,12 @@
             </button>
             <button
               class="btn btn--icon btn--ghost"
-              @click="handleRefresh"
-              :disabled="isRefreshing"
-              v-tooltip="$t('platform.antigravity.refreshQuota')"
+              @click="handleRefreshCurrentPageQuota"
+              :disabled="isRefreshingAll"
+              v-tooltip="$t('platform.openai.refreshAllQuota')"
             >
-              <svg v-if="!isRefreshing" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
+              <svg v-if="!isRefreshingAll" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
               </svg>
               <span v-else class="btn-spinner text-accent" aria-hidden="true"></span>
             </button>
@@ -106,7 +106,7 @@
       <!-- Empty State -->
       <div v-else-if="showEmptyState" class="flex flex-col items-center justify-center py-[60px] px-5 text-text-secondary">
         <div class="text-text-muted mb-[18px] opacity-60">
-          <img src="/icons/antigravity.png" alt="Antigravity" width="64" height="64" />
+          <img src="/icons/openai.svg" alt="OpenAI" width="64" height="64" />
         </div>
         <p class="mt-4 text-sm">{{ $t('common.noSearchResults') }}</p>
       </div>
@@ -114,7 +114,7 @@
       <!-- Account List -->
       <template v-else>
         <!-- 卡片布局 -->
-        <div v-if="viewMode === 'card'" class="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4 p-1">
+        <div v-if="viewMode === 'card'" class="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3 p-1">
           <AccountCard
             v-for="account in paginatedAccounts"
             :key="account.id"
@@ -122,22 +122,23 @@
             :is-current="account.id === currentAccountId"
             :is-switching="switchingAccountId === account.id"
             :is-refreshing="refreshingIds.has(account.id)"
+            :is-deleting="deletingIds.has(account.id)"
             :is-selected="selectedAccountIds.has(account.id)"
             :selection-mode="isSelectionMode"
             :show-real-email="showRealEmail"
             :all-accounts="accounts"
             @switch="handleSwitch"
-            @refresh="handleRefreshQuota"
+            @refresh="handleRefreshToken"
+            @refresh-quota="handleRefreshQuota"
             @delete="handleDelete"
             @select="toggleAccountSelection"
-            @view-models="openModelsModal"
             @account-updated="handleAccountUpdated"
           />
         </div>
 
         <!-- 列表布局 -->
         <div v-else class="table-container">
-          <table class="table">
+          <table class="table table-fixed">
             <thead>
               <tr>
                 <th class="th w-11 text-center">
@@ -152,9 +153,12 @@
                     </div>
                   </div>
                 </th>
-                <th class="th w-[220px]">{{ $t('platform.antigravity.table.info') }}</th>
-                <th class="th">{{ $t('platform.antigravity.table.quota') }}</th>
-                <th class="th w-[88px] text-center">{{ $t('platform.antigravity.table.actions') }}</th>
+                <th class="th w-[60px]">{{ $t('platform.openai.table.tag') }}</th>
+                <th class="th w-[60px]">{{ $t('platform.openai.table.status') }}</th>
+                <th class="th">{{ $t('platform.openai.table.email') }}</th>
+                <th class="th w-[140px]">{{ $t('platform.openai.table.time') }}</th>
+                <th class="th">{{ $t('platform.openai.table.quota') }}</th>
+                <th class="th w-[110px] text-center">{{ $t('platform.openai.table.actions') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -165,14 +169,16 @@
                 :is-current="account.id === currentAccountId"
                 :is-switching="switchingAccountId === account.id"
                 :is-refreshing="refreshingIds.has(account.id)"
+                :is-deleting="deletingIds.has(account.id)"
                 :is-selected="selectedAccountIds.has(account.id)"
                 :selection-mode="isSelectionMode"
                 :show-real-email="showRealEmail"
                 @switch="handleSwitch"
-                @refresh="handleRefreshQuota"
+                @refresh="handleRefreshToken"
+                @refresh-quota="handleRefreshQuota"
                 @delete="handleDelete"
                 @select="toggleAccountSelection"
-                @view-models="openModelsModal"
+                @account-updated="handleAccountUpdated"
               />
             </tbody>
           </table>
@@ -204,7 +210,7 @@
           ref="toolbarSearchInputRef"
           type="text"
           v-model="searchQuery"
-          :placeholder="$t('platform.antigravity.searchPlaceholder')"
+          :placeholder="$t('platform.openai.searchPlaceholder')"
           class="flex-1 border-0 outline-none bg-transparent text-text text-sm placeholder:text-text-muted placeholder:opacity-60 p-0 m-0 h-full"
         />
         <button v-if="searchQuery.trim()" @click="searchQuery = ''" class="btn btn--icon-sm btn--ghost shrink-0">
@@ -233,38 +239,28 @@
               ]"
               @click="selectStatusFilter(null)"
             >
-              <span>{{ $t('platform.antigravity.filter.all') }}</span>
+              <span>{{ $t('platform.openai.filter.all') }}</span>
               <span class="ml-1 opacity-70">({{ statusStatistics.total }})</span>
             </button>
             <button
               :class="[
                 'btn btn--sm',
-                selectedStatusFilter === 'available' ? 'btn--primary' : 'btn--secondary'
+                selectedStatusFilter === 'active' ? 'btn--primary' : 'btn--secondary'
               ]"
-              @click="selectStatusFilter('available')"
+              @click="selectStatusFilter('active')"
             >
-              <span>{{ $t('platform.antigravity.filter.available') }}</span>
-              <span class="ml-1 opacity-70">({{ statusStatistics.available }})</span>
+              <span>{{ $t('platform.openai.filter.active') }}</span>
+              <span class="ml-1 opacity-70">({{ statusStatistics.active }})</span>
             </button>
             <button
               :class="[
                 'btn btn--sm',
-                selectedStatusFilter === 'low' ? 'btn--primary' : 'btn--secondary'
+                selectedStatusFilter === 'expired' ? 'btn--primary' : 'btn--secondary'
               ]"
-              @click="selectStatusFilter('low')"
+              @click="selectStatusFilter('expired')"
             >
-              <span>{{ $t('platform.antigravity.filter.low') }}</span>
-              <span class="ml-1 opacity-70">({{ statusStatistics.low }})</span>
-            </button>
-            <button
-              :class="[
-                'btn btn--sm',
-                selectedStatusFilter === 'forbidden' ? 'btn--primary' : 'btn--secondary'
-              ]"
-              @click="selectStatusFilter('forbidden')"
-            >
-              <span>{{ $t('platform.antigravity.filter.forbidden') }}</span>
-              <span class="ml-1 opacity-70">({{ statusStatistics.forbidden }})</span>
+              <span>{{ $t('platform.openai.filter.expired') }}</span>
+              <span class="ml-1 opacity-70">({{ statusStatistics.expired }})</span>
             </button>
           </div>
         </div>
@@ -324,11 +320,11 @@
             <button
               :class="[
                 'btn btn--sm',
-                sortType === 'quota' ? 'btn--primary' : 'btn--secondary'
+                sortType === 'email' ? 'btn--primary' : 'btn--secondary'
               ]"
-              @click="setSortType('quota', sortOrder)"
+              @click="setSortType('email', sortOrder)"
             >
-              {{ $t('platform.antigravity.sortByQuota') }}
+              按邮箱
             </button>
           </div>
         </div>
@@ -361,25 +357,12 @@
         <button
           class="btn btn--ghost btn--sm inline-flex items-center gap-2"
           @click="exportAccounts"
-          v-tooltip="$t('platform.antigravity.export')"
+          v-tooltip="$t('platform.openai.export')"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
             <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
           </svg>
-          <span>{{ $t('platform.antigravity.export') }}</span>
-        </button>
-
-        <!-- 自定义 Antigravity 路径按钮 -->
-        <button
-          class="btn btn--ghost btn--sm inline-flex items-center gap-2"
-          @click="showCustomPathDialog = true"
-          v-tooltip="$t('customPath.antigravityDescription')"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/>
-          </svg>
-          <span>{{ $t('customPath.customPathButton') }}</span>
-          <span v-if="customAntigravityPath" class="text-xs text-accent">•</span>
+          <span>{{ $t('platform.openai.export') }}</span>
         </button>
       </div>
     </ActionToolbar>
@@ -392,12 +375,24 @@
       @clear="clearSelection"
     >
       <template #actions>
-        <!-- 批量刷新 -->
+        <!-- 批量刷新 Token -->
+        <button
+          @click="batchRefreshTokensSelected"
+          class="btn btn--icon btn--ghost"
+          :disabled="isBatchRefreshing"
+          v-tooltip="$t('platform.openai.batchRefreshToken')"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+          </svg>
+        </button>
+
+        <!-- 批量刷新配额 -->
         <button
           @click="batchRefreshSelected"
           class="btn btn--icon btn--ghost"
           :disabled="isBatchRefreshing"
-          v-tooltip="$t('platform.antigravity.batchRefresh')"
+          v-tooltip="$t('platform.openai.batchRefresh')"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
             <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
@@ -438,45 +433,25 @@
     />
 
     <!-- Add Account Dialog -->
-    <AddAccountDialog v-if="showAddDialog" @close="showAddDialog = false" @add="handleAddAccount" @added="handleAccountAdded" />
-    <ModelsModal
-      v-if="showModelsModal"
-      :visible="showModelsModal"
-      :account="activeModelsAccount"
-      :refreshing="activeModelsAccount ? refreshingIds.has(activeModelsAccount.id) : false"
-      @close="closeModelsModal"
-      @refresh="refreshModelsModal"
-    />
+    <AddAccountDialog v-if="showAddDialog" @close="showAddDialog = false" @added="handleAccountAdded" />
+
+    <!-- Sync Queue Modal -->
     <SyncQueueModal
       v-model:visible="showSyncQueueModal"
       :pending-upserts="pendingUpsertsList"
       :pending-deletions="pendingDeletionsList"
       :syncing="isSyncing"
       :total-count="accounts.length"
-      :title="$t('platform.antigravity.syncQueueTitle')"
-      :upserts-title="$t('platform.antigravity.syncQueueUpsertsTitle')"
-      :deletions-title="$t('platform.antigravity.syncQueueDeletionsTitle')"
-      :empty-text="$t('platform.antigravity.syncQueueEmpty')"
-      :full-sync-text="$t('platform.antigravity.fullSync')"
-      :sync-text="$t('platform.antigravity.sync')"
+      :title="$t('platform.openai.syncQueueTitle')"
+      :upserts-title="$t('platform.openai.syncQueueUpsertsTitle')"
+      :deletions-title="$t('platform.openai.syncQueueDeletionsTitle')"
+      :empty-text="$t('platform.openai.syncQueueEmpty')"
+      :full-sync-text="$t('platform.openai.fullSync')"
+      :sync-text="$t('platform.openai.sync')"
       label-field="email"
       fallback-field="id"
       @sync="handleSync"
       @mark-all-for-sync="handleMarkAllForSync"
-    />
-
-    <!-- 自定义路径对话框 -->
-    <CustomPathDialog
-      :visible="showCustomPathDialog"
-      :title="$t('customPath.antigravityTitle')"
-      :description="$t('customPath.antigravityDescription')"
-      :current-path="customAntigravityPath"
-      :default-path="defaultAntigravityPath"
-      select-command="antigravity_select_executable_path"
-      validate-command="antigravity_validate_path"
-      save-command="antigravity_set_custom_path"
-      @close="showCustomPathDialog = false"
-      @saved="handleCustomPathSaved"
     />
   </div>
 </template>
@@ -486,16 +461,14 @@ import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { downloadDir } from '@tauri-apps/api/path'
 import { useI18n } from 'vue-i18n'
-import AccountCard from '../antigravity/AccountCard.vue'
-import AccountTableRow from '../antigravity/AccountTableRow.vue'
-import AddAccountDialog from '../antigravity/AddAccountDialog.vue'
-import ModelsModal from '../antigravity/ModelsModal.vue'
+import AccountCard from '../openai/AccountCard.vue'
+import AccountTableRow from '../openai/AccountTableRow.vue'
+import AddAccountDialog from '../openai/AddAccountDialog.vue'
 import SyncQueueModal from '../common/SyncQueueModal.vue'
 import Pagination from '../common/Pagination.vue'
 import BatchToolbar from '../common/BatchToolbar.vue'
 import ActionToolbar from '../common/ActionToolbar.vue'
 import FixedPaginationLayout from '../common/FixedPaginationLayout.vue'
-import CustomPathDialog from '../common/CustomPathDialog.vue'
 import TagEditorModal from '../token/TagEditorModal.vue'
 import { useStorageSync } from '@/composables/useStorageSync'
 
@@ -514,11 +487,9 @@ const accounts = ref([])
 const currentAccountId = ref(null)
 const showAddDialog = ref(false)
 const isLoading = ref(false)
-const isRefreshing = ref(false)
-const switchingAccountId = ref(null)
 const refreshingIds = ref(new Set())
-const showModelsModal = ref(false)
-const activeModelsAccount = ref(null)
+const deletingIds = ref(new Set())
+const switchingAccountId = ref(null)
 
 // 使用存储同步 composable
 const {
@@ -542,29 +513,21 @@ const {
   closeSyncQueue,
   handleSync
 } = useStorageSync({
-  platform: 'antigravity',
-  syncCommand: 'antigravity_sync_accounts',
+  platform: 'openai',
+  syncCommand: 'openai_sync_accounts',
   items: accounts,
-  currentItemId: currentAccountId,
   itemKey: 'account',
   labelField: 'email',
   onSyncComplete: async () => {
-    // 同步完成后重新从本地加载，确保数据一致性
     await loadAccounts()
   }
 })
 
-// 自定义路径相关状态
-const showCustomPathDialog = ref(false)
-const customAntigravityPath = ref(null)
-const defaultAntigravityPath = ref('')
-
 // 搜索和筛选
 const searchQuery = ref('')
 const selectedStatusFilter = ref(null)
-const toolbarMode = ref('hidden') // 'hidden', 'search', 'filter', 'sort', 'more'
+const toolbarMode = ref('hidden')
 const toolbarSearchInputRef = ref(null)
-const statusOptions = ['available', 'low', 'forbidden']
 
 // 排序
 const sortType = ref('time')
@@ -574,7 +537,7 @@ const sortOrder = ref('desc')
 const viewMode = ref('card')
 
 // 邮箱显示模式
-const showRealEmail = ref(true) // false = 脱敏显示, true = 真实邮箱
+const showRealEmail = ref(true)
 
 // 分页
 const currentPage = ref(1)
@@ -584,6 +547,7 @@ const pageSizeOptions = [10, 20, 50, 100, 200]
 // 批量操作
 const selectedAccountIds = ref(new Set())
 const isBatchRefreshing = ref(false)
+const isRefreshingAll = ref(false)
 const showBatchTagEditor = ref(false)
 
 // 计算属性
@@ -608,26 +572,28 @@ const allAccountsAsTokens = computed(() =>
   }))
 )
 
+// 状态判断
+const isAccountActive = (account) => {
+  if (!account.token) return false
+  if (account.token.expires_at) {
+    const now = Math.floor(Date.now() / 1000)
+    return account.token.expires_at > now
+  }
+  return true
+}
+
 const statusStatistics = computed(() => {
   const stats = {
     total: accounts.value.length,
-    available: 0,
-    low: 0,
-    forbidden: 0
+    active: 0,
+    expired: 0
   }
 
   accounts.value.forEach(account => {
-    if (account.quota?.is_forbidden) {
-      stats.forbidden++
+    if (isAccountActive(account)) {
+      stats.active++
     } else {
-      const gemini = account.quota?.models.find(m => m.name.toLowerCase().includes('gemini'))?.percentage || 0
-      const claude = account.quota?.models.find(m => m.name.toLowerCase().includes('claude'))?.percentage || 0
-
-      if (gemini >= 20 && claude >= 20) {
-        stats.available++
-      } else if (gemini < 20 || claude < 20) {
-        stats.low++
-      }
+      stats.expired++
     }
   })
 
@@ -646,19 +612,11 @@ const filteredAccounts = computed(() => {
   // 状态筛选
   if (selectedStatusFilter.value) {
     result = result.filter(account => {
-      if (selectedStatusFilter.value === 'forbidden') {
-        return account.quota?.is_forbidden
+      if (selectedStatusFilter.value === 'active') {
+        return isAccountActive(account)
+      } else if (selectedStatusFilter.value === 'expired') {
+        return !isAccountActive(account)
       }
-
-      const gemini = account.quota?.models.find(m => m.name.toLowerCase().includes('gemini'))?.percentage || 0
-      const claude = account.quota?.models.find(m => m.name.toLowerCase().includes('claude'))?.percentage || 0
-
-      if (selectedStatusFilter.value === 'available') {
-        return !account.quota?.is_forbidden && gemini >= 20 && claude >= 20
-      } else if (selectedStatusFilter.value === 'low') {
-        return !account.quota?.is_forbidden && (gemini < 20 || claude < 20)
-      }
-
       return true
     })
   }
@@ -675,19 +633,13 @@ const filteredAccounts = computed(() => {
     }
 
     if (sortType.value === 'time') {
-      const timeA = a.last_used || a.created_at
-      const timeB = b.last_used || b.created_at
+      const timeA = a.created_at
+      const timeB = b.created_at
       return sortOrder.value === 'desc' ? timeB - timeA : timeA - timeB
-    } else if (sortType.value === 'quota') {
-      const getAvgQuota = (account) => {
-        if (!account.quota || account.quota.is_forbidden) return 0
-        const gemini = account.quota.models.find(m => m.name.toLowerCase().includes('gemini'))?.percentage || 0
-        const claude = account.quota.models.find(m => m.name.toLowerCase().includes('claude'))?.percentage || 0
-        return (gemini + claude) / 2
-      }
-      const quotaA = getAvgQuota(a)
-      const quotaB = getAvgQuota(b)
-      return sortOrder.value === 'desc' ? quotaB - quotaA : quotaA - quotaB
+    } else if (sortType.value === 'email') {
+      return sortOrder.value === 'desc'
+        ? b.email.localeCompare(a.email)
+        : a.email.localeCompare(b.email)
     }
     return 0
   })
@@ -717,8 +669,7 @@ const shouldShowPagination = computed(() => !isLoading.value && accounts.value.l
 const loadAccounts = async () => {
   isLoading.value = true
   try {
-    // 直接从本地文件加载,不触发 storage manager 初始化
-    const jsonString = await invoke('antigravity_load_accounts_json')
+    const jsonString = await invoke('openai_load_accounts_json')
     const data = JSON.parse(jsonString)
     accounts.value = data.accounts || []
     currentAccountId.value = data.current_account_id || null
@@ -731,95 +682,86 @@ const loadAccounts = async () => {
   }
 }
 
-const handleSwitch = async (accountId) => {
-  switchingAccountId.value = accountId
-  try {
-    await invoke('antigravity_switch_account', { accountId })
-    await loadAccounts()
-    markItemUpsertById(accountId)
-  } catch (error) {
-    console.error('Failed to switch account:', error)
-    alert(error)
-  } finally {
-    switchingAccountId.value = null
-  }
-}
-
-const handleRefreshQuota = async (accountId) => {
+const handleRefresh = async (accountId) => {
   refreshingIds.value.add(accountId)
   try {
-    // 调用后端刷新配额，返回更新后的账户数据
-    const updatedAccount = await invoke('antigravity_fetch_quota', { accountId })
-
-    // 只更新该账户的数据，而不是重新加载整个列表
-    const index = accounts.value.findIndex(a => a.id === accountId)
-    if (index !== -1 && updatedAccount) {
-      // 使用响应式更新，保持滚动位置
-      accounts.value[index] = updatedAccount
-    } else {
-      // 如果后端没有返回更新后的账户，则从本地文件重新加载该账户
-      await loadSingleAccount(accountId)
-    }
-
+    await invoke('openai_refresh_account', { accountId })
+    await loadAccounts()
     markItemUpsertById(accountId)
-    window.$notify?.success($t('platform.antigravity.messages.refreshSuccess'))
+    window.$notify?.success($t('platform.openai.messages.refreshSuccess'))
   } catch (error) {
-    console.error('Failed to refresh quota:', error)
-    window.$notify?.error($t('platform.antigravity.messages.refreshFailed', { error: error?.message || error }))
+    console.error('Failed to refresh account:', error)
+    window.$notify?.error($t('platform.openai.messages.refreshFailed', { error: error?.message || error }))
   } finally {
     refreshingIds.value.delete(accountId)
   }
 }
 
-// 单独加载一个账户的数据（用于刷新后更新）
-const loadSingleAccount = async (accountId) => {
+// 刷新配额
+const handleRefreshQuota = async (accountId) => {
+  refreshingIds.value.add(accountId)
   try {
-    const jsonString = await invoke('antigravity_load_accounts_json')
-    const data = JSON.parse(jsonString)
-    const updatedAccount = (data.accounts || []).find(a => a.id === accountId)
-
-    if (updatedAccount) {
-      const index = accounts.value.findIndex(a => a.id === accountId)
-      if (index !== -1) {
-        accounts.value[index] = updatedAccount
-      }
+    const updatedAccount = await invoke('openai_fetch_quota', { accountId })
+    // 直接更新本地数组中的账号数据
+    const index = accounts.value.findIndex(a => a.id === accountId)
+    if (index !== -1) {
+      accounts.value[index] = updatedAccount
     }
+    markItemUpsertById(accountId)
+    window.$notify?.success($t('platform.openai.messages.quotaRefreshSuccess'))
   } catch (error) {
-    console.error('Failed to load single account:', error)
-  }
-}
-
-const handleRefresh = async () => {
-  isRefreshing.value = true
-  window.$notify?.info($t('platform.antigravity.refreshing'))
-  try {
-    await loadAccounts()
-    for (const account of accounts.value) {
-      refreshingIds.value.add(account.id)
-    }
-    await invoke('antigravity_refresh_all_quotas')
-    await loadAccounts()
-    for (const account of accounts.value) {
-      markItemUpsert(account)
-    }
-    window.$notify?.success($t('platform.antigravity.messages.refreshSuccess'))
-  } catch (error) {
-    console.error('Failed to refresh quotas:', error)
-    window.$notify?.error($t('platform.antigravity.messages.refreshFailed', { error: error?.message || error }))
+    console.error('Failed to refresh quota:', error)
+    window.$notify?.error($t('platform.openai.messages.quotaRefreshFailed', { error: error?.message || error }))
   } finally {
-    refreshingIds.value.clear()
-    isRefreshing.value = false
+    refreshingIds.value.delete(accountId)
   }
 }
 
-const handleAddAccount = async (email, refreshToken) => {
+// 刷新当前页所有配额
+const handleRefreshCurrentPageQuota = async () => {
+  isRefreshingAll.value = true
   try {
-    const account = await invoke('antigravity_add_account', { email, refreshToken })
-    await handleAccountAdded(account)
+    for (const account of paginatedAccounts.value) {
+      await handleRefreshQuota(account.id)
+    }
+  } finally {
+    isRefreshingAll.value = false
+  }
+}
+
+// 刷新 Token
+const handleRefreshToken = async (accountId) => {
+  refreshingIds.value.add(accountId)
+  try {
+    const updatedAccount = await invoke('openai_refresh_account', { accountId })
+    // 直接更新本地数组中的账号数据
+    const index = accounts.value.findIndex(a => a.id === accountId)
+    if (index !== -1) {
+      accounts.value[index] = updatedAccount
+    }
+    markItemUpsertById(accountId)
+    window.$notify?.success($t('platform.openai.messages.refreshSuccess'))
   } catch (error) {
-    console.error('Failed to add account:', error)
-    window.$notify?.error($t('platform.antigravity.messages.addFailed', { error: error?.message || error }))
-    throw error
+    console.error('Failed to refresh account:', error)
+    window.$notify?.error($t('platform.openai.messages.refreshFailed', { error: error?.message || error }))
+  } finally {
+    refreshingIds.value.delete(accountId)
+  }
+}
+
+const handleSwitch = async (accountId) => {
+  switchingAccountId.value = accountId
+  try {
+    await invoke('openai_switch_account', { accountId })
+    // 直接更新当前账号 ID
+    currentAccountId.value = accountId
+    markItemUpsertById(accountId)
+    window.$notify?.success($t('platform.openai.messages.switchSuccess'))
+  } catch (error) {
+    console.error('Failed to switch account:', error)
+    window.$notify?.error($t('platform.openai.messages.switchFailed', { error: error?.message || error }))
+  } finally {
+    switchingAccountId.value = null
   }
 }
 
@@ -829,29 +771,24 @@ const handleAccountAdded = async (account) => {
   if (account?.id) {
     markItemUpsertById(account.id)
   }
-  window.$notify?.success($t('platform.antigravity.messages.addSuccess'))
+  window.$notify?.success($t('platform.openai.messages.addSuccess'))
 }
 
 const handleDelete = async (accountId) => {
+  const account = accounts.value.find(a => a.id === accountId)
+  deletingIds.value.add(accountId)
   try {
-    const account = accounts.value.find(a => a.id === accountId)
-    await invoke('antigravity_delete_account', { accountId })
+    await invoke('openai_delete_account', { accountId })
     if (account) {
       markItemDeletion(account)
     }
     await loadAccounts()
-    window.$notify?.success($t('platform.antigravity.messages.deleteSuccess'))
+    window.$notify?.success($t('platform.openai.messages.deleteSuccess'))
   } catch (error) {
     console.error('Failed to delete account:', error)
-    window.$notify?.error($t('platform.antigravity.messages.deleteFailed', { error: error?.message || error }))
-  }
-}
-
-const openDataFolder = async () => {
-  try {
-    await invoke('open_data_folder')
-  } catch (error) {
-    console.error('Failed to open data folder:', error)
+    window.$notify?.error($t('platform.openai.messages.deleteFailed', { error: error?.message || error }))
+  } finally {
+    deletingIds.value.delete(accountId)
   }
 }
 
@@ -887,7 +824,7 @@ const exportAccounts = async () => {
     const url = URL.createObjectURL(dataBlob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `antigravity-accounts-${new Date().toISOString().split('T')[0]}.json`
+    link.download = `openai-accounts-${new Date().toISOString().split('T')[0]}.json`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -895,14 +832,14 @@ const exportAccounts = async () => {
 
     // 获取下载文件夹路径
     const downloadsPath = await downloadDir()
-    window.$notify.success($t('platform.antigravity.exportSuccess') + '\n' + $t('platform.antigravity.fileSavedIn', { path: downloadsPath }))
+    window.$notify.success($t('platform.openai.exportSuccess') + '\n' + $t('platform.openai.fileSavedIn', { path: downloadsPath }))
   } catch (error) {
     console.error('Export failed:', error)
-    window.$notify.error($t('platform.antigravity.exportFailed'))
+    window.$notify.error($t('platform.openai.exportFailed'))
   }
 }
 
-// 处理页面内容点击 (关闭所有工具栏)
+// 处理页面内容点击
 const handlePageContentClick = () => {
   // 工具栏会自动处理点击外部关闭
 }
@@ -962,6 +899,18 @@ const batchRefreshSelected = async () => {
   }
 }
 
+const batchRefreshTokensSelected = async () => {
+  isBatchRefreshing.value = true
+  try {
+    for (const accountId of selectedAccountIds.value) {
+      await handleRefreshToken(accountId)
+    }
+    window.$notify?.success($t('platform.openai.batchRefreshSuccess', { count: selectedAccountIds.value.size }))
+  } finally {
+    isBatchRefreshing.value = false
+  }
+}
+
 const showBatchDeleteSelectedConfirm = () => {
   handleBatchDeleteSelected()
 }
@@ -970,23 +919,23 @@ const handleBatchDeleteSelected = async () => {
   try {
     for (const accountId of selectedAccountIds.value) {
       const account = accounts.value.find(a => a.id === accountId)
-      await invoke('antigravity_delete_account', { accountId })
+      await invoke('openai_delete_account', { accountId })
       if (account) {
         markItemDeletion(account)
       }
     }
     selectedAccountIds.value = new Set()
     await loadAccounts()
-    window.$notify?.success($t('platform.antigravity.messages.deleteSuccess'))
+    window.$notify?.success($t('platform.openai.messages.deleteSuccess'))
   } catch (error) {
     console.error('Failed to batch delete accounts:', error)
-    window.$notify?.error($t('platform.antigravity.messages.deleteFailed', { error: error?.message || error }))
+    window.$notify?.error($t('platform.openai.messages.deleteFailed', { error: error?.message || error }))
   }
 }
 
 const handleMarkAllForSync = () => {
   markAllForSync()
-  window.$notify.success($t('platform.antigravity.allAccountsMarkedForSync', { count: accounts.value.length }))
+  window.$notify.success($t('platform.openai.allAccountsMarkedForSync', { count: accounts.value.length }))
 }
 
 // 批量编辑标签 - 保存
@@ -1009,7 +958,7 @@ const handleBatchTagSave = async ({ tagName, tagColor }) => {
 
   // 保存更改到本地
   try {
-    await invoke('antigravity_save_accounts', { accounts: accounts.value })
+    await invoke('openai_save_accounts', { accounts: accounts.value })
   } catch (error) {
     console.error('Failed to save accounts:', error)
   }
@@ -1038,7 +987,7 @@ const handleBatchTagClear = async () => {
 
   // 保存更改到本地
   try {
-    await invoke('antigravity_save_accounts', { accounts: accounts.value })
+    await invoke('openai_save_accounts', { accounts: accounts.value })
   } catch (error) {
     console.error('Failed to save accounts:', error)
   }
@@ -1051,14 +1000,11 @@ const handleBatchTagClear = async () => {
 const handleAccountUpdated = async (updatedAccount) => {
   if (!updatedAccount?.id) return
   try {
-    // 更新本地状态
     const index = accounts.value.findIndex(a => a.id === updatedAccount.id)
     if (index !== -1) {
       accounts.value[index] = { ...accounts.value[index], ...updatedAccount }
     }
-    // 调用后端保存到本地存储
-    await invoke('antigravity_update_account', { account: updatedAccount })
-    // 标记待同步到远程
+    await invoke('openai_update_account', { account: updatedAccount })
     markItemUpsert(updatedAccount)
   } catch (error) {
     console.error('Failed to update account:', error)
@@ -1066,48 +1012,13 @@ const handleAccountUpdated = async (updatedAccount) => {
   }
 }
 
-const openModelsModal = (account) => {
-  activeModelsAccount.value = account
-  showModelsModal.value = true
-}
-
-const closeModelsModal = () => {
-  showModelsModal.value = false
-  activeModelsAccount.value = null
-}
-
-const refreshModelsModal = async () => {
-  if (!activeModelsAccount.value) return
-  await handleRefreshQuota(activeModelsAccount.value.id)
-  activeModelsAccount.value = accounts.value.find(a => a.id === activeModelsAccount.value.id) || activeModelsAccount.value
-}
-
 // 监听搜索和筛选变化，重置分页
 watch([searchQuery, selectedStatusFilter], () => {
   currentPage.value = 1
 })
 
-// 自定义 Antigravity 路径相关函数
-const loadCustomPath = async () => {
-  try {
-    customAntigravityPath.value = await invoke('antigravity_get_custom_path')
-    try {
-      defaultAntigravityPath.value = await invoke('antigravity_get_default_path')
-    } catch (e) {
-      defaultAntigravityPath.value = ''
-    }
-  } catch (error) {
-    console.error('Failed to load custom path:', error)
-  }
-}
-
-const handleCustomPathSaved = (newPath) => {
-  customAntigravityPath.value = newPath
-}
-
 onMounted(async () => {
   await initSync()
   await loadAccounts()
-  await loadCustomPath()
 })
 </script>

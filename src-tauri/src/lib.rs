@@ -3,6 +3,8 @@ pub mod platforms {
     pub mod augment;
     pub mod windsurf;
     pub mod cursor;
+    pub mod openai;
+    pub mod claude;
 }
 
 pub mod features {
@@ -29,13 +31,14 @@ pub mod data {
 pub use core::{api_server, http_client, proxy_config, proxy_helper};
 pub use data::{database, storage};
 pub use features::{bookmarks, mail};
-pub use platforms::{antigravity, augment, windsurf, cursor};
+pub use platforms::{antigravity, augment, windsurf, cursor, openai, claude};
 
 use crate::features::mail::{gptmail, outlook};
 use crate::platforms::augment::models::AugmentOAuthState;
+use crate::platforms::openai::models::OpenAIOAuthSession;
 use outlook::OutlookManager;
 use database::{DatabaseConfigManager, DatabaseManager};
-use storage::{DualStorage, AntigravityDualStorage, WindsurfDualStorage, CursorDualStorage};
+use storage::{DualStorage, AntigravityDualStorage, WindsurfDualStorage, CursorDualStorage, OpenAIDualStorage, ClaudeDualStorage};
 use crate::data::subscription::SubscriptionDualStorage;
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
@@ -53,13 +56,16 @@ pub struct AppSessionCache {
 // Global state to store OAuth state and storage managers
 pub struct AppState {
     augment_oauth_state: Mutex<Option<AugmentOAuthState>>,
+    pub openai_oauth_sessions: Arc<Mutex<HashMap<String, OpenAIOAuthSession>>>,
     api_server: Mutex<Option<api_server::ApiServer>>,
     outlook_manager: Mutex<OutlookManager>,
     pub storage_manager: Arc<Mutex<Option<Arc<DualStorage>>>>,
     pub antigravity_storage_manager: Arc<Mutex<Option<Arc<AntigravityDualStorage>>>>,
     pub windsurf_storage_manager: Arc<Mutex<Option<Arc<WindsurfDualStorage>>>>,
     pub cursor_storage_manager: Arc<Mutex<Option<Arc<CursorDualStorage>>>>,
+    pub openai_storage_manager: Arc<Mutex<Option<Arc<OpenAIDualStorage>>>>,
     pub subscription_storage_manager: Arc<Mutex<Option<Arc<SubscriptionDualStorage>>>>,
+    pub claude_storage_manager: Arc<Mutex<Option<Arc<ClaudeDualStorage>>>>,
     pub database_manager: Arc<Mutex<Option<Arc<DatabaseManager>>>>,
     // App session 缓存: key 为 auth_session, value 为缓存的 app_session
     pub app_session_cache: Arc<Mutex<HashMap<String, AppSessionCache>>>,
@@ -92,13 +98,16 @@ pub fn run() {
         .setup(|app| {
             let app_state = AppState {
                 augment_oauth_state: Mutex::new(None),
+                openai_oauth_sessions: Arc::new(Mutex::new(HashMap::new())),
                 api_server: Mutex::new(None),
                 outlook_manager: Mutex::new(OutlookManager::new()),
                 storage_manager: Arc::new(Mutex::new(None)),
                 antigravity_storage_manager: Arc::new(Mutex::new(None)),
                 windsurf_storage_manager: Arc::new(Mutex::new(None)),
                 cursor_storage_manager: Arc::new(Mutex::new(None)),
+                openai_storage_manager: Arc::new(Mutex::new(None)),
                 subscription_storage_manager: Arc::new(Mutex::new(None)),
+                claude_storage_manager: Arc::new(Mutex::new(None)),
                 database_manager: Arc::new(Mutex::new(None)),
                 app_session_cache: Arc::new(Mutex::new(HashMap::new())),
                 app_handle: app.handle().clone(),
@@ -183,6 +192,34 @@ pub fn run() {
                                                                 eprintln!("Failed to check Cursor tables on startup: {}", e);
                                                             }
                                                         }
+                                                        match database::openai::check_tables_exist(&client).await {
+                                                            Ok(exists) => {
+                                                                if !exists {
+                                                                    if let Err(e) = database::openai::create_tables(&client).await {
+                                                                        eprintln!("Failed to create OpenAI tables on startup: {}", e);
+                                                                    }
+                                                                } else if let Err(e) = database::openai::add_new_fields_if_not_exist(&client).await {
+                                                                    eprintln!("Failed to update OpenAI tables on startup: {}", e);
+                                                                }
+                                                            }
+                                                            Err(e) => {
+                                                                eprintln!("Failed to check OpenAI tables on startup: {}", e);
+                                                            }
+                                                        }
+                                                        match database::claude::check_tables_exist(&client).await {
+                                                            Ok(exists) => {
+                                                                if !exists {
+                                                                    if let Err(e) = database::claude::create_tables(&client).await {
+                                                                        eprintln!("Failed to create Claude tables on startup: {}", e);
+                                                                    }
+                                                                } else if let Err(e) = database::claude::add_new_fields_if_not_exist(&client).await {
+                                                                    eprintln!("Failed to update Claude tables on startup: {}", e);
+                                                                }
+                                                            }
+                                                            Err(e) => {
+                                                                eprintln!("Failed to check Claude tables on startup: {}", e);
+                                                            }
+                                                        }
                                                         match crate::data::subscription::migrations::check_tables_exist(&client).await {
                                                             Ok(exists) => {
                                                                 if !exists {
@@ -227,6 +264,12 @@ pub fn run() {
                 if let Err(e) = storage::initialize_cursor_storage_manager(&app_handle, &state).await {
                     eprintln!("Failed to initialize Cursor storage manager: {}", e);
                 }
+                if let Err(e) = storage::initialize_openai_storage_manager(&app_handle, &state).await {
+                    eprintln!("Failed to initialize OpenAI storage manager: {}", e);
+                }
+                if let Err(e) = storage::initialize_claude_storage_manager(&app_handle, &state).await {
+                    eprintln!("Failed to initialize Claude storage manager: {}", e);
+                }
                 if let Err(e) = crate::data::subscription::initialize_subscription_storage_manager(&app_handle, &state).await {
                     eprintln!("Failed to initialize Subscription storage manager: {}", e);
                 }
@@ -257,12 +300,15 @@ pub fn run() {
                 match api_server::start_api_server(
                     Arc::new(AppState {
                         augment_oauth_state: Mutex::new(None),
+                        openai_oauth_sessions: state.openai_oauth_sessions.clone(),
                         api_server: Mutex::new(None),
                         outlook_manager: Mutex::new(OutlookManager::new()),
                         storage_manager: state.storage_manager.clone(),
                         antigravity_storage_manager: state.antigravity_storage_manager.clone(),
                         windsurf_storage_manager: state.windsurf_storage_manager.clone(),
                         cursor_storage_manager: state.cursor_storage_manager.clone(),
+                        openai_storage_manager: state.openai_storage_manager.clone(),
+                        claude_storage_manager: state.claude_storage_manager.clone(),
                         subscription_storage_manager: state.subscription_storage_manager.clone(),
                         database_manager: state.database_manager.clone(),
                         app_session_cache: state.app_session_cache.clone(),
@@ -370,6 +416,29 @@ pub fn run() {
             augment::delete_team_member,
             augment::delete_team_invitation,
 
+            // OpenAI OAuth 命令
+            openai::openai_generate_auth_url,
+            openai::openai_exchange_code,
+            openai::openai_refresh_token,
+            openai::openai_list_accounts,
+            openai::openai_load_account,
+            openai::openai_save_account,
+            openai::openai_delete_account,
+            openai::openai_get_current_account_id,
+            openai::openai_set_current_account_id,
+            openai::openai_fetch_quota,
+            openai::openai_refresh_all_quotas,
+            openai::openai_refresh_account_token,
+            openai::openai_refresh_all_tokens,
+            openai::openai_load_accounts_json,
+            openai::openai_add_account,
+            openai::openai_save_accounts,
+            openai::openai_update_account,
+            openai::openai_refresh_account,
+            openai::openai_start_oauth_login,
+            openai::openai_cancel_oauth_login,
+            openai::openai_switch_account,
+
             // Antigravity 管理命令
             antigravity::antigravity_list_accounts,
             antigravity::antigravity_load_accounts_json,
@@ -457,6 +526,12 @@ pub fn run() {
             storage::antigravity::antigravity_bidirectional_sync_accounts,
             storage::antigravity::antigravity_sync_accounts,
             storage::antigravity::antigravity_get_sync_status,
+            // OpenAI 同步命令
+            storage::openai::openai_sync_accounts_to_database,
+            storage::openai::openai_sync_accounts_from_database,
+            storage::openai::openai_bidirectional_sync_accounts,
+            storage::openai::openai_sync_accounts,
+            storage::openai::openai_get_sync_status,
             // Cursor 同步命令
             storage::cursor::cursor_sync_accounts_to_database,
             storage::cursor::cursor_sync_accounts_from_database,
@@ -474,6 +549,18 @@ pub fn run() {
             data::subscription::subscription_add,
             data::subscription::subscription_update,
             data::subscription::subscription_delete,
+
+            // Claude 账户管理命令
+            storage::claude::claude_list,
+            storage::claude::claude_add,
+            storage::claude::claude_update,
+            storage::claude::claude_delete,
+            storage::claude::claude_sync_accounts,
+            storage::claude::claude_sync_accounts_to_database,
+            storage::claude::claude_sync_accounts_from_database,
+            storage::claude::claude_bidirectional_sync_accounts,
+            storage::claude::claude_switch_account,
+            storage::claude::claude_get_current_account_id,
 
             // API 服务器管理命令
             api_server::get_api_server_status,

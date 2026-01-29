@@ -1,10 +1,27 @@
 <template>
   <div
     class="bg-surface border border-border rounded-lg p-3 cursor-pointer relative group transition-all duration-150 hover:bg-hover hover:border-border-strong"
-    @click="$emit('edit', subscription)"
+    :class="{
+      'border-accent bg-accent/5': isSelected
+    }"
+    @click="handleCardClick"
   >
-    <!-- 头部：只有标题 -->
+    <!-- 头部：选择框 + 标题 -->
     <div class="flex items-center gap-2 mb-3 pr-8">
+      <!-- 选择框（悬浮或选择模式时显示） -->
+      <div
+        class="selection-checkbox"
+        :class="{ 'visible': selectionMode || isSelected }"
+        @click.stop="toggleSelection"
+      >
+        <div class="checkbox-inner" :class="{ 'checked': isSelected }">
+          <svg v-if="isSelected" class="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+          </svg>
+        </div>
+      </div>
+
+      <!-- 标题 -->
       <h3 class="text-[15px] font-semibold text-text m-0 flex-1 truncate">{{ subscription.website }}</h3>
     </div>
 
@@ -78,13 +95,25 @@
           </svg>
           <span>{{ $t('subscriptions.fields.tag') }}</span>
         </div>
-        <div class="flex-1 text-[13px] truncate">
+        <div class="flex-1 text-[13px]">
+          <!-- 添加标签按钮（无标签时显示） -->
           <span
-            v-if="subscription.tag"
+            v-if="!subscription.tag"
+            class="inline-flex items-center gap-0.5 px-1.5 py-0.5 border border-dashed border-border rounded text-text-muted text-xs cursor-pointer hover:border-accent hover:text-accent transition-colors"
+            @click.stop="openTagEditor"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+            </svg>
+            {{ $t('tokenList.clickToAddTag') }}
+          </span>
+          <!-- 标签（有标签时显示，可点击编辑） -->
+          <span
+            v-else
             class="badge editable badge--sm"
             :style="{ '--tag-color': subscription.tag_color }"
+            @click.stop="openTagEditor"
           >{{ subscription.tag }}</span>
-          <span v-else class="text-text-muted">—</span>
         </div>
       </div>
 
@@ -104,23 +133,95 @@
       </div>
     </div>
   </div>
+
+  <!-- 标签编辑模态框 -->
+  <TagEditorModal
+    v-model:visible="showTagEditor"
+    :token="subscriptionAsToken"
+    :all-tokens="allSubscriptionsAsTokens"
+    @save="handleTagSave"
+    @clear="handleTagClear"
+  />
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from 'vue-i18n'
+import TagEditorModal from '../token/TagEditorModal.vue'
 
 const { t: $t, locale } = useI18n()
+
+const DEFAULT_TAG_COLOR = '#f97316'
 
 const props = defineProps({
   subscription: {
     type: Object,
     required: true
+  },
+  isSelected: {
+    type: Boolean,
+    default: false
+  },
+  selectionMode: {
+    type: Boolean,
+    default: false
+  },
+  allSubscriptions: {
+    type: Array,
+    default: () => []
   }
 })
 
-defineEmits(['edit', 'delete'])
+const emit = defineEmits(['edit', 'delete', 'select', 'subscription-updated'])
+
+const showTagEditor = ref(false)
+
+// 选择和点击
+const toggleSelection = () => {
+  emit('select', props.subscription.id)
+}
+
+const handleCardClick = () => {
+  if (props.selectionMode) {
+    toggleSelection()
+  } else {
+    emit('edit', props.subscription)
+  }
+}
+
+// 标签相关
+const subscriptionAsToken = computed(() => ({
+  tag_name: props.subscription.tag || '',
+  tag_color: props.subscription.tag_color || ''
+}))
+
+const allSubscriptionsAsTokens = computed(() =>
+  props.allSubscriptions.map(sub => ({
+    tag_name: sub.tag || '',
+    tag_color: sub.tag_color || ''
+  }))
+)
+
+const openTagEditor = () => {
+  showTagEditor.value = true
+}
+
+const handleTagSave = ({ tagName, tagColor }) => {
+  props.subscription.tag = tagName
+  props.subscription.tag_color = tagColor
+  props.subscription.updated_at = Math.floor(Date.now() / 1000)
+  emit('subscription-updated', props.subscription)
+  window.$notify?.success($t('messages.tagUpdated'))
+}
+
+const handleTagClear = () => {
+  props.subscription.tag = ''
+  props.subscription.tag_color = ''
+  props.subscription.updated_at = Math.floor(Date.now() / 1000)
+  emit('subscription-updated', props.subscription)
+  window.$notify?.success($t('messages.tagCleared'))
+}
 
 const copyNotes = async () => {
   if (!props.subscription.notes) return

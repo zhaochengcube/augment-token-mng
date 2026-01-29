@@ -1067,6 +1067,7 @@ export default {
       export: 'Export Accounts',
       exportSuccess: 'Accounts exported successfully',
       exportFailed: 'Export failed',
+      fileSavedIn: 'File saved in: {path}',
       hideEmail: 'Hide Email',
       showEmail: 'Show Email',
       sortByTimeDesc: 'Newest First',
@@ -1194,6 +1195,210 @@ export default {
       batchRefresh: 'Batch refresh quota',
       batchRefreshSuccess: 'Refreshed quota for {count} accounts',
       batchDeleteSuccess: 'Deleted {count} accounts'
+    },
+    openai: {
+      title: 'OpenAI Account Manager',
+      subtitle: 'Manage your OpenAI accounts',
+      accountCount: '{count} accounts',
+      refreshQuota: 'Refresh',
+      refreshAllQuota: 'Refresh all quotas on current page',
+      addAccount: 'Add Account',
+      currentAccount: 'Current Account',
+      switching: 'Switching...',
+      switch: 'Switch',
+      refresh: 'Refresh',
+      refreshing: 'Refreshing...',
+      delete: 'Delete',
+      createdAt: 'Created at',
+      updatedAt: 'Updated at',
+      tokenExpiresAt: 'Token expires at',
+      viewSyncQueueTooltip: 'Click to view pending sync queue',
+      syncQueueTitle: 'Sync Queue',
+      syncQueueUpsertsTitle: 'Pending Updates',
+      syncQueueDeletionsTitle: 'Pending Deletions',
+      syncQueueEmpty: 'No pending changes',
+      fullSync: 'Full Sync',
+      sync: 'Sync',
+      searchPlaceholder: 'Search email...',
+      batchRefresh: 'Batch refresh',
+      batchRefreshToken: 'Batch refresh tokens',
+      allAccountsMarkedForSync: 'All {count} accounts marked for sync',
+      export: 'Export Accounts',
+      exportSuccess: 'Accounts exported successfully',
+      exportFailed: 'Export failed',
+      fileSavedIn: 'File saved in: {path}',
+      filter: {
+        all: 'All',
+        active: 'Active',
+        expired: 'Expired'
+      },
+      status: {
+        current: 'Current',
+        active: 'Active',
+        expired: 'Expired'
+      },
+      table: {
+        info: 'Account',
+        tag: 'Tag',
+        status: 'Status',
+        email: 'Email',
+        time: 'Time',
+        quota: 'Quota',
+        actions: 'Actions'
+      },
+      quota5h: '5h Quota',
+      quota7d: '7d Quota',
+      actions: {
+        switch: 'Switch account',
+        refresh: 'Refresh account',
+        refreshQuota: 'Refresh Quota',
+        refreshToken: 'Refresh Token',
+        delete: 'Delete account'
+      },
+      addAccountDialog: {
+        title: 'Add OpenAI Account',
+        oauthMethod: 'OAuth Authorization',
+        manualMethod: 'Manual Add',
+        oauthInfo: 'Click the button below to open OpenAI authorization page, account will be added automatically after authorization',
+        openaiLogin: 'Sign in with OpenAI',
+        oauthManualTitle: 'Manual flow (copy the link)',
+        generateAuthLink: 'Generate auth link',
+        copyAuthLink: 'Copy auth link',
+        callbackLabel: 'Callback URL or authorization code',
+        callbackPlaceholder: 'Paste callback URL or authorization code',
+        callbackHint: 'Paste the browser callback URL or the code parameter',
+        exchangeCode: 'Add with code',
+        authLinkCopied: 'Authorization link copied',
+        invalidCallback: 'No valid authorization code found',
+        missingRedirectUri: 'Missing redirect_uri, generate the auth link first',
+        emailExists: 'This email already exists. Please avoid duplicates.',
+        oauthExchangeFailed: 'Authorization code exchange failed',
+        email: 'Email Address',
+        emailPlaceholder: "your-email{'@'}example.com",
+        refreshToken: 'Refresh Token',
+        refreshTokenPlaceholder: 'Paste your Refresh Token here...',
+        refreshTokenHint: 'Get refresh_token from OpenAI database or network requests',
+        adding: 'Adding...',
+        add: 'Add Account'
+      },
+      messages: {
+        switchSuccess: 'Account switched successfully',
+        switchFailed: 'Switch failed: {error}',
+        refreshSuccess: 'Account refreshed successfully',
+        refreshFailed: 'Refresh failed: {error}',
+        quotaRefreshSuccess: 'Quota refreshed successfully',
+        quotaRefreshFailed: 'Failed to refresh quota: {error}',
+        addSuccess: 'Account added successfully',
+        addFailed: 'Add account failed: {error}',
+        deleteConfirm: 'Are you sure you want to delete this account?',
+        deleteSuccess: 'Account deleted successfully',
+        deleteFailed: 'Delete failed: {error}',
+        batchDeleteConfirm: 'Are you sure you want to delete {count} selected accounts?',
+        noSelection: 'Please select accounts to operate'
+      }
+    },
+    claude: {
+      title: 'Claude Account Manager',
+      subtitle: 'Manage your Claude accounts',
+      accountCount: '{count} accounts',
+      addAccount: 'Add Account',
+      addFirst: 'Add your first Claude account',
+      emptyState: 'No Claude accounts yet',
+      refresh: 'Refresh',
+      delete: 'Delete',
+      createdAt: 'Created at',
+      switch: 'Switch Account',
+      currentAccount: 'Current Account',
+      viewSyncQueueTooltip: 'Click to view pending sync queue',
+      syncQueueTitle: 'Claude Sync Queue',
+      syncQueueUpsertsTitle: 'Pending Uploads',
+      syncQueueDeletionsTitle: 'Pending Deletions',
+      syncQueueEmpty: 'No pending sync data',
+      fullSync: 'Full Sync',
+      sync: 'Sync',
+      allAccountsMarkedForSync: '{count} accounts marked for sync',
+      searchPlaceholder: 'Search service name, URL or tag...',
+      table: {
+        serviceName: 'Service Name',
+        websiteUrl: 'Website URL',
+        expiryDate: 'Expiry Date',
+        tag: 'Tag',
+        actions: 'Actions'
+      },
+      deleteConfirm: {
+        title: 'Confirm Delete',
+        message: 'Are you sure you want to delete Claude account "{name}"?'
+      },
+      switchConfirm: {
+        title: 'Confirm Switch Account',
+        message: 'Are you sure you want to switch to account "{name}"? This will update the ~/.claude/settings.json file.'
+      },
+      batchDeleteConfirm: {
+        title: 'Confirm Batch Delete',
+        message: 'Are you sure you want to delete {count} selected accounts?'
+      },
+      messages: {
+        addSuccess: 'Claude account added successfully',
+        updateSuccess: 'Claude account updated successfully',
+        deleteSuccess: 'Claude account deleted successfully',
+        switchSuccess: 'Account switched successfully',
+        saveFailed: 'Failed to save account',
+        deleteFailed: 'Failed to delete account',
+        switchFailed: 'Failed to switch account',
+        batchDeleteSuccess: '{count} accounts deleted'
+      },
+      dialog: {
+        addTitle: 'Add Claude Account',
+        editTitle: 'Edit Claude Account',
+        expiryHint: 'Expiry date is automatically calculated from start date and duration',
+        tabs: {
+          basic: 'Basic Info',
+          api: 'API Config'
+        },
+        fields: {
+          serviceName: 'Service Name',
+          websiteUrl: 'Website URL',
+          subscription: 'Subscription',
+          startDate: 'Start Date',
+          duration: 'Duration',
+          expiryDate: 'Expiry Date',
+          tag: 'Tag',
+          tagColor: 'Tag Color',
+          notes: 'Notes',
+          apiConfig: 'API Configuration',
+          baseUrl: 'Base URL',
+          authToken: 'Auth Token',
+          defaultModels: 'Default Models',
+          opusModel: 'Opus Model',
+          sonnetModel: 'Sonnet Model',
+          haikuModel: 'Haiku Model',
+          useModel: 'Use Model'
+        },
+        useModels: {
+          default: 'Default',
+          opus: 'Opus',
+          haiku: 'Haiku'
+        },
+        useModelHint: 'When Default is selected, Claude will use its default model selection',
+        durationUnits: {
+          days: 'Days',
+          weeks: 'Weeks',
+          months: 'Months',
+          years: 'Years'
+        },
+        placeholders: {
+          serviceName: 'e.g. Claude Official',
+          websiteUrl: 'e.g. https://claude.ai',
+          durationDays: '30',
+          tag: 'Enter tag name',
+          notes: 'Optional notes',
+          baseUrl: 'https://api.anthropic.com',
+          authToken: 'sk-ant-xxx...',
+          opusModel: 'claude-4-5-opus',
+          sonnetModel: 'claude-4-5-sonnet',
+          haikuModel: 'claude-4-5-haiku'
+        }
+      }
     }
   },
   font: {
@@ -1256,12 +1461,17 @@ export default {
       subscription: 'Subscription Period',
       startDate: 'Start Date',
       duration: 'Duration',
-      months: 'months',
       expiryDate: 'Expiry Date',
       cost: 'Subscription Cost',
       tag: 'Tag',
       tagColor: 'Tag Color',
       notes: 'Notes'
+    },
+    durationUnits: {
+      days: 'Days',
+      weeks: 'Weeks',
+      months: 'Months',
+      years: 'Years'
     },
     filters: {
       all: 'All',
