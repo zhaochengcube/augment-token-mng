@@ -114,7 +114,7 @@
       <!-- Account List -->
       <template v-else>
         <!-- 卡片布局 -->
-        <div v-if="viewMode === 'card'" class="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4 p-1">
+        <div v-if="viewMode === 'card'" class="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3 p-1">
           <AccountCard
             v-for="account in paginatedAccounts"
             :key="account.id"
@@ -134,10 +134,10 @@
 
         <!-- 列表布局 -->
         <div v-else class="table-container">
-          <table class="table">
+          <table class="table table-fixed">
             <thead>
               <tr>
-                <th class="th w-10 text-center">
+                <th class="th w-11 text-center">
                   <div class="inline-flex items-center justify-center h-5 cursor-pointer align-middle leading-none" @click="toggleSelectAll">
                     <div class="checkbox-inner" :class="{ 'checked': isAllSelected || isPartialSelected }">
                       <svg v-if="isAllSelected" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
@@ -149,11 +149,12 @@
                     </div>
                   </div>
                 </th>
-                <th class="th w-25 text-center">{{ $t('platform.cursor.table.status') }}</th>
-                <th class="th w-20">{{ $t('platform.cursor.table.tag') }}</th>
-                <th class="th">{{ $t('platform.cursor.table.info') }}</th>
-                <th class="th w-[200px]">{{ $t('platform.cursor.table.time') }}</th>
-                <th class="th w-[120px] text-center">{{ $t('platform.cursor.table.actions') }}</th>
+                <th class="th w-[60px]">{{ $t('platform.cursor.table.tag') }}</th>
+                <th class="th w-[60px]">{{ $t('platform.cursor.table.status') }}</th>
+                <th class="th">{{ $t('platform.cursor.table.email') }}</th>
+                <th class="th w-[120px]">{{ $t('platform.cursor.table.expiry') }}</th>
+                <th class="th w-[80px]">{{ $t('platform.cursor.table.quota') }}</th>
+                <th class="th w-[110px] text-center">{{ $t('platform.cursor.table.actions') }}</th>
               </tr>
             </thead>
             <tbody>

@@ -19,8 +19,8 @@
                 isSidebarCollapsed ? 'justify-center px-2 py-2.5' : 'justify-start px-3 py-2.5',
               ]"
               @click="toggleSidebar"
-              :aria-label="isSidebarCollapsed ? '展开侧边栏' : '收起侧边栏'"
-              v-tooltip="isSidebarCollapsed ? '展开侧边栏' : '收起侧边栏'"
+              :aria-label="isSidebarCollapsed ? $t('app.expandSidebar') : $t('app.collapseSidebar')"
+              v-tooltip="isSidebarCollapsed ? $t('app.expandSidebar') : $t('app.collapseSidebar')"
             >
               <svg v-if="isSidebarCollapsed" class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="9 18 15 12 9 6" />
@@ -28,7 +28,7 @@
               <svg v-else class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="15 18 9 12 15 6" />
               </svg>
-              <span v-if="!isSidebarCollapsed" class="flex-1 min-w-0 truncate">{{ isSidebarCollapsed ? '展开侧边栏' : '收起侧边栏' }}</span>
+              <span v-if="!isSidebarCollapsed" class="flex-1 min-w-0 truncate">{{ $t('app.collapseSidebar') }}</span>
             </button>
             <!-- Platform Selection Button -->
             <button
@@ -245,6 +245,7 @@ import { ref, onMounted, computed, inject, onBeforeUnmount } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { useI18n } from 'vue-i18n'
+import { useSettingsStore } from './stores/settings'
 import BookmarkManager from './components/common/BookmarkManager.vue'
 import OutlookManager from './components/email/OutlookManager.vue'
 import GPTMailManager from './components/email/GPTMailManager.vue'
@@ -261,6 +262,9 @@ import SettingsPage from './components/pages/SettingsPage.vue'
 import SubscriptionPage from './components/pages/SubscriptionPage.vue'
 
 const { t, locale } = useI18n()
+
+// Settings store for tray management
+const settingsStore = useSettingsStore()
 
 // ========== 新增：主视图状态管理 ==========
 // 主视图类型定义：'platforms' | 'bookmarks' | 'emails' | 'settings'
@@ -525,6 +529,17 @@ onMounted(async () => {
 
   // 启动时检查更新（静默模式）
   checkForUpdates(true)
+
+  // 初始化系统托盘（根据用户设置）
+  settingsStore.initializeTray()
+
+  // 监听托盘菜单点击事件
+  await listen('tray-menu-clicked', (event) => {
+    const action = event.payload?.action
+    if (action === 'platforms' || action === 'subscriptions') {
+      navigateToView(action)
+    }
+  })
 
   // 监听 Deep Link Session 接收事件（由前端处理导入）
   await listen('deep-link-session-received', async (event) => {

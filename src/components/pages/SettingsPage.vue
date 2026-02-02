@@ -26,6 +26,38 @@
         </div>
       </div>
 
+      <!-- App Behavior Section -->
+      <div class="card rounded-lg p-[22px] backdrop-blur-[12px]">
+        <!-- Section Header -->
+        <div class="mb-[18px] flex items-center justify-between border-b border-border pb-3.5">
+          <h3 class="text-base font-semibold text-text">{{ $t('settings.appBehavior') }}</h3>
+        </div>
+
+        <!-- Section Content -->
+        <div class="flex flex-col gap-[18px]">
+          <!-- System Tray Row -->
+          <div class="flex items-center justify-between gap-[18px]">
+            <div class="flex flex-col gap-1">
+              <span class="text-sm font-semibold text-text">{{ $t('tray.title') }}</span>
+              <span class="text-xs text-text-muted">{{ $t('tray.description') }}</span>
+            </div>
+            <button
+              @click="handleTrayToggle"
+              :disabled="isTogglingTray"
+              class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+              :class="trayEnabled ? 'bg-accent' : 'bg-border'"
+              role="switch"
+              :aria-checked="trayEnabled"
+            >
+              <span
+                class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out"
+                :class="trayEnabled ? 'translate-x-6' : 'translate-x-1'"
+              />
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- About Section -->
       <div class="card rounded-lg p-[22px] backdrop-blur-[12px]">
         <!-- Section Header -->
@@ -93,6 +125,7 @@
     <ProxyConfig v-if="showProxyModal" @close="showProxyModal = false" />
     <DatabaseConfig v-if="showDatabaseModal" @close="showDatabaseModal = false" />
     <FontConfig v-if="showFontModal" @close="showFontModal = false" />
+    <TelegramConfig v-if="showTelegramModal" @close="showTelegramModal = false" @saved="handleTelegramSaved" />
   </div>
 </template>
 
@@ -105,6 +138,7 @@ import ApiServerStatus from '../settings/ApiServerStatus.vue'
 import ProxyConfig from '../settings/ProxyConfig.vue'
 import DatabaseConfig from '../settings/DatabaseConfig.vue'
 import FontConfig from '../settings/FontConfig.vue'
+import TelegramConfig from '../settings/TelegramConfig.vue'
 
 // i18n
 const { t } = useI18n()
@@ -117,6 +151,7 @@ const showApiServerModal = ref(false)
 const showProxyModal = ref(false)
 const showDatabaseModal = ref(false)
 const showFontModal = ref(false)
+const showTelegramModal = ref(false)
 
 // Update check
 const checkingUpdate = ref(false)
@@ -127,6 +162,11 @@ const serverStatus = computed(() => settingsStore.serverStatus)
 const proxyEnabled = computed(() => settingsStore.proxyConfig.enabled)
 const databaseConnected = computed(() => settingsStore.databaseConfig.enabled)
 const hasCustomFont = computed(() => !!localStorage.getItem('user-font-sans'))
+const trayEnabled = computed(() => settingsStore.trayEnabled)
+const telegramEnabled = computed(() => settingsStore.telegramConfig.enabled)
+
+// Tray toggle state
+const isTogglingTray = ref(false)
 
 // Configuration cards data
 const configCards = computed(() => [
@@ -161,6 +201,14 @@ const configCards = computed(() => [
     activeTextKey: 'fontConfig.customized',
     inactiveTextKey: 'fontConfig.default',
     showDot: true
+  },
+  {
+    id: 'telegram',
+    titleKey: 'telegram.title',
+    isActive: telegramEnabled.value,
+    activeTextKey: 'telegram.enabled',
+    inactiveTextKey: 'telegram.disabled',
+    showDot: true
   }
 ])
 
@@ -179,10 +227,30 @@ const openModal = (cardId) => {
     case 'font':
       showFontModal.value = true
       break
+    case 'telegram':
+      showTelegramModal.value = true
+      break
   }
 }
 
 // Methods
+const handleTrayToggle = async () => {
+  isTogglingTray.value = true
+  try {
+    await settingsStore.toggleTray(!trayEnabled.value)
+  } catch (error) {
+    console.error('Failed to toggle tray:', error)
+    window.$notify?.error(t('tray.toggleFailed'))
+  } finally {
+    isTogglingTray.value = false
+  }
+}
+
+const handleTelegramSaved = () => {
+  // Reload telegram config after saving
+  settingsStore.loadTelegramConfig(true)
+}
+
 const checkForUpdates = async () => {
   checkingUpdate.value = true
   try {

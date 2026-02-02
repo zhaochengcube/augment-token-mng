@@ -27,7 +27,7 @@ export default {
     batchDelete: '批量删除',
     delete: '删除',
     noSearchResults: '未找到匹配结果',
-    openDataFolder: '打开数据文件夹',
+    openDataFolder: '数据文件夹',
     switchToTable: '切换到列表视图',
     switchToCard: '切换到卡片视图',
     email: '邮箱',
@@ -59,6 +59,8 @@ export default {
     darkMode: '深色模式',
     settings: '设置',
     moreOptions: '更多选项',
+    expandSidebar: '展开',
+    collapseSidebar: '收起',
     checkForUpdates: '检查更新',
     lockGPTMail: '锁定GPT邮箱管理器'
   },
@@ -85,6 +87,7 @@ export default {
     placeholderDesc: '此功能将在后续阶段实现',
     externalLinks: '外部链接',
     about: '关于',
+    appBehavior: '应用行为',
     version: '版本',
     author: '作者',
     repository: '仓库',
@@ -798,6 +801,47 @@ export default {
     customized: '自定义',
     default: '默认'
   },
+  tray: {
+    title: '系统托盘',
+    description: '在任务栏显示托盘图标，可快速访问常用功能',
+    enabled: '已启用',
+    disabled: '已禁用',
+    showWindow: '显示窗口',
+    platforms: '平台选择',
+    subscriptions: '订阅管理',
+    quit: '退出',
+    toggleFailed: '切换托盘状态失败'
+  },
+  telegram: {
+    title: 'Telegram 通知',
+    description: '通过 Telegram Bot 发送订阅到期提醒',
+    enabled: '已启用',
+    disabled: '已禁用',
+    enableNotification: '启用 Telegram 通知',
+    botToken: 'Bot Token',
+    chatId: 'Chat ID',
+    botTokenHelp: "从 Telegram 的 {'@'}BotFather 获取",
+    chatIdHelp1: "用户 ID: 发消息给 {'@'}userinfobot 获取",
+    chatIdHelp2: "群聊/频道 ID: 转发群或频道的消息给 {'@'}userinfobot 获取",
+    notifyDays: '提醒时间',
+    notifyDaysHelp: '选择何时发送到期提醒',
+    checkInterval: '检查间隔',
+    checkIntervalHelp: '应用运行时多久检查一次订阅到期（修改后下次检查生效）',
+    hours: '小时',
+    daysBefore: '提前 {days} 天',
+    testConnection: '测试连接',
+    testSuccess: '连接成功！测试消息已发送。',
+    testFailed: '连接失败',
+    manualCheck: '立即检查',
+    checkComplete: '到期检查完成',
+    checkFailed: '检查失败',
+    saveSuccess: 'Telegram 配置已保存',
+    saveFailed: '保存配置失败',
+    placeholders: {
+      botToken: '请输入 Bot Token',
+      chatId: '请输入 User ID 或 Group Chat ID'
+    }
+  },
   credit: {
     title: 'Credit 使用统计',
     viewUsage: '查看使用详情',
@@ -819,6 +863,7 @@ export default {
   },
   cursorUsage: {
     title: '使用详情',
+    viewUsage: '查看配额',
     membershipType: '会员类型',
     totalInputTokens: '输入 Tokens',
     totalOutputTokens: '输出 Tokens',
@@ -924,15 +969,11 @@ export default {
       viewSyncQueueTooltip: '点击查看待同步队列',
       noQuotaData: '暂无配额数据',
       searchPlaceholder: '搜索邮箱...',
-      plan: {
-        free: 'Free',
-        pro: 'Pro',
-        enterprise: 'Enterprise'
-      },
+      plan: '套餐',
       quota: {
-        credits: '积分',
+        credits: '额度',
         remaining: '剩余',
-        expires: '到期时间'
+        expires: '到期'
       },
       filter: {
         all: '全部',
@@ -990,6 +1031,7 @@ export default {
       lastUsed: '最后使用',
       createdAt: '创建时间',
       quotaRefreshedAt: '配额刷新时间',
+      subscriptionTier: '订阅等级',
       viewAllModels: '查看全部模型',
       modelsModalTitle: '全部模型',
       lastUpdated: '刷新时间',
@@ -1002,6 +1044,7 @@ export default {
       sync: '同步',
       quotaForbidden: '无权限访问配额',
       noQuotaData: '暂无配额数据',
+      subscriptionTier: '订阅等级',
       searchPlaceholder: '搜索邮箱...',
       sortByQuota: '按配额排序',
       batchRefresh: '批量刷新',
@@ -1019,6 +1062,10 @@ export default {
       },
       table: {
         info: '账号信息',
+        tag: '标签',
+        status: '状态',
+        email: '邮箱',
+        time: '时间',
         quota: '配额',
         actions: '操作'
       },
@@ -1107,8 +1154,8 @@ export default {
       delete: '删除',
       lastUsed: '最后使用',
       createdAt: '创建时间',
-      accessTokenExpiry: 'Access Token 过期时间',
-      sessionExpiry: 'Session Token 过期时间',
+      accessTokenExpiry: 'Access 过期时间',
+      sessionExpiry: 'Session 过期时间',
       quotaRefreshedAt: '配额刷新时间',
       viewSyncQueueTooltip: '点击查看待同步队列',
       syncQueueTitle: '同步队列',
@@ -1118,6 +1165,7 @@ export default {
       fullSync: '全部同步',
       sync: '同步',
       noQuotaData: '暂无配额数据',
+      quotaLabel: '配额',
       searchPlaceholder: '搜索邮箱...',
       sortByQuota: '按配额排序',
       batchRefresh: '批量刷新',
@@ -1145,6 +1193,10 @@ export default {
         info: '账号信息',
         status: '状态',
         tag: '标签',
+        email: '邮箱',
+        expiry: '过期时间',
+        accessToken: 'Access过期',
+        sessionToken: 'Session过期',
         quota: '配额',
         time: '时间信息',
         actions: '操作'

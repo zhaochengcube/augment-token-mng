@@ -6,7 +6,7 @@
         <p class="text-sm text-text-muted">{{ $t('platforms.description') }}</p>
       </div>
 
-      <div class="grid max-w-3xl grid-cols-5 gap-4">
+      <div class="grid grid-cols-[repeat(auto-fill,minmax(120px,150px))] gap-4">
         <button
           v-for="platform in availablePlatforms"
           :key="platform.id"

@@ -57,12 +57,13 @@
         class="flex w-full items-center justify-center gap-2.5 rounded-lg border border-border bg-white px-5 py-3.5 text-[15px] font-medium text-neutral-800 transition-all hover:border-border-strong hover:bg-neutral-50 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
         :disabled="isLoading"
       >
-        <span v-if="isLoading" class="btn-spinner btn-spinner--lg" aria-hidden="true"></span>
-        <svg v-else class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"/>
-        </svg>
-        <span v-if="isLoading">{{ $t('platform.antigravity.addAccountDialog.adding') }}</span>
-        <span v-else>{{ $t('platform.antigravity.addAccountDialog.googleLogin') }}</span>
+        <span class="relative inline-flex h-5 w-5 items-center justify-center">
+          <svg :style="{ visibility: isLoading ? 'hidden' : 'visible' }" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"/>
+          </svg>
+          <span v-if="isLoading" class="btn-spinner absolute inset-0 m-auto" aria-hidden="true"></span>
+        </span>
+        {{ isLoading ? $t('platform.antigravity.addAccountDialog.adding') : $t('platform.antigravity.addAccountDialog.googleLogin') }}
       </button>
 
       <!-- Manual OAuth Section -->
@@ -167,8 +168,12 @@
         class="btn btn--primary"
         :disabled="!canSubmit || isLoading"
       >
-        <span v-if="isLoading" class="btn-spinner" aria-hidden="true"></span>
-        <span v-else>{{ $t('platform.antigravity.addAccountDialog.add') }}</span>
+        <span class="relative inline-flex items-center justify-center">
+          <span :style="{ visibility: isLoading ? 'hidden' : 'visible' }">
+            {{ $t('platform.antigravity.addAccountDialog.add') }}
+          </span>
+          <span v-if="isLoading" class="btn-spinner absolute inset-0 m-auto" aria-hidden="true"></span>
+        </span>
       </button>
     </template>
   </BaseModal>

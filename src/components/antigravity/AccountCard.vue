@@ -1,172 +1,234 @@
 <template>
   <div
-    :class="[
-      'card group relative flex flex-col gap-4 overflow-hidden rounded-2xl border p-5 transition-all duration-300',
-      'min-h-[140px] h-fit z-[1]',
-      isSwitching ? 'opacity-60 pointer-events-none' : '',
-      isSelected ? 'selected border-accent' : ''
-    ]"
+    class="bg-surface border border-border rounded-lg p-3 cursor-pointer relative group transition-all duration-150 hover:bg-hover hover:border-border-strong"
+    :class="{
+      'opacity-60 pointer-events-none': isSwitching,
+      'border-accent bg-accent/5': isSelected
+    }"
     @click="handleCardClick"
   >
-    <!-- 选择框 -->
-    <div
-      class="selection-checkbox"
-      :class="{ 'visible': selectionMode || isSelected }"
-      @click.stop="toggleSelection"
-    >
-      <div class="checkbox-inner" :class="{ 'checked': isSelected }">
-        <svg v-if="isSelected" class="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
-        </svg>
+    <!-- 头部：选择框 + 邮箱标题 -->
+    <div class="flex items-center gap-2 mb-3 pr-8">
+      <!-- 选择框（悬浮或选择模式时显示） -->
+      <div
+        class="selection-checkbox"
+        :class="{ 'visible': selectionMode || isSelected }"
+        @click.stop="toggleSelection"
+      >
+        <div class="checkbox-inner" :class="{ 'checked': isSelected }">
+          <svg v-if="isSelected" class="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+          </svg>
+        </div>
+      </div>
+
+      <!-- 邮箱（可点击复制） -->
+      <div
+        class="inline-flex items-center gap-1 cursor text-[15px] font-semibold text-text truncate flex-1"
+        v-tooltip="account.email"
+        @click.stop="copyEmail"
+      >
+        <span>{{ showRealEmail ? account.email : maskedEmail }}</span>
       </div>
     </div>
 
-    <!-- Status Badge -->
+    <!-- 右上角状态徽章 -->
     <div class="absolute right-3 top-3 z-10 flex items-center gap-1.5">
-      <!-- 添加标签按钮（无标签时显示） -->
-      <span
-        v-if="!account.tag"
-        class="btn btn--icon-sm btn--dashed"
-        v-tooltip="$t('tokenList.clickToAddTag')"
-        @click.stop="openTagEditor"
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-        </svg>
-      </span>
-      <!-- 标签（有标签时显示，可点击编辑） -->
-      <span
-        v-if="account.tag"
-        class="badge editable"
-        :style="tagBadgeStyle"
-        v-tooltip="$t('tokenList.clickToEditTag')"
-        @click.stop="openTagEditor"
-      >
-        {{ account.tag }}
-      </span>
-      <span :class="['badge', statusBadgeClass]">
+      <span v-if="isCurrent" :class="['badge', statusBadgeClass]">
         <span class="status-dot" :class="statusDotClass"></span>
         {{ statusLabel }}
       </span>
     </div>
 
-    <!-- Account Info -->
-    <div class="flex flex-col gap-1 h-full mt-3.5">
-      <div class="flex-1 min-w-0">
-        <!-- 第一行：邮箱 -->
-        <div class="mb-2.5 min-h-[26px] flex items-center">
-          <div class="text-copyable" @click.stop="copyEmail" v-tooltip="account.email">
-            <span class="text-copyable__content">{{ showRealEmail ? account.email : maskedEmail }}</span>
-            <span :class="tierBadgeClasses">{{ subscriptionTier.label }}</span>
-          </div>
-        </div>
-
-        <div class="flex flex-col gap-2">
-          <!-- 第二行：日期信息 -->
-          <div class="flex flex-wrap items-center justify-start gap-2.5">
-            <span class="text-meta" v-tooltip="$t('platform.antigravity.createdAt') + ': ' + formatDate(account.created_at)">C: {{ formatDate(account.created_at) }}</span>
-            <span v-if="account.quota?.last_updated" class="text-meta" v-tooltip="$t('platform.antigravity.quotaRefreshedAt') + ': ' + formatDate(account.quota.last_updated)">R: {{ formatDate(account.quota.last_updated) }}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Quota Display -->
-    <div v-if="account.quota && !account.quota.is_forbidden && filteredModels.length > 0" class="flex flex-col gap-2">
-      <div v-for="(row, rowIndex) in quotaRows" :key="rowIndex" class="grid grid-cols-2 gap-2">
-        <div v-for="model in row" :key="model.name" class="flex w-full">
-          <QuotaBar
-            :label="formatModelNameShort(model.name)"
-            :tooltip-label="formatModelName(model.name)"
-            :percent="model.percentage"
-            :refresh="formatResetCountdown(model.reset_time)"
-            :low-threshold="20"
-            :medium-threshold="50"
-          />
-        </div>
-      </div>
-      <button
-        class="self-end border-0 bg-transparent px-0 py-0.5 text-xs font-semibold text-accent cursor-pointer hover:text-accent/80 hover:underline transition-all"
-        @click.stop="$emit('view-models', account)"
-      >
-        {{ $t('platform.antigravity.viewAllModels') }}
-      </button>
-    </div>
-
-    <div v-else-if="account.quota?.is_forbidden" class="flex items-center justify-center gap-2 rounded-lg bg-muted p-4 text-[13px] text-text-secondary">
-      <svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8 0-1.85.63-3.55 1.69-4.9L16.9 18.31C15.55 19.37 13.85 20 12 20zm6.31-3.1L7.1 5.69C8.45 4.63 10.15 4 12 4c4.42 0 8 3.58 8 8 0 1.85-.63 3.55-1.69 4.9z"/>
-      </svg>
-      <span>{{ $t('platform.antigravity.quotaForbidden') }}</span>
-    </div>
-
-    <div v-else class="flex items-center justify-center gap-2 rounded-lg bg-muted p-4 text-[13px] text-text-secondary">
-      <span>{{ $t('platform.antigravity.noQuotaData') }}</span>
-    </div>
-
-    <!-- Actions -->
-    <div class="mt-auto flex gap-1.5 justify-end">
+    <!-- 右上角按钮组（悬停显示） -->
+    <div
+      class="absolute right-3 top-3 z-20 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
+      :class="{ 'opacity-100': isMenuOpen }"
+      @click.stop
+    >
+      <!-- 切换按钮（非当前账号） -->
       <button
         v-if="!isCurrent"
-        @click.stop="$emit('switch', account.id)"
-        class="btn btn--primary btn--sm flex-1"
+        @click="$emit('switch', account.id)"
+        class="w-7 h-7 rounded border-none bg-surface text-text-secondary cursor-pointer flex items-center justify-center shadow-sm hover:bg-hover hover:text-accent transition-colors"
         :disabled="isSwitching"
+        v-tooltip="$t('platform.antigravity.switch')"
       >
-        <svg v-if="!isSwitching" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
+        <svg v-if="!isSwitching" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
           <path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/>
         </svg>
-        <span v-else class="btn-spinner btn-spinner--sm" aria-hidden="true"></span>
-        {{ isSwitching ? $t('platform.antigravity.switching') : $t('platform.antigravity.switch') }}
+        <span v-else class="w-3.5 h-3.5 border-2 border-accent border-t-transparent rounded-full animate-spin"></span>
       </button>
 
-      <!-- 复制菜单 -->
-      <FloatingDropdown ref="copyMenuRef" placement="bottom-end" :close-on-select="true" @click.stop>
+      <!-- 刷新配额按钮 -->
+      <button
+        @click="$emit('refresh', account.id)"
+        class="w-7 h-7 rounded border-none bg-surface text-text-secondary cursor-pointer flex items-center justify-center shadow-sm hover:bg-hover hover:text-accent transition-colors"
+        :disabled="isRefreshing"
+        v-tooltip="$t('platform.antigravity.refresh')"
+      >
+        <svg v-if="!isRefreshing" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+        </svg>
+        <span v-else class="w-3.5 h-3.5 border-2 border-accent border-t-transparent rounded-full animate-spin"></span>
+      </button>
+
+      <!-- 操作菜单 -->
+      <FloatingDropdown
+        ref="menuRef"
+        placement="bottom-end"
+        :close-on-select="true"
+        @open="isMenuOpen = true"
+        @close="isMenuOpen = false"
+      >
         <template #trigger>
-          <button class="btn btn--ghost btn--icon shrink-0" v-tooltip="$t('tokenCard.copyMenu')">
-            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+          <button
+            class="w-7 h-7 rounded border-none bg-surface text-text-secondary cursor-pointer flex items-center justify-center shadow-sm hover:bg-hover hover:text-text transition-colors"
+            v-tooltip="$t('app.moreOptions')"
+          >
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
             </svg>
           </button>
         </template>
         <template #default="{ close }">
-          <button @click="handleCopyMenuClick('refreshToken', close)" class="dropdown-item">
+          <button @click="handleMenuClick('viewModels', close)" class="dropdown-item">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 12h2v5H7zm4-3h2v8h-2zm4-3h2v11h-2z"/>
+            </svg>
+            <span>{{ $t('platform.antigravity.viewAllModels') }}</span>
+          </button>
+          <button @click="handleMenuClick('copyRefreshToken', close)" class="dropdown-item">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
               <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
             </svg>
             <span>{{ $t('accountCard.copyRefreshToken') }}</span>
           </button>
-          <button v-if="account.token?.project_id" @click="handleCopyMenuClick('projectId', close)" class="dropdown-item">
+          <button v-if="account.token?.project_id" @click="handleMenuClick('copyProjectId', close)" class="dropdown-item">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
               <path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/>
             </svg>
             <span>{{ $t('accountCard.copyProjectId') }}</span>
           </button>
+          <button @click="handleMenuClick('delete', close)" class="dropdown-item text-danger hover:bg-danger/10">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+            </svg>
+            <span>{{ $t('platform.antigravity.actions.delete') }}</span>
+          </button>
         </template>
       </FloatingDropdown>
-
-      <button
-        @click.stop="$emit('refresh', account.id)"
-        class="btn btn--ghost btn--icon shrink-0"
-        :disabled="isRefreshing"
-        v-tooltip="$t('platform.antigravity.refresh')"
-      >
-        <svg v-if="!isRefreshing" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
-        </svg>
-        <span v-else class="btn-spinner text-accent" aria-hidden="true"></span>
-      </button>
-
-      <button
-        @click.stop="$emit('delete', account.id)"
-        class="btn btn--ghost btn--icon shrink-0 text-danger hover:bg-danger/10 hover:text-danger"
-        v-tooltip="$t('platform.antigravity.actions.delete')"
-      >
-        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-        </svg>
-      </button>
     </div>
 
+    <!-- 属性列表 -->
+    <div class="flex flex-col gap-1.5">
+      <!-- 订阅等级 -->
+      <div class="flex items-center gap-1 min-h-6">
+        <div class="flex items-center gap-1.5 w-[90px] shrink-0 text-text-muted text-xs">
+          <svg class="w-3.5 h-3.5 shrink-0 opacity-70" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
+          </svg>
+          <span>{{ $t('platform.antigravity.subscriptionTier') }}</span>
+        </div>
+        <div class="flex-1 text-[13px]">
+          <span :class="tierBadgeClasses">{{ subscriptionTier.label }}</span>
+        </div>
+      </div>
+
+      <!-- Claude 配额 -->
+      <div class="flex items-center gap-1 min-h-6">
+        <div class="flex flex-col gap-0.5 w-[90px] shrink-0 text-text-muted text-xs">
+          <div class="flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5 shrink-0 opacity-70" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 12h2v5H7zm4-3h2v8h-2zm4-3h2v11h-2z"/>
+            </svg>
+            <span>Claude</span>
+          </div>
+          <span v-if="claudeQuota.resetTime" class="text-[10px] opacity-70 pl-5">
+            {{ formatResetCountdown(claudeQuota.resetTime) }}
+          </span>
+        </div>
+        <div class="flex-1 flex items-center gap-1">
+          <div class="flex-1 h-1.5 bg-muted rounded overflow-hidden">
+            <div
+              class="h-full rounded transition-all"
+              :class="getQuotaBarClass(claudeQuota.percent)"
+              :style="{ width: claudeQuota.percent + '%' }"
+            ></div>
+          </div>
+          <span class="text-[11px] font-medium tabular-nums text-text-muted w-8 text-right">
+            {{ claudeQuota.percent }}%
+          </span>
+        </div>
+      </div>
+
+      <!-- Gemini 配额 -->
+      <div class="flex items-center gap-1 min-h-6">
+        <div class="flex flex-col gap-0.5 w-[90px] shrink-0 text-text-muted text-xs">
+          <div class="flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5 shrink-0 opacity-70" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 12h2v5H7zm4-3h2v8h-2zm4-3h2v11h-2z"/>
+            </svg>
+            <span>Gemini</span>
+          </div>
+          <span v-if="geminiQuota.resetTime" class="text-[10px] opacity-70 pl-5">
+            {{ formatResetCountdown(geminiQuota.resetTime) }}
+          </span>
+        </div>
+        <div class="flex-1 flex items-center gap-1">
+          <div class="flex-1 h-1.5 bg-muted rounded overflow-hidden">
+            <div
+              class="h-full rounded transition-all"
+              :class="getQuotaBarClass(geminiQuota.percent)"
+              :style="{ width: geminiQuota.percent + '%' }"
+            ></div>
+          </div>
+          <span class="text-[11px] font-medium tabular-nums text-text-muted w-8 text-right">
+            {{ geminiQuota.percent }}%
+          </span>
+        </div>
+      </div>
+
+      <!-- 禁用状态提示 -->
+      <div v-if="account.quota?.is_forbidden" class="flex items-center gap-2 rounded bg-danger/10 px-2 py-1.5 text-xs text-danger">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8 0-1.85.63-3.55 1.69-4.9L16.9 18.31C15.55 19.37 13.85 20 12 20zm6.31-3.1L7.1 5.69C8.45 4.63 10.15 4 12 4c4.42 0 8 3.58 8 8 0 1.85-.63 3.55-1.69 4.9z"/>
+        </svg>
+        <span>{{ $t('platform.antigravity.quotaForbidden') }}</span>
+      </div>
+
+      <!-- 标签 -->
+      <div class="flex items-center gap-1 min-h-6">
+        <div class="flex items-center gap-1.5 w-[90px] shrink-0 text-text-muted text-xs">
+          <svg class="w-3.5 h-3.5 shrink-0 opacity-70" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M17.63 5.84C17.27 5.33 16.67 5 16 5L5 5.01C3.9 5.01 3 5.9 3 7v10c0 1.1.9 1.99 2 1.99L16 19c.67 0 1.27-.33 1.63-.84L22 12l-4.37-6.16z"/>
+          </svg>
+          <span>{{ $t('subscriptions.fields.tag') }}</span>
+        </div>
+        <div class="flex-1 text-[13px]">
+          <!-- 添加标签按钮（无标签时显示） -->
+          <span
+            v-if="!account.tag"
+            class="inline-flex items-center gap-0.5 px-1.5 py-0.5 border border-dashed border-border rounded text-text-muted text-xs cursor-pointer hover:border-accent hover:text-accent transition-colors"
+            @click.stop="openTagEditor"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+            </svg>
+            {{ $t('tokenList.clickToAddTag') }}
+          </span>
+          <!-- 标签（有标签时显示） -->
+          <span
+            v-else
+            class="badge editable badge--sm"
+            :style="{ '--tag-color': account.tag_color || DEFAULT_TAG_COLOR }"
+            @click.stop="openTagEditor"
+          >
+            {{ account.tag }}
+          </span>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- 标签编辑模态框 -->
@@ -182,7 +244,6 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import QuotaBar from '../common/QuotaBar.vue'
 import FloatingDropdown from '../common/FloatingDropdown.vue'
 import TagEditorModal from '../token/TagEditorModal.vue'
 
@@ -225,9 +286,10 @@ const props = defineProps({
 
 const emit = defineEmits(['switch', 'refresh', 'delete', 'select', 'view-models', 'account-updated'])
 
-// 复制菜单状态
-const copyMenuRef = ref(null)
+const menuRef = ref(null)
 const showTagEditor = ref(false)
+const isMenuOpen = ref(false)
+const DEFAULT_TAG_COLOR = '#f97316'
 
 const maskedEmail = computed(() => {
   const email = props.account.email
@@ -235,50 +297,42 @@ const maskedEmail = computed(() => {
   return 'hello@antigravity.com'
 })
 
-// 过滤并排序模型,只显示优先模型
-const filteredModels = computed(() => {
-  if (!props.account.quota || !props.account.quota.models) return []
-
-  const priorityModels = [
-    'claude-opus-4-5-thinking',
-    'gemini-3-pro-high',
-    'gemini-3-pro-image',
-    'gemini-3-flash'
-  ]
-  const maxDisplay = 4
-  const normalizedPriority = priorityModels.map((model) => model.toLowerCase())
-
-  const prioritized = props.account.quota.models
-    .map((model) => {
-      const index = normalizedPriority.findIndex((target) => model.name.toLowerCase().includes(target))
-      return { model, index }
-    })
-    .filter((entry) => entry.index !== -1)
-    .sort((a, b) => a.index - b.index)
-    .map((entry) => entry.model)
-
-  const fallback = props.account.quota.models
-    .filter((model) => !prioritized.some((entry) => entry.name === model.name))
-    .sort((a, b) => a.name.localeCompare(b.name))
-
-  return [...prioritized, ...fallback].slice(0, maxDisplay)
-})
-
-// 将模型分组为每行2个
-const quotaRows = computed(() => {
-  const rows = []
-  const models = filteredModels.value
-  for (let i = 0; i < models.length; i += 2) {
-    rows.push(models.slice(i, i + 2))
+// Claude Opus 4.5 Thinking 配额
+const claudeQuota = computed(() => {
+  if (!props.account.quota?.models) return { percent: 0, resetTime: null }
+  const model = props.account.quota.models.find(m =>
+    m.name.toLowerCase().includes('claude-opus-4-5-thinking')
+  )
+  return {
+    percent: model?.percentage ?? 0,
+    resetTime: model?.reset_time || null
   }
-  return rows
 })
 
+// Gemini Pro 3 配额
+const geminiQuota = computed(() => {
+  if (!props.account.quota?.models) return { percent: 0, resetTime: null }
+  const model = props.account.quota.models.find(m =>
+    m.name.toLowerCase().includes('gemini-3-pro')
+  )
+  return {
+    percent: model?.percentage ?? 0,
+    resetTime: model?.reset_time || null
+  }
+})
+
+// 配额进度条颜色
+const getQuotaBarClass = (percent) => {
+  if (percent === null || percent === undefined) return 'bg-text-muted'
+  if (percent < 10) return 'bg-danger'
+  if (percent < 30) return 'bg-warning'
+  return 'bg-success'
+}
+
+// 判断账号可用性
 const isAvailable = computed(() => {
   if (!props.account.quota || props.account.quota.is_forbidden) return false
-  const gemini = props.account.quota.models.find(m => m.name.toLowerCase().includes('gemini'))?.percentage || 0
-  const claude = props.account.quota.models.find(m => m.name.toLowerCase().includes('claude'))?.percentage || 0
-  return gemini >= 20 && claude >= 20
+  return claudeQuota.value.percent >= 20 && geminiQuota.value.percent >= 20
 })
 
 const statusClass = computed(() => {
@@ -288,17 +342,10 @@ const statusClass = computed(() => {
   return 'low'
 })
 
-// Badge classes for status - using Tailwind
 const statusBadgeClass = computed(() => {
   switch (statusClass.value) {
     case 'current':
-      return 'badge--accent-tech'
-    case 'forbidden':
-      return 'badge--danger-tech'
-    case 'available':
       return 'badge--success-tech'
-    case 'low':
-      return 'badge--warning-tech'
     default:
       return ''
   }
@@ -307,13 +354,7 @@ const statusBadgeClass = computed(() => {
 const statusDotClass = computed(() => {
   switch (statusClass.value) {
     case 'current':
-      return 'text-accent'
-    case 'forbidden':
-      return 'text-danger'
-    case 'available':
       return 'text-success'
-    case 'low':
-      return 'text-warning'
     default:
       return ''
   }
@@ -321,9 +362,7 @@ const statusDotClass = computed(() => {
 
 const statusLabel = computed(() => {
   if (props.isCurrent) return $t('platform.antigravity.status.current')
-  if (props.account.quota?.is_forbidden) return $t('platform.antigravity.status.forbidden')
-  if (isAvailable.value) return $t('platform.antigravity.status.available')
-  return $t('platform.antigravity.status.low')
+  return ''
 })
 
 const subscriptionTier = computed(() => {
@@ -341,9 +380,8 @@ const subscriptionTier = computed(() => {
   return { label: 'Free', class: 'free' }
 })
 
-// Tier badge Tailwind classes - 完整的内联样式
 const tierBadgeClasses = computed(() => {
-  const base = 'ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide border'
+  const base = 'rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide border'
   switch (subscriptionTier.value.class) {
     case 'ultra':
       return `${base} text-amber-400 border-amber-400/50 bg-amber-400/12`
@@ -369,33 +407,8 @@ const copyEmail = async () => {
     await navigator.clipboard.writeText(props.account.email)
     window.$notify?.success($t('messages.emailNoteCopied'))
   } catch (err) {
-    console.error('Failed to copy email:', err)
     window.$notify?.error($t('messages.copyEmailNoteFailed'))
   }
-}
-
-// 模型名称完整显示 - 只处理4个优先模型
-const formatModelName = (name) => {
-  const lowerName = name.toLowerCase()
-
-  if (lowerName.includes('claude-opus-4-5-thinking')) return 'Claude Opus 4.5 Thinking'
-  if (lowerName.includes('gemini-3-pro-high')) return 'Gemini 3 Pro (High)'
-  if (lowerName.includes('gemini-3-pro-image')) return 'Gemini 3 Pro (Image)'
-  if (lowerName.includes('gemini-3-flash')) return 'Gemini 3 Flash'
-
-  return name
-}
-
-// 模型名称简写 - 只处理4个优先模型
-const formatModelNameShort = (name) => {
-  const lowerName = name.toLowerCase()
-
-  if (lowerName.includes('claude-opus-4-5-thinking')) return 'C O4.5 T'
-  if (lowerName.includes('gemini-3-pro-high')) return 'G3 Pro'
-  if (lowerName.includes('gemini-3-pro-image')) return 'G3 Image'
-  if (lowerName.includes('gemini-3-flash')) return 'G3 Flash'
-
-  return name
 }
 
 const parseResetTime = (timeStr) => {
@@ -421,28 +434,21 @@ const formatResetCountdown = (timeStr) => {
   return `${hours}h ${String(minutes).padStart(2, '0')}m`
 }
 
-const formatDate = (timestamp) => {
-  if (!timestamp) return '-'
-  const date = new Date(timestamp * 1000)
-  return date.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
-
-// 复制菜单操作
-const handleCopyMenuClick = async (type, close) => {
+// 菜单操作
+const handleMenuClick = async (type, close) => {
   close?.()
-
   switch (type) {
-    case 'refreshToken':
+    case 'viewModels':
+      emit('view-models', props.account)
+      break
+    case 'copyRefreshToken':
       await copyRefreshToken()
       break
-    case 'projectId':
+    case 'copyProjectId':
       await copyProjectId()
+      break
+    case 'delete':
+      emit('delete', props.account.id)
       break
   }
 }
@@ -457,7 +463,6 @@ const copyRefreshToken = async () => {
     await navigator.clipboard.writeText(refreshToken)
     window.$notify?.success($t('messages.refreshTokenCopied'))
   } catch (err) {
-    console.error('Failed to copy refresh token:', err)
     window.$notify?.error($t('messages.copyFailed'))
   }
 }
@@ -472,21 +477,11 @@ const copyProjectId = async () => {
     await navigator.clipboard.writeText(projectId)
     window.$notify?.success($t('messages.projectIdCopied'))
   } catch (err) {
-    console.error('Failed to copy project ID:', err)
     window.$notify?.error($t('messages.copyFailed'))
   }
 }
 
-// 标签样式
-const DEFAULT_TAG_COLOR = '#f97316'
-
-const tagBadgeStyle = computed(() => {
-  if (!props.account.tag) return {}
-  const color = props.account.tag_color || DEFAULT_TAG_COLOR
-  return { '--tag-color': color }
-})
-
-// 将 account 转换为 TagEditorModal 需要的 token 格式
+// 标签操作
 const accountAsToken = computed(() => ({
   tag_name: props.account.tag || '',
   tag_color: props.account.tag_color || ''
@@ -499,7 +494,6 @@ const allAccountsAsTokens = computed(() =>
   }))
 )
 
-// 标签操作
 const openTagEditor = () => {
   showTagEditor.value = true
 }

@@ -1,30 +1,25 @@
 <template>
-  <tr :class="['group transition-colors hover:bg-hover', isSelected ? 'bg-accent/5' : '']">
-    <!-- 选择框 -->
-    <td class="w-10 text-center align-middle">
-      <div
-        class="inline-flex items-center justify-center h-5 cursor-pointer align-middle leading-none"
-        @click.stop="toggleSelection"
-      >
+  <tr
+    :class="[
+      'group transition-colors duration-200',
+      'hover:bg-accent/6',
+      isSelected ? 'bg-accent/10' : ''
+    ]"
+    @click="handleRowClick"
+  >
+    <!-- 多选框 -->
+    <td class="w-11 text-center px-2.5 py-3.5 border-b border-border/50 align-top whitespace-nowrap text-[13px] text-text relative first-cell">
+      <div class="inline-flex items-center justify-center h-5 cursor-pointer align-middle leading-none" @click.stop="toggleSelection">
         <div class="checkbox-inner" :class="{ 'checked': isSelected }">
-          <svg v-if="isSelected" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+          <svg v-if="isSelected" class="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
             <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
           </svg>
         </div>
       </div>
     </td>
 
-    <!-- 状态 -->
-    <td class="w-20 text-center align-middle">
-      <span :class="['badge badge--sm', statusBadgeClass]">
-        <span class="status-dot" :class="statusDotClass"></span>
-        {{ statusLabel }}
-      </span>
-    </td>
-
     <!-- 标签 -->
-    <td class="w-20 align-middle">
-      <!-- 添加标签按钮（无标签时显示） -->
+    <td class="w-[60px] px-2.5 py-3.5 border-b border-border/50 align-top whitespace-nowrap text-[13px] text-text">
       <span
         v-if="!hasTag"
         class="btn btn--icon-sm btn--dashed"
@@ -35,10 +30,9 @@
           <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
         </svg>
       </span>
-      <!-- 标签（有标签时显示，可点击编辑） -->
       <span
         v-else
-        class="badge editable max-w-[80px]"
+        class="badge editable badge--sm max-w-[50px]"
         :style="tagBadgeStyle"
         v-tooltip="$t('tokenList.clickToEditTag')"
         @click.stop="openTagEditor"
@@ -47,24 +41,50 @@
       </span>
     </td>
 
+    <!-- 状态 -->
+    <td class="w-[60px] px-2.5 py-3.5 border-b border-border/50 align-top whitespace-nowrap text-[13px] text-text">
+      <span :class="['badge badge--sm', statusBadgeClass]">
+        <span class="status-dot" :class="statusDotClass"></span>
+        {{ statusLabel }}
+      </span>
+    </td>
+
     <!-- 邮箱 -->
-    <td>
+    <td class="px-2.5 py-3.5 border-b border-border/50 align-top whitespace-nowrap text-[13px] text-text">
       <div class="text-copyable" @click.stop="copyEmail" v-tooltip="account.email">
         <span class="text-copyable__content">{{ showRealEmail ? account.email : maskedEmail }}</span>
       </div>
     </td>
 
-    <!-- 时间信息 -->
-    <td class="w-[200px]">
-      <div class="flex flex-col gap-1">
-        <span class="text-meta" v-tooltip="$t('platform.cursor.createdAt') + ': ' + formatDate(account.created_at)">C: {{ formatDate(account.created_at) }}</span>
-        <span v-if="account.token?.expiry_timestamp" class="text-meta" v-tooltip="$t('platform.cursor.accessTokenExpiry') + ': ' + formatDate(account.token.expiry_timestamp)">A: {{ formatDate(account.token.expiry_timestamp) }}</span>
-        <span v-if="account.token?.session_expiry_timestamp" class="text-meta" v-tooltip="$t('platform.cursor.sessionExpiry') + ': ' + formatDate(account.token.session_expiry_timestamp)">S: {{ formatDate(account.token.session_expiry_timestamp) }}</span>
+    <!-- 过期时间（合并显示） -->
+    <td class="w-[120px] px-2.5 py-3.5 border-b border-border/50 align-top whitespace-nowrap text-[12px] text-text-muted">
+      <div class="flex flex-col gap-0.5">
+        <div class="flex items-center gap-1" v-tooltip="$t('platform.cursor.accessTokenExpiry')">
+          <span class="text-text-muted/60">A:</span>
+          <span>{{ account.token?.expiry_timestamp ? formatDate(account.token.expiry_timestamp) : '-' }}</span>
+        </div>
+        <div class="flex items-center gap-1" v-tooltip="$t('platform.cursor.sessionExpiry')">
+          <span class="text-text-muted/60">S:</span>
+          <span>{{ account.token?.session_expiry_timestamp ? formatDate(account.token.session_expiry_timestamp) : '-' }}</span>
+        </div>
       </div>
     </td>
 
+    <!-- 配额 -->
+    <td class="w-[80px] px-2.5 py-3.5 border-b border-border/50 align-top whitespace-nowrap text-[13px] text-text">
+      <button
+        @click.stop="showUsageModal = true"
+        class="inline-flex items-center gap-1 px-2 py-0.5 text-xs text-accent bg-accent/10 border border-accent/30 rounded hover:bg-accent/20 transition-colors cursor-pointer"
+      >
+        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M3 3h2v18H3V3zm16 8h2v10h-2V11zm-8 4h2v6h-2v-6zm4-8h2v14h-2V7zm-8 6h2v8H7v-8z"/>
+        </svg>
+        {{ $t('cursorUsage.viewUsage') }}
+      </button>
+    </td>
+
     <!-- 操作 -->
-    <td>
+    <td class="w-[110px] px-2.5 py-3.5 border-b border-border/50 align-top whitespace-nowrap text-[13px] text-text text-center">
       <div class="flex items-center justify-center gap-1">
         <button
           v-if="!isCurrent"
@@ -73,46 +93,41 @@
           :disabled="isSwitching"
           v-tooltip="$t('platform.cursor.switch')"
         >
-          <svg v-if="!isSwitching" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/>
+          <svg v-if="!isSwitching" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z" />
           </svg>
-          <span v-else class="btn-spinner btn-spinner--sm" aria-hidden="true"></span>
+          <span v-else class="btn-spinner btn-spinner--xs text-accent" aria-hidden="true"></span>
         </button>
 
-        <!-- 复制菜单 -->
-        <FloatingDropdown ref="copyMenuRef" placement="bottom-end" :close-on-select="false" @click.stop>
+        <FloatingDropdown ref="menuRef" placement="bottom-end" :close-on-select="true" @click.stop>
           <template #trigger>
-            <button class="btn btn--ghost btn--icon-sm" v-tooltip="$t('tokenCard.copyMenu')">
-              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+            <button class="btn btn--ghost btn--icon-sm" v-tooltip="$t('app.moreOptions')">
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
               </svg>
             </button>
           </template>
           <template #default="{ close }">
-            <button @click="handleCopyMenuClick('accessToken', close)" class="dropdown-item">
+            <button @click="handleMenuClick('copyAccessToken', close)" class="dropdown-item">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
               </svg>
               <span>{{ $t('accountCard.copyAccessToken') }}</span>
             </button>
-            <button @click="handleCopyMenuClick('sessionToken', close)" class="dropdown-item">
+            <button @click="handleMenuClick('copySessionToken', close)" class="dropdown-item">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
               </svg>
               <span>{{ $t('accountCard.copySessionToken') }}</span>
             </button>
+            <button @click="handleMenuClick('delete', close)" class="dropdown-item text-danger hover:bg-danger/10">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+              </svg>
+              <span>{{ $t('common.delete') }}</span>
+            </button>
           </template>
         </FloatingDropdown>
-
-        <button
-          @click.stop="$emit('delete', account.id)"
-          class="btn btn--ghost btn--icon-sm text-danger hover:bg-danger/10"
-          v-tooltip="$t('common.delete')"
-        >
-          <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-          </svg>
-        </button>
       </div>
     </td>
   </tr>
@@ -125,6 +140,13 @@
     @save="handleTagSave"
     @clear="handleTagClear"
   />
+
+  <!-- 使用详情模态框 -->
+  <CursorUsageModal
+    v-if="showUsageModal"
+    :account="account"
+    @close="showUsageModal = false"
+  />
 </template>
 
 <script setup>
@@ -132,10 +154,11 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import FloatingDropdown from '../common/FloatingDropdown.vue'
 import TagEditorModal from '../token/TagEditorModal.vue'
+import CursorUsageModal from './CursorUsageModal.vue'
 
 const { t: $t } = useI18n()
 
-const DEFAULT_TAG_COLOR = '#6366f1'
+const DEFAULT_TAG_COLOR = '#f97316'
 
 const props = defineProps({
   account: { type: Object, required: true },
@@ -149,10 +172,9 @@ const props = defineProps({
 
 const emit = defineEmits(['switch', 'delete', 'select', 'account-updated'])
 
-// 复制菜单状态
-const copyMenuRef = ref(null)
-// 标签编辑器状态
+const menuRef = ref(null)
 const showTagEditor = ref(false)
+const showUsageModal = ref(false)
 
 const maskedEmail = computed(() => {
   const email = props.account.email
@@ -160,32 +182,15 @@ const maskedEmail = computed(() => {
   return 'hello@cursor.com'
 })
 
-// 标签相关计算属性
+// 标签相关
 const tagDisplayName = computed(() => (props.account.tag ?? '').trim())
 const hasTag = computed(() => tagDisplayName.value.length > 0)
 
-const normalizeHexColor = (color) => {
-  if (typeof color !== 'string') {
-    return DEFAULT_TAG_COLOR
-  }
-  const trimmed = color.trim()
-  if (/^#[0-9A-Fa-f]{6}$/.test(trimmed)) {
-    return trimmed
-  }
-  return DEFAULT_TAG_COLOR
-}
-
 const tagBadgeStyle = computed(() => {
-  if (!hasTag.value) {
-    return {}
-  }
-  const color = normalizeHexColor(props.account.tag_color || DEFAULT_TAG_COLOR)
-  return {
-    '--tag-color': color
-  }
+  if (!hasTag.value) return {}
+  return { '--tag-color': props.account.tag_color || DEFAULT_TAG_COLOR }
 })
 
-// 将 account 转换为 TagEditorModal 需要的 token 格式
 const accountAsToken = computed(() => ({
   tag_name: props.account.tag || '',
   tag_color: props.account.tag_color || ''
@@ -198,12 +203,10 @@ const allAccountsAsTokens = computed(() =>
   }))
 )
 
-// 打开标签编辑器
 const openTagEditor = () => {
   showTagEditor.value = true
 }
 
-// 标签保存处理
 const handleTagSave = ({ tagName, tagColor }) => {
   props.account.tag = tagName
   props.account.tag_color = tagColor
@@ -212,7 +215,6 @@ const handleTagSave = ({ tagName, tagColor }) => {
   window.$notify?.success($t('messages.tagUpdated'))
 }
 
-// 标签清除处理
 const handleTagClear = () => {
   props.account.tag = ''
   props.account.tag_color = ''
@@ -221,52 +223,7 @@ const handleTagClear = () => {
   window.$notify?.success($t('messages.tagCleared'))
 }
 
-// 复制菜单操作
-const handleCopyMenuClick = async (type, close) => {
-  close?.()
-
-  switch (type) {
-    case 'accessToken':
-      await copyAccessToken()
-      break
-    case 'sessionToken':
-      await copySessionToken()
-      break
-  }
-}
-
-// 复制 Access Token
-const copyAccessToken = async () => {
-  try {
-    const accessToken = props.account.token?.access_token
-    if (!accessToken) {
-      window.$notify?.error($t('messages.noAccessToken'))
-      return
-    }
-    await navigator.clipboard.writeText(accessToken)
-    window.$notify?.success($t('messages.accessTokenCopied'))
-  } catch (err) {
-    console.error('Failed to copy access token:', err)
-    window.$notify?.error($t('messages.copyFailed'))
-  }
-}
-
-// 复制 Session Token
-const copySessionToken = async () => {
-  try {
-    const sessionToken = props.account.token?.workos_cursor_session_token
-    if (!sessionToken) {
-      window.$notify?.error($t('messages.noSessionToken'))
-      return
-    }
-    await navigator.clipboard.writeText(sessionToken)
-    window.$notify?.success($t('messages.sessionTokenCopied'))
-  } catch (err) {
-    console.error('Failed to copy session token:', err)
-    window.$notify?.error($t('messages.copyFailed'))
-  }
-}
-
+// 状态
 const statusClass = computed(() => {
   if (props.isCurrent) return 'current'
   if (props.account.disabled) return 'disabled'
@@ -297,28 +254,72 @@ const statusLabel = computed(() => {
   return $t('platform.cursor.status.available')
 })
 
-// 格式化日期
 const formatDate = (timestamp) => {
   if (!timestamp) return '-'
   const date = new Date(timestamp * 1000)
-  return date.toLocaleString('zh-CN', {
+  return date.toLocaleDateString('zh-CN', {
     year: 'numeric',
     month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
+    day: '2-digit'
   })
 }
 
 const toggleSelection = () => emit('select', props.account.id)
+
+const handleRowClick = () => {
+  if (props.selectionMode) toggleSelection()
+}
 
 const copyEmail = async () => {
   try {
     await navigator.clipboard.writeText(props.account.email)
     window.$notify?.success($t('messages.emailNoteCopied'))
   } catch (err) {
-    console.error('Failed to copy email:', err)
     window.$notify?.error($t('messages.copyEmailNoteFailed'))
+  }
+}
+
+// 菜单操作
+const handleMenuClick = async (type, close) => {
+  close?.()
+  switch (type) {
+    case 'copyAccessToken':
+      await copyAccessToken()
+      break
+    case 'copySessionToken':
+      await copySessionToken()
+      break
+    case 'delete':
+      emit('delete', props.account.id)
+      break
+  }
+}
+
+const copyAccessToken = async () => {
+  try {
+    const accessToken = props.account.token?.access_token
+    if (!accessToken) {
+      window.$notify?.error($t('messages.noAccessToken'))
+      return
+    }
+    await navigator.clipboard.writeText(accessToken)
+    window.$notify?.success($t('messages.accessTokenCopied'))
+  } catch (err) {
+    window.$notify?.error($t('messages.copyFailed'))
+  }
+}
+
+const copySessionToken = async () => {
+  try {
+    const sessionToken = props.account.token?.workos_cursor_session_token
+    if (!sessionToken) {
+      window.$notify?.error($t('messages.noSessionToken'))
+      return
+    }
+    await navigator.clipboard.writeText(sessionToken)
+    window.$notify?.success($t('messages.sessionTokenCopied'))
+  } catch (err) {
+    window.$notify?.error($t('messages.copyFailed'))
   }
 }
 </script>

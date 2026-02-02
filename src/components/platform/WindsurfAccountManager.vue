@@ -113,7 +113,7 @@
       <!-- Account List -->
       <template v-else>
         <!-- 卡片布局 -->
-        <div v-if="viewMode === 'card'" class="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4 p-1">
+        <div v-if="viewMode === 'card'" class="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3 p-1">
           <AccountCard
             v-for="account in paginatedAccounts"
             :key="account.id"

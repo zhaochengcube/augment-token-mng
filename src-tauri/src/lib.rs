@@ -19,6 +19,9 @@ pub mod core {
     pub mod path_manager;
     pub mod proxy_config;
     pub mod proxy_helper;
+    pub mod tray;
+    pub mod telegram;
+    pub mod subscription_monitor;
 }
 
 pub mod data {
@@ -28,7 +31,7 @@ pub mod data {
 }
 
 // Backwards-compatible re-exports for existing module paths.
-pub use core::{api_server, http_client, proxy_config, proxy_helper};
+pub use core::{api_server, http_client, proxy_config, proxy_helper, tray, telegram, subscription_monitor};
 pub use data::{database, storage};
 pub use features::{bookmarks, mail};
 pub use platforms::{antigravity, augment, windsurf, cursor, openai, claude};
@@ -36,6 +39,7 @@ pub use platforms::{antigravity, augment, windsurf, cursor, openai, claude};
 use crate::features::mail::{gptmail, outlook};
 use crate::platforms::augment::models::AugmentOAuthState;
 use crate::platforms::openai::models::OpenAIOAuthSession;
+use crate::core::tray::TrayState;
 use outlook::OutlookManager;
 use database::{DatabaseConfigManager, DatabaseManager};
 use storage::{DualStorage, AntigravityDualStorage, WindsurfDualStorage, CursorDualStorage, OpenAIDualStorage, ClaudeDualStorage};
@@ -114,6 +118,9 @@ pub fn run() {
             };
 
             app.manage(app_state);
+
+            // 初始化托盘状态管理器
+            app.manage(TrayState::new());
 
             // 异步初始化存储管理器
             let app_handle = app.handle().clone();
@@ -326,6 +333,10 @@ pub fn run() {
                 }
             });
 
+            // 启动订阅到期监控定时任务
+            let app_handle_for_monitor = app.handle().clone();
+            subscription_monitor::start_subscription_monitor(app_handle_for_monitor);
+
             // 设置 deep-link 处理器
             let app_handle_for_deep_link = app.app_handle().clone();
             app.deep_link().on_open_url(move |event| {
@@ -396,6 +407,29 @@ pub fn run() {
                 } else {
                     eprintln!("Successfully registered deep link protocols");
                 }
+            }
+
+            // 监听主窗口关闭事件，实现最小化到托盘功能
+            if let Some(main_window) = app.get_webview_window("main") {
+                let app_handle = app.handle().clone();
+                main_window.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        // 检查托盘是否启用
+                        let tray_state = app_handle.state::<TrayState>();
+                        let tray_enabled = tray_state.tray_icon.lock()
+                            .map(|guard| guard.is_some())
+                            .unwrap_or(false);
+                        
+                        if tray_enabled {
+                            // 托盘已启用，阻止关闭并隐藏窗口
+                            api.prevent_close();
+                            if let Some(window) = app_handle.get_webview_window("main") {
+                                let _ = window.hide();
+                            }
+                        }
+                        // 托盘未启用时，允许正常关闭（退出应用）
+                    }
+                });
             }
 
             Ok(())
@@ -590,7 +624,24 @@ pub fn run() {
             proxy_config::load_proxy_config,
             proxy_config::test_proxy_config,
             proxy_config::delete_proxy_config,
-            proxy_config::proxy_config_exists
+            proxy_config::proxy_config_exists,
+
+            // 系统托盘命令
+            tray::create_tray,
+            tray::destroy_tray,
+            tray::toggle_tray,
+            tray::get_tray_status,
+
+            // Telegram 通知命令
+            telegram::save_telegram_config,
+            telegram::load_telegram_config,
+            telegram::delete_telegram_config,
+            telegram::test_telegram_connection_cmd,
+            telegram::send_telegram_message_cmd,
+
+            // 订阅监控命令
+            subscription_monitor::check_subscriptions_expiry,
+            subscription_monitor::get_expiring_subscriptions
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -114,7 +114,7 @@
       <!-- Account List -->
       <template v-else>
         <!-- 卡片布局 -->
-        <div v-if="viewMode === 'card'" class="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4 p-1">
+        <div v-if="viewMode === 'card'" class="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3 p-1">
           <AccountCard
             v-for="account in paginatedAccounts"
             :key="account.id"
@@ -137,7 +137,7 @@
 
         <!-- 列表布局 -->
         <div v-else class="table-container">
-          <table class="table">
+          <table class="table table-fixed">
             <thead>
               <tr>
                 <th class="th w-11 text-center">
@@ -152,9 +152,12 @@
                     </div>
                   </div>
                 </th>
-                <th class="th w-[220px]">{{ $t('platform.antigravity.table.info') }}</th>
+                <th class="th w-[60px]">{{ $t('platform.antigravity.table.tag') }}</th>
+                <th class="th w-[60px]">{{ $t('platform.antigravity.table.status') }}</th>
+                <th class="th">{{ $t('platform.antigravity.table.email') }}</th>
+                <th class="th w-[140px]">{{ $t('platform.antigravity.table.time') }}</th>
                 <th class="th">{{ $t('platform.antigravity.table.quota') }}</th>
-                <th class="th w-[88px] text-center">{{ $t('platform.antigravity.table.actions') }}</th>
+                <th class="th w-[110px] text-center">{{ $t('platform.antigravity.table.actions') }}</th>
               </tr>
             </thead>
             <tbody>

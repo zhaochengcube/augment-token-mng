@@ -23,18 +23,33 @@ export const useSettingsStore = defineStore('settings', () => {
     username: 'postgres',
     ssl_mode: 'require'
   })
+  
+  // Tray state - read from localStorage
+  const trayEnabled = ref(localStorage.getItem('tray_enabled') === 'true')
+
+  // Telegram config state
+  const telegramConfig = ref({
+    enabled: false,
+    bot_token: '',
+    chat_id: '',
+    notify_days: [15, 7, 3],
+    check_interval_hours: 6
+  })
 
   // Loading states
   const isLoadingVersion = ref(false)
   const isLoadingServer = ref(false)
   const isLoadingProxy = ref(false)
   const isLoadingDatabase = ref(false)
+  const isLoadingTray = ref(false)
+  const isLoadingTelegram = ref(false)
 
   // 数据是否已加载标记 (应用生命周期内只加载一次)
   const versionLoaded = ref(false)
   const serverLoaded = ref(false)
   const proxyLoaded = ref(false)
   const databaseLoaded = ref(false)
+  const telegramLoaded = ref(false)
 
   // Actions
   const loadAppVersion = async (force = false) => {
@@ -151,13 +166,74 @@ export const useSettingsStore = defineStore('settings', () => {
     }
   }
 
+  // Toggle tray
+  const toggleTray = async (enabled) => {
+    isLoadingTray.value = true
+    try {
+      await invoke('toggle_tray', { enabled })
+      trayEnabled.value = enabled
+      localStorage.setItem('tray_enabled', String(enabled))
+      return true
+    } catch (error) {
+      console.error('Failed to toggle tray:', error)
+      throw error
+    } finally {
+      isLoadingTray.value = false
+    }
+  }
+
+  // Initialize tray based on stored preference
+  const initializeTray = async () => {
+    if (trayEnabled.value) {
+      try {
+        await invoke('create_tray')
+      } catch (error) {
+        console.error('Failed to initialize tray:', error)
+      }
+    }
+  }
+
+  // Load telegram config
+  const loadTelegramConfig = async (force = false) => {
+    if (!force && telegramLoaded.value) {
+      return telegramConfig.value
+    }
+
+    isLoadingTelegram.value = true
+    try {
+      const config = await invoke('load_telegram_config')
+      telegramConfig.value = {
+        enabled: config?.enabled || false,
+        bot_token: config?.bot_token || '',
+        chat_id: config?.chat_id || '',
+        notify_days: config?.notify_days || [15, 7, 3],
+        check_interval_hours: config?.check_interval_hours || 6
+      }
+      telegramLoaded.value = true
+      return telegramConfig.value
+    } catch (error) {
+      console.error('Failed to load telegram config:', error)
+      telegramConfig.value = {
+        enabled: false,
+        bot_token: '',
+        chat_id: '',
+        notify_days: [15, 7, 3],
+        check_interval_hours: 6
+      }
+      throw error
+    } finally {
+      isLoadingTelegram.value = false
+    }
+  }
+
   // Load all settings
   const loadAllSettings = async (force = false) => {
     await Promise.all([
       loadAppVersion(force),
       loadServerStatus(force),
       loadProxyConfig(force),
-      loadDatabaseConfig(force)
+      loadDatabaseConfig(force),
+      loadTelegramConfig(force)
     ])
   }
 
@@ -167,19 +243,26 @@ export const useSettingsStore = defineStore('settings', () => {
     serverStatus,
     proxyConfig,
     databaseConfig,
+    trayEnabled,
+    telegramConfig,
     
     // Loading states
     isLoadingVersion,
     isLoadingServer,
     isLoadingProxy,
     isLoadingDatabase,
+    isLoadingTray,
+    isLoadingTelegram,
     
     // Actions
     loadAppVersion,
     loadServerStatus,
     loadProxyConfig,
     loadDatabaseConfig,
-    loadAllSettings
+    loadTelegramConfig,
+    loadAllSettings,
+    toggleTray,
+    initializeTray
   }
 })
 

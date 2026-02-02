@@ -51,8 +51,12 @@
         class="btn btn--primary"
         :disabled="!canSubmit || isLoading"
       >
-        <span v-if="isLoading" class="btn-spinner" aria-hidden="true"></span>
-        <span v-else>{{ $t('platform.cursor.addAccountDialog.add') }}</span>
+        <span class="relative inline-flex items-center justify-center">
+          <span :style="{ visibility: isLoading ? 'hidden' : 'visible' }">
+            {{ $t('platform.cursor.addAccountDialog.add') }}
+          </span>
+          <span v-if="isLoading" class="btn-spinner absolute inset-0 m-auto" aria-hidden="true"></span>
+        </span>
       </button>
     </template>
   </BaseModal>

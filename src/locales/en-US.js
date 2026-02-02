@@ -27,7 +27,7 @@ export default {
     batchDelete: 'Batch delete',
     delete: 'Delete',
     noSearchResults: 'No matching results found',
-    openDataFolder: 'Open data folder',
+    openDataFolder: 'Data Folder',
     switchToTable: 'Switch to table view',
     switchToCard: 'Switch to card view',
     email: 'Email',
@@ -59,6 +59,8 @@ export default {
     darkMode: 'Dark Mode',
     settings: 'Settings',
     moreOptions: 'More Options',
+    expandSidebar: 'Expand',
+    collapseSidebar: 'Collapse',
     checkForUpdates: 'Check for Updates',
     lockGPTMail: 'Lock GPT Mail Manager'
   },
@@ -85,6 +87,7 @@ export default {
     placeholderDesc: 'This feature will be implemented in a later phase',
     externalLinks: 'External Links',
     about: 'About',
+    appBehavior: 'App Behavior',
     version: 'Version',
     author: 'Author',
     repository: 'Repository',
@@ -796,6 +799,47 @@ export default {
     customized: 'Customized',
     default: 'Default'
   },
+  tray: {
+    title: 'System Tray',
+    description: 'Show tray icon in taskbar for quick access to common features',
+    enabled: 'Enabled',
+    disabled: 'Disabled',
+    showWindow: 'Show Window',
+    platforms: 'Platform Selection',
+    subscriptions: 'Subscription Management',
+    quit: 'Quit',
+    toggleFailed: 'Failed to toggle tray'
+  },
+  telegram: {
+    title: 'Telegram Notification',
+    description: 'Send subscription expiry reminders via Telegram Bot',
+    enabled: 'Enabled',
+    disabled: 'Disabled',
+    enableNotification: 'Enable Telegram Notification',
+    botToken: 'Bot Token',
+    chatId: 'Chat ID',
+    botTokenHelp: "Get from {'@'}BotFather on Telegram",
+    chatIdHelp1: "User ID: message {'@'}userinfobot to get it",
+    chatIdHelp2: "Group/Channel ID: forward a message from group or channel to {'@'}userinfobot",
+    notifyDays: 'Reminder Days',
+    notifyDaysHelp: 'Select when to send expiry reminders',
+    checkInterval: 'Check Interval',
+    checkIntervalHelp: 'How often to check subscription expiry while app is running (takes effect on next check)',
+    hours: 'hours',
+    daysBefore: '{days} days before',
+    testConnection: 'Test Connection',
+    testSuccess: 'Connection successful! Test message sent.',
+    testFailed: 'Connection failed',
+    manualCheck: 'Check Now',
+    checkComplete: 'Expiry check completed',
+    checkFailed: 'Check failed',
+    saveSuccess: 'Telegram configuration saved',
+    saveFailed: 'Failed to save configuration',
+    placeholders: {
+      botToken: 'Enter Bot Token',
+      chatId: 'Enter User ID or Group Chat ID'
+    }
+  },
   credit: {
     title: 'Credit Usage Statistics',
     viewUsage: 'View Usage Details',
@@ -817,6 +861,7 @@ export default {
   },
   cursorUsage: {
     title: 'Usage Details',
+    viewUsage: 'View Usage',
     membershipType: 'Membership',
     totalInputTokens: 'Input Tokens',
     totalOutputTokens: 'Output Tokens',
@@ -922,11 +967,7 @@ export default {
       viewSyncQueueTooltip: 'Click to view pending sync queue',
       noQuotaData: 'No quota data available',
       searchPlaceholder: 'Search email...',
-      plan: {
-        free: 'Free',
-        pro: 'Pro',
-        enterprise: 'Enterprise'
-      },
+      plan: 'Plan',
       quota: {
         credits: 'Credits',
         remaining: 'Remaining',
@@ -988,6 +1029,7 @@ export default {
       lastUsed: 'Last used',
       createdAt: 'Created at',
       quotaRefreshedAt: 'Quota refreshed at',
+      subscriptionTier: 'Subscription',
       viewAllModels: 'View all models',
       modelsModalTitle: 'All Models',
       lastUpdated: 'Last updated',
@@ -1017,6 +1059,10 @@ export default {
       },
       table: {
         info: 'Account',
+        tag: 'Tag',
+        status: 'Status',
+        email: 'Email',
+        time: 'Time',
         quota: 'Quota',
         actions: 'Actions'
       },
@@ -1127,6 +1173,7 @@ export default {
       fullSync: 'Full Sync',
       sync: 'Sync',
       noQuotaData: 'No quota data available',
+      quotaLabel: 'Quota',
       searchPlaceholder: 'Search email...',
       sortByQuota: 'Sort by Quota',
       batchRefresh: 'Batch refresh',
@@ -1154,6 +1201,10 @@ export default {
         info: 'Account',
         status: 'Status',
         tag: 'Tag',
+        email: 'Email',
+        expiry: 'Expiry',
+        accessToken: 'Access Expiry',
+        sessionToken: 'Session Expiry',
         quota: 'Quota',
         time: 'Time Info',
         actions: 'Actions'
