@@ -130,10 +130,6 @@ struct AuthMeResponse {
 pub async fn get_user_info(session_token: &str) -> Result<CursorUserInfo, String> {
     let client = create_proxy_client()?;
 
-    println!("[get_user_info] session_token length: {}", session_token.len());
-
-    // 调用 cursor.com/api/auth/me，使用 Cookie 认证
-    println!("[get_user_info] Calling cursor.com/api/auth/me...");
     let response = client
         .get("https://cursor.com/api/auth/me")
         .header("Cookie", format!("WorkosCursorSessionToken={}", session_token))
@@ -143,13 +139,9 @@ pub async fn get_user_info(session_token: &str) -> Result<CursorUserInfo, String
         .await
         .map_err(|e| format!("User info request failed: {}", e))?;
 
-    let status = response.status();
-    let status_code = status.as_u16();
-    println!("[get_user_info] Response status: {}", status_code);
-
+    let status_code = response.status().as_u16();
     let body = response.text().await
         .map_err(|e| format!("Failed to read response body: {}", e))?;
-    println!("[get_user_info] Response body: {}", &body[..body.len().min(500)]);
 
     if status_code != 200 {
         return Err(format!("Get user info failed (HTTP {}): {}", status_code, body));
@@ -163,8 +155,6 @@ pub async fn get_user_info(session_token: &str) -> Result<CursorUserInfo, String
     let user_id = auth_me.sub
         .unwrap_or_else(|| auth_me.id.map(|i| i.to_string()).unwrap_or_else(|| "unknown".to_string()));
 
-    println!("[get_user_info] Success - email: {}, name: {:?}, id: {}", auth_me.email, auth_me.name, user_id);
-
     Ok(CursorUserInfo {
         id: user_id,
         email: auth_me.email,
@@ -176,7 +166,6 @@ pub async fn get_user_info(session_token: &str) -> Result<CursorUserInfo, String
 pub async fn get_subscription_info(session_token: &str) -> Result<SubscriptionInfo, String> {
     let client = create_proxy_client()?;
 
-    println!("[get_subscription_info] Calling cursor.com/api/auth/stripe...");
     let response = client
         .get("https://cursor.com/api/auth/stripe")
         .header("Cookie", format!("WorkosCursorSessionToken={}", session_token))
@@ -187,12 +176,10 @@ pub async fn get_subscription_info(session_token: &str) -> Result<SubscriptionIn
         .map_err(|e| format!("Subscription info request failed: {}", e))?;
 
     let status = response.status();
-    println!("[get_subscription_info] Response status: {}", status);
 
     if status.is_success() {
         let body = response.text().await
             .map_err(|e| format!("Failed to read response: {}", e))?;
-        println!("[get_subscription_info] Response body: {}", &body[..body.len().min(500)]);
 
         serde_json::from_str::<SubscriptionInfo>(&body)
             .map_err(|e| format!("Failed to parse subscription info: {}", e))
@@ -411,8 +398,6 @@ async fn poll_for_access_token(
     if response.status().is_success() {
         let body = response.text().await
             .map_err(|e| format!("Failed to read poll response: {}", e))?;
-        
-        println!("[get_user_info] Response status: {:?}", body);
 
         // 尝试解析为 AccessTokenResponse
         if let Ok(token_response) = serde_json::from_str::<AccessTokenResponse>(&body) {

@@ -8,6 +8,13 @@ use rand::RngCore;
 use sha2::{Digest, Sha256, Sha512};
 use serde_json::Value;
 
+/// 重置结果，包含是否需要管理员权限的信息
+#[derive(Debug, Clone)]
+pub struct ResetResult {
+    pub machine_id: String,
+    pub needs_admin: bool,
+}
+
 /// 获取 Windsurf 机器 ID 文件路径
 pub fn get_machine_id_path() -> Result<PathBuf, String> {
     #[cfg(target_os = "macos")]
@@ -77,8 +84,10 @@ pub fn generate_machine_id() -> String {
 }
 
 /// 重置机器 ID
-pub fn reset_machine_id() -> Result<String, String> {
+/// 返回 ResetResult，包含新的机器 ID 和是否需要管理员权限
+pub fn reset_machine_id() -> Result<ResetResult, String> {
     let path = get_machine_id_path()?;
+    let mut needs_admin = false;
     
     // 备份旧的机器 ID
     if path.exists() {
@@ -101,11 +110,21 @@ pub fn reset_machine_id() -> Result<String, String> {
         .map_err(|e| format!("Failed to write machine ID: {}", e))?;
 
     // 同步更新 storage.json 遥测字段
-    if let Err(e) = reset_telemetry_ids() {
-        eprintln!("Failed to reset telemetry IDs: {}", e);
+    match reset_telemetry_ids() {
+        Ok(admin_needed) => {
+            if admin_needed {
+                needs_admin = true;
+            }
+        }
+        Err(e) => {
+            eprintln!("Failed to reset telemetry IDs: {}", e);
+        }
     }
     
-    Ok(new_id)
+    Ok(ResetResult {
+        machine_id: new_id,
+        needs_admin,
+    })
 }
 
 /// 生成完整的遥测 ID 集合（与 Windsurf-Tool 一致）
@@ -134,8 +153,12 @@ impl TelemetryIds {
     }
 }
 
-fn reset_telemetry_ids() -> Result<TelemetryIds, String> {
+/// 重置遥测 ID，返回是否需要管理员权限
+fn reset_telemetry_ids() -> Result<bool, String> {
     let storage_json_path = get_storage_json_path()?;
+    #[allow(unused_mut)]
+    let mut needs_admin = false;
+    
     if let Some(parent) = storage_json_path.parent() {
         if !parent.exists() {
             fs::create_dir_all(parent)
@@ -164,6 +187,13 @@ fn reset_telemetry_ids() -> Result<TelemetryIds, String> {
         {
             map.insert("telemetry.macMachineId".to_string(), Value::String(ids.mac_machine_id.clone()));
         }
+        
+        // Windows 平台：重置 system.machineGuid
+        #[cfg(windows)]
+        {
+            let new_machine_guid = Uuid::new_v4().to_string();
+            map.insert("system.machineGuid".to_string(), Value::String(new_machine_guid));
+        }
     }
 
     let json = serde_json::to_string_pretty(&storage_data)
@@ -176,10 +206,11 @@ fn reset_telemetry_ids() -> Result<TelemetryIds, String> {
     {
         if let Err(e) = reset_windows_machine_guid() {
             eprintln!("Warning: Failed to reset Windows MachineGuid (admin required): {}", e);
+            needs_admin = true;
         }
     }
 
-    Ok(ids)
+    Ok(needs_admin)
 }
 
 /// Windows: 尝试重置注册表 MachineGuid

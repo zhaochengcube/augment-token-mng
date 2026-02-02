@@ -2,6 +2,32 @@ use serde::{Deserialize, Serialize};
 use super::TokenData;
 use crate::data::storage::common::SyncableAccount;
 
+/// 机器码信息
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct MachineInfo {
+    #[serde(rename = "telemetry.machineId", default, skip_serializing_if = "Option::is_none")]
+    pub machine_id: Option<String>,
+    #[serde(rename = "telemetry.macMachineId", default, skip_serializing_if = "Option::is_none")]
+    pub mac_machine_id: Option<String>,
+    #[serde(rename = "telemetry.devDeviceId", default, skip_serializing_if = "Option::is_none")]
+    pub dev_device_id: Option<String>,
+    #[serde(rename = "telemetry.sqmId", default, skip_serializing_if = "Option::is_none")]
+    pub sqm_id: Option<String>,
+    #[serde(rename = "system.machineGuid", default, skip_serializing_if = "Option::is_none")]
+    pub system_machine_guid: Option<String>,
+}
+
+impl MachineInfo {
+    /// 检查是否有任何有效的机器码数据
+    pub fn has_data(&self) -> bool {
+        self.machine_id.is_some()
+            || self.mac_machine_id.is_some()
+            || self.dev_device_id.is_some()
+            || self.sqm_id.is_some()
+            || self.system_machine_guid.is_some()
+    }
+}
+
 /// Cursor 账号数据结构
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Account {
@@ -16,6 +42,10 @@ pub struct Account {
     /// 标签颜色
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tag_color: Option<String>,
+
+    /// 绑定的机器码信息
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub machine_info: Option<MachineInfo>,
 
     #[serde(default)]
     pub disabled: bool,
@@ -76,6 +106,7 @@ impl Account {
             token,
             tag: None,
             tag_color: None,
+            machine_info: None,
             disabled: false,
             disabled_reason: None,
             disabled_at: None,
@@ -85,6 +116,33 @@ impl Account {
             version: 0,
             deleted: false,
         }
+    }
+
+    /// 创建带机器码信息的账号
+    pub fn new_with_machine_info(id: String, email: String, token: TokenData, machine_info: Option<MachineInfo>) -> Self {
+        let now = chrono::Utc::now().timestamp();
+        Self {
+            id,
+            email,
+            name: None,
+            token,
+            tag: None,
+            tag_color: None,
+            machine_info,
+            disabled: false,
+            disabled_reason: None,
+            disabled_at: None,
+            created_at: now,
+            last_used: now,
+            updated_at: now,
+            version: 0,
+            deleted: false,
+        }
+    }
+
+    /// 检查账号是否有绑定的机器码
+    pub fn has_machine_info(&self) -> bool {
+        self.machine_info.as_ref().map_or(false, |info| info.has_data())
     }
 
     pub fn update_last_used(&mut self) {

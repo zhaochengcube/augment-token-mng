@@ -1005,7 +1005,8 @@ export default {
         addFailed: '添加账号失败',
         deleteSuccess: '账号删除成功',
         loginFailed: '登录失败',
-        noSelection: '请先选择账号'
+        noSelection: '请先选择账号',
+        adminRequired: '部分机器码重置需要管理员权限，请以管理员身份运行程序以完整重置'
       },
       sortByQuota: '按配额排序',
       syncQueueTitle: 'Windsurf 同步队列',
@@ -1222,6 +1223,35 @@ export default {
         add: '添加账号',
         addFailed: '添加账号失败'
       },
+      importDialog: {
+        title: '导入账号',
+        info: '从 JSON 文件导入账号，将使用 WorkosCursorSessionToken 获取 Token',
+        selectFile: '选择文件',
+        clickToSelect: '点击选择 JSON 文件',
+        supportFormat: '支持包含账号数组的 JSON 文件',
+        reselect: '重新选择',
+        previewTitle: '预览（共 {count} 个账号）',
+        withMachineInfo: '含机器码 {count} 个',
+        hasMachineId: '有机器码',
+        noSessionToken: '缺少 Session Token',
+        resultTitle: '导入结果',
+        resultSummary: '成功 {success} / 失败 {failed} / 共 {total}',
+        import: '导入 ({count})',
+        emptyFile: '文件内容为空',
+        invalidFormat: '无效的 JSON 格式，缺少必要字段',
+        readError: '读取文件失败',
+        importFailed: '导入失败'
+      },
+      machineIdOption: {
+        title: '选择机器码方式',
+        info: '此账号已绑定机器码，请选择切换时使用的机器码方式',
+        useBound: '使用绑定的机器码',
+        useBoundDesc: '使用账号导入时携带的机器码信息',
+        useRandom: '生成新的机器码',
+        useRandomDesc: '随机生成新的机器码（推荐首次使用）',
+        confirm: '确认切换'
+      },
+      importAccounts: '导入账号',
       messages: {
         switchSuccess: '账号切换成功',
         switchFailed: '切换失败: {error}',
@@ -1233,7 +1263,9 @@ export default {
         deleteSuccess: '账号删除成功',
         deleteFailed: '删除失败: {error}',
         batchDeleteConfirm: '确定要删除选中的 {count} 个账号吗？',
-        noSelection: '请先选择要操作的账号'
+        noSelection: '请先选择要操作的账号',
+        adminRequired: '部分机器码重置需要管理员权限，请以管理员身份运行程序以完整重置',
+        importSuccess: '成功导入 {count} 个账号'
       },
       batchRefresh: '批量刷新配额',
       batchRefreshSuccess: '已刷新 {count} 个账号的配额',

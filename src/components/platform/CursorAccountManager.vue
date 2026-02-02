@@ -65,6 +65,11 @@
                 <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
               </svg>
             </button>
+            <button @click="showImportDialog = true" class="btn btn--icon btn--ghost" v-tooltip="$t('platform.cursor.importAccounts')">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+              </svg>
+            </button>
             <button
               v-if="isDatabaseAvailable"
               class="btn btn--icon btn--ghost"
@@ -357,6 +362,17 @@
     <!-- Add Account Dialog -->
     <AddAccountDialog v-if="showAddDialog" @close="showAddDialog = false" @added="handleAccountAdded" />
 
+    <!-- Import Accounts Dialog -->
+    <ImportAccountsDialog v-if="showImportDialog" @close="showImportDialog = false" @imported="handleAccountsImported" />
+
+    <!-- Machine ID Option Dialog -->
+    <MachineIdOptionDialog
+      v-if="showMachineIdOptionDialog"
+      :account="pendingSwitchAccount"
+      @close="handleMachineIdOptionClose"
+      @confirm="handleMachineIdOptionConfirm"
+    />
+
     <!-- Sync Queue Modal -->
     <SyncQueueModal
       v-model:visible="showSyncQueueModal"
@@ -399,6 +415,8 @@ import { useI18n } from 'vue-i18n'
 import AccountCard from '../cursor/AccountCard.vue'
 import AccountTableRow from '../cursor/AccountTableRow.vue'
 import AddAccountDialog from '../cursor/AddAccountDialog.vue'
+import ImportAccountsDialog from '../cursor/ImportAccountsDialog.vue'
+import MachineIdOptionDialog from '../cursor/MachineIdOptionDialog.vue'
 import Pagination from '../common/Pagination.vue'
 import FixedPaginationLayout from '../common/FixedPaginationLayout.vue'
 import ActionToolbar from '../common/ActionToolbar.vue'
@@ -422,6 +440,9 @@ const props = defineProps({
 const accounts = ref([])
 const currentAccountId = ref(null)
 const showAddDialog = ref(false)
+const showImportDialog = ref(false)
+const showMachineIdOptionDialog = ref(false)
+const pendingSwitchAccount = ref(null) // 待切换的账号（用于机器码选项对话框）
 const isLoading = ref(false)
 const isRefreshing = ref(false)
 const switchingAccountId = ref(null)
@@ -576,18 +597,64 @@ const loadAccounts = async () => {
   }
 }
 
+// 检查账号是否有有效的机器码信息
+const hasMachineInfo = (account) => {
+  if (!account?.machine_info) return false
+  const info = account.machine_info
+  return info['telemetry.machineId'] ||
+    info['telemetry.macMachineId'] ||
+    info['telemetry.devDeviceId'] ||
+    info['telemetry.sqmId'] ||
+    info['system.machineGuid']
+}
+
 const handleSwitch = async (accountId) => {
+  const account = accounts.value.find(a => a.id === accountId)
+  if (!account) return
+
+  // 如果账号有绑定的机器码，弹出选项对话框
+  if (hasMachineInfo(account)) {
+    pendingSwitchAccount.value = account
+    showMachineIdOptionDialog.value = true
+    return
+  }
+
+  // 没有机器码，直接使用随机生成
+  await performSwitch(accountId, false)
+}
+
+// 执行切换操作
+const performSwitch = async (accountId, useBoundMachineId) => {
   switchingAccountId.value = accountId
   try {
-    await invoke('cursor_switch_account', { accountId })
+    const result = await invoke('cursor_switch_account', { accountId, useBoundMachineId })
     await loadAccounts()
     markItemUpsertById(accountId)
+    // Windows 平台：如果需要管理员权限，显示提示
+    if (result?.needs_admin) {
+      window.$notify?.warning($t('platform.cursor.messages.adminRequired'))
+    }
   } catch (error) {
     console.error('Failed to switch account:', error)
     window.$notify?.error(error?.message || error)
   } finally {
     switchingAccountId.value = null
   }
+}
+
+// 机器码选项确认
+const handleMachineIdOptionConfirm = async (useBoundMachineId) => {
+  showMachineIdOptionDialog.value = false
+  if (pendingSwitchAccount.value) {
+    await performSwitch(pendingSwitchAccount.value.id, useBoundMachineId)
+    pendingSwitchAccount.value = null
+  }
+}
+
+// 机器码选项取消
+const handleMachineIdOptionClose = () => {
+  showMachineIdOptionDialog.value = false
+  pendingSwitchAccount.value = null
 }
 
 const handleRefresh = async () => {
@@ -609,6 +676,21 @@ const handleAccountAdded = async (account) => {
     markItemUpsertById(account.id)
   }
   window.$notify?.success($t('platform.cursor.messages.addSuccess'))
+}
+
+// 导入账号成功处理
+const handleAccountsImported = async (result) => {
+  showImportDialog.value = false
+  await loadAccounts()
+  // 标记成功导入的账号
+  if (result?.results) {
+    result.results.forEach(r => {
+      if (r.success && r.account?.id) {
+        markItemUpsertById(r.account.id)
+      }
+    })
+  }
+  window.$notify?.success($t('platform.cursor.messages.importSuccess', { count: result.success_count }))
 }
 
 const handleDelete = async (accountId) => {

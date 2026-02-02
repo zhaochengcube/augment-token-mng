@@ -1,5 +1,5 @@
 use crate::data::storage::common::{AccountDbMapper, StorageError};
-use crate::platforms::cursor::models::{Account, TokenData};
+use crate::platforms::cursor::models::{Account, MachineInfo, TokenData};
 use tokio_postgres::Row;
 
 /// Cursor 账号数据库映射器
@@ -7,6 +7,10 @@ pub struct CursorAccountMapper;
 
 impl AccountDbMapper<Account> for CursorAccountMapper {
     fn from_row(row: &Row) -> Result<Account, StorageError> {
+        // 解析 machine_info JSON 字段
+        let machine_info: Option<MachineInfo> = row.get::<_, Option<serde_json::Value>>(18)
+            .and_then(|v| serde_json::from_value(v).ok());
+
         Ok(Account {
             id: row.get(0),
             email: row.get(1),
@@ -21,6 +25,7 @@ impl AccountDbMapper<Account> for CursorAccountMapper {
             },
             tag: row.get(9),
             tag_color: row.get(10),
+            machine_info,
             disabled: row.get(11),
             disabled_reason: row.get(12),
             disabled_at: row.get(13),
@@ -36,7 +41,7 @@ impl AccountDbMapper<Account> for CursorAccountMapper {
         "id, email, name, access_token, refresh_token, expiry_timestamp, user_id, \
          workos_cursor_session_token, session_expiry_timestamp, \
          tag, tag_color, disabled, disabled_reason, disabled_at, \
-         created_at, last_used, updated_at, version"
+         created_at, last_used, updated_at, version, machine_info"
     }
 
     fn insert_sql() -> &'static str {
@@ -45,8 +50,8 @@ impl AccountDbMapper<Account> for CursorAccountMapper {
             (id, email, name, access_token, refresh_token, expiry_timestamp, user_id,
              workos_cursor_session_token, session_expiry_timestamp,
              tag, tag_color, disabled, disabled_reason, disabled_at, created_at,
-             last_used, updated_at, version, deleted)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+             last_used, updated_at, version, deleted, machine_info)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
         ON CONFLICT (id) DO UPDATE SET
             email = EXCLUDED.email,
             name = EXCLUDED.name,
@@ -64,11 +69,16 @@ impl AccountDbMapper<Account> for CursorAccountMapper {
             last_used = EXCLUDED.last_used,
             updated_at = EXCLUDED.updated_at,
             version = EXCLUDED.version,
-            deleted = EXCLUDED.deleted
+            deleted = EXCLUDED.deleted,
+            machine_info = EXCLUDED.machine_info
         "#
     }
 
     fn to_params(account: &Account, version: i64) -> Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> {
+        // 将 machine_info 序列化为 JSON
+        let machine_info_json: Option<serde_json::Value> = account.machine_info.as_ref()
+            .and_then(|info| serde_json::to_value(info).ok());
+
         vec![
             Box::new(account.id.clone()),
             Box::new(account.email.clone()),
@@ -89,6 +99,7 @@ impl AccountDbMapper<Account> for CursorAccountMapper {
             Box::new(account.updated_at),
             Box::new(version),
             Box::new(account.deleted),
+            Box::new(machine_info_json),
         ]
     }
 }

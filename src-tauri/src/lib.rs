@@ -518,6 +518,8 @@ pub fn run() {
 
             // Cursor 管理命令
             cursor::cursor_add_account_with_session,
+            cursor::cursor_import_accounts,
+            cursor::cursor_update_account,
             cursor::cursor_list_accounts,
             cursor::cursor_delete_account,
             cursor::cursor_switch_account,

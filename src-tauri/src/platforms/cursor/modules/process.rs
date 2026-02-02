@@ -100,13 +100,14 @@ pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
             .args(["-e", "tell application \"Cursor\" to quit"])
             .output();
 
-        let quit_wait = std::cmp::min(timeout_secs, 5);
+        // 等待优雅退出，最多 2 秒
+        let quit_wait = std::cmp::min(timeout_secs, 2);
         let start_quit = std::time::Instant::now();
         while start_quit.elapsed() < std::time::Duration::from_secs(quit_wait) {
             if !is_cursor_running() {
                 return CloseResult { success: true, warning: None };
             }
-            std::thread::sleep(std::time::Duration::from_millis(200));
+            std::thread::sleep(std::time::Duration::from_millis(100));
         }
 
         // 如果还在运行，发送 SIGTERM
@@ -140,13 +141,14 @@ pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
             }
         }
 
-        let graceful_timeout = (timeout_secs * 7) / 10;
+        // 等待 SIGTERM 生效，最多 2 秒
+        let graceful_timeout = std::cmp::min((timeout_secs * 7) / 10, 2);
         let start = std::time::Instant::now();
         while start.elapsed() < std::time::Duration::from_secs(graceful_timeout) {
             if !is_cursor_running() {
                 return CloseResult { success: true, warning: None };
             }
-            std::thread::sleep(std::time::Duration::from_millis(300));
+            std::thread::sleep(std::time::Duration::from_millis(100));
         }
 
         // 强制杀死
@@ -155,11 +157,10 @@ pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
             for pid in remaining {
                 let _ = Command::new("kill").args(["-9", &pid.to_string()]).output();
             }
-            std::thread::sleep(std::time::Duration::from_millis(500));
+            std::thread::sleep(std::time::Duration::from_millis(200));
         }
 
         // 最终验证
-        std::thread::sleep(std::time::Duration::from_millis(500));
         if is_cursor_running() {
             return CloseResult {
                 success: false,
@@ -182,13 +183,14 @@ pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
             .args(["/IM", "Cursor.exe", "/T"])
             .output();
 
-        let quit_wait = std::cmp::min(timeout_secs, 5);
+        // 等待优雅退出，最多 2 秒
+        let quit_wait = std::cmp::min(timeout_secs, 2);
         let start = std::time::Instant::now();
         while start.elapsed() < std::time::Duration::from_secs(quit_wait) {
             if !is_cursor_running() {
                 return CloseResult { success: true, warning: None };
             }
-            std::thread::sleep(std::time::Duration::from_millis(300));
+            std::thread::sleep(std::time::Duration::from_millis(100));
         }
 
         // 强制关闭
@@ -196,11 +198,10 @@ pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
             let _ = Command::new("taskkill")
                 .args(["/F", "/T", "/IM", "Cursor.exe"])
                 .output();
-            std::thread::sleep(std::time::Duration::from_millis(500));
+            std::thread::sleep(std::time::Duration::from_millis(200));
         }
 
         // 最终验证
-        std::thread::sleep(std::time::Duration::from_millis(500));
         if is_cursor_running() {
             return CloseResult {
                 success: false,
@@ -217,7 +218,7 @@ pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
         let _ = kill_cursor_processes();
 
         // 最终验证
-        std::thread::sleep(std::time::Duration::from_millis(500));
+        std::thread::sleep(std::time::Duration::from_millis(200));
         if is_cursor_running() {
             return CloseResult {
                 success: false,

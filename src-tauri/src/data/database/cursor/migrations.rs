@@ -74,6 +74,12 @@ pub async fn add_new_fields_if_not_exist(client: &Client) -> Result<(), Box<dyn 
         &[],
     ).await?;
 
+    // 添加 machine_info 字段（如果不存在）- 存储为 JSONB
+    client.execute(
+        "ALTER TABLE cursor_accounts ADD COLUMN IF NOT EXISTS machine_info JSONB",
+        &[],
+    ).await?;
+
     Ok(())
 }
 

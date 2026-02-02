@@ -12,6 +12,13 @@ pub struct AccountListResponse {
     pub current_account_id: Option<String>,
 }
 
+/// 切换账号响应
+#[derive(Serialize)]
+pub struct SwitchAccountResponse {
+    pub message: String,
+    pub needs_admin: bool,
+}
+
 /// 使用邮箱密码登录
 #[tauri::command]
 pub async fn windsurf_login(
@@ -139,7 +146,7 @@ pub async fn windsurf_delete_account(
 pub async fn windsurf_switch_account(
     app: AppHandle,
     account_id: String,
-) -> Result<String, String> {
+) -> Result<SwitchAccountResponse, String> {
     // 1. 加载账号
     let mut acc = storage::load_account(&app, &account_id).await?;
     
@@ -188,9 +195,16 @@ pub async fn windsurf_switch_account(
     }
 
     // 4.1 重置遥测数据（失败不阻断切号）
-    if let Err(e) = machine::reset_machine_id() {
-        eprintln!("Failed to reset machine/telemetry IDs: {}", e);
-    }
+    let needs_admin = match machine::reset_machine_id() {
+        Ok(result) => {
+            println!("Machine ID reset: {}", result.machine_id);
+            result.needs_admin
+        }
+        Err(e) => {
+            eprintln!("Failed to reset machine/telemetry IDs: {}", e);
+            false
+        }
+    };
     
     // 5. 注入 Token
     let db_path = db::get_db_path()?;
@@ -232,7 +246,10 @@ pub async fn windsurf_switch_account(
 
     process::launch_windsurf_with_path(custom_path.as_deref())?;
 
-    Ok(format!("Account switched and Windsurf started: {}", acc.email))
+    Ok(SwitchAccountResponse {
+        message: format!("Account switched and Windsurf started: {}", acc.email),
+        needs_admin,
+    })
 }
 
 

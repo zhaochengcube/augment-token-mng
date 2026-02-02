@@ -668,10 +668,14 @@ const loadAccounts = async () => {
 const handleSwitch = async (accountId) => {
   switchingAccountId.value = accountId
   try {
-    await invoke('windsurf_switch_account', { accountId })
+    const result = await invoke('windsurf_switch_account', { accountId })
     await loadAccounts()
     markItemUpsertById(accountId)
     window.$notify?.success($t('platform.windsurf.messages.switchSuccess'))
+    // Windows 平台：如果需要管理员权限，显示提示
+    if (result?.needs_admin) {
+      window.$notify?.warning($t('platform.windsurf.messages.adminRequired'))
+    }
   } catch (error) {
     console.error('Failed to switch account:', error)
     window.$notify?.error(error?.message || error)

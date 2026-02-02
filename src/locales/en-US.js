@@ -1003,7 +1003,8 @@ export default {
         addFailed: 'Failed to add account',
         deleteSuccess: 'Account deleted',
         loginFailed: 'Login failed',
-        noSelection: 'Please select account first'
+        noSelection: 'Please select account first',
+        adminRequired: 'Some machine ID reset requires admin privileges. Please run as administrator for complete reset.'
       },
       sortByQuota: 'Sort by Quota',
       syncQueueTitle: 'Windsurf Sync Queue',
@@ -1230,6 +1231,35 @@ export default {
         add: 'Add Account',
         addFailed: 'Failed to add account'
       },
+      importDialog: {
+        title: 'Import Accounts',
+        info: 'Import accounts from JSON file, will use WorkosCursorSessionToken to get Token',
+        selectFile: 'Select File',
+        clickToSelect: 'Click to select JSON file',
+        supportFormat: 'Supports JSON file with account array',
+        reselect: 'Reselect',
+        previewTitle: 'Preview ({count} accounts)',
+        withMachineInfo: '{count} with machine ID',
+        hasMachineId: 'Has Machine ID',
+        noSessionToken: 'Missing Session Token',
+        resultTitle: 'Import Result',
+        resultSummary: 'Success {success} / Failed {failed} / Total {total}',
+        import: 'Import ({count})',
+        emptyFile: 'File content is empty',
+        invalidFormat: 'Invalid JSON format, missing required fields',
+        readError: 'Failed to read file',
+        importFailed: 'Import failed'
+      },
+      machineIdOption: {
+        title: 'Machine ID Option',
+        info: 'This account has bound machine ID, please select the machine ID method for switching',
+        useBound: 'Use Bound Machine ID',
+        useBoundDesc: 'Use the machine ID imported with this account',
+        useRandom: 'Generate New Machine ID',
+        useRandomDesc: 'Randomly generate new machine ID (recommended for first use)',
+        confirm: 'Confirm Switch'
+      },
+      importAccounts: 'Import Accounts',
       messages: {
         switchSuccess: 'Account switched successfully',
         switchFailed: 'Switch failed: {error}',
@@ -1241,7 +1271,9 @@ export default {
         deleteSuccess: 'Account deleted successfully',
         deleteFailed: 'Delete failed: {error}',
         batchDeleteConfirm: 'Are you sure you want to delete {count} selected accounts?',
-        noSelection: 'Please select accounts to operate'
+        noSelection: 'Please select accounts to operate',
+        adminRequired: 'Some machine ID reset requires admin privileges. Please run as administrator for complete reset.',
+        importSuccess: 'Successfully imported {count} accounts'
       },
       batchRefresh: 'Batch refresh quota',
       batchRefreshSuccess: 'Refreshed quota for {count} accounts',
