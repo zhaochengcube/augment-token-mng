@@ -8,6 +8,8 @@ use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
 use uuid::Uuid;
+use rand::RngCore;
+use sha2::{Digest, Sha256, Sha512};
 
 /// 遥测 ID 结构
 #[derive(Debug, Clone)]
@@ -19,11 +21,16 @@ pub struct TelemetryIds {
 }
 
 impl TelemetryIds {
-    /// 生成新的遥测 ID
+    /// 生成新的遥测 ID（与 Windsurf 一致的生成逻辑）
     pub fn generate() -> Self {
+        let mut random_bytes_32 = [0u8; 32];
+        let mut random_bytes_64 = [0u8; 64];
+        rand::thread_rng().fill_bytes(&mut random_bytes_32);
+        rand::thread_rng().fill_bytes(&mut random_bytes_64);
+
         Self {
-            machine_id: Uuid::new_v4().to_string(),
-            mac_machine_id: Uuid::new_v4().to_string(),
+            machine_id: format!("{:x}", Sha256::digest(&random_bytes_32)),  // SHA256 哈希 (64字符)
+            mac_machine_id: format!("{:x}", Sha512::digest(&random_bytes_64)), // SHA512 哈希 (128字符)
             dev_device_id: Uuid::new_v4().to_string(),
             sqm_id: format!("{{{}}}", Uuid::new_v4().to_string().to_uppercase()),
         }
