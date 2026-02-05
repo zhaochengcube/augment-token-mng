@@ -1228,7 +1228,8 @@ export default {
       },
       importDialog: {
         title: '导入账号',
-        info: '从 JSON 文件导入账号，将使用 WorkosCursorSessionToken 获取 Token',
+        info: '从 JSON 文件导入已获取的账号认证信息。支持同时导入机器码信息。',
+        formatExample: '导入格式',
         selectFile: '选择文件',
         clickToSelect: '点击选择 JSON 文件',
         supportFormat: '支持包含账号数组的 JSON 文件',

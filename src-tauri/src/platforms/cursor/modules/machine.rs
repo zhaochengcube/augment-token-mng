@@ -18,6 +18,7 @@ pub struct TelemetryIds {
     pub mac_machine_id: String,
     pub dev_device_id: String,
     pub sqm_id: String,
+    pub service_machine_id: String,  // state.vscdb 中的 storage.serviceMachineId
 }
 
 impl TelemetryIds {
@@ -31,6 +32,7 @@ impl TelemetryIds {
             mac_machine_id: Uuid::new_v4().to_string(), // UUID 格式
             dev_device_id: Uuid::new_v4().to_string(),
             sqm_id: format!("{{{}}}", Uuid::new_v4().to_string().to_uppercase()),
+            service_machine_id: Uuid::new_v4().to_string(),  // UUID 格式
         }
     }
 }
@@ -89,6 +91,13 @@ pub fn reset_machine_id() -> Result<(TelemetryIds, bool), String> {
         .map_err(|e| format!("Failed to serialize storage.json: {}", e))?;
     fs::write(&storage_json_path, json)
         .map_err(|e| format!("Failed to write storage.json: {}", e))?;
+
+    // 重置 state.vscdb 中的机器标识符 (serviceMachineId 和 stableID)
+    // stableID 使用与 machineId 相同的值，serviceMachineId 使用生成的 UUID
+    if let Err(e) = db::reset_machine_ids_in_db(&ids.machine_id, Some(&ids.service_machine_id)) {
+        println!("Warning: Failed to reset machine IDs in database: {}", e);
+        // 不中断流程，继续执行
+    }
 
     // Windows 平台：尝试重置注册表 MachineGuid（需要管理员权限）
     #[cfg(windows)]
@@ -324,7 +333,7 @@ pub fn write_machine_ids(machine_info: &MachineInfo) -> Result<bool, String> {
     // 写回文件 - 使用 OpenOptions 确保写入完成
     let json = serde_json::to_string_pretty(&storage_data)
         .map_err(|e| format!("Failed to serialize storage.json: {}", e))?;
-    
+
     // 使用 File::create 和 sync_all 确保数据写入磁盘
     use std::io::Write;
     let mut file = fs::File::create(&storage_json_path)
@@ -334,6 +343,22 @@ pub fn write_machine_ids(machine_info: &MachineInfo) -> Result<bool, String> {
     file.sync_all()
         .map_err(|e| format!("Failed to sync storage.json: {}", e))?;
     drop(file); // 显式关闭文件
+
+    // 重置 state.vscdb 中的机器标识符 (serviceMachineId 和 stableID)
+    // stableID 和 serviceMachineId 都使用绑定的值（如果有）
+    let machine_id_for_db = if let Some(ref machine_id) = machine_info.machine_id {
+        machine_id.clone()
+    } else {
+        // 如果没有绑定的 machine_id，生成一个新的
+        let mut bytes = [0u8; 32];
+        rand::thread_rng().fill_bytes(&mut bytes);
+        format!("{:x}", Sha256::digest(&bytes))
+    };
+    let service_machine_id_for_db = machine_info.storage_service_machine_id.as_deref();
+    if let Err(e) = db::reset_machine_ids_in_db(&machine_id_for_db, service_machine_id_for_db) {
+        println!("Warning: Failed to reset machine IDs in database: {}", e);
+        // 不中断流程，继续执行
+    }
 
     // Windows 平台：如果提供了 system.machineGuid，尝试写入注册表
     #[cfg(windows)]

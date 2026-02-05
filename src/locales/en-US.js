@@ -1236,7 +1236,8 @@ export default {
       },
       importDialog: {
         title: 'Import Accounts',
-        info: 'Import accounts from JSON file, will use WorkosCursorSessionToken to get Token',
+        info: 'Import account credentials from JSON file. Machine ID info is also supported.',
+        formatExample: 'Import Format',
         selectFile: 'Select File',
         clickToSelect: 'Click to select JSON file',
         supportFormat: 'Supports JSON file with account array',

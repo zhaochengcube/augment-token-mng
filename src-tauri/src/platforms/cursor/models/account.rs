@@ -15,6 +15,8 @@ pub struct MachineInfo {
     pub sqm_id: Option<String>,
     #[serde(rename = "system.machineGuid", default, skip_serializing_if = "Option::is_none")]
     pub system_machine_guid: Option<String>,
+    #[serde(rename = "storage.serviceMachineId", default, skip_serializing_if = "Option::is_none")]
+    pub storage_service_machine_id: Option<String>,
 }
 
 impl MachineInfo {
@@ -25,6 +27,7 @@ impl MachineInfo {
             || self.dev_device_id.is_some()
             || self.sqm_id.is_some()
             || self.system_machine_guid.is_some()
+            || self.storage_service_machine_id.is_some()
     }
 }
 

@@ -16,6 +16,15 @@
           <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
         </svg>
         <p class="text-[13px] leading-relaxed text-text-secondary">{{ $t('platform.cursor.importDialog.info') }}</p>
+        <button
+          @click="showFormatModal = true"
+          class="shrink-0 rounded p-1 text-text-muted hover:bg-accent/20 hover:text-accent transition-colors"
+          v-tooltip="$t('platform.cursor.importDialog.formatExample')"
+        >
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>
+          </svg>
+        </button>
       </div>
 
       <!-- 隐藏的文件输入 -->
@@ -164,6 +173,24 @@
       </button>
     </template>
   </BaseModal>
+
+  <!-- 格式说明 Modal -->
+  <BaseModal
+    :visible="showFormatModal"
+    :title="$t('platform.cursor.importDialog.formatExample')"
+    :show-close="true"
+    close-on-overlay
+    close-on-esc
+    modal-class="max-w-[500px]"
+    @close="showFormatModal = false"
+  >
+    <div class="space-y-4">
+      <pre class="rounded-lg bg-surface-alt p-4 text-xs text-text overflow-x-auto">{{ formatExampleJson }}</pre>
+    </div>
+    <template #footer>
+      <button @click="showFormatModal = false" class="btn btn--primary">{{ $t('common.close') }}</button>
+    </template>
+  </BaseModal>
 </template>
 
 <script setup>
@@ -174,6 +201,26 @@ import BaseModal from '@/components/common/BaseModal.vue'
 
 const { t: $t } = useI18n()
 const emit = defineEmits(['close', 'imported'])
+
+const showFormatModal = ref(false)
+const formatExampleJson = `[
+  {
+    "email": "user@example.com",
+    "auth_info": {
+      "WorkosCursorSessionToken": "user_id::eyJ...",
+      "cursorAuth/accessToken": "eyJ...",
+      "cursorAuth/refreshToken": "rT..."
+    },
+    "machine_info": {
+      "telemetry.machineId": "64字符hex",
+      "telemetry.macMachineId": "uuid",
+      "telemetry.devDeviceId": "uuid",
+      "telemetry.sqmId": "{UUID}",
+      "storage.serviceMachineId": "uuid",
+      "system.machineGuid": "uuid"
+    }
+  }
+]`
 
 const fileName = ref('')
 const previewData = ref(null)
