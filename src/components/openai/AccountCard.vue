@@ -7,11 +7,11 @@
     }"
     @click="handleCardClick"
   >
-    <!-- 头部：选择框 + 邮箱标题 -->
-    <div class="flex items-center gap-2 mb-3 pr-8">
+    <!-- 头部：选择框 + 邮箱标题（预留右侧给状态 badge/按钮） -->
+    <div class="flex items-center gap-2 mb-3 pr-16 min-w-0">
       <!-- 选择框（悬浮或选择模式时显示） -->
       <div
-        class="selection-checkbox"
+        class="selection-checkbox shrink-0"
         :class="{ 'visible': selectionMode || isSelected }"
         @click.stop="toggleSelection"
       >
@@ -22,13 +22,13 @@
         </div>
       </div>
 
-      <!-- 邮箱（可点击复制） -->
+      <!-- 邮箱（可点击复制，长文本省略） -->
       <div
-        class="inline-flex items-center gap-1 cursor text-[15px] font-semibold text-text truncate flex-1"
+        class="min-w-0 flex-1 cursor text-[15px] font-semibold text-text truncate"
         v-tooltip="account.email"
         @click.stop="copyEmail"
       >
-        <span>{{ showRealEmail ? account.email : maskedEmail }}</span>
+        <span class="block truncate">{{ showRealEmail ? account.email : maskedEmail }}</span>
       </div>
     </div>
 
@@ -38,6 +38,10 @@
       <span v-if="isCurrent" :class="['badge', statusBadgeClass]">
         <span class="status-dot" :class="statusDotClass"></span>
         {{ statusLabel }}
+      </span>
+      <!-- 账号类型指示器 -->
+      <span v-if="isApiAccount" class="badge badge--success">
+        API
       </span>
     </div>
     <!-- 右上角按钮组（悬停显示，z-index 更高，覆盖状态徽章） -->
@@ -60,8 +64,9 @@
         <span v-else class="w-3.5 h-3.5 border-2 border-accent border-t-transparent rounded-full animate-spin"></span>
       </button>
 
-      <!-- 刷新配额按钮 -->
+      <!-- 刷新配额按钮 (仅 OAuth 账号) -->
       <button
+        v-if="!isApiAccount"
         @click="$emit('refresh-quota', account.id)"
         class="w-7 h-7 rounded border-none bg-surface text-text-secondary cursor-pointer flex items-center justify-center shadow-sm hover:bg-hover hover:text-accent transition-colors"
         :disabled="isRefreshing"
@@ -92,23 +97,29 @@
           </button>
         </template>
         <template #default="{ close }">
-          <button @click="handleMenuClick('refreshToken', close)" class="dropdown-item">
+          <button v-if="!isApiAccount" @click="handleMenuClick('refreshToken', close)" class="dropdown-item">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
               <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
             </svg>
             <span>{{ $t('platform.openai.actions.refreshToken') }}</span>
           </button>
-          <button v-if="account.token?.refresh_token" @click="handleMenuClick('copyRefreshToken', close)" class="dropdown-item">
+          <button v-if="!isApiAccount && account.token?.refresh_token" @click="handleMenuClick('copyRefreshToken', close)" class="dropdown-item">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
               <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
             </svg>
             <span>{{ $t('accountCard.copyRefreshToken') }}</span>
           </button>
-          <button v-if="account.token?.access_token" @click="handleMenuClick('copyAccessToken', close)" class="dropdown-item">
+          <button v-if="!isApiAccount && account.token?.access_token" @click="handleMenuClick('copyAccessToken', close)" class="dropdown-item">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
             </svg>
             <span>{{ $t('accountCard.copyAccessToken') }}</span>
+          </button>
+          <button v-if="isApiAccount && account.api_config?.key" @click="handleMenuClick('copyApiKey', close)" class="dropdown-item">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+            </svg>
+            <span>{{ $t('accountCard.copyApiKey') }}</span>
           </button>
           <button @click="handleMenuClick('delete', close)" class="dropdown-item text-danger hover:bg-danger/10">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
@@ -135,8 +146,8 @@
         </div>
       </div>
 
-      <!-- 5h 配额 -->
-      <div v-if="account.quota?.codex_5h_used_percent !== null && account.quota?.codex_5h_used_percent !== undefined"
+      <!-- 5h 配额 (仅 OAuth 账号) -->
+      <div v-if="!isApiAccount && account.quota?.codex_5h_used_percent !== null && account.quota?.codex_5h_used_percent !== undefined"
            class="flex items-center gap-1 min-h-6">
         <div class="flex flex-col gap-0.5 w-[90px] shrink-0 text-text-muted text-xs">
           <div class="flex items-center gap-1.5">
@@ -162,8 +173,8 @@
         </div>
       </div>
 
-      <!-- 7d 配额 -->
-      <div v-if="account.quota?.codex_7d_used_percent !== null && account.quota?.codex_7d_used_percent !== undefined"
+      <!-- 7d 配额 (仅 OAuth 账号) -->
+      <div v-if="!isApiAccount && account.quota?.codex_7d_used_percent !== null && account.quota?.codex_7d_used_percent !== undefined"
            class="flex items-center gap-1 min-h-6">
         <div class="flex flex-col gap-0.5 w-[90px] shrink-0 text-text-muted text-xs">
           <div class="flex items-center gap-1.5">
@@ -188,6 +199,48 @@
           </span>
         </div>
       </div>
+
+      <!-- API 配置信息 (仅 API 账号) -->
+      <template v-if="isApiAccount && account.api_config">
+        <!-- Model Provider -->
+        <div v-if="account.api_config.model_provider" class="flex items-center gap-1 min-h-6">
+          <div class="flex items-center gap-1.5 w-[90px] shrink-0 text-text-muted text-xs">
+            <svg class="w-3.5 h-3.5 shrink-0 opacity-70" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+            </svg>
+            <span>Provider</span>
+          </div>
+          <div class="flex-1 text-[13px] truncate text-text">
+            {{ account.api_config.model_provider }}
+          </div>
+        </div>
+
+        <!-- Model -->
+        <div v-if="account.api_config.model" class="flex items-center gap-1 min-h-6">
+          <div class="flex items-center gap-1.5 w-[90px] shrink-0 text-text-muted text-xs">
+            <svg class="w-3.5 h-3.5 shrink-0 opacity-70" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zM9 10h6v2H9z"/>
+            </svg>
+            <span>Model</span>
+          </div>
+          <div class="flex-1 text-[13px] truncate text-text">
+            {{ account.api_config.model }}
+          </div>
+        </div>
+
+        <!-- Base URL -->
+        <div v-if="account.api_config.base_url" class="flex items-center gap-1 min-h-6">
+          <div class="flex items-center gap-1.5 w-[90px] shrink-0 text-text-muted text-xs">
+            <svg class="w-3.5 h-3.5 shrink-0 opacity-70" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/>
+            </svg>
+            <span>URL</span>
+          </div>
+          <div class="flex-1 text-[13px] truncate text-text">
+            {{ account.api_config.base_url }}
+          </div>
+        </div>
+      </template>
 
       <!-- 标签 -->
       <div class="flex items-center gap-1 min-h-6">
@@ -280,7 +333,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['refresh', 'refresh-quota', 'delete', 'select', 'switch', 'account-updated'])
+const emit = defineEmits(['refresh', 'refresh-quota', 'delete', 'select', 'switch', 'account-updated', 'edit'])
 
 const menuRef = ref(null)
 const showTagEditor = ref(false)
@@ -332,6 +385,11 @@ const isActive = computed(() => {
   return true
 })
 
+// 账号类型判断
+const isApiAccount = computed(() => {
+  return props.account.account_type === 'api'
+})
+
 // 配额相关
 const getQuotaBarClass = (percent) => {
   if (percent === null || percent === undefined) return 'bg-text-muted'
@@ -380,6 +438,9 @@ const toggleSelection = () => {
 const handleCardClick = () => {
   if (props.selectionMode) {
     toggleSelection()
+  } else if (isApiAccount.value) {
+    // 只有 API 账号可以点击编辑
+    emit('edit', props.account)
   }
 }
 
@@ -466,9 +527,26 @@ const handleMenuClick = async (type, close) => {
     case 'copyAccessToken':
       await copyAccessToken()
       break
+    case 'copyApiKey':
+      await copyApiKey()
+      break
     case 'delete':
       emit('delete', props.account.id)
       break
+  }
+}
+
+const copyApiKey = async () => {
+  try {
+    const apiKey = props.account.api_config?.key
+    if (!apiKey) {
+      window.$notify?.error($t('accountCard.noApiKey'))
+      return
+    }
+    await navigator.clipboard.writeText(apiKey)
+    window.$notify?.success($t('accountCard.apiKeyCopied'))
+  } catch (err) {
+    window.$notify?.error($t('messages.copyFailed'))
   }
 }
 </script>

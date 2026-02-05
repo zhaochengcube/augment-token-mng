@@ -430,7 +430,10 @@ export default {
     copyPaymentLink: 'Copy Payment Link',
     copyMachineId: 'Copy Machine ID',
     copyAccessToken: 'Copy Access Token',
-    copySessionToken: 'Copy Session Token'
+    copySessionToken: 'Copy Session Token',
+    copyApiKey: 'Copy API Key',
+    apiKeyCopied: 'API Key copied',
+    noApiKey: 'No API Key'
   },
   team: {
     title: 'Team Management',
@@ -1305,6 +1308,8 @@ export default {
       searchPlaceholder: 'Search email...',
       batchRefresh: 'Batch refresh',
       batchRefreshToken: 'Batch refresh tokens',
+      batchRefreshSuccess: 'Refreshed tokens for {count} accounts',
+      noOAuthAccountsSelected: 'No OAuth accounts selected',
       allAccountsMarkedForSync: 'All {count} accounts marked for sync',
       export: 'Export Accounts',
       exportSuccess: 'Accounts exported successfully',
@@ -1342,6 +1347,7 @@ export default {
         title: 'Add OpenAI Account',
         oauthMethod: 'OAuth Authorization',
         manualMethod: 'Manual Add',
+        apiMethod: 'API Method',
         oauthInfo: 'Click the button below to open OpenAI authorization page, account will be added automatically after authorization',
         openaiLogin: 'Sign in with OpenAI',
         oauthManualTitle: 'Manual flow (copy the link)',
@@ -1362,10 +1368,31 @@ export default {
         refreshTokenPlaceholder: 'Paste your Refresh Token here...',
         refreshTokenHint: 'Get refresh_token from OpenAI database or network requests',
         adding: 'Adding...',
-        add: 'Add Account'
+        add: 'Add Account',
+        // API account related
+        modelProvider: 'Model Provider',
+        modelProviderHint: 'Name',
+        modelProviderPlaceholder: 'e.g. OpenAI, Anthropic, Custom Provider',
+        model: 'Model',
+        modelHint: 'Model Name',
+        modelPlaceholder: 'e.g. gpt-5.2, gpt-5.2-codex',
+        reasoningEffort: 'Reasoning Effort',
+        reasoningEffortHint: 'Reasoning Effort',
+        wireApi: 'Wire API',
+        wireApiHint: 'API Type',
+        baseUrl: 'Base URL',
+        baseUrlPlaceholder: 'https://api.openai.com/v1',
+        apiKey: 'API Key',
+        apiKeyPlaceholder: 'sk-...',
+        addApiAccount: 'Add API Account'
+      },
+      editApiAccountDialog: {
+        title: 'Edit API Account'
       },
       messages: {
         switchSuccess: 'Account switched successfully',
+        updateSuccess: 'Account updated successfully',
+        updateFailed: 'Update failed: {error}',
         switchFailed: 'Switch failed: {error}',
         refreshSuccess: 'Account refreshed successfully',
         refreshFailed: 'Refresh failed: {error}',

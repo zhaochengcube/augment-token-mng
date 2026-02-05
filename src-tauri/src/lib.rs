@@ -466,6 +466,8 @@ pub fn run() {
             openai::openai_refresh_all_tokens,
             openai::openai_load_accounts_json,
             openai::openai_add_account,
+            openai::openai_add_api_account,
+            openai::openai_update_api_account,
             openai::openai_save_accounts,
             openai::openai_update_account,
             openai::openai_refresh_account,

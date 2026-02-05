@@ -5,3 +5,6 @@ venv/
 node_modules/
 target/
 dist/
+.cursor/
+.claude/
+nul

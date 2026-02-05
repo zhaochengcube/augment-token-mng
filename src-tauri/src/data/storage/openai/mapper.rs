@@ -1,5 +1,5 @@
 use crate::data::storage::common::{AccountDbMapper, StorageError};
-use crate::platforms::openai::models::{Account, QuotaData, TokenData};
+use crate::platforms::openai::models::{Account, AccountType, ApiConfig, QuotaData, TokenData};
 use tokio_postgres::Row;
 
 /// OpenAI 账号数据库映射器
@@ -7,6 +7,53 @@ pub struct OpenAIAccountMapper;
 
 impl AccountDbMapper<Account> for OpenAIAccountMapper {
     fn from_row(row: &Row) -> Result<Account, StorageError> {
+        // 读取账号类型
+        let account_type: String = row.try_get(26)
+            .unwrap_or_else(|_| "oauth".to_string());
+        let account_type = match account_type.as_str() {
+            "api" => AccountType::API,
+            _ => AccountType::OAuth,
+        };
+
+        // 读取 token 数据（仅 OAuth 账号）
+        let token = if account_type == AccountType::OAuth {
+            Some(TokenData {
+                access_token: row.get(2),
+                refresh_token: row.get(3),
+                id_token: row.get(4),
+                expires_in: row.get(5),
+                expires_at: row.get(6),
+                token_type: row.get(7),
+            })
+        } else {
+            None
+        };
+
+        // 读取 API 配置（仅 API 账号）
+        let api_config = if account_type == AccountType::API {
+            let model_provider: Option<String> = row.try_get(27).ok().flatten();
+            let model: Option<String> = row.try_get(28).ok().flatten();
+            let model_reasoning_effort: Option<String> = row.try_get(29).ok().flatten();
+            let wire_api: Option<String> = row.try_get(30).ok().flatten();
+            let base_url: Option<String> = row.try_get(31).ok().flatten();
+            let api_key: Option<String> = row.try_get(32).ok().flatten();
+
+            if model_provider.is_some() || model.is_some() || base_url.is_some() || api_key.is_some() {
+                Some(ApiConfig {
+                    model_provider,
+                    model,
+                    model_reasoning_effort,
+                    wire_api,
+                    base_url,
+                    key: api_key,
+                })
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
         // 检查是否有配额字段（通过检查 codex_usage_updated_at 字段是否存在）
         let quota = if row.len() > 18 {
             // 有配额字段
@@ -33,14 +80,9 @@ impl AccountDbMapper<Account> for OpenAIAccountMapper {
         Ok(Account {
             id: row.get(0),
             email: row.get(1),
-            token: TokenData {
-                access_token: row.get(2),
-                refresh_token: row.get(3),
-                id_token: row.get(4),
-                expires_in: row.get(5),
-                expires_at: row.get(6),
-                token_type: row.get(7),
-            },
+            account_type,
+            token,
+            api_config,
             chatgpt_account_id: row.get(8),
             chatgpt_user_id: row.get(9),
             organization_id: row.get(10),
@@ -61,7 +103,8 @@ impl AccountDbMapper<Account> for OpenAIAccountMapper {
          tag, tag_color, \
          codex_5h_used_percent, codex_5h_reset_after_seconds, codex_5h_window_minutes, \
          codex_7d_used_percent, codex_7d_reset_after_seconds, codex_7d_window_minutes, \
-         codex_primary_over_secondary_percent, codex_usage_updated_at"
+         codex_primary_over_secondary_percent, codex_usage_updated_at, \
+         account_type, model_provider, model, model_reasoning_effort, wire_api, base_url, api_key"
     }
 
     fn insert_sql() -> &'static str {
@@ -71,8 +114,9 @@ impl AccountDbMapper<Account> for OpenAIAccountMapper {
              chatgpt_account_id, chatgpt_user_id, organization_id, created_at, last_used, updated_at,
              version, deleted, tag, tag_color, codex_5h_used_percent, codex_5h_reset_after_seconds, codex_5h_window_minutes,
              codex_7d_used_percent, codex_7d_reset_after_seconds, codex_7d_window_minutes,
-             codex_primary_over_secondary_percent, codex_usage_updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
+             codex_primary_over_secondary_percent, codex_usage_updated_at, account_type,
+             model_provider, model, model_reasoning_effort, wire_api, base_url, api_key)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33)
         ON CONFLICT (id) DO UPDATE SET
             email = EXCLUDED.email,
             access_token = EXCLUDED.access_token,
@@ -97,7 +141,14 @@ impl AccountDbMapper<Account> for OpenAIAccountMapper {
             codex_7d_reset_after_seconds = EXCLUDED.codex_7d_reset_after_seconds,
             codex_7d_window_minutes = EXCLUDED.codex_7d_window_minutes,
             codex_primary_over_secondary_percent = EXCLUDED.codex_primary_over_secondary_percent,
-            codex_usage_updated_at = EXCLUDED.codex_usage_updated_at
+            codex_usage_updated_at = EXCLUDED.codex_usage_updated_at,
+            account_type = EXCLUDED.account_type,
+            model_provider = EXCLUDED.model_provider,
+            model = EXCLUDED.model,
+            model_reasoning_effort = EXCLUDED.model_reasoning_effort,
+            wire_api = EXCLUDED.wire_api,
+            base_url = EXCLUDED.base_url,
+            api_key = EXCLUDED.api_key
         "#
     }
 
@@ -119,15 +170,44 @@ impl AccountDbMapper<Account> for OpenAIAccountMapper {
             (None, None, None, None, None, None, None, chrono::Utc::now().timestamp())
         };
 
+        // 获取 account_type 字符串
+        let account_type_str = match account.account_type {
+            AccountType::OAuth => "oauth",
+            AccountType::API => "api",
+        };
+
+        // 获取 token 相关字段（OAuth 账号）
+        let access_token = account.token.as_ref().map(|t| t.access_token.clone()).unwrap_or_default();
+        let refresh_token = account.token.as_ref().and_then(|t| t.refresh_token.clone());
+        let id_token = account.token.as_ref().and_then(|t| t.id_token.clone());
+        let expires_in = account.token.as_ref().map(|t| t.expires_in).unwrap_or(0);
+        let expires_at = account.token.as_ref().map(|t| t.expires_at).unwrap_or(0);
+        let token_type = account.token.as_ref().and_then(|t| t.token_type.clone());
+
+        // 获取 API 配置字段
+        let (model_provider, model, model_reasoning_effort, wire_api, base_url, api_key) =
+            if let Some(ref api_config) = account.api_config {
+                (
+                    api_config.model_provider.clone(),
+                    api_config.model.clone(),
+                    api_config.model_reasoning_effort.clone(),
+                    api_config.wire_api.clone(),
+                    api_config.base_url.clone(),
+                    api_config.key.clone(),
+                )
+            } else {
+                (None, None, None, None, None, None)
+            };
+
         vec![
             Box::new(account.id.clone()),
             Box::new(account.email.clone()),
-            Box::new(account.token.access_token.clone()),
-            Box::new(account.token.refresh_token.clone()),
-            Box::new(account.token.id_token.clone()),
-            Box::new(account.token.expires_in),
-            Box::new(account.token.expires_at),
-            Box::new(account.token.token_type.clone()),
+            Box::new(access_token),
+            Box::new(refresh_token),
+            Box::new(id_token),
+            Box::new(expires_in),
+            Box::new(expires_at),
+            Box::new(token_type),
             Box::new(account.chatgpt_account_id.clone()),
             Box::new(account.chatgpt_user_id.clone()),
             Box::new(account.organization_id.clone()),
@@ -146,6 +226,13 @@ impl AccountDbMapper<Account> for OpenAIAccountMapper {
             Box::new(codex_7d_window_minutes),
             Box::new(codex_primary_over_secondary_percent),
             Box::new(codex_usage_updated_at),
+            Box::new(account_type_str.to_string()),
+            Box::new(model_provider),
+            Box::new(model),
+            Box::new(model_reasoning_effort),
+            Box::new(wire_api),
+            Box::new(base_url),
+            Box::new(api_key),
         ]
     }
 }

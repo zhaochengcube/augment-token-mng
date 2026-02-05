@@ -2,12 +2,57 @@ use serde::{Deserialize, Serialize};
 use super::{TokenData, QuotaData};
 use crate::data::storage::common::SyncableAccount;
 
+/// 账号类型
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum AccountType {
+    OAuth,
+    API,
+}
+
+impl Default for AccountType {
+    fn default() -> Self {
+        AccountType::OAuth
+    }
+}
+
+/// API 账号配置
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ApiConfig {
+    /// 模型提供商名称
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model_provider: Option<String>,
+    /// 模型名称
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+    /// 推理强度 (low, medium, high, xhigh)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model_reasoning_effort: Option<String>,
+    /// Wire API 类型 (responses, chat)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wire_api: Option<String>,
+    /// API Base URL
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base_url: Option<String>,
+    /// API Key
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub key: Option<String>,
+}
+
 /// OpenAI 账号数据结构
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Account {
     pub id: String,
     pub email: String,
-    pub token: TokenData,
+    /// 账号类型
+    #[serde(default)]
+    pub account_type: AccountType,
+    /// OAuth Token 数据（仅 OAuth 类型）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub token: Option<TokenData>,
+    /// API 配置（仅 API 类型）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub api_config: Option<ApiConfig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub chatgpt_account_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -67,7 +112,8 @@ impl SyncableAccount for Account {
 }
 
 impl Account {
-    pub fn new(
+    /// 创建 OAuth 类型账号
+    pub fn new_oauth(
         email: String,
         token: TokenData,
         chatgpt_account_id: Option<String>,
@@ -82,7 +128,9 @@ impl Account {
         Self {
             id,
             email,
-            token,
+            account_type: AccountType::OAuth,
+            token: Some(token),
+            api_config: None,
             chatgpt_account_id,
             chatgpt_user_id,
             organization_id,
@@ -95,6 +143,44 @@ impl Account {
             version: 0,
             deleted: false,
         }
+    }
+
+    /// 创建 API 类型账号
+    pub fn new_api(
+        id: String,
+        email: String,
+        api_config: ApiConfig,
+    ) -> Self {
+        let now = chrono::Utc::now().timestamp();
+
+        Self {
+            id,
+            email,
+            account_type: AccountType::API,
+            token: None,
+            api_config: Some(api_config),
+            chatgpt_account_id: None,
+            chatgpt_user_id: None,
+            organization_id: None,
+            quota: None,
+            tag: None,
+            tag_color: None,
+            created_at: now,
+            last_used: now,
+            updated_at: now,
+            version: 0,
+            deleted: false,
+        }
+    }
+
+    /// 检查是否为 API 类型账号
+    pub fn is_api(&self) -> bool {
+        self.account_type == AccountType::API
+    }
+
+    /// 检查是否为 OAuth 类型账号
+    pub fn is_oauth(&self) -> bool {
+        self.account_type == AccountType::OAuth
     }
 
     /// 检查账号是否已存在（邮箱和 account_id 都相同）

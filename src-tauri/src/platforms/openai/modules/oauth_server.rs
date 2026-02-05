@@ -237,7 +237,7 @@ pub async fn start_oauth_flow(app_handle: tauri::AppHandle) -> Result<Account, S
     );
 
     // 创建账号
-    let account = Account::new(
+    let account = Account::new_oauth(
         email.clone(),
         token_data,
         chatgpt_account_id.clone(),

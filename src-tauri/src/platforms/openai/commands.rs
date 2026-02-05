@@ -86,7 +86,7 @@ pub async fn openai_exchange_code(
     );
 
     // 创建账号
-    let account = Account::new(
+    let account = Account::new_oauth(
         unique_email,
         token_data,
         chatgpt_account_id.clone(),
@@ -172,6 +172,11 @@ pub async fn openai_fetch_quota(
     let mut acc = storage::load_account(&app, &account_id).await?;
     println!("Loaded account: {}", acc.email);
 
+    // API 账号不支持配额查询
+    if acc.account_type == crate::platforms::openai::models::account::AccountType::API {
+        return Err("API accounts do not support quota fetching".to_string());
+    }
+
     let quota = account_module::fetch_quota_with_retry(&mut acc).await?;
     println!("Fetched quota: {:?}", quota);
 
@@ -247,6 +252,15 @@ pub async fn openai_refresh_account_token(
     force: Option<bool>,
 ) -> Result<TokenRefreshResult, String> {
     let mut account = storage::load_account(&app, &account_id).await?;
+
+    // API 账号不支持 token 刷新
+    if account.account_type == crate::platforms::openai::models::account::AccountType::API {
+        return Ok(TokenRefreshResult {
+            account,
+            refreshed: false,
+        });
+    }
+
     let window_secs = refresh_window_secs.unwrap_or(300);
     let force = force.unwrap_or(false);
 
@@ -265,9 +279,14 @@ pub async fn openai_refresh_all_tokens(
     refresh_window_secs: Option<i64>,
     force: Option<bool>,
 ) -> Result<TokenRefreshStats, String> {
-    let accounts = storage::list_accounts(&app).await?;
+    use crate::platforms::openai::models::account::AccountType;
+
+    let mut accounts = storage::list_accounts(&app).await?;
     let window_secs = refresh_window_secs.unwrap_or(300);
     let force = force.unwrap_or(false);
+
+    // 过滤掉 API 账号
+    accounts.retain(|a| a.account_type != AccountType::API);
 
     let mut refreshed = 0;
     let mut skipped = 0;
@@ -373,7 +392,7 @@ pub async fn openai_add_account(
     );
 
     // 3. 创建账号
-    let account = Account::new(
+    let account = Account::new_oauth(
         unique_email,
         token,
         chatgpt_account_id.clone(),
@@ -382,6 +401,95 @@ pub async fn openai_add_account(
     );
 
     // 4. 保存账号
+    storage::save_account(&app, &account).await?;
+
+    Ok(account)
+}
+
+/// 添加 API 类型账号
+#[tauri::command]
+pub async fn openai_add_api_account(
+    app: AppHandle,
+    model_provider: String,
+    model: String,
+    reasoning_effort: Option<String>,
+    wire_api: Option<String>,
+    base_url: String,
+    key: String,
+) -> Result<Account, String> {
+    use crate::platforms::openai::models::account::{Account, ApiConfig};
+
+    // wire_api 默认值统一在此处处理
+    let wire_api_value = wire_api
+        .filter(|w| !w.is_empty())
+        .unwrap_or_else(|| "responses".to_string());
+
+    let api_config = ApiConfig {
+        model_provider: if model_provider.is_empty() { None } else { Some(model_provider) },
+        model: if model.is_empty() { None } else { Some(model) },
+        model_reasoning_effort: reasoning_effort.filter(|s| !s.is_empty()),
+        wire_api: Some(wire_api_value),
+        base_url: if base_url.is_empty() { None } else { Some(base_url) },
+        key: if key.is_empty() { None } else { Some(key) },
+    };
+
+    // 生成唯一 ID
+    let id = format!("api_{}", chrono::Utc::now().timestamp_millis());
+
+    // 使用 model_provider 作为邮箱显示名称
+    let email = api_config.model_provider.as_deref().unwrap_or("API Account").to_string();
+
+    let account = Account::new_api(id, email, api_config);
+
+    // 保存账号
+    storage::save_account(&app, &account).await?;
+
+    Ok(account)
+}
+
+/// 更新 API 类型账号
+#[tauri::command]
+pub async fn openai_update_api_account(
+    app: AppHandle,
+    account_id: String,
+    model_provider: String,
+    model: String,
+    reasoning_effort: Option<String>,
+    wire_api: Option<String>,
+    base_url: String,
+    key: String,
+) -> Result<Account, String> {
+    use crate::platforms::openai::models::account::{AccountType, ApiConfig};
+
+    // 加载现有账号
+    let mut account = storage::load_account(&app, &account_id).await?;
+
+    // 确保是 API 类型账号
+    if account.account_type != AccountType::API {
+        return Err("Only API accounts can be updated with this command".to_string());
+    }
+
+    // wire_api 默认值
+    let wire_api_value = wire_api
+        .filter(|w| !w.is_empty())
+        .unwrap_or_else(|| "responses".to_string());
+
+    // 更新 API 配置
+    let api_config = ApiConfig {
+        model_provider: if model_provider.is_empty() { None } else { Some(model_provider.clone()) },
+        model: if model.is_empty() { None } else { Some(model) },
+        model_reasoning_effort: reasoning_effort.filter(|s| !s.is_empty()),
+        wire_api: Some(wire_api_value),
+        base_url: if base_url.is_empty() { None } else { Some(base_url) },
+        key: if key.is_empty() { None } else { Some(key) },
+    };
+
+    // 更新账号的 api_config 和 email
+    account.api_config = Some(api_config);
+    account.email = if !model_provider.is_empty() { model_provider } else { "API Account".to_string() };
+    account.updated_at = chrono::Utc::now().timestamp();
+
+    // 保存账号
     storage::save_account(&app, &account).await?;
 
     Ok(account)
@@ -434,36 +542,43 @@ pub async fn openai_refresh_account(
 ) -> Result<Account, String> {
     let mut acc = storage::load_account(&app, &account_id).await?;
 
+    // API 账号不支持刷新 token
+    if acc.account_type == crate::platforms::openai::models::account::AccountType::API {
+        return Err("API accounts do not support token refresh".to_string());
+    }
+
     println!("=== OpenAI Refresh Account ===");
     println!("Email: {}", acc.email);
     println!("ChatGPT Account ID: {:?}", acc.chatgpt_account_id);
 
     // 刷新 token
-    if let Some(refresh_token) = &acc.token.refresh_token {
-        let token_res = oauth::refresh_token(refresh_token).await?;
+    if let Some(ref token) = acc.token {
+        if let Some(refresh_token) = &token.refresh_token {
+            let token_res = oauth::refresh_token(refresh_token).await?;
 
-        let now = chrono::Utc::now().timestamp();
-        acc.token = TokenData::new(
-            token_res.access_token,
-            Some(refresh_token.clone()),
-            token_res.id_token,
-            token_res.expires_in,
-            now + token_res.expires_in,
-            token_res.token_type,
-        );
-        acc.updated_at = now;
+            let now = chrono::Utc::now().timestamp();
+            acc.token = Some(TokenData::new(
+                token_res.access_token,
+                Some(refresh_token.clone()),
+                token_res.id_token,
+                token_res.expires_in,
+                now + token_res.expires_in,
+                token_res.token_type,
+            ));
+            acc.updated_at = now;
 
-        // 解析新的 id_token 获取 chatgpt_account_id
-        if let Some(id_token) = &acc.token.id_token {
-            if let Some(user_info) = oauth::parse_id_token(id_token) {
-                println!("New ChatGPT Account ID from refresh: {:?}", user_info.chatgpt_account_id);
-                if let Some(new_chatgpt_id) = user_info.chatgpt_account_id {
-                    acc.chatgpt_account_id = Some(new_chatgpt_id);
+            // 解析新的 id_token 获取 chatgpt_account_id
+            if let Some(id_token) = &acc.token.as_ref().and_then(|t| t.id_token.as_ref()) {
+                if let Some(user_info) = oauth::parse_id_token(id_token) {
+                    println!("New ChatGPT Account ID from refresh: {:?}", user_info.chatgpt_account_id);
+                    if let Some(new_chatgpt_id) = user_info.chatgpt_account_id {
+                        acc.chatgpt_account_id = Some(new_chatgpt_id);
+                    }
                 }
             }
-        }
 
-        storage::save_account(&app, &acc).await?;
+            storage::save_account(&app, &acc).await?;
+        }
     }
 
     Ok(acc)
@@ -516,23 +631,10 @@ pub async fn openai_cancel_oauth_login() -> Result<(), String> {
 /// 切换 OpenAI 账号（写入 .codex/auth.json 并更新 current_account_id）
 #[tauri::command]
 pub async fn openai_switch_account(app: AppHandle, account_id: String) -> Result<(), String> {
+    use crate::platforms::openai::models::account::AccountType;
+
     // 加载账号信息
     let account = storage::load_account(&app, &account_id).await?;
-
-    // 构造 auth.json 内容
-    let auth_json = serde_json::json!({
-        "OPENAI_API_KEY": null,
-        "tokens": {
-            "id_token": account.token.id_token,
-            "access_token": account.token.access_token,
-            "refresh_token": account.token.refresh_token,
-            "account_id": account.chatgpt_account_id
-        },
-        "last_refresh": chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
-    });
-
-    let content = serde_json::to_string_pretty(&auth_json)
-        .map_err(|e| format!("Failed to serialize auth.json: {}", e))?;
 
     // 获取用户主目录并构造 .codex 路径
     let home_dir = app.path().home_dir()
@@ -540,25 +642,129 @@ pub async fn openai_switch_account(app: AppHandle, account_id: String) -> Result
 
     let codex_dir = home_dir.join(".codex");
     let auth_file = codex_dir.join("auth.json");
+    let config_file = codex_dir.join("config.toml");
 
     // 确保目录存在
     std::fs::create_dir_all(&codex_dir)
         .map_err(|e| format!("Failed to create .codex directory: {}", e))?;
 
-    // 删除旧文件（如果存在）
-    if auth_file.exists() {
-        std::fs::remove_file(&auth_file)
-            .map_err(|e| format!("Failed to remove old auth.json: {}", e))?;
-    }
+    if account.account_type == AccountType::API {
+        // ========== API 账号切换 ==========
+        let api_config = account.api_config.as_ref()
+            .ok_or("API account missing configuration".to_string())?;
 
-    // 写入新文件
-    std::fs::write(&auth_file, content)
-        .map_err(|e| format!("Failed to write auth.json: {}", e))?;
+        // 1. 处理 config.toml
+        let mut config: toml::Table = if config_file.exists() {
+            let content = std::fs::read_to_string(&config_file)
+                .map_err(|e| format!("Failed to read config.toml: {}", e))?;
+            toml::from_str(&content)
+                .map_err(|e| format!("Failed to parse config.toml: {}", e))?
+        } else {
+            toml::Table::new()
+        };
+
+        // 设置顶层字段
+        let provider_name = api_config.model_provider.clone()
+            .ok_or("API account missing model_provider".to_string())?;
+        let model_name = api_config.model.clone()
+            .ok_or("API account missing model".to_string())?;
+        let base_url = api_config.base_url.clone()
+            .ok_or("API account missing base_url".to_string())?;
+        let wire_api = api_config.wire_api.clone()
+            .unwrap_or_else(|| "responses".to_string());
+
+        config.insert("model_provider".to_string(), toml::Value::String(provider_name.clone()));
+        config.insert("model".to_string(), toml::Value::String(model_name));
+        
+        // model_reasoning_effort 可选
+        if let Some(ref reasoning_effort) = api_config.model_reasoning_effort {
+            config.insert("model_reasoning_effort".to_string(), toml::Value::String(reasoning_effort.clone()));
+        }
+
+        // 设置 [model_providers.xxx] section
+        let model_providers = config.entry("model_providers".to_string())
+            .or_insert_with(|| toml::Value::Table(toml::Table::new()));
+        
+        if let toml::Value::Table(providers) = model_providers {
+            let mut provider_config = toml::Table::new();
+            provider_config.insert("name".to_string(), toml::Value::String(provider_name.clone()));
+            provider_config.insert("base_url".to_string(), toml::Value::String(base_url));
+            provider_config.insert("wire_api".to_string(), toml::Value::String(wire_api));
+            providers.insert(provider_name, toml::Value::Table(provider_config));
+        }
+
+        let config_content = toml::to_string_pretty(&config)
+            .map_err(|e| format!("Failed to serialize config.toml: {}", e))?;
+        std::fs::write(&config_file, config_content)
+            .map_err(|e| format!("Failed to write config.toml: {}", e))?;
+
+        // 2. 处理 auth.json
+        let mut auth: serde_json::Map<String, serde_json::Value> = if auth_file.exists() {
+            let content = std::fs::read_to_string(&auth_file)
+                .map_err(|e| format!("Failed to read auth.json: {}", e))?;
+            serde_json::from_str(&content)
+                .map_err(|e| format!("Failed to parse auth.json: {}", e))?
+        } else {
+            serde_json::Map::new()
+        };
+
+        // 设置 API Key，删除 tokens
+        let api_key = api_config.key.clone()
+            .ok_or("API account missing key".to_string())?;
+        auth.insert("OPENAI_API_KEY".to_string(), serde_json::Value::String(api_key));
+        auth.remove("tokens");
+
+        let auth_content = serde_json::to_string_pretty(&auth)
+            .map_err(|e| format!("Failed to serialize auth.json: {}", e))?;
+        std::fs::write(&auth_file, auth_content)
+            .map_err(|e| format!("Failed to write auth.json: {}", e))?;
+
+    } else {
+        // ========== OAuth 账号切换 ==========
+        let token = account.token.as_ref()
+            .ok_or("OAuth account missing token".to_string())?;
+
+        // 1. 处理 auth.json
+        let auth_json = serde_json::json!({
+            "OPENAI_API_KEY": null,
+            "tokens": {
+                "id_token": token.id_token.clone(),
+                "access_token": token.access_token.clone(),
+                "refresh_token": token.refresh_token.clone(),
+                "account_id": account.chatgpt_account_id
+            },
+            "last_refresh": chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
+        });
+
+        let auth_content = serde_json::to_string_pretty(&auth_json)
+            .map_err(|e| format!("Failed to serialize auth.json: {}", e))?;
+        std::fs::write(&auth_file, auth_content)
+            .map_err(|e| format!("Failed to write auth.json: {}", e))?;
+
+        // 2. 处理 config.toml - 删除 API 相关字段
+        if config_file.exists() {
+            let content = std::fs::read_to_string(&config_file)
+                .map_err(|e| format!("Failed to read config.toml: {}", e))?;
+            let mut config: toml::Table = toml::from_str(&content)
+                .map_err(|e| format!("Failed to parse config.toml: {}", e))?;
+
+            // 删除 API 相关字段
+            config.remove("model_provider");
+            config.remove("model");
+            config.remove("model_reasoning_effort");
+            config.remove("model_providers");
+
+            let config_content = toml::to_string_pretty(&config)
+                .map_err(|e| format!("Failed to serialize config.toml: {}", e))?;
+            std::fs::write(&config_file, config_content)
+                .map_err(|e| format!("Failed to write config.toml: {}", e))?;
+        }
+    }
 
     // 更新 current_account_id
     storage::set_current_account_id(&app, Some(account_id.clone())).await?;
 
-    println!("OpenAI account switched: {} -> {}", account.email, auth_file.display());
+    println!("OpenAI account switched: {} (type: {:?})", account.email, account.account_type);
 
     Ok(())
 }

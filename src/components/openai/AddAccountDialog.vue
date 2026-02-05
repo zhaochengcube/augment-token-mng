@@ -28,6 +28,20 @@
       <button
         :class="[
           'flex flex-1 items-center justify-center gap-1.5 rounded-md px-4 py-2.5 text-sm font-medium transition-all',
+          addMethod === 'api'
+            ? 'bg-surface text-accent shadow-sm'
+            : 'text-text-secondary hover:bg-hover hover:text-text'
+        ]"
+        @click="addMethod = 'api'"
+      >
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+        </svg>
+        API
+      </button>
+      <button
+        :class="[
+          'flex flex-1 items-center justify-center gap-1.5 rounded-md px-4 py-2.5 text-sm font-medium transition-all',
           addMethod === 'manual'
             ? 'bg-surface text-accent shadow-sm'
             : 'text-text-secondary hover:bg-hover hover:text-text'
@@ -123,7 +137,7 @@
     </div>
 
     <!-- 手动添加方式 -->
-    <div v-else class="animate-fade-in">
+    <div v-else-if="addMethod === 'manual'" class="animate-fade-in">
       <div class="form-group">
         <label class="label">{{ $t('platform.openai.addAccountDialog.email') }}</label>
         <input
@@ -147,6 +161,93 @@
         <p class="mt-1.5 text-xs text-text-muted">
           {{ $t('platform.openai.addAccountDialog.refreshTokenHint') }}
         </p>
+      </div>
+    </div>
+
+    <!-- API 添加方式 -->
+    <div v-else-if="addMethod === 'api'" class="animate-fade-in">
+      <div class="form-group">
+        <label class="label">{{ $t('platform.openai.addAccountDialog.modelProvider') }} <span class="text-text-muted">({{ $t('platform.openai.addAccountDialog.modelProviderHint') }})</span></label>
+        <input
+          v-model="apiForm.model_provider"
+          type="text"
+          :placeholder="$t('platform.openai.addAccountDialog.modelProviderPlaceholder')"
+          class="input"
+          :disabled="isLoading"
+        />
+      </div>
+
+      <div class="form-group">
+        <label class="label">{{ $t('platform.openai.addAccountDialog.model') }} <span class="text-text-muted">({{ $t('platform.openai.addAccountDialog.modelHint') }})</span></label>
+        <input
+          v-model="apiForm.model"
+          type="text"
+          :placeholder="$t('platform.openai.addAccountDialog.modelPlaceholder')"
+          class="input"
+          :disabled="isLoading"
+        />
+      </div>
+
+      <div class="flex gap-3">
+        <div class="form-group flex-1">
+          <label class="label">{{ $t('platform.openai.addAccountDialog.reasoningEffort') }} <span class="text-text-muted">({{ $t('platform.openai.addAccountDialog.reasoningEffortHint') }})</span></label>
+          <FloatingDropdown v-model="selectedReasoningEffort" placement="bottom-start" :close-on-select="true">
+            <template #trigger="{ isOpen }">
+              <button type="button" class="input flex items-center justify-between text-left" :disabled="isLoading">
+                <span>{{ selectedReasoningEffort || 'medium' }}</span>
+                <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': isOpen }" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M7 10l5 5 5-5z"/>
+                </svg>
+              </button>
+            </template>
+            <template #default="{ close }">
+              <button @click="selectReasoningEffort('low', close)" class="dropdown-item">low</button>
+              <button @click="selectReasoningEffort('medium', close)" class="dropdown-item">medium</button>
+              <button @click="selectReasoningEffort('high', close)" class="dropdown-item">high</button>
+              <button @click="selectReasoningEffort('xhigh', close)" class="dropdown-item">xhigh</button>
+            </template>
+          </FloatingDropdown>
+        </div>
+
+        <div class="form-group flex-1">
+          <label class="label">{{ $t('platform.openai.addAccountDialog.wireApi') }} <span class="text-text-muted">({{ $t('platform.openai.addAccountDialog.wireApiHint') }})</span></label>
+          <FloatingDropdown v-model="selectedWireApi" placement="bottom-start" :close-on-select="true">
+            <template #trigger="{ isOpen }">
+              <button type="button" class="input flex items-center justify-between text-left" :disabled="isLoading">
+                <span>{{ selectedWireApi || 'responses' }}</span>
+                <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': isOpen }" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M7 10l5 5 5-5z"/>
+                </svg>
+              </button>
+            </template>
+            <template #default="{ close }">
+              <button @click="selectWireApi('responses', close)" class="dropdown-item">responses</button>
+              <button @click="selectWireApi('chat', close)" class="dropdown-item">chat</button>
+            </template>
+          </FloatingDropdown>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="label">{{ $t('platform.openai.addAccountDialog.baseUrl') }}</label>
+        <input
+          v-model="apiForm.base_url"
+          type="text"
+          :placeholder="$t('platform.openai.addAccountDialog.baseUrlPlaceholder')"
+          class="input"
+          :disabled="isLoading"
+        />
+      </div>
+
+      <div class="form-group mb-0">
+        <label class="label">{{ $t('platform.openai.addAccountDialog.apiKey') }}</label>
+        <textarea
+          v-model="apiForm.key"
+          :placeholder="$t('platform.openai.addAccountDialog.apiKeyPlaceholder')"
+          class="input resize-none"
+          rows="3"
+          :disabled="isLoading"
+        ></textarea>
       </div>
     </div>
 
@@ -175,6 +276,19 @@
           <span v-if="isLoading" class="btn-spinner absolute inset-0 m-auto" aria-hidden="true"></span>
         </span>
       </button>
+      <button
+        v-if="addMethod === 'api'"
+        @click="handleAddApi"
+        class="btn btn--primary"
+        :disabled="!canSubmitApi || isLoading"
+      >
+        <span class="relative inline-flex items-center justify-center">
+          <span :style="{ visibility: isLoading ? 'hidden' : 'visible' }">
+            {{ $t('platform.openai.addAccountDialog.addApiAccount') }}
+          </span>
+          <span v-if="isLoading" class="btn-spinner absolute inset-0 m-auto" aria-hidden="true"></span>
+        </span>
+      </button>
     </template>
   </BaseModal>
 </template>
@@ -185,6 +299,7 @@ import { useI18n } from 'vue-i18n'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import BaseModal from '@/components/common/BaseModal.vue'
+import FloatingDropdown from '@/components/common/FloatingDropdown.vue'
 
 const { t: $t } = useI18n()
 const emit = defineEmits(['close', 'add', 'added'])
@@ -194,7 +309,7 @@ const handleClose = () => {
   emit('close')
 }
 
-const addMethod = ref('oauth') // 'oauth' or 'manual'
+const addMethod = ref('oauth') // 'oauth', 'manual', or 'api'
 const email = ref('')
 const refreshToken = ref('')
 const isLoading = ref(false)
@@ -205,9 +320,25 @@ const oauthRedirectUri = ref('')
 const oauthSessionId = ref('')
 const oauthCallbackInput = ref('')
 
+// API 表单数据
+const apiForm = ref({
+  model_provider: '',
+  model: '',
+  base_url: '',
+  key: ''
+})
+const selectedReasoningEffort = ref('medium')
+const selectedWireApi = ref('responses')
+
 const canSubmit = computed(() => {
   if (addMethod.value === 'oauth') return true
   return email.value.trim() && refreshToken.value.trim()
+})
+
+const canSubmitApi = computed(() => {
+  return apiForm.value.model_provider.trim() &&
+         apiForm.value.base_url.trim() &&
+         apiForm.value.key.trim()
 })
 
 const canExchange = computed(() => {
@@ -356,6 +487,39 @@ const handleAdd = async () => {
     error.value = err?.message || err || '添加账号失败'
     isLoading.value = false
   }
+}
+
+const handleAddApi = async () => {
+  if (!canSubmitApi.value) return
+
+  error.value = ''
+  isLoading.value = true
+
+  try {
+    const account = await invoke('openai_add_api_account', {
+      modelProvider: apiForm.value.model_provider.trim(),
+      model: apiForm.value.model.trim(),
+      reasoningEffort: selectedReasoningEffort.value,
+      wireApi: selectedWireApi.value,
+      baseUrl: apiForm.value.base_url.trim(),
+      key: apiForm.value.key.trim()
+    })
+    emit('added', account)
+  } catch (err) {
+    console.error('Add API account error:', err)
+    error.value = err?.message || err || '添加 API 账号失败'
+    isLoading.value = false
+  }
+}
+
+const selectReasoningEffort = (value, close) => {
+  selectedReasoningEffort.value = value
+  close?.()
+}
+
+const selectWireApi = (value, close) => {
+  selectedWireApi.value = value
+  close?.()
 }
 </script>
 

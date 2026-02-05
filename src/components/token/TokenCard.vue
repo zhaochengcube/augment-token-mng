@@ -412,29 +412,7 @@ const isRefreshingOrLoading = computed(() => {
     (props.isSelectedRefreshing && props.isSelected && !props.token.skip_check)
 })
 
-// 当前主题
-const currentTheme = ref('light')
-
-// 监听主题变化
-const updateTheme = () => {
-  currentTheme.value = document.documentElement.dataset.theme || 'light'
-}
-
-onMounted(() => {
-  updateTheme()
-  // 监听主题变化
-  const observer = new MutationObserver(() => {
-    updateTheme()
-  })
-  observer.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ['data-theme']
-  })
-  // 清理
-  onUnmounted(() => {
-    observer.disconnect()
-  })
-})
+// (theme observer removed; not used in this component)
 
 // 判断是否为封禁状态且有 suspensions 数据
 const isBannedWithSuspensions = computed(() => {
@@ -671,10 +649,6 @@ onMounted(async () => {
       error: null
     }
 
-    // 如果 credit_total 为空，自动刷新
-    if (!props.token.portal_info.credit_total) {
-      await handleCheckAccountStatus(false)
-    }
   }
 
   // 添加事件监听器

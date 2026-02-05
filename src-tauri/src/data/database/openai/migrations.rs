@@ -77,6 +77,17 @@ pub async fn add_new_fields_if_not_exist(client: &Client) -> Result<(), Box<dyn 
         ("tag_color", "TEXT"),
     ];
 
+    // 添加账号类型和 API 配置字段
+    let api_columns = vec![
+        ("account_type", "TEXT"),
+        ("model_provider", "TEXT"),
+        ("model", "TEXT"),
+        ("model_reasoning_effort", "TEXT"),
+        ("wire_api", "TEXT"),
+        ("base_url", "TEXT"),
+        ("api_key", "TEXT"),
+    ];
+
     for column in &quota_columns {
         let check_column = client.query_one(
             &format!(
@@ -119,6 +130,31 @@ pub async fn add_new_fields_if_not_exist(client: &Client) -> Result<(), Box<dyn 
 
     // 添加标签字段
     for (column, data_type) in &tag_columns {
+        let check_column = client.query_one(
+            &format!(
+                "SELECT EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_name = 'openai_accounts'
+                    AND column_name = '{}'
+                )",
+                column
+            ),
+            &[],
+        ).await?;
+
+        let exists: bool = check_column.get(0);
+        if !exists {
+            client.execute(
+                &format!("ALTER TABLE openai_accounts ADD COLUMN {} {}", column, data_type),
+                &[],
+            ).await?;
+            println!("Added column {} to openai_accounts", column);
+        }
+    }
+
+    // 添加 API 账号字段
+    for (column, data_type) in &api_columns {
         let check_column = client.query_one(
             &format!(
                 "SELECT EXISTS (

@@ -316,6 +316,7 @@ dependencies = [
  "tokio",
  "tokio-postgres",
  "tokio-postgres-rustls",
+ "toml 0.8.2",
  "url",
  "urlencoding",
  "uuid",

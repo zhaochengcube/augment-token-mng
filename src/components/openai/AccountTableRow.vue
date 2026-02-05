@@ -45,10 +45,15 @@
 
     <!-- 状态 -->
     <td class="px-2.5 py-3.5 border-b border-border/50 align-middle whitespace-nowrap text-[13px] text-text">
-      <span :class="['badge', statusBadgeClass]">
-        <span class="status-dot" :class="statusDotClass"></span>
-        {{ statusLabel }}
-      </span>
+      <div class="flex items-center gap-1.5">
+        <span :class="['badge', statusBadgeClass]">
+          <span class="status-dot" :class="statusDotClass"></span>
+          {{ statusLabel }}
+        </span>
+        <span v-if="isApiAccount" class="badge badge--info">
+          API
+        </span>
+      </div>
     </td>
 
     <!-- 邮箱 -->
@@ -62,13 +67,26 @@
     <td class="px-2.5 py-3.5 border-b border-border/50 align-middle whitespace-nowrap text-[13px] text-text">
       <div class="flex flex-col gap-1">
         <span class="text-meta" v-tooltip="$t('platform.openai.createdAt') + ': ' + formatDate(account.created_at)">C: {{ formatDate(account.created_at) }}</span>
-        <span v-if="account.token?.expires_at" class="text-meta" v-tooltip="$t('platform.openai.tokenExpiresAt') + ': ' + formatDate(account.token.expires_at)">Exp: {{ formatDate(account.token.expires_at) }}</span>
+        <span v-if="isApiAccount && account.api_config?.model" class="text-meta" v-tooltip="'Model: ' + account.api_config.model">M: {{ account.api_config.model }}</span>
+        <span v-else-if="account.token?.expires_at" class="text-meta" v-tooltip="$t('platform.openai.tokenExpiresAt') + ': ' + formatDate(account.token.expires_at)">Exp: {{ formatDate(account.token.expires_at) }}</span>
       </div>
     </td>
 
     <!-- 配额信息 -->
     <td class="px-2.5 py-3.5 border-b border-border/50 align-middle text-[13px] text-text">
-      <div v-if="account.quota && hasQuotaData" class="flex flex-col gap-1">
+      <!-- API 账号显示配置信息 -->
+      <div v-if="isApiAccount && account.api_config" class="flex flex-col gap-1 text-xs">
+        <div v-if="account.api_config.model_provider" class="flex items-center gap-1">
+          <span class="text-text-muted">Provider:</span>
+          <span class="truncate">{{ account.api_config.model_provider }}</span>
+        </div>
+        <div v-if="account.api_config.base_url" class="flex items-center gap-1">
+          <span class="text-text-muted">URL:</span>
+          <span class="truncate">{{ account.api_config.base_url }}</span>
+        </div>
+      </div>
+      <!-- OAuth 账号显示配额信息 -->
+      <div v-else-if="account.quota && hasQuotaData" class="flex flex-col gap-1">
         <!-- 5h 配额 -->
         <div v-if="account.quota.codex_5h_used_percent !== null && account.quota.codex_5h_used_percent !== undefined" class="flex items-center gap-1">
           <span class="text-xs text-text-muted flex items-center gap-1">
@@ -118,8 +136,9 @@
           <span v-else class="btn-spinner btn-spinner--xs text-accent" aria-hidden="true"></span>
         </button>
 
-        <!-- 刷新配额按钮 -->
+        <!-- 刷新配额按钮（仅 OAuth 账号） -->
         <button
+          v-if="!isApiAccount"
           @click.stop="$emit('refresh-quota', account.id)"
           class="btn btn--ghost btn--icon-sm"
           :disabled="isRefreshing"
@@ -152,7 +171,7 @@
             </button>
           </template>
           <template #default="{ close }">
-            <button @click="handleCopyMenuClick('refreshToken', close)" class="dropdown-item">
+            <button v-if="!isApiAccount" @click="handleCopyMenuClick('refreshToken', close)" class="dropdown-item">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
               </svg>
@@ -169,6 +188,12 @@
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
               </svg>
               <span>{{ $t('accountCard.copyAccessToken') }}</span>
+            </button>
+            <button v-if="isApiAccount && account.api_config?.key" @click="handleCopyMenuClick('copyApiKey', close)" class="dropdown-item">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+              </svg>
+              <span>{{ $t('accountCard.copyApiKey') }}</span>
             </button>
           </template>
         </FloatingDropdown>
@@ -323,6 +348,9 @@ const handleCopyMenuClick = async (type, close) => {
     case 'copyAccessToken':
       await copyAccessToken()
       break
+    case 'copyApiKey':
+      await copyApiKey()
+      break
   }
 }
 
@@ -358,8 +386,31 @@ const copyAccessToken = async () => {
   }
 }
 
+// 复制 API Key
+const copyApiKey = async () => {
+  try {
+    const apiKey = props.account.api_config?.key
+    if (!apiKey) {
+      window.$notify?.error($t('accountCard.noApiKey'))
+      return
+    }
+    await navigator.clipboard.writeText(apiKey)
+    window.$notify?.success($t('accountCard.apiKeyCopied'))
+  } catch (err) {
+    console.error('Failed to copy API key:', err)
+    window.$notify?.error($t('messages.copyFailed'))
+  }
+}
+
+// 账号类型判断
+const isApiAccount = computed(() => {
+  return props.account.account_type === 'api'
+})
+
 // 状态判断
 const isActive = computed(() => {
+  // API 账号始终视为有效
+  if (isApiAccount.value) return true
   if (!props.account.token) return false
   if (props.account.token.expires_at) {
     const now = Math.floor(Date.now() / 1000)

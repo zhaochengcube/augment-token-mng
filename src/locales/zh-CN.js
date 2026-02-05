@@ -430,7 +430,10 @@ export default {
     copyPaymentLink: '复制绑卡链接',
     copyMachineId: '复制Machine ID',
     copyAccessToken: '复制Access Token',
-    copySessionToken: '复制Session Token'
+    copySessionToken: '复制Session Token',
+    copyApiKey: '复制 API Key',
+    apiKeyCopied: 'API Key 已复制',
+    noApiKey: '没有 API Key'
   },
   team: {
     title: '团队管理',
@@ -1297,6 +1300,8 @@ export default {
       searchPlaceholder: '搜索邮箱...',
       batchRefresh: '批量刷新',
       batchRefreshToken: '批量刷新 Token',
+      batchRefreshSuccess: '已刷新 {count} 个账号的 Token',
+      noOAuthAccountsSelected: '选中的账号中没有 OAuth 账号',
       allAccountsMarkedForSync: '已将 {count} 个账号标记为待同步',
       export: '导出账号',
       exportSuccess: '账号导出成功',
@@ -1334,6 +1339,7 @@ export default {
         title: '添加 OpenAI 账号',
         oauthMethod: 'OAuth 授权',
         manualMethod: '手动添加',
+        apiMethod: 'API 方式',
         oauthInfo: '点击下方按钮将打开 OpenAI 授权页面，授权完成后自动添加账号',
         openaiLogin: '使用 OpenAI 账号登录',
         oauthManualTitle: '手动流程（可复制链接）',
@@ -1354,10 +1360,31 @@ export default {
         refreshTokenPlaceholder: '粘贴你的 Refresh Token...',
         refreshTokenHint: '从 OpenAI 的数据库或网络请求中获取 refresh_token',
         adding: '添加中...',
-        add: '添加账号'
+        add: '添加账号',
+        // API 账号相关
+        modelProvider: '模型提供商',
+        modelProviderHint: '名称',
+        modelProviderPlaceholder: '例如: OpenAI, Anthropic, 自定义提供商',
+        model: '模型',
+        modelHint: '模型名称',
+        modelPlaceholder: '例如：gpt-5.2, gpt-5.2-codex',
+        reasoningEffort: '推理强度',
+        reasoningEffortHint: '推理强度',
+        wireApi: 'API 类型',
+        wireApiHint: 'API 类型',
+        baseUrl: 'API 地址',
+        baseUrlPlaceholder: 'https://api.openai.com/v1',
+        apiKey: 'API 密钥',
+        apiKeyPlaceholder: 'sk-...',
+        addApiAccount: '添加 API 账号'
+      },
+      editApiAccountDialog: {
+        title: '编辑 API 账号'
       },
       messages: {
         switchSuccess: '账号切换成功',
+        updateSuccess: '账号更新成功',
+        updateFailed: '更新失败: {error}',
         switchFailed: '切换失败: {error}',
         refreshSuccess: '账号刷新成功',
         refreshFailed: '刷新失败: {error}',

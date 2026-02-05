@@ -133,6 +133,7 @@
             @delete="handleDelete"
             @select="toggleAccountSelection"
             @account-updated="handleAccountUpdated"
+            @edit="handleEdit"
           />
         </div>
 
@@ -228,6 +229,43 @@
       max-width="700px"
       @close="setToolbarMode('hidden')">
       <div class="flex flex-col gap-4">
+        <!-- 账号类型筛选 -->
+        <div class="flex flex-col gap-2">
+          <span class="label">账号类型</span>
+          <div class="flex flex-wrap gap-2">
+            <button
+              :class="[
+                'btn btn--sm',
+                selectedTypeFilter === null ? 'btn--primary' : 'btn--secondary'
+              ]"
+              @click="selectTypeFilter(null)"
+            >
+              <span>全部</span>
+              <span class="ml-1 opacity-70">({{ typeStatistics.total }})</span>
+            </button>
+            <button
+              :class="[
+                'btn btn--sm',
+                selectedTypeFilter === 'oauth' ? 'btn--primary' : 'btn--secondary'
+              ]"
+              @click="selectTypeFilter('oauth')"
+            >
+              <span>OAuth</span>
+              <span class="ml-1 opacity-70">({{ typeStatistics.oauth }})</span>
+            </button>
+            <button
+              :class="[
+                'btn btn--sm',
+                selectedTypeFilter === 'api' ? 'btn--primary' : 'btn--secondary'
+              ]"
+              @click="selectTypeFilter('api')"
+            >
+              <span>API</span>
+              <span class="ml-1 opacity-70">({{ typeStatistics.api }})</span>
+            </button>
+          </div>
+        </div>
+
         <!-- 状态筛选 -->
         <div class="flex flex-col gap-2">
           <span class="label">{{ $t('tokenList.filterByStatus') }}</span>
@@ -435,6 +473,14 @@
     <!-- Add Account Dialog -->
     <AddAccountDialog v-if="showAddDialog" @close="showAddDialog = false" @added="handleAccountAdded" />
 
+    <!-- Edit API Account Dialog -->
+    <EditApiAccountDialog
+      v-if="editingAccount"
+      :account="editingAccount"
+      @close="editingAccount = null"
+      @saved="handleEditSaved"
+    />
+
     <!-- Sync Queue Modal -->
     <SyncQueueModal
       v-model:visible="showSyncQueueModal"
@@ -464,6 +510,7 @@ import { useI18n } from 'vue-i18n'
 import AccountCard from '../openai/AccountCard.vue'
 import AccountTableRow from '../openai/AccountTableRow.vue'
 import AddAccountDialog from '../openai/AddAccountDialog.vue'
+import EditApiAccountDialog from '../openai/EditApiAccountDialog.vue'
 import SyncQueueModal from '../common/SyncQueueModal.vue'
 import Pagination from '../common/Pagination.vue'
 import BatchToolbar from '../common/BatchToolbar.vue'
@@ -486,6 +533,7 @@ const props = defineProps({
 const accounts = ref([])
 const currentAccountId = ref(null)
 const showAddDialog = ref(false)
+const editingAccount = ref(null)
 const isLoading = ref(false)
 const refreshingIds = ref(new Set())
 const deletingIds = ref(new Set())
@@ -526,6 +574,7 @@ const {
 // 搜索和筛选
 const searchQuery = ref('')
 const selectedStatusFilter = ref(null)
+const selectedTypeFilter = ref(null)
 const toolbarMode = ref('hidden')
 const toolbarSearchInputRef = ref(null)
 
@@ -574,6 +623,8 @@ const allAccountsAsTokens = computed(() =>
 
 // 状态判断
 const isAccountActive = (account) => {
+  // API 账号始终视为有效
+  if (account.account_type === 'api') return true
   if (!account.token) return false
   if (account.token.expires_at) {
     const now = Math.floor(Date.now() / 1000)
@@ -600,6 +651,25 @@ const statusStatistics = computed(() => {
   return stats
 })
 
+// 类型统计
+const typeStatistics = computed(() => {
+  const stats = {
+    total: accounts.value.length,
+    oauth: 0,
+    api: 0
+  }
+
+  accounts.value.forEach(account => {
+    if (account.account_type === 'api') {
+      stats.api++
+    } else {
+      stats.oauth++
+    }
+  })
+
+  return stats
+})
+
 const filteredAccounts = computed(() => {
   let result = accounts.value
 
@@ -607,6 +677,18 @@ const filteredAccounts = computed(() => {
   if (searchQuery.value.trim()) {
     const query = searchQuery.value.toLowerCase()
     result = result.filter(a => a.email.toLowerCase().includes(query))
+  }
+
+  // 类型筛选
+  if (selectedTypeFilter.value) {
+    result = result.filter(account => {
+      if (selectedTypeFilter.value === 'api') {
+        return account.account_type === 'api'
+      } else if (selectedTypeFilter.value === 'oauth') {
+        return account.account_type !== 'api'
+      }
+      return true
+    })
   }
 
   // 状态筛选
@@ -717,13 +799,15 @@ const handleRefreshQuota = async (accountId) => {
   }
 }
 
-// 刷新当前页所有配额
+// 刷新当前页所有配额（并行，仅 OAuth 账号）
 const handleRefreshCurrentPageQuota = async () => {
   isRefreshingAll.value = true
   try {
-    for (const account of paginatedAccounts.value) {
-      await handleRefreshQuota(account.id)
-    }
+    // 过滤掉 API 账号，只刷新 OAuth 账号的配额
+    const oauthAccounts = paginatedAccounts.value.filter(account => account.account_type !== 'api')
+    await Promise.allSettled(
+      oauthAccounts.map((account) => handleRefreshQuota(account.id))
+    )
   } finally {
     isRefreshingAll.value = false
   }
@@ -774,6 +858,22 @@ const handleAccountAdded = async (account) => {
   window.$notify?.success($t('platform.openai.messages.addSuccess'))
 }
 
+// 编辑 API 账号
+const handleEdit = (account) => {
+  editingAccount.value = account
+}
+
+const handleEditSaved = async (updatedAccount) => {
+  editingAccount.value = null
+  // 更新本地数组中的账号数据
+  const index = accounts.value.findIndex(a => a.id === updatedAccount.id)
+  if (index !== -1) {
+    accounts.value[index] = updatedAccount
+  }
+  markItemUpsertById(updatedAccount.id)
+  window.$notify?.success($t('platform.openai.messages.updateSuccess'))
+}
+
 const handleDelete = async (accountId) => {
   const account = accounts.value.find(a => a.id === accountId)
   deletingIds.value.add(accountId)
@@ -803,6 +903,11 @@ const setToolbarMode = (mode) => {
 // 筛选和排序
 const selectStatusFilter = (filter) => {
   selectedStatusFilter.value = filter
+  currentPage.value = 1
+}
+
+const selectTypeFilter = (filter) => {
+  selectedTypeFilter.value = filter
   currentPage.value = 1
 }
 
@@ -891,9 +996,9 @@ const clearSelection = () => {
 const batchRefreshSelected = async () => {
   isBatchRefreshing.value = true
   try {
-    for (const accountId of selectedAccountIds.value) {
-      await handleRefreshQuota(accountId)
-    }
+    await Promise.allSettled(
+      [...selectedAccountIds.value].map((accountId) => handleRefreshQuota(accountId))
+    )
   } finally {
     isBatchRefreshing.value = false
   }
@@ -902,10 +1007,21 @@ const batchRefreshSelected = async () => {
 const batchRefreshTokensSelected = async () => {
   isBatchRefreshing.value = true
   try {
-    for (const accountId of selectedAccountIds.value) {
+    // 过滤掉 API 账号，只刷新 OAuth 账号的 Token
+    const oauthAccountIds = [...selectedAccountIds.value].filter(accountId => {
+      const account = accounts.value.find(a => a.id === accountId)
+      return account && account.account_type !== 'api'
+    })
+
+    if (oauthAccountIds.length === 0) {
+      window.$notify?.warning($t('platform.openai.noOAuthAccountsSelected'))
+      return
+    }
+
+    for (const accountId of oauthAccountIds) {
       await handleRefreshToken(accountId)
     }
-    window.$notify?.success($t('platform.openai.batchRefreshSuccess', { count: selectedAccountIds.value.size }))
+    window.$notify?.success($t('platform.openai.batchRefreshSuccess', { count: oauthAccountIds.length }))
   } finally {
     isBatchRefreshing.value = false
   }
@@ -1013,12 +1129,13 @@ const handleAccountUpdated = async (updatedAccount) => {
 }
 
 // 监听搜索和筛选变化，重置分页
-watch([searchQuery, selectedStatusFilter], () => {
+watch([searchQuery, selectedStatusFilter, selectedTypeFilter], () => {
   currentPage.value = 1
 })
 
 onMounted(async () => {
-  await initSync()
-  await loadAccounts()
+  // 并行执行：数据加载不等待同步初始化完成
+  loadAccounts()
+  initSync()
 })
 </script>
