@@ -134,6 +134,7 @@
             @delete="handleDelete"
             @select="toggleAccountSelection"
             @account-updated="handleAccountUpdated"
+            @machine-id-generated="handleMachineIdGenerated"
           />
         </div>
 
@@ -177,6 +178,7 @@
                 @delete="handleDelete"
                 @select="toggleAccountSelection"
                 @account-updated="handleAccountUpdated"
+                @machine-id-generated="handleMachineIdGenerated"
               />
             </tbody>
           </table>
@@ -337,6 +339,17 @@
           </svg>
         </button>
 
+        <!-- 批量导出 -->
+        <button
+          @click="handleBatchExport"
+          class="btn btn--icon btn--ghost"
+          v-tooltip="$t('accountCard.batchExport')"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+          </svg>
+        </button>
+
         <!-- 批量删除 -->
         <button
           @click="handleBatchDelete"
@@ -360,7 +373,13 @@
     />
 
     <!-- Add Account Dialog -->
-    <AddAccountDialog v-if="showAddDialog" @close="showAddDialog = false" @added="handleAccountAdded" />
+    <AddAccountDialog
+      v-if="showAddDialog"
+      :existing-accounts="accounts"
+      @close="showAddDialog = false"
+      @added="handleAccountAdded"
+      @updated="handleAccountAdded"
+    />
 
     <!-- Import Accounts Dialog -->
     <ImportAccountsDialog v-if="showImportDialog" @close="showImportDialog = false" @imported="handleAccountsImported" />
@@ -734,6 +753,11 @@ const handleAccountUpdated = async (updatedAccount) => {
   }
 }
 
+const handleMachineIdGenerated = async () => {
+  // 重新加载账号列表以获取更新后的机器码信息
+  await loadAccounts()
+}
+
 const toggleViewMode = () => {
   viewMode.value = viewMode.value === 'card' ? 'table' : 'card'
   currentPage.value = 1
@@ -838,6 +862,50 @@ const handleBatchDelete = async () => {
   await loadAccounts()
   clearSelection()
   window.$notify?.success($t('platform.cursor.batchDeleteSuccess', { count: ids.length }))
+}
+
+const handleBatchExport = async () => {
+  if (selectedAccountIds.value.size === 0) return
+  const ids = Array.from(selectedAccountIds.value)
+
+  try {
+    const { save } = await import('@tauri-apps/plugin-dialog')
+    const { writeTextFile } = await import('@tauri-apps/plugin-fs')
+
+    // 获取导出数据
+    const jsonData = await invoke('cursor_export_accounts', {
+      accountIds: ids
+    })
+
+    // 生成默认文件名
+    const defaultFileName = `cursor_accounts_${ids.length}.json`
+
+    // 让用户选择保存位置
+    const filePath = await save({
+      defaultPath: defaultFileName,
+      filters: [
+        {
+          name: 'JSON',
+          extensions: ['json']
+        }
+      ]
+    })
+
+    if (!filePath) {
+      return // 用户取消
+    }
+
+    // 写入文件
+    await writeTextFile(filePath, jsonData)
+
+    window.$notify?.success($t('platform.cursor.messages.exportSuccess'))
+  } catch (err) {
+    console.error('Batch export error:', err)
+    if (err?.message?.includes('Cancelled') || err?.code === 'Cancelled') {
+      return // 用户取消，不显示错误
+    }
+    window.$notify?.error(err?.message || err || $t('platform.cursor.messages.exportFailed'))
+  }
 }
 
 watch([searchQuery, selectedStatusFilter], () => {

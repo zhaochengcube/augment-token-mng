@@ -431,6 +431,9 @@ export default {
     copyMachineId: '复制Machine ID',
     copyAccessToken: '复制Access Token',
     copySessionToken: '复制Session Token',
+    generateAndBindMachineId: '生成并绑定机器码',
+    export: '导出',
+    batchExport: '导出选中',
     copyApiKey: '复制 API Key',
     apiKeyCopied: 'API Key 已复制',
     noApiKey: '没有 API Key'
@@ -1224,7 +1227,10 @@ export default {
         accessTokenPlaceholder: '粘贴你的 Access Token...',
         adding: '添加中...',
         add: '添加账号',
-        addFailed: '添加账号失败'
+        addFailed: '添加账号失败',
+        accountExists: '该邮箱账号已存在',
+        accountExistsHint: '邮箱 {email} 已存在，是否更新认证信息？',
+        overwrite: '覆盖'
       },
       importDialog: {
         title: '导入账号',
@@ -1257,6 +1263,10 @@ export default {
       },
       importAccounts: '导入账号',
       messages: {
+        machineIdGenerated: '机器码已生成并绑定到账号',
+        machineIdGenerateFailed: '生成机器码失败',
+        exportSuccess: '导出成功',
+        exportFailed: '导出失败',
         switchSuccess: '账号切换成功',
         switchFailed: '切换失败: {error}',
         refreshSuccess: '配额刷新成功',

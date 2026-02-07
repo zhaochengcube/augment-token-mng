@@ -1,1 +1,1 @@
-{"default":{"identifier":"default","description":"Default permissions for the application","local":true,"windows":["*"],"permissions":["core:default","core:event:allow-listen","core:event:allow-emit","shell:allow-open"]}}
+{"default":{"identifier":"default","description":"Default permissions for the application","local":true,"windows":["*"],"permissions":["core:default","core:event:allow-listen","core:event:allow-emit","shell:allow-open","dialog:allow-save","fs:allow-write-text-file","fs:allow-write-file","fs:write-all"]}}

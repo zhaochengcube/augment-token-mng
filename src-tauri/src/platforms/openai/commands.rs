@@ -559,7 +559,7 @@ pub async fn openai_refresh_account(
             let now = chrono::Utc::now().timestamp();
             acc.token = Some(TokenData::new(
                 token_res.access_token,
-                Some(refresh_token.clone()),
+                token_res.refresh_token,
                 token_res.id_token,
                 token_res.expires_in,
                 now + token_res.expires_in,

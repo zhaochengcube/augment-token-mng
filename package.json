@@ -12,6 +12,8 @@
   "dependencies": {
     "@floating-ui/vue": "^1.1.9",
     "@tauri-apps/api": "^2.9.0",
+    "@tauri-apps/plugin-dialog": "^2.6.0",
+    "@tauri-apps/plugin-fs": "^2.4.5",
     "@vueuse/core": "^14.0.0",
     "chart.js": "^4.5.1",
     "pinia": "^3.0.4",

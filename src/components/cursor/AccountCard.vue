@@ -91,6 +91,18 @@
             </svg>
             <span>{{ $t('accountCard.copySessionToken') }}</span>
           </button>
+          <button @click="handleMenuClick('generateMachineId', close)" class="dropdown-item">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+            </svg>
+            <span>{{ $t('accountCard.generateAndBindMachineId') }}</span>
+          </button>
+          <button @click="handleMenuClick('export', close)" class="dropdown-item">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+            </svg>
+            <span>{{ $t('accountCard.export') }}</span>
+          </button>
           <button @click="handleMenuClick('delete', close)" class="dropdown-item text-danger hover:bg-danger/10">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
               <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
@@ -214,12 +226,13 @@ const props = defineProps({
   allAccounts: { type: Array, default: () => [] }
 })
 
-const emit = defineEmits(['switch', 'delete', 'select', 'account-updated'])
+const emit = defineEmits(['switch', 'delete', 'select', 'account-updated', 'machine-id-generated'])
 
 const menuRef = ref(null)
 const showTagEditor = ref(false)
 const showUsageModal = ref(false)
 const isMenuOpen = ref(false)
+const isGeneratingMachineId = ref(false)
 const DEFAULT_TAG_COLOR = '#f97316'
 
 const maskedEmail = computed(() => {
@@ -288,6 +301,12 @@ const handleMenuClick = async (type, close) => {
     case 'copySessionToken':
       await copySessionToken()
       break
+    case 'generateMachineId':
+      await generateAndBindMachineId()
+      break
+    case 'export':
+      await exportAccount()
+      break
     case 'delete':
       emit('delete', props.account.id)
       break
@@ -319,6 +338,67 @@ const copySessionToken = async () => {
     window.$notify?.success($t('messages.sessionTokenCopied'))
   } catch (err) {
     window.$notify?.error($t('messages.copyFailed'))
+  }
+}
+
+const generateAndBindMachineId = async () => {
+  if (isGeneratingMachineId.value) return
+
+  isGeneratingMachineId.value = true
+  try {
+    const { invoke } = await import('@tauri-apps/api/core')
+    const result = await invoke('cursor_generate_and_bind_machine_id', {
+      accountId: props.account.id
+    })
+    window.$notify?.success(result.message || $t('platform.cursor.machineIdGenerated'))
+    emit('machine-id-generated', props.account.id)
+  } catch (err) {
+    console.error('Generate machine ID error:', err)
+    window.$notify?.error(err?.message || err || $t('platform.cursor.machineIdGenerateFailed'))
+  } finally {
+    isGeneratingMachineId.value = false
+  }
+}
+
+const exportAccount = async () => {
+  try {
+    const { invoke } = await import('@tauri-apps/api/core')
+    const { save } = await import('@tauri-apps/plugin-dialog')
+    const { writeTextFile } = await import('@tauri-apps/plugin-fs')
+
+    // 获取导出数据
+    const jsonData = await invoke('cursor_export_accounts', {
+      accountIds: [props.account.id]
+    })
+
+    // 生成默认文件名
+    const defaultFileName = `cursor_account_${props.account.email.replace(/[^a-zA-Z0-9]/g, '_')}.json`
+
+    // 让用户选择保存位置
+    const filePath = await save({
+      defaultPath: defaultFileName,
+      filters: [
+        {
+          name: 'JSON',
+          extensions: ['json']
+        }
+      ]
+    })
+
+    if (!filePath) {
+      return // 用户取消
+    }
+
+    // 写入文件
+    await writeTextFile(filePath, jsonData)
+
+    window.$notify?.success($t('platform.cursor.messages.exportSuccess'))
+  } catch (err) {
+    console.error('Export account error:', err)
+    if (err?.message?.includes('Cancelled') || err?.code === 'Cancelled') {
+      return // 用户取消，不显示错误
+    }
+    window.$notify?.error(err?.message || err || $t('platform.cursor.messages.exportFailed'))
   }
 }
 

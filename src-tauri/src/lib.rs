@@ -99,6 +99,8 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .setup(|app| {
             let app_state = AppState {
                 augment_oauth_state: Mutex::new(None),
@@ -519,12 +521,16 @@ pub fn run() {
             data::storage::windsurf::windsurf_sync_accounts,
 
             // Cursor 管理命令
+            cursor::cursor_get_user_info_from_session,
+            cursor::cursor_refresh_account_tokens,
             cursor::cursor_add_account_with_session,
             cursor::cursor_import_accounts,
             cursor::cursor_update_account,
             cursor::cursor_list_accounts,
             cursor::cursor_delete_account,
             cursor::cursor_switch_account,
+            cursor::cursor_generate_and_bind_machine_id,
+            cursor::cursor_export_accounts,
             cursor::cursor_get_custom_path,
             cursor::cursor_set_custom_path,
             cursor::cursor_validate_path,

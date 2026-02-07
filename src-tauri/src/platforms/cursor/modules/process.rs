@@ -4,7 +4,6 @@ use std::process::Command;
 use std::path::PathBuf;
 use sysinfo::{System, ProcessRefreshKind, ProcessesToUpdate};
 
-#[allow(dead_code)]
 fn is_helper_process(name: &str, args: &str) -> bool {
     let name = name.to_lowercase();
     let args = args.to_lowercase();
@@ -62,6 +61,7 @@ fn get_cursor_pids() -> Vec<u32> {
 }
 
 /// 检查 Cursor 是否正在运行
+/// 包括主进程和所有 helper 进程，只要有任何一个在运行就返回 true
 pub fn is_cursor_running() -> bool {
     let mut sys = System::new();
     sys.refresh_processes_specifics(ProcessesToUpdate::All, true, ProcessRefreshKind::new());
@@ -100,8 +100,8 @@ pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
             .args(["-e", "tell application \"Cursor\" to quit"])
             .output();
 
-        // 等待优雅退出，最多 2 秒
-        let quit_wait = std::cmp::min(timeout_secs, 2);
+        // 等待优雅退出，使用 30% 的 timeout_secs，最多 5 秒
+        let quit_wait = std::cmp::min(timeout_secs * 3 / 10, 5);
         let start_quit = std::time::Instant::now();
         while start_quit.elapsed() < std::time::Duration::from_secs(quit_wait) {
             if !is_cursor_running() {
@@ -141,23 +141,36 @@ pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
             }
         }
 
-        // 等待 SIGTERM 生效，最多 2 秒
-        let graceful_timeout = std::cmp::min((timeout_secs * 7) / 10, 2);
+        // 等待 SIGTERM 生效，使用 40% 的 timeout_secs，最多 5 秒
+        let sigterm_wait = std::cmp::min((timeout_secs * 4) / 10, 5);
         let start = std::time::Instant::now();
-        while start.elapsed() < std::time::Duration::from_secs(graceful_timeout) {
+        while start.elapsed() < std::time::Duration::from_secs(sigterm_wait) {
             if !is_cursor_running() {
                 return CloseResult { success: true, warning: None };
             }
             std::thread::sleep(std::time::Duration::from_millis(100));
         }
 
-        // 强制杀死
-        if is_cursor_running() {
+        // 强制杀死 - 多次尝试确保进程被彻底杀死
+        let mut attempts = 0;
+        let max_attempts = 3;
+
+        while is_cursor_running() && attempts < max_attempts {
             let remaining = get_cursor_pids();
-            for pid in remaining {
-                let _ = Command::new("kill").args(["-9", &pid.to_string()]).output();
+            if remaining.is_empty() {
+                break;
             }
-            std::thread::sleep(std::time::Duration::from_millis(200));
+
+            for pid in remaining {
+                let _ = Command::new("kill")
+                    .args(["-9", &pid.to_string()])
+                    .output();
+            }
+
+            attempts += 1;
+
+            // 每次尝试后等待并重新检查
+            std::thread::sleep(std::time::Duration::from_millis(300));
         }
 
         // 最终验证
@@ -183,22 +196,27 @@ pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
             .args(["/IM", "Cursor.exe", "/T"])
             .output();
 
-        // 等待优雅退出，最多 2 秒
-        let quit_wait = std::cmp::min(timeout_secs, 2);
+        // 等待优雅退出，使用 70% 的 timeout_secs，最多 5 秒
+        let graceful_wait = std::cmp::min((timeout_secs * 7) / 10, 5);
         let start = std::time::Instant::now();
-        while start.elapsed() < std::time::Duration::from_secs(quit_wait) {
+        while start.elapsed() < std::time::Duration::from_secs(graceful_wait) {
             if !is_cursor_running() {
                 return CloseResult { success: true, warning: None };
             }
             std::thread::sleep(std::time::Duration::from_millis(100));
         }
 
-        // 强制关闭
-        if is_cursor_running() {
+        // 强制关闭 - 多次尝试
+        let mut attempts = 0;
+        let max_attempts = 3;
+
+        while is_cursor_running() && attempts < max_attempts {
             let _ = Command::new("taskkill")
                 .args(["/F", "/T", "/IM", "Cursor.exe"])
                 .output();
-            std::thread::sleep(std::time::Duration::from_millis(200));
+
+            attempts += 1;
+            std::thread::sleep(std::time::Duration::from_millis(300));
         }
 
         // 最终验证
@@ -214,15 +232,55 @@ pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
 
     #[cfg(target_os = "linux")]
     {
-        let _ = timeout_secs;
-        let _ = kill_cursor_processes();
+        let pids = get_cursor_pids();
+        if pids.is_empty() {
+            return CloseResult { success: true, warning: None };
+        }
+
+        // 第一阶段: 发送 SIGTERM (优雅退出)
+        for pid in &pids {
+            let _ = Command::new("kill")
+                .args(["-15", &pid.to_string()])
+                .output();
+        }
+
+        // 等待 SIGTERM 生效，使用 70% 的 timeout_secs，最多 5 秒
+        let graceful_timeout = std::cmp::min((timeout_secs * 7) / 10, 5);
+        let start = std::time::Instant::now();
+        while start.elapsed() < std::time::Duration::from_secs(graceful_timeout) {
+            if !is_cursor_running() {
+                return CloseResult { success: true, warning: None };
+            }
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+
+        // 第二阶段: 强制杀死 (SIGKILL) - 多次尝试确保彻底杀死
+        let mut attempts = 0;
+        let max_attempts = 3;
+
+        while is_cursor_running() && attempts < max_attempts {
+            let remaining = get_cursor_pids();
+            if remaining.is_empty() {
+                break;
+            }
+
+            for pid in remaining {
+                let _ = Command::new("kill")
+                    .args(["-9", &pid.to_string()])
+                    .output();
+            }
+
+            attempts += 1;
+
+            // 每次尝试后等待并重新检查
+            std::thread::sleep(std::time::Duration::from_millis(300));
+        }
 
         // 最终验证
-        std::thread::sleep(std::time::Duration::from_millis(200));
         if is_cursor_running() {
             return CloseResult {
                 success: false,
-                warning: Some("Cursor process still running after kill".to_string()),
+                warning: Some("Cursor process still running after forced kill".to_string()),
             };
         }
 
@@ -230,7 +288,7 @@ pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
     }
 }
 
-/// 杀死所有 Cursor 进程
+/// 杀死所有 Cursor 进程 (SIGKILL)
 pub fn kill_cursor_processes() -> Result<(), String> {
     let mut sys = System::new();
     sys.refresh_processes_specifics(ProcessesToUpdate::All, true, ProcessRefreshKind::new());

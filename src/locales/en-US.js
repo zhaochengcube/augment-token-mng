@@ -431,6 +431,9 @@ export default {
     copyMachineId: 'Copy Machine ID',
     copyAccessToken: 'Copy Access Token',
     copySessionToken: 'Copy Session Token',
+    generateAndBindMachineId: 'Generate and Bind Machine ID',
+    export: 'Export',
+    batchExport: 'Export Selected',
     copyApiKey: 'Copy API Key',
     apiKeyCopied: 'API Key copied',
     noApiKey: 'No API Key'
@@ -1232,7 +1235,10 @@ export default {
         accessTokenPlaceholder: 'Paste your Access Token...',
         adding: 'Adding...',
         add: 'Add Account',
-        addFailed: 'Failed to add account'
+        addFailed: 'Failed to add account',
+        accountExists: 'Account already exists',
+        accountExistsHint: 'Email {email} already exists. Update authentication info?',
+        overwrite: 'Overwrite'
       },
       importDialog: {
         title: 'Import Accounts',
@@ -1265,6 +1271,10 @@ export default {
       },
       importAccounts: 'Import Accounts',
       messages: {
+        machineIdGenerated: 'Machine ID generated and bound to account',
+        machineIdGenerateFailed: 'Failed to generate machine ID',
+        exportSuccess: 'Export successful',
+        exportFailed: 'Export failed',
         switchSuccess: 'Account switched successfully',
         switchFailed: 'Switch failed: {error}',
         refreshSuccess: 'Quota refreshed successfully',

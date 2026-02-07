@@ -188,3 +188,77 @@ impl Default for AccountIndex {
     }
 }
 
+
+/// 导出账号数据格式（与导入格式兼容）
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExportAccountData {
+    pub email: String,
+    #[serde(rename = "auth_info", skip_serializing_if = "Option::is_none")]
+    pub auth_info: Option<ExportAuthInfo>,
+    #[serde(rename = "machine_info", skip_serializing_if = "Option::is_none")]
+    pub machine_info: Option<ExportMachineInfo>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExportAuthInfo {
+    #[serde(rename = "WorkosCursorSessionToken", skip_serializing_if = "Option::is_none")]
+    pub workos_cursor_session_token: Option<String>,
+    #[serde(rename = "cursorAuth/accessToken", skip_serializing_if = "Option::is_none")]
+    pub access_token: Option<String>,
+    #[serde(rename = "cursorAuth/refreshToken", skip_serializing_if = "Option::is_none")]
+    pub refresh_token: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExportMachineInfo {
+    #[serde(rename = "telemetry.machineId", skip_serializing_if = "Option::is_none")]
+    pub machine_id: Option<String>,
+    #[serde(rename = "telemetry.macMachineId", skip_serializing_if = "Option::is_none")]
+    pub mac_machine_id: Option<String>,
+    #[serde(rename = "telemetry.devDeviceId", skip_serializing_if = "Option::is_none")]
+    pub dev_device_id: Option<String>,
+    #[serde(rename = "telemetry.sqmId", skip_serializing_if = "Option::is_none")]
+    pub sqm_id: Option<String>,
+    #[serde(rename = "storage.serviceMachineId", skip_serializing_if = "Option::is_none")]
+    pub storage_service_machine_id: Option<String>,
+    #[serde(rename = "system.machineGuid", skip_serializing_if = "Option::is_none")]
+    pub system_machine_guid: Option<String>,
+}
+
+impl ExportAccountData {
+    pub fn from_account(account: &Account) -> Self {
+        let auth_info = if account.token.workos_cursor_session_token.is_some()
+            || !account.token.access_token.is_empty()
+            || !account.token.refresh_token.is_empty()
+        {
+            Some(ExportAuthInfo {
+                workos_cursor_session_token: account.token.workos_cursor_session_token.clone(),
+                access_token: Some(account.token.access_token.clone()),
+                refresh_token: if account.token.refresh_token.is_empty() {
+                    None
+                } else {
+                    Some(account.token.refresh_token.clone())
+                },
+            })
+        } else {
+            None
+        };
+
+        let machine_info = account.machine_info.as_ref().filter(|m| m.has_data()).map(|m| {
+            ExportMachineInfo {
+                machine_id: m.machine_id.clone(),
+                mac_machine_id: m.mac_machine_id.clone(),
+                dev_device_id: m.dev_device_id.clone(),
+                sqm_id: m.sqm_id.clone(),
+                storage_service_machine_id: m.storage_service_machine_id.clone(),
+                system_machine_guid: m.system_machine_guid.clone(),
+            }
+        });
+
+        Self {
+            email: account.email.clone(),
+            auth_info,
+            machine_info,
+        }
+    }
+}

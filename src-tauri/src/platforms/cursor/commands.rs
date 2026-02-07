@@ -169,6 +169,79 @@ pub async fn cursor_switch_account(
     })
 }
 
+/// 生成机器码并绑定到账号
+/// 流程：生成新机器码 → 保存到账号 → 关闭 Cursor → 写入 token → 重置机器码 → 更新当前账号
+/// 注意：不启动 Cursor，不刷新 token
+#[tauri::command]
+pub async fn cursor_generate_and_bind_machine_id(
+    app: AppHandle,
+    account_id: String,
+) -> Result<SwitchAccountResponse, String> {
+    use crate::cursor::modules::machine::TelemetryIds;
+
+    // 1. 加载账号
+    let mut acc = storage::load_account(&app, &account_id).await?;
+
+    // 2. 生成新机器码
+    let ids = TelemetryIds::generate();
+
+    // 3. 构造 MachineInfo 并保存到账号
+    let machine_info = crate::cursor::models::MachineInfo {
+        machine_id: Some(ids.machine_id.clone()),
+        mac_machine_id: Some(ids.mac_machine_id.clone()),
+        dev_device_id: Some(ids.dev_device_id.clone()),
+        sqm_id: Some(ids.sqm_id.clone()),
+        storage_service_machine_id: Some(ids.service_machine_id.clone()),
+        ..Default::default()
+    };
+    acc.machine_info = Some(machine_info.clone());
+    storage::save_account(&app, &acc).await?;
+
+    // 4. 关闭 Cursor
+    if process::is_cursor_running() {
+        process::close_cursor(5)?;
+    }
+
+    // 5. 获取自定义路径
+    use crate::core::path_manager::{read_custom_path_from_config, CURSOR_CONFIG};
+    let custom_path = read_custom_path_from_config(&app, &CURSOR_CONFIG);
+
+    // 6. 写入 token 到数据库
+    let db_path = db::get_db_path()?;
+    if db_path.exists() {
+        // 备份数据库
+        if let Some(backup_path) = db_path.with_extension("vscdb.backup").to_str() {
+            let _ = std::fs::copy(&db_path, backup_path);
+        }
+    }
+
+    let user_id = acc.token.user_id.clone().unwrap_or_else(|| acc.id.clone());
+    db::write_cursor_auth_state(
+        &db_path,
+        &acc.token.access_token,
+        &acc.token.refresh_token,
+        &acc.email,
+        &user_id,
+    )?;
+
+    // 7. 使用新机器码重置
+    let reset_result = machine::complete_reset_with_machine_info(custom_path.as_deref(), &machine_info)?;
+
+    // 8. 更新为当前账号
+    storage::set_current_account_id(&app, Some(account_id.clone())).await?;
+
+    // 9. 更新最后使用时间
+    acc.update_last_used();
+    storage::save_account(&app, &acc).await?;
+
+    // 不启动 Cursor，不刷新 token（类似使用绑定机器码切换的逻辑）
+
+    Ok(SwitchAccountResponse {
+        message: format!("Machine ID generated and bound to account: {}", acc.email),
+        needs_admin: reset_result.needs_admin,
+    })
+}
+
 /// 获取自定义 Cursor 路径
 #[tauri::command]
 pub async fn cursor_get_custom_path(app: AppHandle) -> Result<Option<String>, String> {
@@ -275,13 +348,57 @@ pub async fn cursor_get_filtered_usage_events(
     auth::get_filtered_usage_events(&session_token, team_id, &start_date, &end_date, page, page_size).await
 }
 
+/// 从 session token 获取用户信息
+/// 前端用于在添加账号前检查邮箱是否存在
+#[tauri::command]
+pub async fn cursor_get_user_info_from_session(
+    session_token: String,
+) -> Result<auth::CursorUserInfo, String> {
+    auth::get_user_info(&session_token).await
+}
+
+/// 刷新已有账号的 token
+/// 使用新的 session_token 更新指定账号的认证信息
+#[tauri::command]
+pub async fn cursor_refresh_account_tokens(
+    app: AppHandle,
+    account_id: String,
+    session_token: String,
+) -> Result<Account, String> {
+    // 1. 加载现有账号
+    let mut account = storage::load_account(&app, &account_id).await?;
+
+    // 2. 获取新的 access token
+    let token_response = auth::get_access_token_from_session(&session_token).await?;
+
+    // 3. 解析过期时间
+    let expiry_timestamp = parse_jwt_exp(&token_response.access_token)
+        .unwrap_or_else(|| chrono::Utc::now().timestamp() + 86400 * 60);
+
+    let session_expiry_timestamp = parse_session_token_exp(&session_token);
+
+    // 4. 更新 token 数据
+    account.token.access_token = token_response.access_token;
+    account.token.refresh_token = token_response.refresh_token.unwrap_or_default();
+    account.token.expiry_timestamp = expiry_timestamp;
+    account.token.workos_cursor_session_token = Some(session_token);
+    account.token.session_expiry_timestamp = session_expiry_timestamp;
+    account.updated_at = chrono::Utc::now().timestamp();
+
+    // 5. 保存更新后的账号
+    storage::save_account(&app, &account).await?;
+
+    Ok(account)
+}
+
 /// 使用 session token 添加账号（自动获取 accessToken）
 ///
 /// 一站式添加账号：传入 session cookie，自动完成：
-/// 1. 获取用户信息
-/// 2. 获取订阅信息
-/// 3. PKCE 流程获取 accessToken
-/// 4. 保存账号
+/// 1. 获取订阅信息
+/// 2. PKCE 流程获取 accessToken
+/// 3. 保存账号
+///
+/// 注意：邮箱重复检查由前端负责
 #[tauri::command]
 pub async fn cursor_add_account_with_session(
     app: AppHandle,
@@ -290,27 +407,17 @@ pub async fn cursor_add_account_with_session(
     // 1. 获取用户信息（使用 session_token + Cookie 认证）
     let user_info = auth::get_user_info(&session_token).await?;
 
-    // 2. 检查邮箱是否已存在
-    let email_to_check = user_info.email.trim().to_lowercase();
-    let existing_accounts = storage::list_accounts(&app).await?;
-
-    if existing_accounts.iter().any(|account| {
-        account.email.trim().to_lowercase() == email_to_check
-    }) {
-        return Err(format!("Account with email '{}' already exists", user_info.email));
-    }
-
-    // 4. 获取 accessToken
+    // 2. 获取 accessToken
     let token_response = auth::get_access_token_from_session(&session_token).await?;
 
     // 5. 解析 JWT 中的过期时间
     let expiry_timestamp = parse_jwt_exp(&token_response.access_token)
         .unwrap_or_else(|| chrono::Utc::now().timestamp() + 86400 * 60); // 默认 60 天
 
-    // 6. 解析 session token 的过期时间
+    // 3. 解析 session token 的过期时间
     let session_expiry_timestamp = parse_session_token_exp(&session_token);
 
-    // 7. 创建 Token 数据
+    // 4. 创建 Token 数据
     let token = TokenData::new(
         token_response.access_token,
         token_response.refresh_token.unwrap_or_default(),
@@ -320,12 +427,12 @@ pub async fn cursor_add_account_with_session(
         session_expiry_timestamp,
     );
 
-    // 8. 创建账号
+    // 5. 创建账号
     let account_id = uuid::Uuid::new_v4().to_string();
     let mut account = Account::new(account_id, user_info.email, token);
     account.name = user_info.name;
 
-    // 9. 保存账号
+    // 6. 保存账号
     storage::save_account(&app, &account).await?;
 
     Ok(account)
@@ -583,4 +690,38 @@ async fn import_account_with_session_token(
     storage::save_account(app, &account).await?;
 
     Ok(account)
+}
+/// 导出账号数据（单个或批量）
+/// 返回 JSON 字符串，格式与导入格式兼容
+#[tauri::command]
+pub async fn cursor_export_accounts(
+    app: AppHandle,
+    account_ids: Option<Vec<String>>,
+) -> Result<String, String> {
+    use crate::cursor::models::ExportAccountData;
+    use serde_json::to_string_pretty;
+
+    // 如果没有指定账号 ID，导出所有账号
+    let accounts = if let Some(ids) = account_ids {
+        // 导出指定账号
+        let mut result = Vec::new();
+        for id in ids {
+            match storage::load_account(&app, &id).await {
+                Ok(acc) => result.push(acc),
+                Err(_) => continue, // 跳过加载失败的账号
+            }
+        }
+        result
+    } else {
+        // 导出所有账号
+        storage::list_accounts(&app).await?
+    };
+
+    // 转换为导出格式
+    let export_data: Vec<ExportAccountData> = accounts.into_iter().map(|acc| {
+        ExportAccountData::from_account(&acc)
+    }).collect();
+
+    to_string_pretty(&export_data)
+        .map_err(|e| format!("Failed to serialize accounts: {}", e))
 }

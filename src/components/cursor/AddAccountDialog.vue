@@ -3,8 +3,8 @@
     :visible="true"
     :title="$t('platform.cursor.addAccountDialog.title')"
     :show-close="true"
-    :close-on-overlay="!isLoading"
-    :close-on-esc="!isLoading"
+    :close-on-overlay="!isLoading && !showConfirmDialog"
+    :close-on-esc="!isLoading && !showConfirmDialog"
     :body-scroll="false"
     modal-class="max-w-[500px]"
     @close="handleClose"
@@ -42,11 +42,27 @@
       {{ error }}
     </div>
 
+    <!-- 覆盖确认对话框 -->
+    <div v-if="showConfirmDialog" class="mt-4 rounded-lg border border-warning/30 bg-warning/10 p-4">
+      <div class="flex items-start gap-3">
+        <svg class="mt-0.5 h-5 w-5 shrink-0 text-warning" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+        </svg>
+        <div class="flex-1">
+          <p class="text-sm font-medium text-text">{{ $t('platform.cursor.addAccountDialog.accountExists') }}</p>
+          <p class="mt-1 text-xs text-text-secondary">
+            {{ $t('platform.cursor.addAccountDialog.accountExistsHint', { email: userInfo?.email }) }}
+          </p>
+        </div>
+      </div>
+    </div>
+
     <template #footer>
       <button @click="handleClose" class="btn btn--secondary" :disabled="isLoading">
-        {{ $t('common.cancel') }}
+        {{ showConfirmDialog ? $t('common.cancel') : $t('common.cancel') }}
       </button>
       <button
+        v-if="!showConfirmDialog"
         @click="handleAdd"
         class="btn btn--primary"
         :disabled="!canSubmit || isLoading"
@@ -54,6 +70,19 @@
         <span class="relative inline-flex items-center justify-center">
           <span :style="{ visibility: isLoading ? 'hidden' : 'visible' }">
             {{ $t('platform.cursor.addAccountDialog.add') }}
+          </span>
+          <span v-if="isLoading" class="btn-spinner absolute inset-0 m-auto" aria-hidden="true"></span>
+        </span>
+      </button>
+      <button
+        v-else
+        @click="handleConfirmAdd"
+        class="btn btn--primary"
+        :disabled="isLoading"
+      >
+        <span class="relative inline-flex items-center justify-center">
+          <span :style="{ visibility: isLoading ? 'hidden' : 'visible' }">
+            {{ $t('platform.cursor.addAccountDialog.overwrite') }}
           </span>
           <span v-if="isLoading" class="btn-spinner absolute inset-0 m-auto" aria-hidden="true"></span>
         </span>
@@ -69,6 +98,15 @@ import { invoke } from '@tauri-apps/api/core'
 import BaseModal from '@/components/common/BaseModal.vue'
 
 const { t: $t } = useI18n()
+
+const props = defineProps({
+  // 现有账号列表，用于检查邮箱重复
+  existingAccounts: {
+    type: Array,
+    default: () => []
+  }
+})
+
 const emit = defineEmits(['close', 'added'])
 
 const handleClose = () => {
@@ -79,10 +117,22 @@ const handleClose = () => {
 const sessionToken = ref('')
 const isLoading = ref(false)
 const error = ref('')
+const showConfirmDialog = ref(false)
+const userInfo = ref(null)
+const existingAccountId = ref(null)
 
 const canSubmit = computed(() => {
   return sessionToken.value.trim().length > 0
 })
+
+// 检查邮箱是否已存在
+const checkEmailExists = (email) => {
+  if (!props.existingAccounts || props.existingAccounts.length === 0) {
+    return null
+  }
+  const normalizedEmail = email.toLowerCase().trim()
+  return props.existingAccounts.find(acc => acc.email.toLowerCase().trim() === normalizedEmail)
+}
 
 const handleAdd = async () => {
   if (!canSubmit.value) return
@@ -91,16 +141,60 @@ const handleAdd = async () => {
   isLoading.value = true
 
   try {
-    // 使用 session token 自动获取 accessToken 并添加账号
+    // 1. 先获取用户信息
+    const info = await invoke('cursor_get_user_info_from_session', {
+      sessionToken: sessionToken.value.trim()
+    })
+    userInfo.value = info
+
+    // 2. 检查邮箱是否已存在
+    const existing = checkEmailExists(info.email)
+    if (existing) {
+      existingAccountId.value = existing.id
+      showConfirmDialog.value = true
+      isLoading.value = false
+      return
+    }
+
+    // 3. 邮箱不存在，直接添加
+    await confirmAddAccount()
+  } catch (err) {
+    console.error('Get user info error:', err)
+    error.value = err?.message || err || $t('platform.cursor.addAccountDialog.addFailed')
+  } finally {
+    if (!showConfirmDialog.value) {
+      isLoading.value = false
+    }
+  }
+}
+
+const handleConfirmAdd = async () => {
+  error.value = ''
+  isLoading.value = true
+
+  try {
+    await confirmAddAccount()
+  } catch (err) {
+    console.error('Confirm add error:', err)
+    error.value = err?.message || err || $t('platform.cursor.addAccountDialog.addFailed')
+    isLoading.value = false
+  }
+}
+
+const confirmAddAccount = async () => {
+  if (existingAccountId.value) {
+    // 覆盖已有账号的 token
+    const account = await invoke('cursor_refresh_account_tokens', {
+      accountId: existingAccountId.value,
+      sessionToken: sessionToken.value.trim()
+    })
+    emit('added', account)
+  } else {
+    // 添加新账号
     const account = await invoke('cursor_add_account_with_session', {
       sessionToken: sessionToken.value.trim()
     })
     emit('added', account)
-  } catch (err) {
-    console.error('Add account error:', err)
-    error.value = err?.message || err || $t('platform.cursor.addAccountDialog.addFailed')
-  } finally {
-    isLoading.value = false
   }
 }
 </script>
@@ -121,4 +215,3 @@ const handleAdd = async () => {
   }
 }
 </style>
-
