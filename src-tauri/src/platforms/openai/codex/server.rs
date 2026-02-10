@@ -124,6 +124,13 @@ async fn handle_passthrough(
     let request_format = infer_request_format(&path).to_string();
     let request_model = extract_model_from_json_bytes(&body).unwrap_or_else(|| "unknown".to_string());
 
+    let (body, stream_forced) = if request_format == "openai-responses" {
+        let result = normalize_responses_body(&body);
+        (result.body.unwrap_or(body), result.stream_forced)
+    } else {
+        (body, false)
+    };
+
     let forward_request = ForwardRequest {
         method,
         path: path.clone(),
@@ -171,6 +178,22 @@ async fn handle_passthrough(
     }
 
     if is_event_stream(&upstream_headers) {
+        // 客户端原本不要流式 → 收集 SSE 流，提取最终响应对象以 JSON 返回
+        if stream_forced {
+            let response = destream_responses_sse(
+                upstream_status,
+                upstream_response,
+                pool,
+                logger,
+                storage,
+                meta,
+                request_model,
+            )
+            .await
+            .map_err(|e| warp::reject::custom(CodexRejection::InternalError(e)))?;
+            return Ok(Box::new(response) as Box<dyn Reply>);
+        }
+
         let response = build_streaming_response_with_metrics(
             upstream_status,
             &upstream_headers,
@@ -234,6 +257,139 @@ async fn handle_passthrough(
         .map_err(|e| warp::reject::custom(CodexRejection::InternalError(e.to_string())))?;
 
     Ok(Box::new(response) as Box<dyn Reply>)
+}
+
+/// 收集上游 SSE 流，提取 response.completed 事件中的完整响应对象，
+/// 以普通 JSON 返回给不需要流式的客户端。
+async fn destream_responses_sse(
+    status: StatusCode,
+    response: reqwest::Response,
+    pool: Arc<CodexPool>,
+    logger: Arc<RwLock<RequestLogger>>,
+    storage: Option<Arc<CodexLogStorage>>,
+    meta: ForwardMeta,
+    request_model: String,
+) -> Result<Response<Body>, String> {
+    let mut stream = response.bytes_stream();
+    let mut extractor = SseMetricsExtractor::default();
+    let mut all_data = String::new();
+
+    while let Some(chunk) = stream.next().await {
+        match chunk {
+            Ok(bytes) => {
+                extractor.ingest_chunk(&bytes);
+                all_data.push_str(&String::from_utf8_lossy(&bytes));
+            }
+            Err(err) => {
+                let err_text = format!("Failed to read upstream stream: {}", err);
+                pool.record_failure(&meta.account_id, None).await;
+                return Err(err_text);
+            }
+        }
+    }
+    extractor.finish();
+
+    // 记录 usage
+    let usage = extractor.usage;
+    if status.is_success() && usage.total_tokens > 0 {
+        pool.record_usage(&meta.account_id, usage.total_tokens).await;
+    }
+
+    let log_model = if request_model == "unknown" {
+        extractor.model.clone().unwrap_or(request_model.clone())
+    } else {
+        request_model.clone()
+    };
+    let error_message = if status.is_success() {
+        None
+    } else {
+        extractor.error_message.clone()
+    };
+    let log = build_request_log(
+        &meta,
+        log_model,
+        if status.is_success() { "success" } else { "error" },
+        usage,
+        error_message,
+    );
+    record_log(logger, storage, log).await;
+
+    // 从 SSE 事件中提取 response.completed 的 response 对象
+    let response_json = extract_completed_response(&all_data)
+        .unwrap_or_else(|| json!({"error": "Failed to extract response from SSE stream"}));
+
+    let body_bytes = serde_json::to_vec(&response_json)
+        .map_err(|e| format!("Failed to serialize response: {}", e))?;
+
+    Response::builder()
+        .status(status)
+        .header("content-type", "application/json")
+        .body(Body::from(body_bytes))
+        .map_err(|e| format!("Failed to build destreamed response: {}", e))
+}
+
+/// 从 SSE 文本中提取 response.completed 事件的 response 对象
+fn extract_completed_response(sse_text: &str) -> Option<Value> {
+    // 按双换行分割事件块
+    for block in sse_text.split("\n\n") {
+        let mut event_type = None;
+        let mut data_lines = Vec::new();
+
+        for line in block.lines() {
+            let line = line.trim_start();
+            if let Some(rest) = line.strip_prefix("event:") {
+                event_type = Some(rest.trim());
+            } else if let Some(rest) = line.strip_prefix("data:") {
+                data_lines.push(rest.trim_start());
+            }
+        }
+
+        // 查找 response.completed 事件
+        if event_type == Some("response.completed") || event_type == Some("response.done") {
+            if data_lines.is_empty() {
+                continue;
+            }
+            let data = data_lines.join("\n");
+            if let Ok(value) = serde_json::from_str::<Value>(&data) {
+                // response.completed 事件的 data 中有 response 字段
+                if let Some(resp) = value.get("response").cloned() {
+                    return Some(resp);
+                }
+                // 如果没有 response 字段，整个 data 可能就是响应
+                return Some(value);
+            }
+        }
+    }
+
+    // 也尝试 \r\n\r\n 分割
+    for block in sse_text.split("\r\n\r\n") {
+        let mut event_type = None;
+        let mut data_lines = Vec::new();
+
+        for line in block.lines() {
+            let line = line.trim_start();
+            if let Some(rest) = line.strip_prefix("event:") {
+                event_type = Some(rest.trim());
+            } else if let Some(rest) = line.strip_prefix("data:") {
+                data_lines.push(rest.trim_start());
+            }
+        }
+
+        if event_type == Some("response.completed") || event_type == Some("response.done") {
+            if data_lines.is_empty() {
+                continue;
+            }
+            let data = data_lines.join("\n");
+            if let Ok(value) = serde_json::from_str::<Value>(&data) {
+                if let Some(resp) = value.get("response").cloned() {
+                    return Some(resp);
+                }
+                return Some(value);
+            }
+        }
+    }
+
+    None
 }
 
 fn build_streaming_response_with_metrics(
@@ -490,6 +646,80 @@ fn infer_request_format(path: &str) -> &'static str {
     } else {
         "passthrough"
     }
+}
+
+/// 规范化 Responses API 请求体的结果
+struct NormalizeResult {
+    /// 规范化后的 body（None 表示无需修改）
+    body: Option<Bytes>,
+    /// 是否强制将 stream 从 false/缺失 改为 true
+    stream_forced: bool,
+}
+
+/// 规范化 Responses API 请求体，使其兼容 ChatGPT Codex 后端：
+/// - 将字符串 `input` 转换为消息对象数组
+/// - 补充缺失的 `instructions` 字段
+/// - 移除不支持的参数
+/// - 强制 `stream: true`
+fn normalize_responses_body(body: &Bytes) -> NormalizeResult {
+    let Some(mut root) = serde_json::from_slice::<Value>(body).ok() else {
+        return NormalizeResult { body: None, stream_forced: false };
+    };
+    let Some(obj) = root.as_object_mut() else {
+        return NormalizeResult { body: None, stream_forced: false };
+    };
+    let mut modified = false;
+    let mut stream_forced = false;
+
+    // input 字符串 → 数组
+    if let Some(input) = obj.get("input") {
+        if let Some(text) = input.as_str() {
+            let text = text.to_string();
+            obj.insert(
+                "input".to_string(),
+                json!([{
+                    "role": "user",
+                    "content": [{"type": "input_text", "text": text}]
+                }]),
+            );
+            modified = true;
+        }
+    }
+
+    // 补充缺失的 instructions
+    if !obj.contains_key("instructions") {
+        obj.insert(
+            "instructions".to_string(),
+            json!("You are a helpful assistant."),
+        );
+        modified = true;
+    }
+
+    // 移除 ChatGPT Codex 后端不支持的参数
+    const UNSUPPORTED_PARAMS: &[&str] = &["max_output_tokens"];
+    for key in UNSUPPORTED_PARAMS {
+        if obj.remove(*key).is_some() {
+            modified = true;
+        }
+    }
+
+    // ChatGPT Codex 后端要求 stream 必须为 true
+    match obj.get("stream") {
+        Some(v) if v.as_bool() == Some(true) => {}
+        _ => {
+            obj.insert("stream".to_string(), json!(true));
+            stream_forced = true;
+            modified = true;
+        }
+    }
+
+    let new_body = if modified {
+        serde_json::to_vec(&root).ok().map(Bytes::from)
+    } else {
+        None
+    };
+
+    NormalizeResult { body: new_body, stream_forced }
 }
 
 fn extract_model_from_json_bytes(body: &Bytes) -> Option<String> {

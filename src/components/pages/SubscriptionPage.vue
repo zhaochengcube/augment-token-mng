@@ -417,7 +417,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick, toRefs, watch } from 'vue'
+import { ref, computed, onMounted, nextTick, toRefs } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { invoke } from '@tauri-apps/api/core'
 import { useStorageSync } from '@/composables/useStorageSync'
@@ -705,9 +705,7 @@ const setSortType = (type, order) => {
 const loadSubscriptions = async () => {
   isLoading.value = true
   try {
-    initSync()
-    // 从后端加载订阅列表
-    const response = await invoke('subscription_list')
+    const response = await invoke('subscription_load_local')
     subscriptions.value = response?.subscriptions || []
   } catch (error) {
     console.error('Failed to load subscriptions:', error)
@@ -721,9 +719,7 @@ const loadSubscriptions = async () => {
 const handleRefresh = async () => {
   isRefreshing.value = true
   try {
-    await initSync()
-    const response = await invoke('subscription_list')
-    subscriptions.value = response?.subscriptions || []
+    await loadSubscriptions()
     window.$notify?.success($t('common.refreshSuccess'))
   } catch (error) {
     console.error('Failed to refresh subscriptions:', error)
@@ -981,8 +977,9 @@ const handleSubscriptionUpdated = async (updatedSubscription) => {
 }
 
 // 初始化
-onMounted(async () => {
+onMounted(() => {
   loadViewMode()
   loadSubscriptions()
+  initSync()
 })
 </script>

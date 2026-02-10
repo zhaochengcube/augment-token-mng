@@ -5,6 +5,7 @@ pub use mapper::*;
 pub use traits::*;
 
 use crate::AppState;
+use crate::data::storage::common::AccountStorage as CommonAccountStorage;
 use crate::data::storage::common::{
     GenericDualStorage, GenericLocalStorage, GenericPostgreSQLStorage,
 };
@@ -19,6 +20,26 @@ pub struct AccountListResponse {
     pub accounts: Vec<Account>,
 }
 
+async fn get_claude_storage_manager(
+    app: &tauri::AppHandle,
+    state: &State<'_, AppState>,
+) -> Result<Arc<ClaudeDualStorage>, String> {
+    if let Some(manager) = state.claude_storage_manager.lock().unwrap().clone() {
+        return Ok(manager);
+    }
+
+    initialize_claude_storage_manager(app, state)
+        .await
+        .map_err(|e| format!("Failed to initialize Claude storage manager: {}", e))?;
+
+    state
+        .claude_storage_manager
+        .lock()
+        .unwrap()
+        .clone()
+        .ok_or("Claude storage manager not initialized".to_string())
+}
+
 /// Claude 本地存储类型别名
 pub type ClaudeLocalStorage = GenericLocalStorage<Account>;
 
@@ -30,13 +51,11 @@ pub type ClaudeDualStorage = GenericDualStorage<Account, ClaudeAccountMapper>;
 
 /// 列出所有 Claude 账户
 #[tauri::command]
-pub async fn claude_list(state: State<'_, AppState>) -> Result<AccountListResponse, String> {
-    let storage_manager = {
-        let guard = state.claude_storage_manager.lock().unwrap();
-        guard
-            .clone()
-            .ok_or("Claude storage manager not initialized")?
-    };
+pub async fn claude_list(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<AccountListResponse, String> {
+    let storage_manager = get_claude_storage_manager(&app, &state).await?;
 
     let accounts = storage_manager
         .load_accounts()
@@ -44,6 +63,24 @@ pub async fn claude_list(state: State<'_, AppState>) -> Result<AccountListRespon
         .map_err(|e| format!("Failed to load accounts: {}", e))?;
 
     // 过滤掉已删除的
+    let active_accounts: Vec<Account> = accounts.into_iter().filter(|a| !a.deleted).collect();
+
+    Ok(AccountListResponse {
+        accounts: active_accounts,
+    })
+}
+
+/// 直接从本地文件加载 Claude 账户（不依赖 storage manager 初始化）
+#[tauri::command]
+pub async fn claude_load_accounts_local(app: tauri::AppHandle) -> Result<AccountListResponse, String> {
+    let local_storage = ClaudeLocalStorage::new(&app)
+        .map_err(|e| format!("Failed to create Claude local storage: {}", e))?;
+
+    let accounts = local_storage
+        .load_accounts()
+        .await
+        .map_err(|e| format!("Failed to load Claude local accounts: {}", e))?;
+
     let active_accounts: Vec<Account> = accounts.into_iter().filter(|a| !a.deleted).collect();
 
     Ok(AccountListResponse {
@@ -333,12 +370,7 @@ pub async fn claude_get_current_account_id(
         .ok_or_else(|| "Missing ANTHROPIC_AUTH_TOKEN in settings.json".to_string())?;
 
     // 从存储管理器获取所有账户并查找匹配的
-    let storage_manager = {
-        let guard = state.claude_storage_manager.lock().unwrap();
-        guard
-            .clone()
-            .ok_or("Claude storage manager not initialized")?
-    };
+    let storage_manager = get_claude_storage_manager(&app, &state).await?;
 
     let accounts = storage_manager
         .load_accounts()

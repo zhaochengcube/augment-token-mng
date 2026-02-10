@@ -661,12 +661,14 @@ pub fn run() {
             data::subscription::subscription_sync_from_database,
             data::subscription::subscription_bidirectional_sync,
             // 订阅 CRUD 命令
+            data::subscription::subscription_load_local,
             data::subscription::subscription_list,
             data::subscription::subscription_add,
             data::subscription::subscription_update,
             data::subscription::subscription_delete,
 
             // Claude 账户管理命令
+            storage::claude::claude_load_accounts_local,
             storage::claude::claude_list,
             storage::claude::claude_add,
             storage::claude::claude_update,
