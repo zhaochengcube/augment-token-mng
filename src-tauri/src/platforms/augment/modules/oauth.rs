@@ -1,4 +1,4 @@
-use base64::{engine::general_purpose, Engine as _};
+use base64::{Engine as _, engine::general_purpose};
 use rand::Rng;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
@@ -6,15 +6,12 @@ use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 use url::Url;
 
-use crate::http_client::create_proxy_client;
 use crate::AppState;
-use crate::platforms::augment::models::{
-    AugmentOAuthState,
-    AugmentTokenResponse,
-    ParsedCode,
-    TokenFromSessionResponse,
-};
+use crate::http_client::create_proxy_client;
 use crate::platforms::augment::account::get_models;
+use crate::platforms::augment::models::{
+    AugmentOAuthState, AugmentTokenResponse, ParsedCode, TokenFromSessionResponse,
+};
 
 const CLIENT_ID: &str = "v";
 const AUTH_BASE_URL: &str = "https://auth.augmentcode.com";
@@ -69,7 +66,9 @@ pub fn create_augment_oauth_state() -> AugmentOAuthState {
 }
 
 /// Generate OAuth authorization URL
-pub fn generate_augment_authorize_url(oauth_state: &AugmentOAuthState) -> Result<String, Box<dyn std::error::Error>> {
+pub fn generate_augment_authorize_url(
+    oauth_state: &AugmentOAuthState,
+) -> Result<String, Box<dyn std::error::Error>> {
     let mut url = Url::parse(&format!("{}/authorize", AUTH_BASE_URL))?;
 
     url.query_pairs_mut()
@@ -157,7 +156,10 @@ async fn get_auth_continue_with_cookie(
     let response = client
         .get(url.as_str())
         .header("Cookie", format!("session={}", session))
-        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+        .header(
+            "User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        )
         .send()
         .await
         .map_err(|e| format!("Failed to fetch auth continue: {}", e))?;
@@ -194,11 +196,7 @@ pub async fn get_augment_access_token(
     data.insert("code", code);
 
     let token_url = format!("{}token", tenant_url);
-    let response = client
-        .post(&token_url)
-        .json(&data)
-        .send()
-        .await?;
+    let response = client.post(&token_url).json(&data).send().await?;
 
     let token_response: TokenApiResponse = response.json().await?;
     Ok(token_response.access_token)
@@ -215,7 +213,8 @@ pub async fn complete_augment_oauth_flow(
         &parsed_code.tenant_url,
         &oauth_state.code_verifier,
         &parsed_code.code,
-    ).await?;
+    )
+    .await?;
 
     // 获取用户邮箱
     let email = match get_models(&token, &parsed_code.tenant_url).await {
@@ -239,7 +238,8 @@ pub async fn extract_token_from_session(session: &str) -> Result<AugmentTokenRes
     let code_challenge = base64_url_encode(&sha256_hash(code_verifier.as_bytes()));
     let state = generate_random_string(42);
 
-    let (html, _new_session) = get_auth_continue_with_cookie(session, &code_challenge, &state).await?;
+    let (html, _new_session) =
+        get_auth_continue_with_cookie(session, &code_challenge, &state).await?;
 
     let (code, parsed_state, tenant_url, email) = match parse_auth_data_from_initial_state(&html) {
         Ok(data) => data,
@@ -309,7 +309,9 @@ pub async fn add_token_from_session_internal_with_cache(
 
 // 内部函数,不发送进度事件（保留用于向后兼容）
 #[allow(dead_code)]
-pub async fn add_token_from_session_internal(session: &str) -> Result<TokenFromSessionResponse, String> {
+pub async fn add_token_from_session_internal(
+    session: &str,
+) -> Result<TokenFromSessionResponse, String> {
     let token_response = extract_token_from_session(session).await?;
 
     Ok(TokenFromSessionResponse {
@@ -319,11 +321,8 @@ pub async fn add_token_from_session_internal(session: &str) -> Result<TokenFromS
     })
 }
 
-
 /// 刷新 auth_session（返回新的 session）
-pub async fn refresh_auth_session(
-    existing_session: &str
-) -> Result<String, String> {
+pub async fn refresh_auth_session(existing_session: &str) -> Result<String, String> {
     let code_verifier = generate_random_string(32);
     let code_challenge = base64_url_encode(&sha256_hash(code_verifier.as_bytes()));
     let state = generate_random_string(42);
@@ -343,9 +342,7 @@ pub async fn refresh_auth_session(
 }
 
 /// 从响应头中提取 session cookie
-fn extract_session_from_response(
-    response: &reqwest::Response
-) -> Result<String, String> {
+fn extract_session_from_response(response: &reqwest::Response) -> Result<String, String> {
     let cookies = response.headers().get_all("set-cookie");
 
     for cookie in cookies {

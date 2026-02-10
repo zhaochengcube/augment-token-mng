@@ -69,4 +69,3 @@ pub async fn get_emails(email: String) -> Result<GetEmailsResponse, String> {
 
     Ok(data)
 }
-

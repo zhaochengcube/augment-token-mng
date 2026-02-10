@@ -1,17 +1,17 @@
-pub mod traits;
 pub mod mapper;
+pub mod traits;
 
-pub use traits::*;
 pub use mapper::*;
+pub use traits::*;
 
+use crate::AppState;
 use crate::data::storage::common::{
-    GenericLocalStorage, GenericPostgreSQLStorage, GenericDualStorage,
+    GenericDualStorage, GenericLocalStorage, GenericPostgreSQLStorage,
 };
 use crate::platforms::claude::Account;
-use crate::AppState;
-use std::sync::Arc;
-use tauri::{State, Manager};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use tauri::{Manager, State};
 
 /// Claude 账户列表响应
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -30,12 +30,12 @@ pub type ClaudeDualStorage = GenericDualStorage<Account, ClaudeAccountMapper>;
 
 /// 列出所有 Claude 账户
 #[tauri::command]
-pub async fn claude_list(
-    state: State<'_, AppState>,
-) -> Result<AccountListResponse, String> {
+pub async fn claude_list(state: State<'_, AppState>) -> Result<AccountListResponse, String> {
     let storage_manager = {
         let guard = state.claude_storage_manager.lock().unwrap();
-        guard.clone().ok_or("Claude storage manager not initialized")?
+        guard
+            .clone()
+            .ok_or("Claude storage manager not initialized")?
     };
 
     let accounts = storage_manager
@@ -44,10 +44,7 @@ pub async fn claude_list(
         .map_err(|e| format!("Failed to load accounts: {}", e))?;
 
     // 过滤掉已删除的
-    let active_accounts: Vec<Account> = accounts
-        .into_iter()
-        .filter(|a| !a.deleted)
-        .collect();
+    let active_accounts: Vec<Account> = accounts.into_iter().filter(|a| !a.deleted).collect();
 
     Ok(AccountListResponse {
         accounts: active_accounts,
@@ -56,13 +53,12 @@ pub async fn claude_list(
 
 /// 添加 Claude 账户
 #[tauri::command]
-pub async fn claude_add(
-    account: Account,
-    state: State<'_, AppState>,
-) -> Result<Account, String> {
+pub async fn claude_add(account: Account, state: State<'_, AppState>) -> Result<Account, String> {
     let storage_manager = {
         let guard = state.claude_storage_manager.lock().unwrap();
-        guard.clone().ok_or("Claude storage manager not initialized")?
+        guard
+            .clone()
+            .ok_or("Claude storage manager not initialized")?
     };
 
     storage_manager
@@ -81,7 +77,9 @@ pub async fn claude_update(
 ) -> Result<Account, String> {
     let storage_manager = {
         let guard = state.claude_storage_manager.lock().unwrap();
-        guard.clone().ok_or("Claude storage manager not initialized")?
+        guard
+            .clone()
+            .ok_or("Claude storage manager not initialized")?
     };
 
     storage_manager
@@ -94,13 +92,12 @@ pub async fn claude_update(
 
 /// 删除 Claude 账户
 #[tauri::command]
-pub async fn claude_delete(
-    id: String,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
+pub async fn claude_delete(id: String, state: State<'_, AppState>) -> Result<(), String> {
     let storage_manager = {
         let guard = state.claude_storage_manager.lock().unwrap();
-        guard.clone().ok_or("Claude storage manager not initialized")?
+        guard
+            .clone()
+            .ok_or("Claude storage manager not initialized")?
     };
 
     storage_manager
@@ -117,10 +114,14 @@ pub async fn claude_sync_accounts_to_database(
 ) -> Result<AccountSyncStatus, String> {
     let storage_manager = {
         let guard = state.claude_storage_manager.lock().unwrap();
-        guard.clone().ok_or("Claude storage manager not initialized")?
+        guard
+            .clone()
+            .ok_or("Claude storage manager not initialized")?
     };
 
-    storage_manager.sync_local_to_remote().await
+    storage_manager
+        .sync_local_to_remote()
+        .await
         .map_err(|e| format!("Sync failed: {}", e))
 }
 
@@ -130,10 +131,14 @@ pub async fn claude_sync_accounts_from_database(
 ) -> Result<AccountSyncStatus, String> {
     let storage_manager = {
         let guard = state.claude_storage_manager.lock().unwrap();
-        guard.clone().ok_or("Claude storage manager not initialized")?
+        guard
+            .clone()
+            .ok_or("Claude storage manager not initialized")?
     };
 
-    storage_manager.sync_remote_to_local().await
+    storage_manager
+        .sync_remote_to_local()
+        .await
         .map_err(|e| format!("Sync failed: {}", e))
 }
 
@@ -143,10 +148,14 @@ pub async fn claude_bidirectional_sync_accounts(
 ) -> Result<AccountSyncStatus, String> {
     let storage_manager = {
         let guard = state.claude_storage_manager.lock().unwrap();
-        guard.clone().ok_or("Claude storage manager not initialized")?
+        guard
+            .clone()
+            .ok_or("Claude storage manager not initialized")?
     };
 
-    storage_manager.bidirectional_sync().await
+    storage_manager
+        .bidirectional_sync()
+        .await
         .map_err(|e| format!("Sync failed: {}", e))
 }
 
@@ -157,13 +166,17 @@ pub async fn claude_sync_accounts(
 ) -> Result<ServerAccountSyncResponse<Account>, String> {
     let storage_manager = {
         let guard = state.claude_storage_manager.lock().unwrap();
-        guard.clone().ok_or("Claude storage manager not initialized")?
+        guard
+            .clone()
+            .ok_or("Claude storage manager not initialized")?
     };
 
     let req: ClientAccountSyncRequest<Account> = serde_json::from_str(&req_json)
         .map_err(|e| format!("Failed to parse sync request: {}", e))?;
 
-    storage_manager.sync_accounts(req).await
+    storage_manager
+        .sync_accounts(req)
+        .await
         .map_err(|e| format!("Sync failed: {}", e))
 }
 
@@ -173,10 +186,14 @@ pub async fn claude_get_sync_status(
 ) -> Result<Option<AccountSyncStatus>, String> {
     let storage_manager = {
         let guard = state.claude_storage_manager.lock().unwrap();
-        guard.clone().ok_or("Claude storage manager not initialized")?
+        guard
+            .clone()
+            .ok_or("Claude storage manager not initialized")?
     };
 
-    storage_manager.get_sync_status().await
+    storage_manager
+        .get_sync_status()
+        .await
         .map_err(|e| format!("Failed to get sync status: {}", e))
 }
 
@@ -217,7 +234,9 @@ pub async fn claude_switch_account(
     // 获取存储管理器
     let storage_manager = {
         let guard = state.claude_storage_manager.lock().unwrap();
-        guard.clone().ok_or("Claude storage manager not initialized")?
+        guard
+            .clone()
+            .ok_or("Claude storage manager not initialized")?
     };
 
     // 获取所有账户
@@ -254,7 +273,9 @@ pub async fn claude_switch_account(
         .map_err(|e| format!("Failed to serialize settings.json: {}", e))?;
 
     // 获取用户主目录并构造 .claude 路径
-    let home_dir = app.path().home_dir()
+    let home_dir = app
+        .path()
+        .home_dir()
         .map_err(|e| format!("Failed to get home directory: {}", e))?;
 
     let claude_dir = home_dir.join(".claude");
@@ -274,7 +295,11 @@ pub async fn claude_switch_account(
     std::fs::write(&settings_file, content)
         .map_err(|e| format!("Failed to write settings.json: {}", e))?;
 
-    println!("Claude account switched: {} -> {}", account.service_name, settings_file.display());
+    println!(
+        "Claude account switched: {} -> {}",
+        account.service_name,
+        settings_file.display()
+    );
 
     Ok(())
 }
@@ -285,7 +310,9 @@ pub async fn claude_get_current_account_id(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<Option<String>, String> {
-    let home_dir = app.path().home_dir()
+    let home_dir = app
+        .path()
+        .home_dir()
         .map_err(|e| format!("Failed to get home directory: {}", e))?;
 
     let settings_file = home_dir.join(".claude").join("settings.json");
@@ -308,7 +335,9 @@ pub async fn claude_get_current_account_id(
     // 从存储管理器获取所有账户并查找匹配的
     let storage_manager = {
         let guard = state.claude_storage_manager.lock().unwrap();
-        guard.clone().ok_or("Claude storage manager not initialized")?
+        guard
+            .clone()
+            .ok_or("Claude storage manager not initialized")?
     };
 
     let accounts = storage_manager

@@ -47,7 +47,10 @@ where
         self.local_storage.get_current_account_id().await
     }
 
-    pub async fn set_current_account_id(&self, account_id: Option<String>) -> Result<(), StorageError> {
+    pub async fn set_current_account_id(
+        &self,
+        account_id: Option<String>,
+    ) -> Result<(), StorageError> {
         self.local_storage.set_current_account_id(account_id).await
     }
 
@@ -190,8 +193,16 @@ where
 
         let remote_accounts = postgres.load_accounts().await?;
         let remote_accounts_len = remote_accounts.len();
-        let current_account_id = self.local_storage.get_current_account_id().await.ok().flatten();
-        let deletions = postgres.load_tombstones_since_version(0).await.unwrap_or_default();
+        let current_account_id = self
+            .local_storage
+            .get_current_account_id()
+            .await
+            .ok()
+            .flatten();
+        let deletions = postgres
+            .load_tombstones_since_version(0)
+            .await
+            .unwrap_or_default();
         let new_version = postgres.get_max_version().await.unwrap_or(0);
 
         let selected_current = if let Some(id) = current_account_id {
@@ -336,12 +347,20 @@ where
             if let Ok(Some(existing)) = postgres.get_account(account.id()).await {
                 if account.updated_at() > existing.updated_at() {
                     if let Err(e) = postgres.save_account_with_version(account).await {
-                        eprintln!("Failed to save account {} to postgres: {:?}", account.id(), e);
+                        eprintln!(
+                            "Failed to save account {} to postgres: {:?}",
+                            account.id(),
+                            e
+                        );
                     }
                 }
             } else {
                 if let Err(e) = postgres.save_account_with_version(account).await {
-                    eprintln!("Failed to save account {} to postgres: {:?}", account.id(), e);
+                    eprintln!(
+                        "Failed to save account {} to postgres: {:?}",
+                        account.id(),
+                        e
+                    );
                 }
             }
         }
@@ -349,7 +368,10 @@ where
         // 处理删除
         for deletion in &req.deletions {
             if let Err(e) = postgres.delete_account_with_tombstone(&deletion.id).await {
-                eprintln!("Failed to delete account {} from postgres: {:?}", deletion.id, e);
+                eprintln!(
+                    "Failed to delete account {} from postgres: {:?}",
+                    deletion.id, e
+                );
             }
         }
 
@@ -357,14 +379,23 @@ where
         let server_upserts = match postgres.load_accounts_since_version(req.last_version).await {
             Ok(upserts) => upserts,
             Err(e) => {
-                eprintln!("Failed to load accounts since version {}: {:?}", req.last_version, e);
+                eprintln!(
+                    "Failed to load accounts since version {}: {:?}",
+                    req.last_version, e
+                );
                 return Err(e);
             }
         };
-        let server_deletions = match postgres.load_tombstones_since_version(req.last_version).await {
+        let server_deletions = match postgres
+            .load_tombstones_since_version(req.last_version)
+            .await
+        {
             Ok(deletions) => deletions,
             Err(e) => {
-                eprintln!("Failed to load tombstones since version {}: {:?}", req.last_version, e);
+                eprintln!(
+                    "Failed to load tombstones since version {}: {:?}",
+                    req.last_version, e
+                );
                 return Err(e);
             }
         };
@@ -388,7 +419,12 @@ where
             .load_tombstones_since_version(0)
             .await
             .unwrap_or_default();
-        let current_account_id = self.local_storage.get_current_account_id().await.ok().flatten();
+        let current_account_id = self
+            .local_storage
+            .get_current_account_id()
+            .await
+            .ok()
+            .flatten();
         let selected_current = if let Some(id) = current_account_id {
             if all_accounts.iter().any(|a| a.id() == id) {
                 Some(id)

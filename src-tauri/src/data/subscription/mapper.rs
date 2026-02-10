@@ -50,7 +50,10 @@ impl AccountDbMapper<Subscription> for SubscriptionMapper {
         "#
     }
 
-    fn to_params(subscription: &Subscription, version: i64) -> Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> {
+    fn to_params(
+        subscription: &Subscription,
+        version: i64,
+    ) -> Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> {
         vec![
             Box::new(subscription.id.clone()),
             Box::new(subscription.website.clone()),
@@ -69,4 +72,3 @@ impl AccountDbMapper<Subscription> for SubscriptionMapper {
         ]
     }
 }
-

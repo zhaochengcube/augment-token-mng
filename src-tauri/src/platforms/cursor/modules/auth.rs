@@ -1,10 +1,10 @@
 //! Cursor 认证模块
 
 use crate::http_client::create_proxy_client;
-use serde::{Deserialize, Serialize};
-use sha2::{Sha256, Digest};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use rand::RngCore;
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 /// Cursor 用户信息响应
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -132,7 +132,10 @@ pub async fn get_user_info(session_token: &str) -> Result<CursorUserInfo, String
 
     let response = client
         .get("https://cursor.com/api/auth/me")
-        .header("Cookie", format!("WorkosCursorSessionToken={}", session_token))
+        .header(
+            "Cookie",
+            format!("WorkosCursorSessionToken={}", session_token),
+        )
         .header("Accept", "*/*")
         .timeout(std::time::Duration::from_secs(30))
         .send()
@@ -140,11 +143,16 @@ pub async fn get_user_info(session_token: &str) -> Result<CursorUserInfo, String
         .map_err(|e| format!("User info request failed: {}", e))?;
 
     let status_code = response.status().as_u16();
-    let body = response.text().await
+    let body = response
+        .text()
+        .await
         .map_err(|e| format!("Failed to read response body: {}", e))?;
 
     if status_code != 200 {
-        return Err(format!("Get user info failed (HTTP {}): {}", status_code, body));
+        return Err(format!(
+            "Get user info failed (HTTP {}): {}",
+            status_code, body
+        ));
     }
 
     // 解析响应 JSON
@@ -152,8 +160,12 @@ pub async fn get_user_info(session_token: &str) -> Result<CursorUserInfo, String
         .map_err(|e| format!("Failed to parse auth/me response: {}", e))?;
 
     // 提取 user_id：优先使用 sub 字段，否则使用 id
-    let user_id = auth_me.sub
-        .unwrap_or_else(|| auth_me.id.map(|i| i.to_string()).unwrap_or_else(|| "unknown".to_string()));
+    let user_id = auth_me.sub.unwrap_or_else(|| {
+        auth_me
+            .id
+            .map(|i| i.to_string())
+            .unwrap_or_else(|| "unknown".to_string())
+    });
 
     Ok(CursorUserInfo {
         id: user_id,
@@ -168,7 +180,10 @@ pub async fn get_subscription_info(session_token: &str) -> Result<SubscriptionIn
 
     let response = client
         .get("https://cursor.com/api/auth/stripe")
-        .header("Cookie", format!("WorkosCursorSessionToken={}", session_token))
+        .header(
+            "Cookie",
+            format!("WorkosCursorSessionToken={}", session_token),
+        )
         .header("Accept", "*/*")
         .timeout(std::time::Duration::from_secs(30))
         .send()
@@ -178,7 +193,9 @@ pub async fn get_subscription_info(session_token: &str) -> Result<SubscriptionIn
     let status = response.status();
 
     if status.is_success() {
-        let body = response.text().await
+        let body = response
+            .text()
+            .await
             .map_err(|e| format!("Failed to read response: {}", e))?;
 
         serde_json::from_str::<SubscriptionInfo>(&body)
@@ -220,7 +237,10 @@ pub async fn get_aggregated_usage_data(
 
     let response = client
         .post("https://cursor.com/api/dashboard/get-aggregated-usage-events")
-        .header("Cookie", format!("WorkosCursorSessionToken={}", workos_session_token))
+        .header(
+            "Cookie",
+            format!("WorkosCursorSessionToken={}", workos_session_token),
+        )
         .header("Accept", "*/*")
         .header("Content-Type", "application/json")
         .header("Origin", "https://cursor.com")
@@ -232,7 +252,9 @@ pub async fn get_aggregated_usage_data(
         .map_err(|e| format!("Aggregated usage request failed: {}", e))?;
 
     if response.status().is_success() {
-        let body = response.text().await
+        let body = response
+            .text()
+            .await
             .map_err(|e| format!("Failed to read response: {}", e))?;
 
         if let Ok(json_data) = serde_json::from_str::<serde_json::Value>(&body) {
@@ -243,11 +265,30 @@ pub async fn get_aggregated_usage_data(
                     if let Some(model_intent) = agg.get("modelIntent").and_then(|v| v.as_str()) {
                         let model_usage = ModelUsage {
                             model_intent: model_intent.to_string(),
-                            input_tokens: agg.get("inputTokens").and_then(|v| v.as_str()).unwrap_or("0").to_string(),
-                            output_tokens: agg.get("outputTokens").and_then(|v| v.as_str()).unwrap_or("0").to_string(),
-                            cache_write_tokens: agg.get("cacheWriteTokens").and_then(|v| v.as_str()).unwrap_or("0").to_string(),
-                            cache_read_tokens: agg.get("cacheReadTokens").and_then(|v| v.as_str()).unwrap_or("0").to_string(),
-                            total_cents: agg.get("totalCents").and_then(|v| v.as_f64()).unwrap_or(0.0),
+                            input_tokens: agg
+                                .get("inputTokens")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("0")
+                                .to_string(),
+                            output_tokens: agg
+                                .get("outputTokens")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("0")
+                                .to_string(),
+                            cache_write_tokens: agg
+                                .get("cacheWriteTokens")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("0")
+                                .to_string(),
+                            cache_read_tokens: agg
+                                .get("cacheReadTokens")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("0")
+                                .to_string(),
+                            total_cents: agg
+                                .get("totalCents")
+                                .and_then(|v| v.as_f64())
+                                .unwrap_or(0.0),
                         };
                         aggregations.push(model_usage);
                     }
@@ -256,11 +297,30 @@ pub async fn get_aggregated_usage_data(
 
             let aggregated_usage = AggregatedUsageData {
                 aggregations,
-                total_input_tokens: json_data.get("totalInputTokens").and_then(|v| v.as_str()).unwrap_or("0").to_string(),
-                total_output_tokens: json_data.get("totalOutputTokens").and_then(|v| v.as_str()).unwrap_or("0").to_string(),
-                total_cache_write_tokens: json_data.get("totalCacheWriteTokens").and_then(|v| v.as_str()).unwrap_or("0").to_string(),
-                total_cache_read_tokens: json_data.get("totalCacheReadTokens").and_then(|v| v.as_str()).unwrap_or("0").to_string(),
-                total_cost_cents: json_data.get("totalCostCents").and_then(|v| v.as_f64()).unwrap_or(0.0),
+                total_input_tokens: json_data
+                    .get("totalInputTokens")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("0")
+                    .to_string(),
+                total_output_tokens: json_data
+                    .get("totalOutputTokens")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("0")
+                    .to_string(),
+                total_cache_write_tokens: json_data
+                    .get("totalCacheWriteTokens")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("0")
+                    .to_string(),
+                total_cache_read_tokens: json_data
+                    .get("totalCacheReadTokens")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("0")
+                    .to_string(),
+                total_cost_cents: json_data
+                    .get("totalCostCents")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0),
             };
 
             return Ok(Some(aggregated_usage));
@@ -291,7 +351,10 @@ pub async fn get_filtered_usage_events(
 
     let response = client
         .post("https://cursor.com/api/dashboard/get-filtered-usage-events")
-        .header("Cookie", format!("WorkosCursorSessionToken={}", workos_session_token))
+        .header(
+            "Cookie",
+            format!("WorkosCursorSessionToken={}", workos_session_token),
+        )
         .header("Accept", "application/json, text/plain, */*")
         .header("Content-Type", "application/json")
         .header("Origin", "https://cursor.com")
@@ -303,7 +366,9 @@ pub async fn get_filtered_usage_events(
         .map_err(|e| format!("Filtered usage events request failed: {}", e))?;
 
     if response.status().is_success() {
-        let body = response.text().await
+        let body = response
+            .text()
+            .await
             .map_err(|e| format!("Failed to read response: {}", e))?;
 
         if let Ok(events_data) = serde_json::from_str::<FilteredUsageEventsData>(&body) {
@@ -359,7 +424,10 @@ async fn trigger_authorization_login(
 
     let response = client
         .post("https://cursor.com/api/auth/loginDeepCallbackControl")
-        .header("Cookie", format!("WorkosCursorSessionToken={}", session_token))
+        .header(
+            "Cookie",
+            format!("WorkosCursorSessionToken={}", session_token),
+        )
         .header("Content-Type", "application/json")
         .json(&payload)
         .send()
@@ -390,13 +458,18 @@ async fn poll_for_access_token(
         .get(&url)
         .header("Accept", "*/*")
         .header("Content-Type", "application/json")
-        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+        .header(
+            "User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        )
         .send()
         .await
         .map_err(|e| format!("Poll request failed: {}", e))?;
 
     if response.status().is_success() {
-        let body = response.text().await
+        let body = response
+            .text()
+            .await
             .map_err(|e| format!("Failed to read poll response: {}", e))?;
 
         // 尝试解析为 AccessTokenResponse

@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
-use super::{TokenData, QuotaData};
+use super::{QuotaData, TokenData};
 use crate::data::storage::common::SyncableAccount;
+use serde::{Deserialize, Serialize};
 
 /// 账号类型
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -59,6 +59,8 @@ pub struct Account {
     pub chatgpt_user_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub organization_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub openai_auth_json: Option<String>,
     /// 配额信息
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub quota: Option<QuotaData>,
@@ -122,8 +124,12 @@ impl Account {
     ) -> Self {
         let now = chrono::Utc::now().timestamp();
 
-        // 使用 chatgpt_account_id 作为 ID，如果没有则使用 email
-        let id = chatgpt_account_id.clone().unwrap_or_else(|| email.clone());
+        // OAuth 账号主键与判重维度保持一致：chatgpt_account_id + email
+        // 避免同 account_id 下不同邮箱在保存时互相覆盖。
+        let id = chatgpt_account_id
+            .as_ref()
+            .map(|account_id| format!("{}::{}", account_id, email))
+            .unwrap_or_else(|| email.clone());
 
         Self {
             id,
@@ -134,6 +140,7 @@ impl Account {
             chatgpt_account_id,
             chatgpt_user_id,
             organization_id,
+            openai_auth_json: None,
             quota: None,
             tag: None,
             tag_color: None,
@@ -146,11 +153,7 @@ impl Account {
     }
 
     /// 创建 API 类型账号
-    pub fn new_api(
-        id: String,
-        email: String,
-        api_config: ApiConfig,
-    ) -> Self {
+    pub fn new_api(id: String, email: String, api_config: ApiConfig) -> Self {
         let now = chrono::Utc::now().timestamp();
 
         Self {
@@ -162,6 +165,7 @@ impl Account {
             chatgpt_account_id: None,
             chatgpt_user_id: None,
             organization_id: None,
+            openai_auth_json: None,
             quota: None,
             tag: None,
             tag_color: None,
@@ -184,14 +188,22 @@ impl Account {
     }
 
     /// 检查账号是否已存在（邮箱和 account_id 都相同）
-    pub fn is_duplicate(base_email: &str, chatgpt_account_id: &Option<String>, existing_accounts: &[Self]) -> bool {
-        existing_accounts.iter().any(|a| {
-            &a.email == base_email && a.chatgpt_account_id == *chatgpt_account_id
-        })
+    pub fn is_duplicate(
+        base_email: &str,
+        chatgpt_account_id: &Option<String>,
+        existing_accounts: &[Self],
+    ) -> bool {
+        existing_accounts
+            .iter()
+            .any(|a| &a.email == base_email && a.chatgpt_account_id == *chatgpt_account_id)
     }
 
     /// 生成唯一的邮箱（相同邮箱不同 account_id 时添加序号）
-    pub fn generate_unique_email(base_email: &str, _chatgpt_account_id: &Option<String>, existing_accounts: &[Self]) -> String {
+    pub fn generate_unique_email(
+        base_email: &str,
+        _chatgpt_account_id: &Option<String>,
+        existing_accounts: &[Self],
+    ) -> String {
         // 检查是否已存在相同邮箱的账号（不管 account_id）
         let email_exists = existing_accounts.iter().any(|a| &a.email == base_email);
 
@@ -221,4 +233,3 @@ impl Account {
         self.updated_at = chrono::Utc::now().timestamp();
     }
 }
-

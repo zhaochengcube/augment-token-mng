@@ -715,7 +715,6 @@ const setSortType = (type, order) => {
 const loadAccounts = async () => {
   isLoading.value = true
   try {
-    await initSync()
     const response = await invoke('claude_list')
     accounts.value = response.accounts || []
     // 加载当前账户ID
@@ -743,7 +742,10 @@ const loadCurrentAccountId = async () => {
 const handleRefresh = async () => {
   isRefreshing.value = true
   try {
-    await initSync()
+    // 刷新时异步更新存储状态，不阻塞账户列表加载
+    initSync().catch((err) => {
+      console.error('Failed to refresh sync status:', err)
+    })
     const response = await invoke('claude_list')
     accounts.value = response.accounts || []
     await loadCurrentAccountId()
@@ -1019,7 +1021,10 @@ watch([searchQuery, selectedExpiryFilter], () => {
 })
 
 onMounted(async () => {
+  loadAccounts()
+  initSync().catch((err) => {
+    console.error('Failed to initialize sync status:', err)
+  })
   loadViewMode()
-  await loadAccounts()
 })
 </script>

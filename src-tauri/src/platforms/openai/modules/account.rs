@@ -2,16 +2,16 @@ use crate::platforms::openai::models::{Account, AccountType, QuotaData, TokenDat
 use crate::platforms::openai::modules::{oauth, quota};
 
 /// 更新账号配额
-pub async fn update_account_quota(
-    account: &mut Account,
-) -> Result<QuotaData, String> {
+pub async fn update_account_quota(account: &mut Account) -> Result<QuotaData, String> {
     // API 账号不支持配额查询
     if account.account_type == AccountType::API {
         return Err("API accounts do not support quota fetching".to_string());
     }
 
     // 1. 确保 Token 有效
-    let current_token = account.token.as_ref()
+    let current_token = account
+        .token
+        .as_ref()
         .ok_or_else(|| "OAuth account missing token".to_string())?;
     let token = oauth::ensure_fresh_token(current_token).await?;
 
@@ -23,10 +23,8 @@ pub async fn update_account_quota(
     }
 
     // 2. 查询配额
-    let quota_data = quota::fetch_quota(
-        &token.access_token,
-        account.chatgpt_account_id.as_deref(),
-    ).await?;
+    let quota_data =
+        quota::fetch_quota(&token.access_token, account.chatgpt_account_id.as_deref()).await?;
 
     // 3. 更新账户配额
     account.update_quota(quota_data.clone());
@@ -35,9 +33,7 @@ pub async fn update_account_quota(
 }
 
 /// 带有重试机制的配额查询
-pub async fn fetch_quota_with_retry(
-    account: &mut Account,
-) -> Result<QuotaData, String> {
+pub async fn fetch_quota_with_retry(account: &mut Account) -> Result<QuotaData, String> {
     println!("=== OpenAI fetch_quota_with_retry ===");
     println!("account.email: {}", account.email);
 
@@ -46,10 +42,12 @@ pub async fn fetch_quota_with_retry(
         return Err("API accounts do not support quota fetching".to_string());
     }
 
-    // 1. 确保Token有效
-    let current_token = account.token.as_ref()
+    // 1. 确保Token有效（提前 1 天刷新，配合定时任务自动续期）
+    let current_token = account
+        .token
+        .as_ref()
         .ok_or_else(|| "OAuth account missing token".to_string())?;
-    let token = match oauth::ensure_fresh_token(current_token).await {
+    let token = match oauth::ensure_fresh_token_with_window(current_token, 86400).await {
         Ok(token) => token,
         Err(e) => {
             if e.contains("invalid_grant") || e.contains("401") {
@@ -68,10 +66,8 @@ pub async fn fetch_quota_with_retry(
     }
 
     // 2. 查询配额
-    let result = quota::fetch_quota(
-        &token.access_token,
-        account.chatgpt_account_id.as_deref(),
-    ).await;
+    let result =
+        quota::fetch_quota(&token.access_token, account.chatgpt_account_id.as_deref()).await;
 
     // 3. 处理 401 错误 - 尝试强制刷新
     if let Err(ref e) = result {
@@ -101,7 +97,8 @@ pub async fn fetch_quota_with_retry(
                             return quota::fetch_quota(
                                 &new_token.access_token,
                                 account.chatgpt_account_id.as_deref(),
-                            ).await;
+                            )
+                            .await;
                         }
                         Err(e) => {
                             return Err(format!("Token refresh failed: {}", e));
@@ -129,7 +126,9 @@ pub async fn refresh_token_if_needed(
 
     let refresh_window_secs = refresh_window_secs.max(0);
 
-    let current_token = account.token.as_ref()
+    let current_token = account
+        .token
+        .as_ref()
         .ok_or("OAuth account missing token".to_string())?;
 
     if !force && !oauth::token_needs_refresh(current_token, refresh_window_secs) {

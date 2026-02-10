@@ -3,13 +3,13 @@
 
 use super::db;
 use crate::cursor::models::MachineInfo;
+use rand::RngCore;
 use regex::Regex;
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::PathBuf;
 use uuid::Uuid;
-use rand::RngCore;
-use sha2::{Digest, Sha256};
 
 /// 遥测 ID 结构
 #[derive(Debug, Clone)]
@@ -18,7 +18,7 @@ pub struct TelemetryIds {
     pub mac_machine_id: String,
     pub dev_device_id: String,
     pub sqm_id: String,
-    pub service_machine_id: String,  // state.vscdb 中的 storage.serviceMachineId
+    pub service_machine_id: String, // state.vscdb 中的 storage.serviceMachineId
 }
 
 impl TelemetryIds {
@@ -28,11 +28,11 @@ impl TelemetryIds {
         rand::thread_rng().fill_bytes(&mut random_bytes_32);
 
         Self {
-            machine_id: format!("{:x}", Sha256::digest(&random_bytes_32)),  // SHA256 哈希 (64字符)
-            mac_machine_id: Uuid::new_v4().to_string(), // UUID 格式
+            machine_id: format!("{:x}", Sha256::digest(&random_bytes_32)), // SHA256 哈希 (64字符)
+            mac_machine_id: Uuid::new_v4().to_string(),                    // UUID 格式
             dev_device_id: Uuid::new_v4().to_string(),
             sqm_id: format!("{{{}}}", Uuid::new_v4().to_string().to_uppercase()),
-            service_machine_id: Uuid::new_v4().to_string(),  // UUID 格式
+            service_machine_id: Uuid::new_v4().to_string(), // UUID 格式
         }
     }
 }
@@ -63,7 +63,8 @@ pub fn reset_machine_id() -> Result<(TelemetryIds, bool), String> {
     let mut storage_data = if storage_json_path.exists() {
         let content = fs::read_to_string(&storage_json_path)
             .map_err(|e| format!("Failed to read storage.json: {}", e))?;
-        serde_json::from_str::<Value>(&content).unwrap_or_else(|_| Value::Object(Default::default()))
+        serde_json::from_str::<Value>(&content)
+            .unwrap_or_else(|_| Value::Object(Default::default()))
     } else {
         Value::Object(Default::default())
     };
@@ -73,16 +74,31 @@ pub fn reset_machine_id() -> Result<(TelemetryIds, bool), String> {
 
     // 更新 storage.json 中的遥测字段
     if let Some(obj) = storage_data.as_object_mut() {
-        obj.insert("telemetry.machineId".to_string(), Value::String(ids.machine_id.clone()));
-        obj.insert("telemetry.macMachineId".to_string(), Value::String(ids.mac_machine_id.clone()));
-        obj.insert("telemetry.devDeviceId".to_string(), Value::String(ids.dev_device_id.clone()));
-        obj.insert("telemetry.sqmId".to_string(), Value::String(ids.sqm_id.clone()));
+        obj.insert(
+            "telemetry.machineId".to_string(),
+            Value::String(ids.machine_id.clone()),
+        );
+        obj.insert(
+            "telemetry.macMachineId".to_string(),
+            Value::String(ids.mac_machine_id.clone()),
+        );
+        obj.insert(
+            "telemetry.devDeviceId".to_string(),
+            Value::String(ids.dev_device_id.clone()),
+        );
+        obj.insert(
+            "telemetry.sqmId".to_string(),
+            Value::String(ids.sqm_id.clone()),
+        );
 
         // Windows 平台：重置 system.machineGuid
         #[cfg(windows)]
         {
             let new_machine_guid = Uuid::new_v4().to_string();
-            obj.insert("system.machineGuid".to_string(), Value::String(new_machine_guid));
+            obj.insert(
+                "system.machineGuid".to_string(),
+                Value::String(new_machine_guid),
+            );
         }
     }
 
@@ -114,8 +130,8 @@ pub fn reset_machine_id() -> Result<(TelemetryIds, bool), String> {
 /// 需要管理员权限才能修改 HKEY_LOCAL_MACHINE
 #[cfg(windows)]
 fn reset_windows_registry_machine_guid() -> Result<(), String> {
-    use winreg::enums::*;
     use winreg::RegKey;
+    use winreg::enums::*;
 
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
     let crypto_key = hklm
@@ -173,9 +189,19 @@ pub fn get_main_js_path(custom_exe_path: Option<&str>) -> Result<PathBuf, String
             parent
                 .parent()
                 .map(|p| p.join("Resources").join("app").join("out").join("main.js"))
-                .unwrap_or_else(|| parent.join("resources").join("app").join("out").join("main.js"))
+                .unwrap_or_else(|| {
+                    parent
+                        .join("resources")
+                        .join("app")
+                        .join("out")
+                        .join("main.js")
+                })
         } else {
-            parent.join("resources").join("app").join("out").join("main.js")
+            parent
+                .join("resources")
+                .join("app")
+                .join("out")
+                .join("main.js")
         };
 
         if main_js.exists() {
@@ -267,7 +293,8 @@ pub fn complete_reset(custom_exe_path: Option<&str>) -> Result<ResetResult, Stri
             if admin_needed {
                 needs_admin = true;
                 #[cfg(windows)]
-                messages.push("⚠ Windows registry MachineGuid requires admin privileges".to_string());
+                messages
+                    .push("⚠ Windows registry MachineGuid requires admin privileges".to_string());
             }
         }
         Err(e) => messages.push(format!("✗ Failed to reset machine IDs: {}", e)),
@@ -279,7 +306,10 @@ pub fn complete_reset(custom_exe_path: Option<&str>) -> Result<ResetResult, Stri
         Err(e) => messages.push(format!("⚠ Failed to modify main.js: {}", e)),
     }
 
-    Ok(ResetResult { messages, needs_admin })
+    Ok(ResetResult {
+        messages,
+        needs_admin,
+    })
 }
 
 /// 写入指定的机器码到 storage.json
@@ -301,7 +331,8 @@ pub fn write_machine_ids(machine_info: &MachineInfo) -> Result<bool, String> {
     let mut storage_data = if storage_json_path.exists() {
         let content = fs::read_to_string(&storage_json_path)
             .map_err(|e| format!("Failed to read storage.json: {}", e))?;
-        serde_json::from_str::<Value>(&content).unwrap_or_else(|_| Value::Object(Default::default()))
+        serde_json::from_str::<Value>(&content)
+            .unwrap_or_else(|_| Value::Object(Default::default()))
     } else {
         Value::Object(Default::default())
     };
@@ -309,13 +340,22 @@ pub fn write_machine_ids(machine_info: &MachineInfo) -> Result<bool, String> {
     // 写入指定的机器码
     if let Some(obj) = storage_data.as_object_mut() {
         if let Some(ref machine_id) = machine_info.machine_id {
-            obj.insert("telemetry.machineId".to_string(), Value::String(machine_id.clone()));
+            obj.insert(
+                "telemetry.machineId".to_string(),
+                Value::String(machine_id.clone()),
+            );
         }
         if let Some(ref mac_machine_id) = machine_info.mac_machine_id {
-            obj.insert("telemetry.macMachineId".to_string(), Value::String(mac_machine_id.clone()));
+            obj.insert(
+                "telemetry.macMachineId".to_string(),
+                Value::String(mac_machine_id.clone()),
+            );
         }
         if let Some(ref dev_device_id) = machine_info.dev_device_id {
-            obj.insert("telemetry.devDeviceId".to_string(), Value::String(dev_device_id.clone()));
+            obj.insert(
+                "telemetry.devDeviceId".to_string(),
+                Value::String(dev_device_id.clone()),
+            );
         }
         if let Some(ref sqm_id) = machine_info.sqm_id {
             obj.insert("telemetry.sqmId".to_string(), Value::String(sqm_id.clone()));
@@ -325,7 +365,10 @@ pub fn write_machine_ids(machine_info: &MachineInfo) -> Result<bool, String> {
         #[cfg(windows)]
         {
             if let Some(ref system_machine_guid) = machine_info.system_machine_guid {
-                obj.insert("system.machineGuid".to_string(), Value::String(system_machine_guid.clone()));
+                obj.insert(
+                    "system.machineGuid".to_string(),
+                    Value::String(system_machine_guid.clone()),
+                );
             }
         }
     }
@@ -364,7 +407,9 @@ pub fn write_machine_ids(machine_info: &MachineInfo) -> Result<bool, String> {
     #[cfg(windows)]
     {
         if machine_info.system_machine_guid.is_some() {
-            if let Err(_) = write_windows_registry_machine_guid(machine_info.system_machine_guid.as_ref().unwrap()) {
+            if let Err(_) = write_windows_registry_machine_guid(
+                machine_info.system_machine_guid.as_ref().unwrap(),
+            ) {
                 needs_admin = true;
             }
         }
@@ -377,8 +422,8 @@ pub fn write_machine_ids(machine_info: &MachineInfo) -> Result<bool, String> {
 /// 需要管理员权限才能修改 HKEY_LOCAL_MACHINE
 #[cfg(windows)]
 fn write_windows_registry_machine_guid(guid: &str) -> Result<(), String> {
-    use winreg::enums::*;
     use winreg::RegKey;
+    use winreg::enums::*;
 
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
     let crypto_key = hklm
@@ -394,7 +439,10 @@ fn write_windows_registry_machine_guid(guid: &str) -> Result<(), String> {
 
 /// 使用绑定的机器码完成重置流程
 /// 返回 ResetResult，包含操作结果消息和是否需要管理员权限
-pub fn complete_reset_with_machine_info(custom_exe_path: Option<&str>, machine_info: &MachineInfo) -> Result<ResetResult, String> {
+pub fn complete_reset_with_machine_info(
+    custom_exe_path: Option<&str>,
+    machine_info: &MachineInfo,
+) -> Result<ResetResult, String> {
     let mut messages = Vec::new();
     let mut needs_admin = false;
 
@@ -405,7 +453,8 @@ pub fn complete_reset_with_machine_info(custom_exe_path: Option<&str>, machine_i
             if admin_needed {
                 needs_admin = true;
                 #[cfg(windows)]
-                messages.push("⚠ Windows registry MachineGuid requires admin privileges".to_string());
+                messages
+                    .push("⚠ Windows registry MachineGuid requires admin privileges".to_string());
             }
         }
         Err(e) => messages.push(format!("✗ Failed to write bound machine IDs: {}", e)),
@@ -417,6 +466,8 @@ pub fn complete_reset_with_machine_info(custom_exe_path: Option<&str>, machine_i
         Err(e) => messages.push(format!("⚠ Failed to modify main.js: {}", e)),
     }
 
-    Ok(ResetResult { messages, needs_admin })
+    Ok(ResetResult {
+        messages,
+        needs_admin,
+    })
 }
-

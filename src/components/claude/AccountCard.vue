@@ -17,9 +17,8 @@
     </div>
     <!-- 右上角悬浮按钮（z-index 更高，覆盖状态徽章） -->
     <div class="absolute right-3 top-3 z-20 flex items-center gap-1.5">
-      <!-- 切换按钮（非当前账号，悬浮显示） -->
+      <!-- 切换按钮（悬浮显示） -->
       <button
-        v-if="!isCurrent"
         @click.stop="$emit('switch', account.id)"
         class="w-7 h-7 rounded border-none bg-surface text-text-secondary cursor-pointer flex items-center justify-center shadow-sm hover:bg-hover hover:text-accent transition-colors opacity-0 group-hover:opacity-100"
         :disabled="isSwitching"
@@ -28,7 +27,7 @@
         <svg v-if="!isSwitching" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
           <path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/>
         </svg>
-        <span v-else class="w-3.5 h-3.5 border-2 border-accent border-t-transparent rounded-full animate-spin"></span>
+        <span v-else class="btn-spinner btn-spinner--sm text-accent"></span>
       </button>
       <!-- 删除按钮（悬浮显示） -->
       <button

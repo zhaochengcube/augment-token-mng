@@ -1,5 +1,5 @@
 use crate::data::storage::common::{AccountDbMapper, StorageError};
-use crate::platforms::windsurf::models::{Account, TokenData, QuotaData};
+use crate::platforms::windsurf::models::{Account, QuotaData, TokenData};
 use tokio_postgres::Row;
 
 /// Windsurf 账号数据库映射器
@@ -78,9 +78,14 @@ impl AccountDbMapper<Account> for WindsurfAccountMapper {
         "#
     }
 
-    fn to_params(account: &Account, version: i64) -> Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> {
+    fn to_params(
+        account: &Account,
+        version: i64,
+    ) -> Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> {
         // 将 quota 序列化为 JSON
-        let quota_json: Option<serde_json::Value> = account.quota.as_ref()
+        let quota_json: Option<serde_json::Value> = account
+            .quota
+            .as_ref()
             .and_then(|q| serde_json::to_value(q).ok());
 
         vec![

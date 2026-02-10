@@ -1,15 +1,15 @@
-pub mod traits;
 pub mod mapper;
+pub mod traits;
 
-pub use traits::*;
 pub use mapper::*;
+pub use traits::*;
 
+use crate::AppState;
 use crate::data::storage::common::{
-    GenericLocalStorage, GenericPostgreSQLStorage, GenericDualStorage,
-    AccountSyncManager as CommonAccountSyncManager,
+    AccountSyncManager as CommonAccountSyncManager, GenericDualStorage, GenericLocalStorage,
+    GenericPostgreSQLStorage,
 };
 use crate::platforms::openai::models::Account;
-use crate::AppState;
 use std::sync::Arc;
 use tauri::State;
 
@@ -28,10 +28,14 @@ pub async fn openai_sync_accounts_to_database(
 ) -> Result<AccountSyncStatus, String> {
     let storage_manager = {
         let guard = state.openai_storage_manager.lock().unwrap();
-        guard.clone().ok_or("OpenAI storage manager not initialized")?
+        guard
+            .clone()
+            .ok_or("OpenAI storage manager not initialized")?
     };
 
-    storage_manager.sync_local_to_remote().await
+    storage_manager
+        .sync_local_to_remote()
+        .await
         .map_err(|e| format!("Sync failed: {}", e))
 }
 
@@ -41,10 +45,14 @@ pub async fn openai_sync_accounts_from_database(
 ) -> Result<AccountSyncStatus, String> {
     let storage_manager = {
         let guard = state.openai_storage_manager.lock().unwrap();
-        guard.clone().ok_or("OpenAI storage manager not initialized")?
+        guard
+            .clone()
+            .ok_or("OpenAI storage manager not initialized")?
     };
 
-    storage_manager.sync_remote_to_local().await
+    storage_manager
+        .sync_remote_to_local()
+        .await
         .map_err(|e| format!("Sync failed: {}", e))
 }
 
@@ -54,10 +62,14 @@ pub async fn openai_bidirectional_sync_accounts(
 ) -> Result<AccountSyncStatus, String> {
     let storage_manager = {
         let guard = state.openai_storage_manager.lock().unwrap();
-        guard.clone().ok_or("OpenAI storage manager not initialized")?
+        guard
+            .clone()
+            .ok_or("OpenAI storage manager not initialized")?
     };
 
-    storage_manager.bidirectional_sync().await
+    storage_manager
+        .bidirectional_sync()
+        .await
         .map_err(|e| format!("Sync failed: {}", e))
 }
 
@@ -68,13 +80,17 @@ pub async fn openai_sync_accounts(
 ) -> Result<ServerAccountSyncResponse<Account>, String> {
     let storage_manager = {
         let guard = state.openai_storage_manager.lock().unwrap();
-        guard.clone().ok_or("OpenAI storage manager not initialized")?
+        guard
+            .clone()
+            .ok_or("OpenAI storage manager not initialized")?
     };
 
     let req: ClientAccountSyncRequest<Account> = serde_json::from_str(&req_json)
         .map_err(|e| format!("Failed to parse sync request: {}", e))?;
 
-    storage_manager.sync_accounts(req).await
+    storage_manager
+        .sync_accounts(req)
+        .await
         .map_err(|e| format!("Sync failed: {}", e))
 }
 
@@ -84,10 +100,14 @@ pub async fn openai_get_sync_status(
 ) -> Result<Option<AccountSyncStatus>, String> {
     let storage_manager = {
         let guard = state.openai_storage_manager.lock().unwrap();
-        guard.clone().ok_or("OpenAI storage manager not initialized")?
+        guard
+            .clone()
+            .ok_or("OpenAI storage manager not initialized")?
     };
 
-    storage_manager.get_sync_status().await
+    storage_manager
+        .get_sync_status()
+        .await
         .map_err(|e| format!("Failed to get sync status: {}", e))
 }
 
@@ -116,4 +136,3 @@ pub async fn initialize_openai_storage_manager(
 
     Ok(())
 }
-

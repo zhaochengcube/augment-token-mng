@@ -15,7 +15,10 @@ pub async fn fetch_quota(
     chatgpt_account_id: Option<&str>,
 ) -> Result<QuotaData, String> {
     println!("=== OpenAI fetch_quota ===");
-    println!("access_token: {}...", &access_token.chars().take(20).collect::<String>());
+    println!(
+        "access_token: {}...",
+        &access_token.chars().take(20).collect::<String>()
+    );
 
     let client = create_proxy_client()?;
 
@@ -51,12 +54,7 @@ pub async fn fetch_quota(
     let mut last_error: Option<String> = None;
 
     for attempt in 1..=max_retries {
-        match request_builder
-            .try_clone()
-            .unwrap()
-            .send()
-            .await
-        {
+        match request_builder.try_clone().unwrap().send().await {
             Ok(response) => {
                 let status = response.status();
                 println!("Response status (attempt {}): {}", attempt, status);
@@ -67,9 +65,11 @@ pub async fn fetch_quota(
                     return Err("HTTP 401: Token expired or invalid".to_string());
                 }
 
-                // 处理 403 Forbidden
-                if status == reqwest::StatusCode::FORBIDDEN {
-                    println!("Account is forbidden (403)");
+                // 处理 402 Payment Required 或 403 Forbidden
+                if status == reqwest::StatusCode::PAYMENT_REQUIRED
+                    || status == reqwest::StatusCode::FORBIDDEN
+                {
+                    println!("Account is forbidden ({})", status);
                     let mut quota = QuotaData::new();
                     quota.is_forbidden = true;
                     return Ok(quota);

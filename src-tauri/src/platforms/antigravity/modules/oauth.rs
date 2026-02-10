@@ -16,8 +16,9 @@ pub fn get_auth_url(redirect_uri: &str) -> String {
         "https://www.googleapis.com/auth/userinfo.email",
         "https://www.googleapis.com/auth/userinfo.profile",
         "https://www.googleapis.com/auth/cclog",
-        "https://www.googleapis.com/auth/experimentsandconfigs"
-    ].join(" ");
+        "https://www.googleapis.com/auth/experimentsandconfigs",
+    ]
+    .join(" ");
 
     let params = vec![
         ("client_id", CLIENT_ID),
@@ -53,7 +54,9 @@ pub async fn exchange_code(code: &str, redirect_uri: &str) -> Result<TokenRespon
         .map_err(|e| format!("Token exchange request failed: {}", e))?;
 
     if response.status().is_success() {
-        response.json::<TokenResponse>().await
+        response
+            .json::<TokenResponse>()
+            .await
             .map_err(|e| format!("Failed to parse token response: {}", e))
     } else {
         let error_text = response.text().await.unwrap_or_default();
@@ -109,7 +112,9 @@ pub async fn get_user_info(access_token: &str) -> Result<UserInfo, String> {
         .map_err(|e| format!("User info request failed: {}", e))?;
 
     if response.status().is_success() {
-        response.json::<UserInfo>().await
+        response
+            .json::<UserInfo>()
+            .await
             .map_err(|e| format!("Failed to parse user info: {}", e))
     } else {
         let error_text = response.text().await.unwrap_or_default();
@@ -123,23 +128,24 @@ pub async fn ensure_fresh_token(
     current_token: &crate::antigravity::models::TokenData,
 ) -> Result<crate::antigravity::models::TokenData, String> {
     let now = chrono::Utc::now().timestamp();
-    
+
     // 如果还有超过 5 分钟有效期，直接返回
     if current_token.expiry_timestamp > now + 300 {
         return Ok(current_token.clone());
     }
-    
+
     // 需要刷新
     let response = refresh_access_token(&current_token.refresh_token).await?;
-    
+
     // 构造新 TokenData
     Ok(crate::antigravity::models::TokenData::new(
         response.access_token,
-        response.refresh_token.unwrap_or(current_token.refresh_token.clone()),
+        response
+            .refresh_token
+            .unwrap_or(current_token.refresh_token.clone()),
         response.expires_in,
         current_token.email.clone(),
         current_token.project_id.clone(),
         None,
     ))
 }
-

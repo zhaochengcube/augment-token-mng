@@ -2,8 +2,9 @@
   <tr
     :class="[
       'group transition-colors duration-200',
-      'hover:bg-accent/6',
-      isSelected ? 'bg-accent/10' : ''
+      isCurrent ? 'bg-accent/8 border-l-2 border-l-accent' : '',
+      isSelected ? 'bg-accent/10' : '',
+      !isCurrent && !isSelected ? 'hover:bg-accent/6' : ''
     ]"
     @click="handleRowClick"
   >
@@ -43,21 +44,21 @@
       </span>
     </td>
 
-    <!-- 状态 -->
-    <td class="w-[60px] px-2.5 py-3.5 border-b border-border/50 align-top whitespace-nowrap text-[13px] text-text">
-      <span :class="['badge badge--sm', statusBadgeClass]">
-        <span class="status-dot" :class="statusDotClass"></span>
-        {{ statusLabel }}
-      </span>
-    </td>
-
     <!-- 邮箱 -->
     <td class="px-2.5 py-3.5 border-b border-border/50 align-top whitespace-nowrap text-[13px] text-text">
       <div class="flex items-center gap-1.5">
         <div class="text-copyable" @click.stop="copyEmail" v-tooltip="account.email">
           <span class="text-copyable__content">{{ showRealEmail ? account.email : maskedEmail }}</span>
         </div>
-        <span :class="tierBadgeClasses">{{ subscriptionTier.label }}</span>
+        <span :class="getTierBadgeClass(subscriptionTier.class)">
+          <svg v-if="subscriptionTier.class === 'ultra'" class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 3H5L2 9l10 12L22 9l-3-6zM9.62 8l1.5-3h1.76l1.5 3H9.62zM11 10v6.68L5.44 10H11zm2 0h5.56L13 16.68V10zm6.26-2h-2.65l-1.5-3h2.65l1.5 3zM6.24 5h2.65l-1.5 3H4.74l1.5-3z"/>
+          </svg>
+          <svg v-else-if="subscriptionTier.class === 'pro'" class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z"/>
+          </svg>
+          {{ subscriptionTier.label }}
+        </span>
       </div>
     </td>
 
@@ -94,16 +95,20 @@
           <span class="text-[11px] font-medium tabular-nums text-text-muted w-8 text-right">{{ geminiQuota.percent }}%</span>
         </div>
       </div>
-      <span v-else-if="account.quota?.is_forbidden" class="text-danger text-xs">{{ $t('platform.antigravity.status.forbidden') }}</span>
+      <span v-else-if="account.quota?.is_forbidden" class="flex items-center gap-1.5 text-xs text-danger">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8 0-1.85.63-3.55 1.69-4.9L16.9 18.31C15.55 19.37 13.85 20 12 20zm6.31-3.1L7.1 5.69C8.45 4.63 10.15 4 12 4c4.42 0 8 3.58 8 8 0 1.85-.63 3.55-1.69 4.9z"/>
+        </svg>
+        <span>{{ $t('platform.antigravity.quotaForbidden') }}</span>
+      </span>
       <span v-else class="text-text-muted text-xs">-</span>
     </td>
 
     <!-- 操作 -->
     <td class="w-[110px] px-2.5 py-3.5 border-b border-border/50 align-top whitespace-nowrap text-[13px] text-text text-center">
-      <div class="flex items-center justify-center gap-1">
+      <div class="flex items-center justify-end gap-1">
         <!-- 切换账号 -->
         <button
-          v-if="!isCurrent"
           @click.stop="$emit('switch', account.id)"
           class="btn btn--ghost btn--icon-sm"
           :disabled="isSwitching"
@@ -239,11 +244,11 @@ const maskedEmail = computed(() => {
   return 'hello@antigravity.com'
 })
 
-// Claude Opus 4.5 Thinking 配额
+// Claude 配额
 const claudeQuota = computed(() => {
   if (!props.account.quota?.models) return { percent: 0, resetTime: null }
   const model = props.account.quota.models.find(m =>
-    m.name.toLowerCase().includes('claude-opus-4-5-thinking')
+    m.name.toLowerCase().includes('claude')
   )
   return {
     percent: model?.percentage ?? 0,
@@ -251,11 +256,11 @@ const claudeQuota = computed(() => {
   }
 })
 
-// Gemini Pro 3 配额
+// Gemini 配额
 const geminiQuota = computed(() => {
   if (!props.account.quota?.models) return { percent: 0, resetTime: null }
   const model = props.account.quota.models.find(m =>
-    m.name.toLowerCase().includes('gemini-3-pro')
+    m.name.toLowerCase().includes('gemini')
   )
   return {
     percent: model?.percentage ?? 0,
@@ -336,17 +341,18 @@ const subscriptionTier = computed(() => {
   return { label: 'Free', class: 'free' }
 })
 
-const tierBadgeClasses = computed(() => {
-  const base = 'inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide leading-none border'
-  switch (subscriptionTier.value.class) {
+// 订阅等级徽章样式
+const getTierBadgeClass = (tierClass) => {
+  const base = 'badge badge--sm uppercase shrink-0'
+  switch (tierClass) {
     case 'ultra':
-      return `${base} text-amber-400 border-amber-400/50 bg-amber-400/12`
+      return `${base} bg-gradient-to-r from-rose-400 to-pink-500 text-white border-pink-500/50 shadow-sm shadow-pink-500/30`
     case 'pro':
-      return `${base} text-sky-400 border-sky-400/50 bg-sky-400/12`
+      return `${base} bg-gradient-to-r from-amber-400 to-amber-500 text-amber-900 border-amber-500/50`
     default:
-      return `${base} text-slate-400 border-slate-400/45 bg-slate-400/12`
+      return base
   }
-})
+}
 
 // 标签相关
 const tagDisplayName = computed(() => (props.account.tag ?? '').trim())

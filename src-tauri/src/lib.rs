@@ -1,10 +1,10 @@
 pub mod platforms {
     pub mod antigravity;
     pub mod augment;
-    pub mod windsurf;
+    pub mod claude;
     pub mod cursor;
     pub mod openai;
-    pub mod claude;
+    pub mod windsurf;
 }
 
 pub mod features {
@@ -19,9 +19,9 @@ pub mod core {
     pub mod path_manager;
     pub mod proxy_config;
     pub mod proxy_helper;
-    pub mod tray;
-    pub mod telegram;
     pub mod subscription_monitor;
+    pub mod telegram;
+    pub mod tray;
 }
 
 pub mod data {
@@ -31,23 +31,32 @@ pub mod data {
 }
 
 // Backwards-compatible re-exports for existing module paths.
-pub use core::{api_server, http_client, proxy_config, proxy_helper, tray, telegram, subscription_monitor};
+pub use core::{
+    api_server, http_client, proxy_config, proxy_helper, subscription_monitor, telegram, tray,
+};
 pub use data::{database, storage};
 pub use features::{bookmarks, mail};
-pub use platforms::{antigravity, augment, windsurf, cursor, openai, claude};
+pub use platforms::{antigravity, augment, claude, cursor, openai, windsurf};
 
+use crate::core::tray::TrayState;
+use crate::data::subscription::SubscriptionDualStorage;
 use crate::features::mail::{gptmail, outlook};
 use crate::platforms::augment::models::AugmentOAuthState;
+use crate::platforms::openai::codex::logger::RequestLogger;
+use crate::platforms::openai::codex::pool::CodexServerConfig;
+use crate::platforms::openai::codex::storage::CodexLogStorage;
+use crate::platforms::openai::codex::{CodexExecutor, CodexPool, CodexServer};
 use crate::platforms::openai::models::OpenAIOAuthSession;
-use crate::core::tray::TrayState;
-use outlook::OutlookManager;
 use database::{DatabaseConfigManager, DatabaseManager};
-use storage::{DualStorage, AntigravityDualStorage, WindsurfDualStorage, CursorDualStorage, OpenAIDualStorage, ClaudeDualStorage};
-use crate::data::subscription::SubscriptionDualStorage;
-use std::sync::{Arc, Mutex};
+use outlook::OutlookManager;
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
-use tauri::{Manager, Emitter};
+use storage::{
+    AntigravityDualStorage, ClaudeDualStorage, CursorDualStorage, DualStorage, OpenAIDualStorage,
+    WindsurfDualStorage,
+};
+use tauri::{Emitter, Manager};
 use tauri_plugin_deep_link::DeepLinkExt;
 
 // App Session 缓存结构 (公开以便其他模块使用)
@@ -75,6 +84,14 @@ pub struct AppState {
     pub app_session_cache: Arc<Mutex<HashMap<String, AppSessionCache>>>,
     // App handle for emitting events
     pub app_handle: tauri::AppHandle,
+    // Codex API 服务器相关
+    pub codex_pool: Arc<Mutex<Option<Arc<CodexPool>>>>,
+    pub codex_executor: Arc<Mutex<Option<Arc<CodexExecutor>>>>,
+    pub codex_logger: Arc<Mutex<Option<Arc<tokio::sync::RwLock<RequestLogger>>>>>,
+    codex_server: Arc<Mutex<Option<CodexServer>>>,
+    pub codex_server_config: Arc<Mutex<Option<CodexServerConfig>>>,
+    pub codex_log_storage: Arc<Mutex<Option<Arc<CodexLogStorage>>>>,
+    pub proxy_config: Arc<Mutex<Option<crate::core::proxy_config::ProxyConfig>>>,
 }
 
 pub fn run() {
@@ -117,6 +134,13 @@ pub fn run() {
                 database_manager: Arc::new(Mutex::new(None)),
                 app_session_cache: Arc::new(Mutex::new(HashMap::new())),
                 app_handle: app.handle().clone(),
+                codex_pool: Arc::new(Mutex::new(None)),
+                codex_executor: Arc::new(Mutex::new(None)),
+                codex_logger: Arc::new(Mutex::new(None)),
+                codex_server: Arc::new(Mutex::new(None)),
+                codex_server_config: Arc::new(Mutex::new(None)),
+                codex_log_storage: Arc::new(Mutex::new(None)),
+                proxy_config: Arc::new(Mutex::new(None)),
             };
 
             app.manage(app_state);
@@ -282,6 +306,36 @@ pub fn run() {
                 if let Err(e) = crate::data::subscription::initialize_subscription_storage_manager(&app_handle, &state).await {
                     eprintln!("Failed to initialize Subscription storage manager: {}", e);
                 }
+
+                // 初始化 Codex 日志存储
+                if let Ok(app_data_dir) = app_handle.path().app_data_dir() {
+                    match CodexLogStorage::new(app_data_dir.to_path_buf()) {
+                        Ok(storage) => {
+                            *state.codex_log_storage.lock().unwrap() = Some(Arc::new(storage));
+                            println!("✅ Codex log storage initialized successfully");
+                        }
+                        Err(e) => {
+                            eprintln!("❌ Failed to initialize Codex log storage: {}", e);
+                        }
+                    }
+                }
+
+                // 启动 Codex 日志定期刷新任务
+                let app_handle_for_flush = app_handle.clone();
+                tauri::async_runtime::spawn(async move {
+                    let state = app_handle_for_flush.state::<AppState>();
+                    let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(60));
+                    loop {
+                        interval.tick().await;
+                        let storage = {
+                            let guard = state.codex_log_storage.lock().unwrap();
+                            guard.clone()
+                        };
+                        if let Some(s) = storage {
+                            s.flush().await;
+                        }
+                    }
+                });
             });
 
             // 启动 API 服务器
@@ -322,12 +376,28 @@ pub fn run() {
                         database_manager: state.database_manager.clone(),
                         app_session_cache: state.app_session_cache.clone(),
                         app_handle: app_handle_for_api.clone(),
+                        codex_pool: state.codex_pool.clone(),
+                        codex_executor: state.codex_executor.clone(),
+                        codex_logger: state.codex_logger.clone(),
+                        codex_server: state.codex_server.clone(),
+                        codex_server_config: state.codex_server_config.clone(),
+                        codex_log_storage: state.codex_log_storage.clone(),
+                        proxy_config: state.proxy_config.clone(),
                     }),
                     8766,
                 ).await {
                     Ok(server) => {
                         println!("✅ API Server initialized successfully");
                         *state.api_server.lock().unwrap() = Some(server);
+                        if let Err(err) =
+                            crate::platforms::openai::codex::commands::init_codex_enabled_state_on_startup(
+                                &app_handle_for_api,
+                                state.inner(),
+                            )
+                            .await
+                        {
+                            eprintln!("❌ Failed to initialize Codex enabled state: {}", err);
+                        }
                     }
                     Err(e) => {
                         eprintln!("❌ Failed to start API server: {}", e);
@@ -421,7 +491,7 @@ pub fn run() {
                         let tray_enabled = tray_state.tray_icon.lock()
                             .map(|guard| guard.is_some())
                             .unwrap_or(false);
-                        
+
                         if tray_enabled {
                             // 托盘已启用，阻止关闭并隐藏窗口
                             api.prevent_close();
@@ -476,6 +546,8 @@ pub fn run() {
             openai::openai_start_oauth_login,
             openai::openai_cancel_oauth_login,
             openai::openai_switch_account,
+            openai::codex_switch_account,
+            openai::droid_switch_account,
 
             // Antigravity 管理命令
             antigravity::antigravity_list_accounts,
@@ -648,6 +720,33 @@ pub fn run() {
             telegram::delete_telegram_config,
             telegram::test_telegram_connection_cmd,
             telegram::send_telegram_message_cmd,
+
+            // Codex API 管理命令
+            crate::platforms::openai::codex::commands::get_codex_server_status,
+            crate::platforms::openai::codex::commands::start_codex_server,
+            crate::platforms::openai::codex::commands::stop_codex_server,
+            crate::platforms::openai::codex::commands::get_codex_pool_status,
+            crate::platforms::openai::codex::commands::refresh_codex_pool,
+            crate::platforms::openai::codex::commands::get_codex_logs,
+            crate::platforms::openai::codex::commands::query_codex_logs,
+            crate::platforms::openai::codex::commands::get_codex_stats,
+            crate::platforms::openai::codex::commands::get_codex_period_stats,
+            crate::platforms::openai::codex::commands::get_codex_model_stats,
+            crate::platforms::openai::codex::commands::clear_codex_logs,
+            crate::platforms::openai::codex::commands::set_codex_pool_strategy,
+            crate::platforms::openai::codex::commands::set_codex_selected_account,
+            crate::platforms::openai::codex::commands::get_codex_access_config,
+            crate::platforms::openai::codex::commands::set_codex_access_config,
+            // Codex 日志存储命令
+            crate::platforms::openai::codex::commands::query_codex_logs_from_storage,
+            crate::platforms::openai::codex::commands::get_codex_model_stats_from_storage,
+            crate::platforms::openai::codex::commands::get_codex_period_stats_from_storage,
+            crate::platforms::openai::codex::commands::get_codex_daily_stats_from_storage,
+            crate::platforms::openai::codex::commands::clear_codex_logs_in_storage,
+            crate::platforms::openai::codex::commands::delete_codex_logs_before,
+            crate::platforms::openai::codex::commands::get_codex_log_storage_status,
+            crate::platforms::openai::codex::commands::flush_codex_logs,
+            crate::platforms::openai::codex::commands::get_codex_all_time_stats,
 
             // 订阅监控命令
             subscription_monitor::check_subscriptions_expiry,

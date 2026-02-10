@@ -1,12 +1,12 @@
-use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
-use std::fs;
-use tauri::Manager;
 use aes_gcm::{
-    aead::{Aead, KeyInit},
     Aes256Gcm, Nonce,
+    aead::{Aead, KeyInit},
 };
-use rand::{rngs::OsRng, RngCore};
+use rand::{RngCore, rngs::OsRng};
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::PathBuf;
+use tauri::Manager;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SslMode {
@@ -50,7 +50,13 @@ impl Default for DatabaseConfig {
 }
 
 impl DatabaseConfig {
-    pub fn new(host: String, port: u16, database: String, username: String, password: String) -> Self {
+    pub fn new(
+        host: String,
+        port: u16,
+        database: String,
+        username: String,
+        password: String,
+    ) -> Self {
         let mut config = Self {
             host,
             port,
@@ -69,7 +75,14 @@ impl DatabaseConfig {
         config
     }
 
-    pub fn new_with_ssl(host: String, port: u16, database: String, username: String, password: String, ssl_mode: SslMode) -> Self {
+    pub fn new_with_ssl(
+        host: String,
+        port: u16,
+        database: String,
+        username: String,
+        password: String,
+        ssl_mode: SslMode,
+    ) -> Self {
         let mut config = Self {
             host,
             port,
@@ -121,12 +134,14 @@ pub struct DatabaseConfigManager {
 }
 
 impl DatabaseConfigManager {
-    pub fn new(app_handle: &tauri::AppHandle) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+    pub fn new(
+        app_handle: &tauri::AppHandle,
+    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         let app_data_dir = app_handle.path().app_data_dir()?;
         fs::create_dir_all(&app_data_dir)?;
-        
+
         let config_path = app_data_dir.join("database_config.json");
-        
+
         Ok(Self { config_path })
     }
 
@@ -138,11 +153,14 @@ impl DatabaseConfigManager {
         let content = fs::read_to_string(&self.config_path)?;
         let mut config: DatabaseConfig = serde_json::from_str(&content)?;
         config.decrypt_password()?;
-        
+
         Ok(config)
     }
 
-    pub fn save_config(&self, config: &DatabaseConfig) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    pub fn save_config(
+        &self,
+        config: &DatabaseConfig,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let json = serde_json::to_string_pretty(config)?;
         fs::write(&self.config_path, json)?;
         Ok(())
@@ -174,7 +192,8 @@ fn encrypt_password(password: &str) -> Result<String, Box<dyn std::error::Error 
     OsRng.fill_bytes(&mut nonce_bytes);
     let nonce = Nonce::from_slice(&nonce_bytes);
 
-    let ciphertext = key.encrypt(nonce, password.as_bytes())
+    let ciphertext = key
+        .encrypt(nonce, password.as_bytes())
         .map_err(|e| format!("Failed to encrypt password: {}", e))?;
 
     let mut result = nonce_bytes.to_vec();
@@ -183,7 +202,9 @@ fn encrypt_password(password: &str) -> Result<String, Box<dyn std::error::Error 
     Ok(hex::encode(result))
 }
 
-fn decrypt_password(encrypted_hex: &str) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+fn decrypt_password(
+    encrypted_hex: &str,
+) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
     let encrypted_data = hex::decode(encrypted_hex)?;
 
     if encrypted_data.len() < 12 {
@@ -195,7 +216,8 @@ fn decrypt_password(encrypted_hex: &str) -> Result<String, Box<dyn std::error::E
 
     let key = Aes256Gcm::new_from_slice(&get_encryption_key())
         .map_err(|e| format!("Failed to create decryption key: {}", e))?;
-    let plaintext = key.decrypt(nonce, ciphertext)
+    let plaintext = key
+        .decrypt(nonce, ciphertext)
         .map_err(|e| format!("Failed to decrypt password: {}", e))?;
 
     Ok(String::from_utf8(plaintext)?)
@@ -222,7 +244,7 @@ mod tests {
             "user".to_string(),
             "password".to_string(),
         );
-        
+
         assert_eq!(config.host, "localhost");
         assert_eq!(config.port, 5432);
         assert_eq!(config.database, "test_db");

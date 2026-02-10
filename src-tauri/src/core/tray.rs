@@ -1,9 +1,9 @@
-use tauri::{
-    AppHandle, Manager, Emitter,
-    tray::{TrayIcon, TrayIconBuilder, TrayIconEvent, MouseButton, MouseButtonState},
-    menu::{Menu, MenuItem},
-};
 use std::sync::Mutex;
+use tauri::{
+    AppHandle, Emitter, Manager,
+    menu::{Menu, MenuItem},
+    tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent},
+};
 
 /// The fixed tray icon ID
 const TRAY_ID: &str = "atm-tray";
@@ -35,8 +35,8 @@ fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, String> {
         .map_err(|e| e.to_string())?;
     let subscriptions_i = MenuItem::with_id(app, "subscriptions", "订阅管理", true, None::<&str>)
         .map_err(|e| e.to_string())?;
-    let quit_i = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)
-        .map_err(|e| e.to_string())?;
+    let quit_i =
+        MenuItem::with_id(app, "quit", "退出", true, None::<&str>).map_err(|e| e.to_string())?;
 
     Menu::with_items(app, &[&show_i, &platforms_i, &subscriptions_i, &quit_i])
         .map_err(|e| e.to_string())
@@ -109,9 +109,12 @@ pub fn create_tray(app: AppHandle) -> Result<bool, String> {
                         let _ = window.set_focus();
                         let _ = window.unminimize();
                     }
-                    let _ = app.emit("tray-menu-clicked", serde_json::json!({
-                        "action": "platforms"
-                    }));
+                    let _ = app.emit(
+                        "tray-menu-clicked",
+                        serde_json::json!({
+                            "action": "platforms"
+                        }),
+                    );
                 }
                 "subscriptions" => {
                     // Show window and emit event for frontend to navigate
@@ -120,9 +123,12 @@ pub fn create_tray(app: AppHandle) -> Result<bool, String> {
                         let _ = window.set_focus();
                         let _ = window.unminimize();
                     }
-                    let _ = app.emit("tray-menu-clicked", serde_json::json!({
-                        "action": "subscriptions"
-                    }));
+                    let _ = app.emit(
+                        "tray-menu-clicked",
+                        serde_json::json!({
+                            "action": "subscriptions"
+                        }),
+                    );
                 }
                 "quit" => {
                     app.exit(0);

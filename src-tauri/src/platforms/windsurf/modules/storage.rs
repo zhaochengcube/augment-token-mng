@@ -46,7 +46,10 @@ pub async fn load_index(app_handle: &tauri::AppHandle) -> Result<AccountIndex, S
 }
 
 /// 加载单个账号
-pub async fn load_account(app_handle: &tauri::AppHandle, account_id: &str) -> Result<Account, String> {
+pub async fn load_account(
+    app_handle: &tauri::AppHandle,
+    account_id: &str,
+) -> Result<Account, String> {
     let storage = create_windsurf_storage(app_handle)?;
     storage
         .get_account(account_id)
@@ -65,7 +68,10 @@ pub async fn save_account(app_handle: &tauri::AppHandle, account: &Account) -> R
 }
 
 /// 删除账号
-pub async fn delete_account(app_handle: &tauri::AppHandle, account_id: &str) -> Result<bool, String> {
+pub async fn delete_account(
+    app_handle: &tauri::AppHandle,
+    account_id: &str,
+) -> Result<bool, String> {
     let storage = create_windsurf_storage(app_handle)?;
     storage
         .delete_account(account_id)
@@ -83,7 +89,9 @@ pub async fn list_accounts(app_handle: &tauri::AppHandle) -> Result<Vec<Account>
 }
 
 /// 获取当前账号 ID
-pub async fn get_current_account_id(app_handle: &tauri::AppHandle) -> Result<Option<String>, String> {
+pub async fn get_current_account_id(
+    app_handle: &tauri::AppHandle,
+) -> Result<Option<String>, String> {
     let storage = create_windsurf_storage(app_handle)?;
     storage
         .get_current_account_id()
@@ -92,11 +100,13 @@ pub async fn get_current_account_id(app_handle: &tauri::AppHandle) -> Result<Opt
 }
 
 /// 设置当前账号 ID
-pub async fn set_current_account_id(app_handle: &tauri::AppHandle, account_id: Option<String>) -> Result<(), String> {
+pub async fn set_current_account_id(
+    app_handle: &tauri::AppHandle,
+    account_id: Option<String>,
+) -> Result<(), String> {
     let storage = create_windsurf_storage(app_handle)?;
     storage
         .set_current_account_id(account_id)
         .await
         .map_err(|e| format!("Failed to set current account id: {}", e))
 }
-

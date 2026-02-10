@@ -1,5 +1,5 @@
 use crate::data::storage::common::{AccountDbMapper, StorageError};
-use crate::platforms::antigravity::models::{Account, TokenData, QuotaData};
+use crate::platforms::antigravity::models::{Account, QuotaData, TokenData};
 use tokio_postgres::Row;
 
 /// Antigravity 账号数据库映射器
@@ -78,8 +78,13 @@ impl AccountDbMapper<Account> for AntigravityAccountMapper {
         "#
     }
 
-    fn to_params(account: &Account, version: i64) -> Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> {
-        let quota_json = account.quota.as_ref()
+    fn to_params(
+        account: &Account,
+        version: i64,
+    ) -> Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> {
+        let quota_json = account
+            .quota
+            .as_ref()
             .and_then(|q| serde_json::to_value(q).ok());
 
         vec![

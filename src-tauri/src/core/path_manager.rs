@@ -1,5 +1,5 @@
 //! 公用路径管理模块
-//! 
+//!
 //! 提供跨平台的自定义路径管理功能，包括：
 //! - 获取/设置自定义路径
 //! - 路径验证
@@ -47,34 +47,40 @@ pub const CURSOR_CONFIG: PlatformPathConfig = PlatformPathConfig {
 /// 获取配置文件路径
 pub fn get_config_path(app: &AppHandle, config: &PlatformPathConfig) -> Result<PathBuf, String> {
     use tauri::Manager;
-    
-    let app_data_dir = app.path().app_data_dir()
+
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
         .map_err(|e| format!("Failed to get app data directory: {}", e))?;
-    
+
     Ok(app_data_dir.join(config.config_filename))
 }
 
 /// 从配置文件中获取自定义路径
-pub fn get_custom_path(app: &AppHandle, config: &PlatformPathConfig) -> Result<Option<String>, String> {
+pub fn get_custom_path(
+    app: &AppHandle,
+    config: &PlatformPathConfig,
+) -> Result<Option<String>, String> {
     let config_path = get_config_path(app, config)?;
-    
+
     if !config_path.exists() {
         return Ok(None);
     }
-    
+
     let content = std::fs::read_to_string(&config_path)
         .map_err(|e| format!("Failed to read config: {}", e))?;
-    
-    let json: serde_json::Value = serde_json::from_str(&content)
-        .map_err(|e| format!("Failed to parse config: {}", e))?;
-    
-    Ok(json.get("custom_path")
+
+    let json: serde_json::Value =
+        serde_json::from_str(&content).map_err(|e| format!("Failed to parse config: {}", e))?;
+
+    Ok(json
+        .get("custom_path")
         .and_then(|v| v.as_str())
         .map(String::from))
 }
 
 /// 设置自定义路径到配置文件
-/// 
+///
 /// # 参数
 /// - `app`: Tauri 应用句柄
 /// - `config`: 平台配置
@@ -90,14 +96,14 @@ where
     F: Fn(&str) -> Result<bool, String>,
 {
     let config_path = get_config_path(app, config)?;
-    
+
     // 如果提供了路径，验证它
     if let Some(ref p) = path {
         if !validate_fn(p)? {
             return Err(format!("Invalid {} executable path", config.app_name));
         }
     }
-    
+
     // 读取现有配置或创建新配置
     let mut json: serde_json::Value = if config_path.exists() {
         let content = std::fs::read_to_string(&config_path)
@@ -106,65 +112,66 @@ where
     } else {
         serde_json::json!({})
     };
-    
+
     // 更新或删除 custom_path
     if let Some(p) = path {
         json["custom_path"] = serde_json::Value::String(p);
     } else {
         json.as_object_mut().map(|obj| obj.remove("custom_path"));
     }
-    
+
     // 确保目录存在
     if let Some(parent) = config_path.parent() {
         std::fs::create_dir_all(parent)
             .map_err(|e| format!("Failed to create config directory: {}", e))?;
     }
-    
+
     // 写入配置
     let content = serde_json::to_string_pretty(&json)
         .map_err(|e| format!("Failed to serialize config: {}", e))?;
-    std::fs::write(&config_path, content)
-        .map_err(|e| format!("Failed to write config: {}", e))?;
-    
+    std::fs::write(&config_path, content).map_err(|e| format!("Failed to write config: {}", e))?;
+
     Ok(())
 }
 
 /// 验证可执行文件路径
 pub fn validate_executable_path(path: &str, config: &PlatformPathConfig) -> Result<bool, String> {
     let path = PathBuf::from(path);
-    
+
     if !path.exists() {
         return Ok(false);
     }
-    
+
     #[cfg(target_os = "windows")]
     {
-        let is_exe = path.extension()
+        let is_exe = path
+            .extension()
             .map(|ext| ext.eq_ignore_ascii_case("exe"))
             .unwrap_or(false);
-        let name_matches = path.file_name()
+        let name_matches = path
+            .file_name()
             .and_then(|n| n.to_str())
             .map(|n| n.to_lowercase().contains(config.path_keyword))
             .unwrap_or(false);
         Ok(is_exe && name_matches)
     }
-    
+
     #[cfg(target_os = "macos")]
     {
-        let is_app = path.extension()
-            .map(|ext| ext == "app")
-            .unwrap_or(false);
-        let name_matches = path.file_name()
+        let is_app = path.extension().map(|ext| ext == "app").unwrap_or(false);
+        let name_matches = path
+            .file_name()
             .and_then(|n| n.to_str())
             .map(|n| n.to_lowercase().contains(config.path_keyword))
             .unwrap_or(false);
         Ok((is_app || path.is_file()) && name_matches)
     }
-    
+
     #[cfg(target_os = "linux")]
     {
         let is_executable = path.is_file();
-        let name_matches = path.file_name()
+        let name_matches = path
+            .file_name()
             .and_then(|n| n.to_str())
             .map(|n| n.to_lowercase().contains(config.path_keyword))
             .unwrap_or(false);
@@ -188,9 +195,7 @@ pub fn select_executable_path(config: &PlatformPathConfig) -> Result<Option<Stri
                 Write-Output $dialog.FileName
             }}
             "#,
-            config.app_name,
-            config.app_name,
-            config.app_name
+            config.app_name, config.app_name, config.app_name
         );
 
         let output = Command::new("powershell")
@@ -273,7 +278,10 @@ pub fn select_executable_path(config: &PlatformPathConfig) -> Result<Option<Stri
 }
 
 /// 从配置文件中读取自定义路径（非命令版本，用于内部调用）
-pub fn read_custom_path_from_config(app: &AppHandle, config: &PlatformPathConfig) -> Option<String> {
+pub fn read_custom_path_from_config(
+    app: &AppHandle,
+    config: &PlatformPathConfig,
+) -> Option<String> {
     get_config_path(app, config)
         .ok()
         .and_then(|config_path| {
@@ -284,6 +292,9 @@ pub fn read_custom_path_from_config(app: &AppHandle, config: &PlatformPathConfig
             }
         })
         .and_then(|content| serde_json::from_str::<serde_json::Value>(&content).ok())
-        .and_then(|json| json.get("custom_path").and_then(|v| v.as_str()).map(String::from))
+        .and_then(|json| {
+            json.get("custom_path")
+                .and_then(|v| v.as_str())
+                .map(String::from)
+        })
 }
-

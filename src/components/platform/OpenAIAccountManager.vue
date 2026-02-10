@@ -60,6 +60,17 @@
 
           <!-- 右侧：主要操作按钮 -->
           <div class="flex items-center gap-2 shrink-0" @click.stop>
+            <button
+              class="btn btn--icon btn--ghost"
+              @click="showCodexDialog = true"
+              v-tooltip="$t('platform.openai.codexDialog.buttonTooltip')"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="6" rx="1.5"></rect>
+                <rect x="3" y="14" width="18" height="6" rx="1.5"></rect>
+                <path d="M7 7h.01M7 17h.01M11 7h6M11 17h6"></path>
+              </svg>
+            </button>
             <button @click="showAddDialog = true" class="btn btn--icon btn--ghost" v-tooltip="$t('platform.openai.addAccount')">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
@@ -155,9 +166,8 @@
                   </div>
                 </th>
                 <th class="th w-[60px]">{{ $t('platform.openai.table.tag') }}</th>
-                <th class="th w-[60px]">{{ $t('platform.openai.table.status') }}</th>
                 <th class="th">{{ $t('platform.openai.table.email') }}</th>
-                <th class="th w-[140px]">{{ $t('platform.openai.table.time') }}</th>
+                <th class="th w-[140px]">{{ $t('platform.openai.table.subscription') }}</th>
                 <th class="th">{{ $t('platform.openai.table.quota') }}</th>
                 <th class="th w-[110px] text-center">{{ $t('platform.openai.table.actions') }}</th>
               </tr>
@@ -299,6 +309,16 @@
             >
               <span>{{ $t('platform.openai.filter.expired') }}</span>
               <span class="ml-1 opacity-70">({{ statusStatistics.expired }})</span>
+            </button>
+            <button
+              :class="[
+                'btn btn--sm',
+                selectedStatusFilter === 'forbidden' ? 'btn--primary' : 'btn--secondary'
+              ]"
+              @click="selectStatusFilter('forbidden')"
+            >
+              <span>{{ $t('platform.openai.filter.forbidden') }}</span>
+              <span class="ml-1 opacity-70">({{ statusStatistics.forbidden }})</span>
             </button>
           </div>
         </div>
@@ -481,6 +501,8 @@
       @saved="handleEditSaved"
     />
 
+    <CodexServerDialog v-if="showCodexDialog" @close="showCodexDialog = false" />
+
     <!-- Sync Queue Modal -->
     <SyncQueueModal
       v-model:visible="showSyncQueueModal"
@@ -511,6 +533,7 @@ import AccountCard from '../openai/AccountCard.vue'
 import AccountTableRow from '../openai/AccountTableRow.vue'
 import AddAccountDialog from '../openai/AddAccountDialog.vue'
 import EditApiAccountDialog from '../openai/EditApiAccountDialog.vue'
+import CodexServerDialog from '../openai/CodexServerDialog.vue'
 import SyncQueueModal from '../common/SyncQueueModal.vue'
 import Pagination from '../common/Pagination.vue'
 import BatchToolbar from '../common/BatchToolbar.vue'
@@ -533,6 +556,7 @@ const props = defineProps({
 const accounts = ref([])
 const currentAccountId = ref(null)
 const showAddDialog = ref(false)
+const showCodexDialog = ref(false)
 const editingAccount = ref(null)
 const isLoading = ref(false)
 const refreshingIds = ref(new Set())
@@ -621,30 +645,41 @@ const allAccountsAsTokens = computed(() =>
   }))
 )
 
-// 状态判断
-const isAccountActive = (account) => {
-  // API 账号始终视为有效
-  if (account.account_type === 'api') return true
-  if (!account.token) return false
-  if (account.token.expires_at) {
-    const now = Math.floor(Date.now() / 1000)
-    return account.token.expires_at > now
+// 状态判断 - 基于订阅到期时间
+const isAccountExpired = (account) => {
+  // API 账号不判断过期
+  if (account.account_type === 'api') return false
+  // 解析 openai_auth_json 获取订阅到期时间
+  if (!account.openai_auth_json) return false
+  try {
+    const authInfo = JSON.parse(account.openai_auth_json)
+    if (!authInfo.chatgpt_subscription_active_until) return false
+    const expiry = new Date(authInfo.chatgpt_subscription_active_until)
+    return expiry < new Date()
+  } catch {
+    return false
   }
-  return true
+}
+
+const isAccountForbidden = (account) => {
+  return account.quota?.is_forbidden === true
 }
 
 const statusStatistics = computed(() => {
   const stats = {
     total: accounts.value.length,
     active: 0,
-    expired: 0
+    expired: 0,
+    forbidden: 0
   }
 
   accounts.value.forEach(account => {
-    if (isAccountActive(account)) {
-      stats.active++
-    } else {
+    if (isAccountForbidden(account)) {
+      stats.forbidden++
+    } else if (isAccountExpired(account)) {
       stats.expired++
+    } else {
+      stats.active++
     }
   })
 
@@ -695,9 +730,11 @@ const filteredAccounts = computed(() => {
   if (selectedStatusFilter.value) {
     result = result.filter(account => {
       if (selectedStatusFilter.value === 'active') {
-        return isAccountActive(account)
+        return !isAccountForbidden(account) && !isAccountExpired(account)
       } else if (selectedStatusFilter.value === 'expired') {
-        return !isAccountActive(account)
+        return isAccountExpired(account)
+      } else if (selectedStatusFilter.value === 'forbidden') {
+        return isAccountForbidden(account)
       }
       return true
     })
@@ -799,12 +836,14 @@ const handleRefreshQuota = async (accountId) => {
   }
 }
 
-// 刷新当前页所有配额（并行，仅 OAuth 账号）
+// 刷新当前页所有配额（并行，仅 OAuth 账号，排除禁用账号）
 const handleRefreshCurrentPageQuota = async () => {
   isRefreshingAll.value = true
   try {
-    // 过滤掉 API 账号，只刷新 OAuth 账号的配额
-    const oauthAccounts = paginatedAccounts.value.filter(account => account.account_type !== 'api')
+    // 过滤掉 API 账号和被禁用的账号
+    const oauthAccounts = paginatedAccounts.value.filter(
+      account => account.account_type !== 'api' && !account.quota?.is_forbidden
+    )
     await Promise.allSettled(
       oauthAccounts.map((account) => handleRefreshQuota(account.id))
     )

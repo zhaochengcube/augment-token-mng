@@ -1,6 +1,6 @@
-use super::traits::{TokenStorage, TokenData, convert_legacy_token, convert_to_legacy_format};
-use std::path::PathBuf;
+use super::traits::{TokenData, TokenStorage, convert_legacy_token, convert_to_legacy_format};
 use std::fs;
+use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::Manager;
 
@@ -11,12 +11,14 @@ pub struct LocalFileStorage {
 }
 
 impl LocalFileStorage {
-    pub fn new(app_handle: &tauri::AppHandle) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+    pub fn new(
+        app_handle: &tauri::AppHandle,
+    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         let app_data_dir = app_handle.path().app_data_dir()?;
         fs::create_dir_all(&app_data_dir)?;
-        
+
         let storage_path = app_data_dir.join("tokens.json");
-        
+
         Ok(Self {
             storage_path,
             _lock: Mutex::new(()),
@@ -32,7 +34,7 @@ impl LocalFileStorage {
 
     async fn read_file_content(&self) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         let _guard = self._lock.lock().unwrap();
-        
+
         if !self.storage_path.exists() {
             return Ok("[]".to_string());
         }
@@ -45,7 +47,10 @@ impl LocalFileStorage {
         Ok(content)
     }
 
-    async fn write_file_content(&self, content: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    async fn write_file_content(
+        &self,
+        content: &str,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let _guard = self._lock.lock().unwrap();
 
         // 确保父目录存在
@@ -70,13 +75,21 @@ impl LocalFileStorage {
 
                 // 检查临时文件是否仍然存在
                 if !temp_path.exists() {
-                    return Err(format!("Failed to rename temp file (temp file was removed): {}", e).into());
+                    return Err(format!(
+                        "Failed to rename temp file (temp file was removed): {}",
+                        e
+                    )
+                    .into());
                 }
 
                 // 检查父目录是否仍然存在
                 if let Some(parent) = self.storage_path.parent() {
                     if !parent.exists() {
-                        return Err(format!("Failed to rename temp file (parent directory disappeared): {}", e).into());
+                        return Err(format!(
+                            "Failed to rename temp file (parent directory disappeared): {}",
+                            e
+                        )
+                        .into());
                     }
                 }
 
@@ -86,7 +99,11 @@ impl LocalFileStorage {
                     if self.storage_path.exists() {
                         if let Err(remove_err) = fs::remove_file(&self.storage_path) {
                             let _ = fs::remove_file(&temp_path);
-                            return Err(format!("Failed to remove existing file before rename: {}", remove_err).into());
+                            return Err(format!(
+                                "Failed to remove existing file before rename: {}",
+                                remove_err
+                            )
+                            .into());
                         }
                     }
 
@@ -95,7 +112,11 @@ impl LocalFileStorage {
                         Ok(_) => return Ok(()),
                         Err(retry_err) => {
                             let _ = fs::remove_file(&temp_path);
-                            return Err(format!("Failed to rename temp file after retry: {}", retry_err).into());
+                            return Err(format!(
+                                "Failed to rename temp file after retry: {}",
+                                retry_err
+                            )
+                            .into());
                         }
                     }
                 }
@@ -108,7 +129,10 @@ impl LocalFileStorage {
         }
     }
 
-    async fn parse_tokens_from_content(&self, content: &str) -> Result<Vec<TokenData>, Box<dyn std::error::Error + Send + Sync>> {
+    async fn parse_tokens_from_content(
+        &self,
+        content: &str,
+    ) -> Result<Vec<TokenData>, Box<dyn std::error::Error + Send + Sync>> {
         let json_value: serde_json::Value = serde_json::from_str(content)?;
         let mut tokens = Vec::new();
 
@@ -157,9 +181,12 @@ impl LocalFileStorage {
 
 #[async_trait::async_trait]
 impl TokenStorage for LocalFileStorage {
-    async fn save_token(&self, token: &TokenData) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    async fn save_token(
+        &self,
+        token: &TokenData,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let mut tokens = self.load_tokens().await?;
-        
+
         // 检查是否已存在相同ID的token
         if let Some(existing_index) = tokens.iter().position(|t| t.id == token.id) {
             tokens[existing_index] = token.clone();
@@ -168,9 +195,8 @@ impl TokenStorage for LocalFileStorage {
         }
 
         // 转换为旧格式并保存
-        let legacy_tokens: Vec<serde_json::Value> = tokens.iter()
-            .map(convert_to_legacy_format)
-            .collect();
+        let legacy_tokens: Vec<serde_json::Value> =
+            tokens.iter().map(convert_to_legacy_format).collect();
 
         let json_content = serde_json::to_string_pretty(&legacy_tokens)?;
         self.write_file_content(&json_content).await?;
@@ -178,28 +204,35 @@ impl TokenStorage for LocalFileStorage {
         Ok(())
     }
 
-    async fn load_tokens(&self) -> Result<Vec<TokenData>, Box<dyn std::error::Error + Send + Sync>> {
+    async fn load_tokens(
+        &self,
+    ) -> Result<Vec<TokenData>, Box<dyn std::error::Error + Send + Sync>> {
         let content = self.read_file_content().await?;
         self.parse_tokens_from_content(&content).await
     }
 
-    async fn update_token(&self, token: &TokenData) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    async fn update_token(
+        &self,
+        token: &TokenData,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let mut updated_token = token.clone();
         updated_token.update_timestamp();
         self.save_token(&updated_token).await
     }
 
-    async fn delete_token(&self, token_id: &str) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
+    async fn delete_token(
+        &self,
+        token_id: &str,
+    ) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
         let mut tokens = self.load_tokens().await?;
         let initial_len = tokens.len();
-        
+
         tokens.retain(|t| t.id != token_id);
-        
+
         if tokens.len() < initial_len {
             // 转换为旧格式并保存
-            let legacy_tokens: Vec<serde_json::Value> = tokens.iter()
-                .map(convert_to_legacy_format)
-                .collect();
+            let legacy_tokens: Vec<serde_json::Value> =
+                tokens.iter().map(convert_to_legacy_format).collect();
 
             let json_content = serde_json::to_string_pretty(&legacy_tokens)?;
             self.write_file_content(&json_content).await?;
@@ -209,7 +242,10 @@ impl TokenStorage for LocalFileStorage {
         }
     }
 
-    async fn get_token(&self, token_id: &str) -> Result<Option<TokenData>, Box<dyn std::error::Error + Send + Sync>> {
+    async fn get_token(
+        &self,
+        token_id: &str,
+    ) -> Result<Option<TokenData>, Box<dyn std::error::Error + Send + Sync>> {
         let tokens = self.load_tokens().await?;
         Ok(tokens.into_iter().find(|t| t.id == token_id))
     }

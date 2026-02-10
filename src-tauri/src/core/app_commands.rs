@@ -1,12 +1,12 @@
 use arboard::Clipboard;
 use chrono;
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter, Manager, WebviewWindowBuilder, WebviewUrl};
+use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
-use crate::http_client;
-use crate::proxy_config;
 use crate::AppState;
+use crate::http_client;
 use crate::platforms::augment::oauth::add_token_from_session_internal_with_cache;
+use crate::proxy_config;
 
 // Update check structures
 #[derive(Debug, Serialize, Deserialize)]
@@ -85,7 +85,10 @@ pub async fn check_for_updates() -> Result<UpdateInfo, String> {
         .map_err(|e| format!("Failed to fetch RSS feed: {}", e))?;
 
     if !response.status().is_success() {
-        return Err(format!("GitHub RSS feed returned status: {}", response.status()));
+        return Err(format!(
+            "GitHub RSS feed returned status: {}",
+            response.status()
+        ));
     }
 
     let xml_text = response
@@ -98,11 +101,11 @@ pub async fn check_for_updates() -> Result<UpdateInfo, String> {
         .map_err(|e| format!("Failed to parse RSS feed: {}", e))?;
 
     // 获取第一个 entry (最新版本)
-    let latest_entry = feed.entry.first()
-        .ok_or("No releases found in RSS feed")?;
+    let latest_entry = feed.entry.first().ok_or("No releases found in RSS feed")?;
 
     // 从 id 中提取版本号 (格式: tag:github.com,2008:Repository/.../v1.2.3)
-    let latest_version = latest_entry.id
+    let latest_version = latest_entry
+        .id
         .split('/')
         .last()
         .ok_or("Invalid release ID format")?
@@ -127,15 +130,19 @@ pub async fn check_for_updates() -> Result<UpdateInfo, String> {
 
 #[tauri::command]
 pub async fn copy_to_clipboard(text: String) -> Result<(), String> {
-    let mut clipboard = Clipboard::new().map_err(|e| format!("Failed to access clipboard: {}", e))?;
-    clipboard.set_text(text).map_err(|e| format!("Failed to set clipboard text: {}", e))?;
+    let mut clipboard =
+        Clipboard::new().map_err(|e| format!("Failed to access clipboard: {}", e))?;
+    clipboard
+        .set_text(text)
+        .map_err(|e| format!("Failed to set clipboard text: {}", e))?;
     Ok(())
 }
 
 #[tauri::command]
 pub async fn open_url(app: AppHandle, url: String) -> Result<(), String> {
     use tauri_plugin_opener::OpenerExt;
-    app.opener().open_url(url, None::<&str>)
+    app.opener()
+        .open_url(url, None::<&str>)
         .map_err(|e| format!("Failed to open URL: {}", e))
 }
 
@@ -145,8 +152,8 @@ pub async fn open_internal_browser(
     url: String,
     title: Option<String>,
 ) -> Result<String, String> {
-    use tauri::webview::PageLoadEvent;
     use std::time::Duration;
+    use tauri::webview::PageLoadEvent;
 
     // 加载代理配置
     let proxy_config = proxy_config::load_proxy_config(app.clone()).await.ok();
@@ -157,13 +164,13 @@ pub async fn open_internal_browser(
     let mut builder = WebviewWindowBuilder::new(
         &app,
         &window_label,
-        WebviewUrl::External(url.parse().map_err(|e| format!("Invalid URL: {}", e))?)
+        WebviewUrl::External(url.parse().map_err(|e| format!("Invalid URL: {}", e))?),
     )
     .title(&title.unwrap_or_else(|| "内置浏览器".to_string()))
     .inner_size(1000.0, 700.0)
     .center()
     .resizable(true)
-    .incognito(true);  // 无痕模式,关闭后自动清除所有数据
+    .incognito(true); // 无痕模式,关闭后自动清除所有数据
 
     // 如果有代理配置，应用代理
     if let Some(config) = proxy_config {
@@ -177,8 +184,9 @@ pub async fn open_internal_browser(
                     proxy_url_str.clone()
                 };
 
-                if normalized_proxy_url.starts_with("http://") ||
-                   normalized_proxy_url.starts_with("socks5://") {
+                if normalized_proxy_url.starts_with("http://")
+                    || normalized_proxy_url.starts_with("socks5://")
+                {
                     match normalized_proxy_url.parse::<url::Url>() {
                         Ok(proxy_url) => {
                             builder = builder.proxy_url(proxy_url);
@@ -189,7 +197,10 @@ pub async fn open_internal_browser(
                         }
                     }
                 } else {
-                    eprintln!("WebView only supports http:// and socks5:// proxies, got: {}", normalized_proxy_url);
+                    eprintln!(
+                        "WebView only supports http:// and socks5:// proxies, got: {}",
+                        normalized_proxy_url
+                    );
                 }
             } else {
                 eprintln!("Proxy enabled but no proxy URL configured (System proxy or CustomUrl)");
@@ -740,15 +751,15 @@ pub async fn open_internal_browser(
 #[tauri::command]
 pub async fn close_window(app: AppHandle, window_label: String) -> Result<(), String> {
     if let Some(window) = app.get_webview_window(&window_label) {
-        window.close().map_err(|e| format!("Failed to close window: {}", e))?;
+        window
+            .close()
+            .map_err(|e| format!("Failed to close window: {}", e))?;
     }
     Ok(())
 }
 
 #[tauri::command]
-pub async fn open_data_folder(
-    app: AppHandle,
-) -> Result<(), String> {
+pub async fn open_data_folder(app: AppHandle) -> Result<(), String> {
     let app_data_dir = app
         .path()
         .app_data_dir()
@@ -791,8 +802,8 @@ pub async fn create_jetbrains_token_file(
     editor_type: String,
     token_data: String,
 ) -> Result<String, String> {
-    use std::fs;
     use std::env;
+    use std::fs;
     use std::path::PathBuf;
 
     // 获取用户主目录
@@ -811,8 +822,7 @@ pub async fn create_jetbrains_token_file(
     let file_path = augment_dir.join(&file_name);
 
     // 写入文件
-    fs::write(&file_path, token_data)
-        .map_err(|e| format!("Failed to write token file: {}", e))?;
+    fs::write(&file_path, token_data).map_err(|e| format!("Failed to write token file: {}", e))?;
 
     Ok(file_path.to_string_lossy().to_string())
 }
@@ -822,8 +832,8 @@ pub async fn configure_vim_augment(
     access_token: String,
     tenant_url: String,
 ) -> Result<String, String> {
-    use std::fs;
     use std::env;
+    use std::fs;
     use std::path::PathBuf;
 
     // 获取用户主目录
@@ -832,7 +842,10 @@ pub async fn configure_vim_augment(
         .map_err(|_| "Failed to get home directory".to_string())?;
 
     // 配置文件路径 (所有系统统一使用 .local/share/vim-augment)
-    let vim_augment_dir = PathBuf::from(&home_dir).join(".local").join("share").join("vim-augment");
+    let vim_augment_dir = PathBuf::from(&home_dir)
+        .join(".local")
+        .join("share")
+        .join("vim-augment");
 
     // 确保目录存在
     fs::create_dir_all(&vim_augment_dir)
@@ -886,12 +899,9 @@ pub async fn configure_vim_augment(
 }
 
 #[tauri::command]
-pub async fn configure_auggie(
-    access_token: String,
-    tenant_url: String,
-) -> Result<String, String> {
-    use std::fs;
+pub async fn configure_auggie(access_token: String, tenant_url: String) -> Result<String, String> {
     use std::env;
+    use std::fs;
     use std::path::PathBuf;
 
     // 获取用户主目录
@@ -945,13 +955,11 @@ pub async fn configure_auggie(
 }
 
 #[tauri::command]
-pub async fn open_editor_with_protocol(
-    app: AppHandle,
-    protocol_url: String,
-) -> Result<(), String> {
+pub async fn open_editor_with_protocol(app: AppHandle, protocol_url: String) -> Result<(), String> {
     println!("Opening editor with protocol URL: {}", protocol_url);
 
     use tauri_plugin_opener::OpenerExt;
-    app.opener().open_url(protocol_url, None::<&str>)
+    app.opener()
+        .open_url(protocol_url, None::<&str>)
         .map_err(|e| format!("Failed to open editor with protocol: {}", e))
 }

@@ -1,16 +1,20 @@
 use tokio_postgres::Client;
 
-pub async fn check_tables_exist(client: &Client) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
-    let rows = client.query(
-        r#"
+pub async fn check_tables_exist(
+    client: &Client,
+) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
+    let rows = client
+        .query(
+            r#"
         SELECT EXISTS (
             SELECT FROM information_schema.tables
             WHERE table_schema = 'public'
             AND table_name = 'antigravity_accounts'
         )
         "#,
-        &[],
-    ).await?;
+            &[],
+        )
+        .await?;
 
     if let Some(row) = rows.first() {
         let exists: bool = row.get(0);
@@ -20,14 +24,19 @@ pub async fn check_tables_exist(client: &Client) -> Result<bool, Box<dyn std::er
     }
 }
 
-pub async fn create_tables(client: &Client) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    client.execute(
-        "CREATE SEQUENCE IF NOT EXISTS antigravity_account_version_seq START 1",
-        &[],
-    ).await?;
+pub async fn create_tables(
+    client: &Client,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    client
+        .execute(
+            "CREATE SEQUENCE IF NOT EXISTS antigravity_account_version_seq START 1",
+            &[],
+        )
+        .await?;
 
-    client.execute(
-        r#"
+    client
+        .execute(
+            r#"
         CREATE TABLE IF NOT EXISTS antigravity_accounts (
             id VARCHAR(255) PRIMARY KEY,
             email TEXT NOT NULL,
@@ -52,8 +61,9 @@ pub async fn create_tables(client: &Client) -> Result<(), Box<dyn std::error::Er
             version BIGINT NOT NULL DEFAULT nextval('antigravity_account_version_seq')
         )
         "#,
-        &[],
-    ).await?;
+            &[],
+        )
+        .await?;
 
     client.execute(
         "CREATE INDEX IF NOT EXISTS idx_antigravity_accounts_version ON antigravity_accounts(version)",
@@ -65,31 +75,48 @@ pub async fn create_tables(client: &Client) -> Result<(), Box<dyn std::error::Er
 
 #[allow(dead_code)]
 pub async fn drop_tables(client: &Client) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    client.execute("DROP TABLE IF EXISTS antigravity_accounts CASCADE", &[]).await?;
-    client.execute("DROP SEQUENCE IF EXISTS antigravity_account_version_seq CASCADE", &[]).await?;
+    client
+        .execute("DROP TABLE IF EXISTS antigravity_accounts CASCADE", &[])
+        .await?;
+    client
+        .execute(
+            "DROP SEQUENCE IF EXISTS antigravity_account_version_seq CASCADE",
+            &[],
+        )
+        .await?;
     Ok(())
 }
 
-pub async fn add_new_fields_if_not_exist(_client: &Client) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+pub async fn add_new_fields_if_not_exist(
+    _client: &Client,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     _client.execute(
         "ALTER TABLE antigravity_accounts ADD COLUMN IF NOT EXISTS disabled BOOLEAN NOT NULL DEFAULT FALSE",
         &[],
     ).await?;
-    _client.execute(
-        "ALTER TABLE antigravity_accounts ADD COLUMN IF NOT EXISTS disabled_reason TEXT",
-        &[],
-    ).await?;
-    _client.execute(
-        "ALTER TABLE antigravity_accounts ADD COLUMN IF NOT EXISTS disabled_at BIGINT",
-        &[],
-    ).await?;
-    _client.execute(
-        "ALTER TABLE antigravity_accounts ADD COLUMN IF NOT EXISTS tag TEXT",
-        &[],
-    ).await?;
-    _client.execute(
-        "ALTER TABLE antigravity_accounts ADD COLUMN IF NOT EXISTS tag_color TEXT",
-        &[],
-    ).await?;
+    _client
+        .execute(
+            "ALTER TABLE antigravity_accounts ADD COLUMN IF NOT EXISTS disabled_reason TEXT",
+            &[],
+        )
+        .await?;
+    _client
+        .execute(
+            "ALTER TABLE antigravity_accounts ADD COLUMN IF NOT EXISTS disabled_at BIGINT",
+            &[],
+        )
+        .await?;
+    _client
+        .execute(
+            "ALTER TABLE antigravity_accounts ADD COLUMN IF NOT EXISTS tag TEXT",
+            &[],
+        )
+        .await?;
+    _client
+        .execute(
+            "ALTER TABLE antigravity_accounts ADD COLUMN IF NOT EXISTS tag_color TEXT",
+            &[],
+        )
+        .await?;
     Ok(())
 }

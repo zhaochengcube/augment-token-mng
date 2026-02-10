@@ -1,4 +1,4 @@
-use super::traits::{AccountStorage, SyncableAccount, StorageError};
+use super::traits::{AccountStorage, StorageError, SyncableAccount};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::marker::PhantomData;
@@ -87,7 +87,8 @@ impl<T: SyncableAccount> GenericLocalStorage<T> {
                 "Unsupported {} account schema version: {}",
                 T::platform_name(),
                 store.schema_version
-            ).into());
+            )
+            .into());
         }
 
         Ok(store)
@@ -141,7 +142,10 @@ impl<T: SyncableAccount> GenericLocalStorage<T> {
             version,
             current_account_id,
             accounts,
-            deletions: deletions.into_iter().map(|id| DeletedRecord { id, version: 0 }).collect(),
+            deletions: deletions
+                .into_iter()
+                .map(|id| DeletedRecord { id, version: 0 })
+                .collect(),
         };
 
         self.write_store(&store)
@@ -181,12 +185,19 @@ impl<T: SyncableAccount> AccountStorage<T> for GenericLocalStorage<T> {
 
     async fn load_accounts(&self) -> Result<Vec<T>, StorageError> {
         let store = self.read_store()?;
-        Ok(store.accounts.into_iter().filter(|a| !a.is_deleted()).collect())
+        Ok(store
+            .accounts
+            .into_iter()
+            .filter(|a| !a.is_deleted())
+            .collect())
     }
 
     async fn get_account(&self, id: &str) -> Result<Option<T>, StorageError> {
         let store = self.read_store()?;
-        Ok(store.accounts.into_iter().find(|a| a.id() == id && !a.is_deleted()))
+        Ok(store
+            .accounts
+            .into_iter()
+            .find(|a| a.id() == id && !a.is_deleted()))
     }
 
     async fn update_account(&self, account: &T) -> Result<(), StorageError> {
@@ -233,4 +244,3 @@ impl<T: SyncableAccount> AccountStorage<T> for GenericLocalStorage<T> {
             .unwrap_or(false)
     }
 }
-

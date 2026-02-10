@@ -1,5 +1,5 @@
-use crate::antigravity::models::{Account, TokenData, QuotaData};
-use crate::antigravity::modules::{storage, oauth, quota};
+use crate::antigravity::models::{Account, QuotaData, TokenData};
+use crate::antigravity::modules::{oauth, quota, storage};
 use uuid::Uuid;
 
 /// 添加账号（使用 refresh_token）
@@ -18,10 +18,14 @@ pub async fn add_account(
     let email_to_check = user_info.email.trim().to_lowercase();
     let existing_accounts = storage::list_accounts(app_handle).await?;
 
-    if existing_accounts.iter().any(|account| {
-        account.email.trim().to_lowercase() == email_to_check
-    }) {
-        return Err(format!("Account with email '{}' already exists", user_info.email));
+    if existing_accounts
+        .iter()
+        .any(|account| account.email.trim().to_lowercase() == email_to_check)
+    {
+        return Err(format!(
+            "Account with email '{}' already exists",
+            user_info.email
+        ));
     }
 
     // 4. 构造 TokenData
@@ -58,7 +62,9 @@ pub async fn delete_account(
 }
 
 /// 获取当前账号 ID
-pub async fn get_current_account_id(app_handle: &tauri::AppHandle) -> Result<Option<String>, String> {
+pub async fn get_current_account_id(
+    app_handle: &tauri::AppHandle,
+) -> Result<Option<String>, String> {
     storage::get_current_account_id(app_handle).await
 }
 
@@ -101,10 +107,12 @@ pub async fn fetch_quota_with_retry(
         account.updated_at = chrono::Utc::now().timestamp();
 
         // 重新获取用户名
-        let name = if account.name.is_none() || account.name.as_ref().map_or(false, |n| n.trim().is_empty()) {
+        let name = if account.name.is_none()
+            || account.name.as_ref().map_or(false, |n| n.trim().is_empty())
+        {
             match oauth::get_user_info(&token.access_token).await {
                 Ok(user_info) => user_info.get_display_name(),
-                Err(_) => None
+                Err(_) => None,
             }
         } else {
             account.name.clone()

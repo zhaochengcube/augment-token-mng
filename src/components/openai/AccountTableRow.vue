@@ -2,8 +2,9 @@
   <tr
     :class="[
       'group transition-colors duration-200',
-      'hover:bg-accent/6',
-      isSelected ? 'bg-accent/10' : ''
+      isCurrent ? 'bg-accent/8 border-l-2 border-l-accent' : '',
+      isSelected ? 'bg-accent/10' : '',
+      !isCurrent && !isSelected ? 'hover:bg-accent/6' : ''
     ]"
     @click="handleRowClick"
   >
@@ -43,47 +44,72 @@
       </span>
     </td>
 
-    <!-- 状态 -->
-    <td class="px-2.5 py-3.5 border-b border-border/50 align-middle whitespace-nowrap text-[13px] text-text">
-      <div class="flex items-center gap-1.5">
-        <span :class="['badge', statusBadgeClass]">
-          <span class="status-dot" :class="statusDotClass"></span>
-          {{ statusLabel }}
-        </span>
-        <span v-if="isApiAccount" class="badge badge--info">
-          API
-        </span>
-      </div>
-    </td>
-
     <!-- 邮箱 -->
     <td class="px-2.5 py-3.5 border-b border-border/50 align-middle text-[13px] text-text truncate">
-      <div class="text-copyable" @click.stop="copyEmail" v-tooltip="account.email">
-        <span class="text-copyable__content">{{ showRealEmail ? account.email : maskedEmail }}</span>
+      <div class="flex min-w-0 items-center gap-2">
+        <div class="text-copyable min-w-0" @click.stop="copyEmail" v-tooltip="account.email">
+          <span class="text-copyable__content block truncate">{{ showRealEmail ? account.email : maskedEmail }}</span>
+        </div>
+        <!-- 订阅计划徽章 -->
+        <span v-if="planType" :class="getPlanBadgeClass(planType)">
+          <svg v-if="isApiAccount" class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 3H5L2 9l10 12L22 9l-3-6zM9.62 8l1.5-3h1.76l1.5 3H9.62zM11 10v6.68L5.44 10H11zm2 0h5.56L13 16.68V10zm6.26-2h-2.65l-1.5-3h2.65l1.5 3zM6.24 5h2.65l-1.5 3H4.74l1.5-3z"/>
+          </svg>
+          <svg v-else-if="planType?.toLowerCase() === 'pro'" class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 3H5L2 9l10 12L22 9l-3-6zM9.62 8l1.5-3h1.76l1.5 3H9.62zM11 10v6.68L5.44 10H11zm2 0h5.56L13 16.68V10zm6.26-2h-2.65l-1.5-3h2.65l1.5 3zM6.24 5h2.65l-1.5 3H4.74l1.5-3z"/>
+          </svg>
+          <svg v-else-if="planType?.toLowerCase() === 'team'" class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z"/>
+          </svg>
+          <svg v-else-if="planType?.toLowerCase() === 'plus'" class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z"/>
+          </svg>
+          {{ isApiAccount ? 'API' : planType }}
+        </span>
       </div>
     </td>
 
-    <!-- 时间信息 -->
+    <!-- 订阅/时间信息 -->
     <td class="px-2.5 py-3.5 border-b border-border/50 align-middle whitespace-nowrap text-[13px] text-text">
       <div class="flex flex-col gap-1">
-        <span class="text-meta" v-tooltip="$t('platform.openai.createdAt') + ': ' + formatDate(account.created_at)">C: {{ formatDate(account.created_at) }}</span>
-        <span v-if="isApiAccount && account.api_config?.model" class="text-meta" v-tooltip="'Model: ' + account.api_config.model">M: {{ account.api_config.model }}</span>
-        <span v-else-if="account.token?.expires_at" class="text-meta" v-tooltip="$t('platform.openai.tokenExpiresAt') + ': ' + formatDate(account.token.expires_at)">Exp: {{ formatDate(account.token.expires_at) }}</span>
+        <!-- API 账号显示 Model -->
+        <template v-if="isApiAccount">
+          <span v-if="account.api_config?.model" class="text-xs truncate" v-tooltip="'Model: ' + account.api_config.model">
+            {{ account.api_config.model }}
+          </span>
+          <span v-else class="text-text-muted text-xs">-</span>
+        </template>
+        <!-- OAuth 账号显示订阅到期时间 -->
+        <template v-else>
+          <span v-if="authInfo?.chatgpt_subscription_active_until" :class="['text-xs', subscriptionExpiryClass]" v-tooltip="$t('platform.openai.subscriptionExpires')">
+            {{ formatISODate(authInfo.chatgpt_subscription_active_until) }}
+            <span v-if="subscriptionDaysLeftText" class="text-[11px] opacity-80">({{ subscriptionDaysLeftText }})</span>
+          </span>
+          <span v-else class="text-text-muted text-xs">-</span>
+        </template>
       </div>
     </td>
 
-    <!-- 配额信息 -->
+    <!-- 配额/配置信息 -->
     <td class="px-2.5 py-3.5 border-b border-border/50 align-middle text-[13px] text-text">
       <!-- API 账号显示配置信息 -->
       <div v-if="isApiAccount && account.api_config" class="flex flex-col gap-1 text-xs">
-        <div v-if="account.api_config.model_provider" class="flex items-center gap-1">
-          <span class="text-text-muted">Provider:</span>
-          <span class="truncate">{{ account.api_config.model_provider }}</span>
+        <div v-if="account.api_config.model_reasoning_effort" class="flex items-center gap-1">
+          <span class="text-text-muted">{{ $t('platform.openai.reasoningEffort') }}:</span>
+          <span class="truncate">{{ account.api_config.model_reasoning_effort }}</span>
         </div>
         <div v-if="account.api_config.base_url" class="flex items-center gap-1">
           <span class="text-text-muted">URL:</span>
-          <span class="truncate">{{ account.api_config.base_url }}</span>
+          <span class="truncate max-w-[150px]">{{ account.api_config.base_url }}</span>
         </div>
+        <span v-if="!account.api_config.model_reasoning_effort && !account.api_config.base_url" class="text-text-muted">-</span>
+      </div>
+      <!-- 禁用账号显示禁用提示 -->
+      <div v-else-if="account.quota?.is_forbidden" class="flex items-center gap-1.5 text-xs text-danger">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8 0-1.85.63-3.55 1.69-4.9L16.9 18.31C15.55 19.37 13.85 20 12 20zm6.31-3.1L7.1 5.69C8.45 4.63 10.15 4 12 4c4.42 0 8 3.58 8 8 0 1.85-.63 3.55-1.69 4.9z"/>
+        </svg>
+        <span>{{ $t('platform.antigravity.quotaForbidden') }}</span>
       </div>
       <!-- OAuth 账号显示配额信息 -->
       <div v-else-if="account.quota && hasQuotaData" class="flex flex-col gap-1">
@@ -121,10 +147,9 @@
 
     <!-- 操作 -->
     <td class="px-2.5 py-3.5 border-b border-border/50 align-middle whitespace-nowrap text-[13px] text-text">
-      <div class="flex items-center gap-1.5">
-        <!-- 切换按钮（仅非当前账号显示）-->
+      <div class="flex items-center gap-1.5 justify-end">
+        <!-- 切换按钮 -->
         <button
-          v-if="!isCurrent"
           @click.stop="$emit('switch', account.id)"
           class="btn btn--ghost btn--icon-sm"
           :disabled="isSwitching"
@@ -150,18 +175,7 @@
           <span v-else class="btn-spinner btn-spinner--xs text-accent" aria-hidden="true"></span>
         </button>
 
-        <!-- 删除按钮 -->
-        <button
-          @click.stop="$emit('delete', account.id)"
-          class="btn btn--ghost btn--icon-sm text-danger hover:bg-danger/10"
-          v-tooltip="$t('platform.openai.actions.delete')"
-        >
-          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
-          </svg>
-        </button>
-
-        <!-- 复制菜单 -->
+        <!-- 更多菜单 -->
         <FloatingDropdown ref="copyMenuRef" placement="bottom-end" :close-on-select="true" @click.stop>
           <template #trigger>
             <button class="btn btn--ghost btn--icon-sm" v-tooltip="$t('app.moreOptions')">
@@ -171,12 +185,6 @@
             </button>
           </template>
           <template #default="{ close }">
-            <button v-if="!isApiAccount" @click="handleCopyMenuClick('refreshToken', close)" class="dropdown-item">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
-              </svg>
-              <span>{{ $t('platform.openai.actions.refreshToken') }}</span>
-            </button>
             <button v-if="account.token?.refresh_token" @click="handleCopyMenuClick('copyRefreshToken', close)" class="dropdown-item">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
@@ -194,6 +202,18 @@
                 <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
               </svg>
               <span>{{ $t('accountCard.copyApiKey') }}</span>
+            </button>
+            <button v-if="isApiAccount && account.api_config?.base_url" @click="handleCopyMenuClick('copyBaseUrl', close)" class="dropdown-item">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/>
+              </svg>
+              <span>{{ $t('accountCard.copyBaseUrl') }}</span>
+            </button>
+            <button @click="handleCopyMenuClick('delete', close)" class="dropdown-item text-danger hover:bg-danger/10">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+              </svg>
+              <span>{{ $t('platform.openai.actions.delete') }}</span>
             </button>
           </template>
         </FloatingDropdown>
@@ -339,9 +359,6 @@ const handleCopyMenuClick = async (type, close) => {
   close?.()
 
   switch (type) {
-    case 'refreshToken':
-      emit('refresh', props.account.id)
-      break
     case 'copyRefreshToken':
       await copyRefreshToken()
       break
@@ -350,6 +367,12 @@ const handleCopyMenuClick = async (type, close) => {
       break
     case 'copyApiKey':
       await copyApiKey()
+      break
+    case 'copyBaseUrl':
+      await copyBaseUrl()
+      break
+    case 'delete':
+      emit('delete', props.account.id)
       break
   }
 }
@@ -402,59 +425,91 @@ const copyApiKey = async () => {
   }
 }
 
+// 复制 Base URL
+const copyBaseUrl = async () => {
+  try {
+    const baseUrl = props.account.api_config?.base_url
+    if (!baseUrl) {
+      window.$notify?.error($t('accountCard.noBaseUrl'))
+      return
+    }
+    await navigator.clipboard.writeText(baseUrl)
+    window.$notify?.success($t('accountCard.baseUrlCopied'))
+  } catch (err) {
+    console.error('Failed to copy base URL:', err)
+    window.$notify?.error($t('messages.copyFailed'))
+  }
+}
+
 // 账号类型判断
 const isApiAccount = computed(() => {
   return props.account.account_type === 'api'
 })
 
-// 状态判断
-const isActive = computed(() => {
-  // API 账号始终视为有效
-  if (isApiAccount.value) return true
-  if (!props.account.token) return false
-  if (props.account.token.expires_at) {
-    const now = Math.floor(Date.now() / 1000)
-    return props.account.token.expires_at > now
+// 解析 openai_auth_json
+const authInfo = computed(() => {
+  if (!props.account.openai_auth_json) return null
+  try {
+    return JSON.parse(props.account.openai_auth_json)
+  } catch {
+    return null
   }
-  return true
 })
 
-const statusClass = computed(() => {
-  if (props.isCurrent) return 'current'
-  return isActive.value ? 'active' : 'expired'
+// 订阅计划类型
+const planType = computed(() => {
+  if (isApiAccount.value) return 'api'
+  return authInfo.value?.chatgpt_plan_type || null
 })
 
-const statusBadgeClass = computed(() => {
-  switch (statusClass.value) {
-    case 'current':
-      return 'badge--accent-tech'
-    case 'active':
-      return 'badge--success-tech'
-    case 'expired':
-      return 'badge--danger-tech'
+// 订阅计划徽章样式
+const getPlanBadgeClass = (type) => {
+  const base = 'badge badge--sm uppercase shrink-0'
+  switch (type?.toLowerCase()) {
+    case 'pro':
+    case 'api':
+      return `${base} bg-gradient-to-r from-rose-400 to-pink-500 text-white border-pink-500/50 shadow-sm shadow-pink-500/30`
+    case 'team':
+      return `${base} bg-gradient-to-r from-amber-400 to-amber-500 text-amber-900 border-amber-500/50`
+    case 'plus':
+      return `${base} bg-gradient-to-r from-emerald-400 to-teal-500 text-white border-teal-500/50`
     default:
-      return ''
+      return base
   }
+}
+
+// 订阅到期剩余天数
+const subscriptionDaysLeft = computed(() => {
+  if (!authInfo.value?.chatgpt_subscription_active_until) return null
+  const now = new Date()
+  const expiry = new Date(authInfo.value.chatgpt_subscription_active_until)
+  return Math.ceil((expiry - now) / (1000 * 60 * 60 * 24))
 })
 
-const statusDotClass = computed(() => {
-  switch (statusClass.value) {
-    case 'current':
-      return 'text-accent'
-    case 'active':
-      return 'text-success'
-    case 'expired':
-      return 'text-danger'
-    default:
-      return ''
-  }
+const subscriptionDaysLeftText = computed(() => {
+  if (subscriptionDaysLeft.value === null) return ''
+  if (subscriptionDaysLeft.value < 0) return $t('subscriptions.expired')
+  if (subscriptionDaysLeft.value === 0) return $t('subscriptions.expirestoday')
+  return $t('subscriptions.daysLeft', { days: subscriptionDaysLeft.value })
 })
 
-const statusLabel = computed(() => {
-  if (props.isCurrent) return $t('platform.openai.status.current')
-  if (isActive.value) return $t('platform.openai.status.active')
-  return $t('platform.openai.status.expired')
+const subscriptionExpiryClass = computed(() => {
+  if (subscriptionDaysLeft.value === null) return 'text-text-muted'
+  if (subscriptionDaysLeft.value < 0) return 'text-danger'
+  if (subscriptionDaysLeft.value < 10) return 'text-danger'
+  if (subscriptionDaysLeft.value < 20) return 'text-warning'
+  return 'text-success'
 })
+
+const formatISODate = (isoString) => {
+  if (!isoString) return '-'
+  const date = new Date(isoString)
+  return date.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  })
+}
 
 // 配额相关
 const hasQuotaData = computed(() => {

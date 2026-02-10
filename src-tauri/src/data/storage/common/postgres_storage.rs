@@ -1,4 +1,4 @@
-use super::traits::{AccountStorage, SyncableAccount, StorageError};
+use super::traits::{AccountStorage, StorageError, SyncableAccount};
 use crate::database::DatabaseManager;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -16,7 +16,10 @@ pub trait AccountDbMapper<T: SyncableAccount>: Send + Sync + 'static {
     fn insert_sql() -> &'static str;
 
     /// 获取 INSERT 参数
-    fn to_params(account: &T, version: i64) -> Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>>;
+    fn to_params(
+        account: &T,
+        version: i64,
+    ) -> Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>>;
 }
 
 /// 通用 PostgreSQL 存储
@@ -73,7 +76,10 @@ where
         }
     }
 
-    pub async fn load_accounts_since_version(&self, since_version: i64) -> Result<Vec<T>, StorageError> {
+    pub async fn load_accounts_since_version(
+        &self,
+        since_version: i64,
+    ) -> Result<Vec<T>, StorageError> {
         let pool = self.get_pool().await?;
         let client = pool.get().await?;
         let sql = format!(
@@ -90,7 +96,10 @@ where
         Ok(accounts)
     }
 
-    pub async fn load_tombstones_since_version(&self, since_version: i64) -> Result<Vec<String>, StorageError> {
+    pub async fn load_tombstones_since_version(
+        &self,
+        since_version: i64,
+    ) -> Result<Vec<String>, StorageError> {
         let pool = self.get_pool().await?;
         let client = pool.get().await?;
         let sql = format!(
@@ -108,14 +117,19 @@ where
         let new_version = self.get_next_version().await?;
 
         let params = M::to_params(account, new_version);
-        let params_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = 
-            params.iter().map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync)).collect();
+        let params_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
 
         client.execute(M::insert_sql(), &params_refs).await?;
         Ok(new_version)
     }
 
-    pub async fn delete_account_with_tombstone(&self, account_id: &str) -> Result<i64, StorageError> {
+    pub async fn delete_account_with_tombstone(
+        &self,
+        account_id: &str,
+    ) -> Result<i64, StorageError> {
         let pool = self.get_pool().await?;
         let client = pool.get().await?;
         let new_version = self.get_next_version().await?;
@@ -125,7 +139,10 @@ where
             T::table_name()
         );
         let rows_affected = client
-            .execute(&sql, &[&account_id, &new_version, &chrono::Utc::now().timestamp()])
+            .execute(
+                &sql,
+                &[&account_id, &new_version, &chrono::Utc::now().timestamp()],
+            )
             .await?;
 
         if rows_affected == 0 {
@@ -210,4 +227,3 @@ where
         self.db_manager.is_connected()
     }
 }
-

@@ -1,4 +1,4 @@
-use base64::{engine::general_purpose, Engine as _};
+use base64::{Engine as _, engine::general_purpose};
 use chrono::Utc;
 use rand::Rng;
 use sha2::{Digest, Sha256};
@@ -40,7 +40,11 @@ pub fn generate_code_challenge(verifier: &str) -> Result<String, String> {
     Ok(general_purpose::URL_SAFE_NO_PAD.encode(hash))
 }
 
-pub fn build_authorization_url(state: &str, code_challenge: &str, redirect_uri: &str) -> Result<String, String> {
+pub fn build_authorization_url(
+    state: &str,
+    code_challenge: &str,
+    redirect_uri: &str,
+) -> Result<String, String> {
     // 按照正确的顺序排列参数，与 Go 实现完全一致
     let params = vec![
         ("client_id", CLIENT_ID),
@@ -90,7 +94,11 @@ pub fn create_session_and_auth_url(
 }
 
 pub fn is_session_expired(session: &OpenAIOAuthSession) -> bool {
-    session.created_at.elapsed().unwrap_or(Duration::from_secs(0)) > Duration::from_secs(SESSION_TTL_SECS)
+    session
+        .created_at
+        .elapsed()
+        .unwrap_or(Duration::from_secs(0))
+        > Duration::from_secs(SESSION_TTL_SECS)
 }
 
 pub async fn exchange_code(
@@ -152,7 +160,9 @@ pub async fn refresh_token(refresh_token: &str) -> Result<TokenResponse, String>
 
 pub fn parse_id_token(id_token: &str) -> Option<OpenAIUserInfo> {
     let payload = id_token.split('.').nth(1)?;
-    let decoded = general_purpose::URL_SAFE_NO_PAD.decode(payload.as_bytes()).ok()?;
+    let decoded = general_purpose::URL_SAFE_NO_PAD
+        .decode(payload.as_bytes())
+        .ok()?;
     let claims: IdTokenClaims = serde_json::from_slice(&decoded).ok()?;
     let mut org_id = None;
     if let Some(auth) = &claims.openai_auth {
@@ -179,6 +189,17 @@ pub fn parse_id_token(id_token: &str) -> Option<OpenAIUserInfo> {
     })
 }
 
+/// 提取 id_token 中的 OpenAI auth 对象，返回 JSON 字符串
+pub fn extract_openai_auth_json(id_token: &str) -> Option<String> {
+    let payload = id_token.split('.').nth(1)?;
+    let decoded = general_purpose::URL_SAFE_NO_PAD
+        .decode(payload.as_bytes())
+        .ok()?;
+    let claims: serde_json::Value = serde_json::from_slice(&decoded).ok()?;
+    let auth_obj = claims.get("https://api.openai.com/auth")?.as_object()?;
+    serde_json::to_string(auth_obj).ok()
+}
+
 pub fn build_token_info(
     token: TokenResponse,
     user_info: Option<OpenAIUserInfo>,
@@ -192,9 +213,15 @@ pub fn build_token_info(
         expires_in: token.expires_in,
         expires_at,
         email: user_info.as_ref().and_then(|info| info.email.clone()),
-        chatgpt_account_id: user_info.as_ref().and_then(|info| info.chatgpt_account_id.clone()),
-        chatgpt_user_id: user_info.as_ref().and_then(|info| info.chatgpt_user_id.clone()),
-        organization_id: user_info.as_ref().and_then(|info| info.organization_id.clone()),
+        chatgpt_account_id: user_info
+            .as_ref()
+            .and_then(|info| info.chatgpt_account_id.clone()),
+        chatgpt_user_id: user_info
+            .as_ref()
+            .and_then(|info| info.chatgpt_user_id.clone()),
+        organization_id: user_info
+            .as_ref()
+            .and_then(|info| info.organization_id.clone()),
     })
 }
 
@@ -211,7 +238,9 @@ pub async fn ensure_fresh_token(
     }
 
     // 需要刷新
-    let refresh_token_value = current_token.refresh_token.as_ref()
+    let refresh_token_value = current_token
+        .refresh_token
+        .as_ref()
         .ok_or_else(|| "No refresh token available".to_string())?;
 
     let response = refresh_token(refresh_token_value).await?;
@@ -219,7 +248,9 @@ pub async fn ensure_fresh_token(
     // 构造新 TokenData
     Ok(crate::platforms::openai::models::TokenData::new(
         response.access_token,
-        response.refresh_token.or_else(|| current_token.refresh_token.clone()),
+        response
+            .refresh_token
+            .or_else(|| current_token.refresh_token.clone()),
         response.id_token.or_else(|| current_token.id_token.clone()),
         response.expires_in,
         now + response.expires_in,

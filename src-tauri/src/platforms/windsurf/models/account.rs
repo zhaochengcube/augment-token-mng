@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
 use super::TokenData;
 use crate::data::storage::common::SyncableAccount;
+use serde::{Deserialize, Serialize};
 
 /// 配额数据结构
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

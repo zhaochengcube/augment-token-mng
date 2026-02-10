@@ -550,6 +550,11 @@ onMounted(async () => {
     }
   })
 
+  // 监听 API 服务器状态变化事件
+  await listen('api-server-status-changed', () => {
+    settingsStore.loadServerStatus(true)
+  })
+
 })
 
 onBeforeUnmount(() => {

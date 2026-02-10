@@ -1,7 +1,7 @@
-use rusqlite::Connection;
-use base64::{Engine as _, engine::general_purpose};
-use std::path::PathBuf;
 use crate::antigravity::utils::protobuf;
+use base64::{Engine as _, engine::general_purpose};
+use rusqlite::Connection;
+use std::path::PathBuf;
 
 /// 获取 Antigravity 数据库路径（跨平台）
 pub fn get_db_path() -> Result<PathBuf, String> {
@@ -10,14 +10,14 @@ pub fn get_db_path() -> Result<PathBuf, String> {
         let home = dirs::home_dir().ok_or("Cannot get home directory")?;
         Ok(home.join("Library/Application Support/Antigravity/User/globalStorage/state.vscdb"))
     }
-    
+
     #[cfg(target_os = "windows")]
     {
         let appdata = std::env::var("APPDATA")
             .map_err(|_| "Cannot get APPDATA environment variable".to_string())?;
         Ok(PathBuf::from(appdata).join("Antigravity\\User\\globalStorage\\state.vscdb"))
     }
-    
+
     #[cfg(target_os = "linux")]
     {
         let home = dirs::home_dir().ok_or("Cannot get home directory")?;
@@ -33,8 +33,7 @@ pub fn inject_token(
     expiry: i64,
 ) -> Result<String, String> {
     // 1. 打开数据库
-    let conn = Connection::open(db_path)
-        .map_err(|e| format!("Failed to open database: {}", e))?;
+    let conn = Connection::open(db_path).map_err(|e| format!("Failed to open database: {}", e))?;
 
     // 2. 读取当前数据
     let current_data: String = conn
@@ -66,7 +65,6 @@ pub fn inject_token(
         [&final_b64, "jetskiStateSync.agentManagerInitState"],
     )
     .map_err(|e| format!("Failed to write data: {}", e))?;
-
 
     // 8. 注入 Onboarding 标记
     conn.execute(

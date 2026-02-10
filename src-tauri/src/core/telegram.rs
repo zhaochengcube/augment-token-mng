@@ -71,8 +71,7 @@ impl TelegramConfigManager {
         let content = fs::read_to_string(&self.config_path)
             .map_err(|e| format!("Failed to read config: {}", e))?;
 
-        serde_json::from_str(&content)
-            .map_err(|e| format!("Failed to parse config: {}", e))
+        serde_json::from_str(&content).map_err(|e| format!("Failed to parse config: {}", e))
     }
 
     /// 保存配置
@@ -80,8 +79,7 @@ impl TelegramConfigManager {
         let content = serde_json::to_string_pretty(config)
             .map_err(|e| format!("Failed to serialize config: {}", e))?;
 
-        fs::write(&self.config_path, content)
-            .map_err(|e| format!("Failed to write config: {}", e))
+        fs::write(&self.config_path, content).map_err(|e| format!("Failed to write config: {}", e))
     }
 
     /// 删除配置
@@ -100,10 +98,7 @@ pub async fn send_telegram_message(
     chat_id: &str,
     message: &str,
 ) -> Result<(), String> {
-    let url = format!(
-        "https://api.telegram.org/bot{}/sendMessage",
-        bot_token
-    );
+    let url = format!("https://api.telegram.org/bot{}/sendMessage", bot_token);
 
     let client = reqwest::Client::new();
     let response = client
@@ -157,16 +152,16 @@ pub fn delete_telegram_config(app: AppHandle) -> Result<(), String> {
 
 /// 测试 Telegram 连接
 #[tauri::command]
-pub async fn test_telegram_connection_cmd(bot_token: String, chat_id: String) -> Result<bool, String> {
+pub async fn test_telegram_connection_cmd(
+    bot_token: String,
+    chat_id: String,
+) -> Result<bool, String> {
     test_telegram_connection(&bot_token, &chat_id).await
 }
 
 /// 发送 Telegram 消息
 #[tauri::command]
-pub async fn send_telegram_message_cmd(
-    app: AppHandle,
-    message: String,
-) -> Result<(), String> {
+pub async fn send_telegram_message_cmd(app: AppHandle, message: String) -> Result<(), String> {
     let manager = TelegramConfigManager::new(&app)?;
     let config = manager.load_config()?;
 

@@ -10,7 +10,7 @@ impl ProxyHelper {
         let clean_target = target_url
             .trim_start_matches("https://")
             .trim_start_matches("http://");
-        
+
         // 构建代理 URL（路径方式）
         if edge_function_url.ends_with("/") {
             format!("{}{}", edge_function_url, clean_target)
@@ -18,7 +18,7 @@ impl ProxyHelper {
             format!("{}/{}", edge_function_url, clean_target)
         }
     }
-    
+
     /// 创建一个通过 Edge Function 的请求构建器
     pub fn proxy_request(
         client: &Client,
@@ -45,7 +45,7 @@ impl ProxyClient {
             edge_function_url,
         }
     }
-    
+
     /// GET 请求
     pub fn get(&self, url: &str) -> RequestBuilder {
         if let Some(ref edge_url) = self.edge_function_url {
@@ -54,7 +54,7 @@ impl ProxyClient {
             self.client.get(url)
         }
     }
-    
+
     /// POST 请求
     pub fn post(&self, url: &str) -> RequestBuilder {
         if let Some(ref edge_url) = self.edge_function_url {
@@ -63,7 +63,7 @@ impl ProxyClient {
             self.client.post(url)
         }
     }
-    
+
     /// PUT 请求
     pub fn put(&self, url: &str) -> RequestBuilder {
         if let Some(ref edge_url) = self.edge_function_url {
@@ -72,7 +72,7 @@ impl ProxyClient {
             self.client.put(url)
         }
     }
-    
+
     /// DELETE 请求
     pub fn delete(&self, url: &str) -> RequestBuilder {
         if let Some(ref edge_url) = self.edge_function_url {
@@ -81,7 +81,7 @@ impl ProxyClient {
             self.client.delete(url)
         }
     }
-    
+
     /// HEAD 请求
     pub fn head(&self, url: &str) -> RequestBuilder {
         if let Some(ref edge_url) = self.edge_function_url {
@@ -90,7 +90,7 @@ impl ProxyClient {
             self.client.head(url)
         }
     }
-    
+
     /// 通用请求方法
     pub fn request(&self, method: Method, url: &str) -> RequestBuilder {
         if let Some(ref edge_url) = self.edge_function_url {
@@ -99,7 +99,7 @@ impl ProxyClient {
             self.client.request(method, url)
         }
     }
-    
+
     /// 获取原始客户端（用于特殊情况）
     pub fn inner(&self) -> &Client {
         &self.client

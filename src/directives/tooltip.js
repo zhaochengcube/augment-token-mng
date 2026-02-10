@@ -53,14 +53,16 @@ function updatePosition(el, tooltipEl, placement = 'bottom') {
 
 function showTooltip(el, binding) {
   if (!binding.value) return
-  
+
   if (!tooltipElement) {
     tooltipElement = createTooltipElement()
   }
-  
+
   tooltipElement.textContent = binding.value
   tooltipElement.style.opacity = '0'
-  
+  tooltipElement.style.top = '-9999px'
+  tooltipElement.style.left = '-9999px'
+
   // 等待下一帧以获取正确的尺寸
   requestAnimationFrame(() => {
     updatePosition(el, tooltipElement, binding.arg || 'bottom')

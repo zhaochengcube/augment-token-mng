@@ -74,4 +74,3 @@ pub struct OrganizationClaim {
     pub title: Option<String>,
     pub is_default: Option<bool>,
 }
-

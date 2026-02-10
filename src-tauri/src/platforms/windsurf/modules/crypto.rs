@@ -5,8 +5,8 @@
 
 use aes::cipher::{BlockDecryptMut, BlockEncryptMut, KeyIvInit, block_padding::Pkcs7};
 use pbkdf2::pbkdf2_hmac;
-use sha1::Sha1;
 use rand::RngCore;
+use sha1::Sha1;
 
 type Aes128CbcEnc = cbc::Encryptor<aes::Aes128>;
 
@@ -33,18 +33,18 @@ pub fn encrypt_aes128_cbc(plaintext: &[u8], key: &[u8; 16]) -> Result<EncryptedD
     // 生成随机 IV
     let mut iv = [0u8; 16];
     rand::thread_rng().fill_bytes(&mut iv);
-    
+
     // 计算填充后的长度
     let padded_len = ((plaintext.len() / 16) + 1) * 16;
     let mut buffer = vec![0u8; padded_len];
     buffer[..plaintext.len()].copy_from_slice(plaintext);
-    
+
     // 加密
     let cipher = Aes128CbcEnc::new(key.into(), &iv.into());
     let ciphertext = cipher
         .encrypt_padded_mut::<Pkcs7>(&mut buffer, plaintext.len())
         .map_err(|e| format!("AES-128-CBC encryption failed: {:?}", e))?;
-    
+
     Ok(EncryptedData {
         ciphertext: ciphertext.to_vec(),
         iv: iv.to_vec(),
@@ -101,10 +101,10 @@ fn derive_key_from_password(password: &[u8], iterations: u32) -> [u8; 16] {
 #[cfg(windows)]
 pub mod platform {
     use super::*;
-    use aes_gcm::{Aes256Gcm, KeyInit, aead::Aead, Nonce};
+    use aes_gcm::{Aes256Gcm, KeyInit, Nonce, aead::Aead};
     use base64::{Engine as _, engine::general_purpose};
-    use std::sync::OnceLock;
     use std::path::PathBuf;
+    use std::sync::OnceLock;
 
     /// 缓存从 Local State 解密的 AES 密钥
     static CACHED_OS_CRYPT_KEY: OnceLock<[u8; 32]> = OnceLock::new();
@@ -124,7 +124,10 @@ pub mod platform {
 
         let local_state_path = get_local_state_path()?;
         if !local_state_path.exists() {
-            return Err(format!("Local State file not found: {:?}", local_state_path));
+            return Err(format!(
+                "Local State file not found: {:?}",
+                local_state_path
+            ));
         }
 
         let content = std::fs::read_to_string(&local_state_path)
@@ -155,7 +158,10 @@ pub mod platform {
         let decrypted = dpapi_decrypt(dpapi_blob)?;
 
         if decrypted.len() != 32 {
-            return Err(format!("Decrypted key has wrong length: {} (expected 32)", decrypted.len()));
+            return Err(format!(
+                "Decrypted key has wrong length: {} (expected 32)",
+                decrypted.len()
+            ));
         }
 
         let mut key = [0u8; 32];
@@ -184,7 +190,8 @@ pub mod platform {
         let cipher = Aes256Gcm::new_from_slice(&key)
             .map_err(|e| format!("Failed to create cipher: {:?}", e))?;
         let nonce = Nonce::from_slice(&nonce_bytes);
-        let ciphertext = cipher.encrypt(nonce, plaintext)
+        let ciphertext = cipher
+            .encrypt(nonce, plaintext)
             .map_err(|e| format!("AES-GCM encryption failed: {:?}", e))?;
 
         // 格式: "v10" + nonce(12) + ciphertext(包含tag)
@@ -212,32 +219,33 @@ pub mod platform {
         let cipher = Aes256Gcm::new_from_slice(&key)
             .map_err(|e| format!("Failed to create cipher: {:?}", e))?;
         let nonce = Nonce::from_slice(nonce_bytes);
-        let decrypted = cipher.decrypt(nonce, encrypted_data)
+        let decrypted = cipher
+            .decrypt(nonce, encrypted_data)
             .map_err(|e| format!("AES-GCM decryption failed: {:?}", e))?;
 
         Ok(decrypted)
     }
-    
+
     /// Windows DPAPI 加密
     #[allow(dead_code)]
     fn dpapi_encrypt(data: &[u8]) -> Result<Vec<u8>, String> {
-        use windows::Win32::Security::Cryptography::{
-            CryptProtectData, CRYPT_INTEGER_BLOB, CRYPTPROTECT_UI_FORBIDDEN,
-        };
-        use windows::Win32::Foundation::{LocalFree, HLOCAL};
         use std::ptr;
-        
+        use windows::Win32::Foundation::{HLOCAL, LocalFree};
+        use windows::Win32::Security::Cryptography::{
+            CRYPT_INTEGER_BLOB, CRYPTPROTECT_UI_FORBIDDEN, CryptProtectData,
+        };
+
         unsafe {
             let mut input_blob = CRYPT_INTEGER_BLOB {
                 cbData: data.len() as u32,
                 pbData: data.as_ptr() as *mut u8,
             };
-            
+
             let mut output_blob = CRYPT_INTEGER_BLOB {
                 cbData: 0,
                 pbData: ptr::null_mut(),
             };
-            
+
             let result = CryptProtectData(
                 &mut input_blob,
                 None,
@@ -247,28 +255,27 @@ pub mod platform {
                 CRYPTPROTECT_UI_FORBIDDEN,
                 &mut output_blob,
             );
-            
+
             if result.is_err() {
                 return Err("DPAPI encryption failed".to_string());
             }
-            
-            let encrypted = std::slice::from_raw_parts(
-                output_blob.pbData,
-                output_blob.cbData as usize,
-            ).to_vec();
-            
+
+            let encrypted =
+                std::slice::from_raw_parts(output_blob.pbData, output_blob.cbData as usize)
+                    .to_vec();
+
             let _ = LocalFree(HLOCAL(output_blob.pbData as *mut _));
-            
+
             Ok(encrypted)
         }
     }
 
     fn dpapi_decrypt(data: &[u8]) -> Result<Vec<u8>, String> {
-        use windows::Win32::Security::Cryptography::{
-            CryptUnprotectData, CRYPT_INTEGER_BLOB, CRYPTPROTECT_UI_FORBIDDEN,
-        };
-        use windows::Win32::Foundation::{LocalFree, HLOCAL};
         use std::ptr;
+        use windows::Win32::Foundation::{HLOCAL, LocalFree};
+        use windows::Win32::Security::Cryptography::{
+            CRYPT_INTEGER_BLOB, CRYPTPROTECT_UI_FORBIDDEN, CryptUnprotectData,
+        };
 
         unsafe {
             let mut input_blob = CRYPT_INTEGER_BLOB {
@@ -295,10 +302,9 @@ pub mod platform {
                 return Err("DPAPI decryption failed".to_string());
             }
 
-            let decrypted = std::slice::from_raw_parts(
-                output_blob.pbData,
-                output_blob.cbData as usize,
-            ).to_vec();
+            let decrypted =
+                std::slice::from_raw_parts(output_blob.pbData, output_blob.cbData as usize)
+                    .to_vec();
 
             let _ = LocalFree(HLOCAL(output_blob.pbData as *mut _));
 
@@ -395,7 +401,7 @@ pub mod platform {
 #[cfg(target_os = "linux")]
 pub mod platform {
     use super::*;
-    
+
     /// Linux: 从 Secret Service 获取密钥 + AES-128-CBC
     pub fn encrypt_for_windsurf(plaintext: &[u8]) -> Result<Vec<u8>, String> {
         let key = get_or_create_secret_key()?;
@@ -427,7 +433,9 @@ pub mod platform {
         }
         let prefix = &ciphertext[..3];
         if prefix != b"v10" && prefix != b"v11" {
-            return Err("Invalid encrypted payload format (expected v10 or v11 prefix)".to_string());
+            return Err(
+                "Invalid encrypted payload format (expected v10 or v11 prefix)".to_string(),
+            );
         }
         let iv = [b' '; 16];
         let payload = &ciphertext[3..];
@@ -442,17 +450,22 @@ pub mod platform {
     }
 
     async fn get_windsurf_secret_password_async() -> Result<Vec<u8>, String> {
+        use secret_service::{EncryptionType, SecretService};
         use std::collections::HashMap;
-        use secret_service::{SecretService, EncryptionType};
 
-        let ss = SecretService::connect(EncryptionType::Dh).await
+        let ss = SecretService::connect(EncryptionType::Dh)
+            .await
             .map_err(|e| format!("Failed to connect to Secret Service: {:?}", e))?;
 
-        let collection = ss.get_default_collection().await
+        let collection = ss
+            .get_default_collection()
+            .await
             .map_err(|e| format!("Failed to get default collection: {:?}", e))?;
 
         if collection.is_locked().await.unwrap_or(true) {
-            collection.unlock().await
+            collection
+                .unlock()
+                .await
                 .map_err(|e| format!("Failed to unlock collection: {:?}", e))?;
         }
 
@@ -460,78 +473,97 @@ pub mod platform {
         let attributes: HashMap<&str, &str> = [
             ("application", "windsurf"),
             ("xdg:schema", "chrome_libsecret_os_crypt_password_v2"),
-        ].into_iter().collect();
+        ]
+        .into_iter()
+        .collect();
 
-        let items = collection.search_items(attributes).await
+        let items = collection
+            .search_items(attributes)
+            .await
             .map_err(|e| format!("Failed to search items: {:?}", e))?;
 
         if let Some(item) = items.first() {
-            let secret = item.get_secret().await
+            let secret = item
+                .get_secret()
+                .await
                 .map_err(|e| format!("Failed to get secret: {:?}", e))?;
             return Ok(secret);
         }
 
         Err("Windsurf Safe Storage password not found in Secret Service. Please ensure Windsurf has been launched at least once.".to_string())
     }
-    
+
     /// 从 Secret Service 获取或创建加密密钥（异步版本的同步包装）
     fn get_or_create_secret_key() -> Result<[u8; 16], String> {
         // 使用 tokio 运行异步代码
         let rt = tokio::runtime::Runtime::new()
             .map_err(|e| format!("Failed to create runtime: {}", e))?;
-        
+
         rt.block_on(get_or_create_secret_key_async())
     }
-    
+
     async fn get_or_create_secret_key_async() -> Result<[u8; 16], String> {
+        use secret_service::{EncryptionType, SecretService};
         use std::collections::HashMap;
-        use secret_service::{SecretService, EncryptionType};
-        
-        let ss = SecretService::connect(EncryptionType::Dh).await
+
+        let ss = SecretService::connect(EncryptionType::Dh)
+            .await
             .map_err(|e| format!("Failed to connect to Secret Service: {:?}", e))?;
-        
-        let collection = ss.get_default_collection().await
+
+        let collection = ss
+            .get_default_collection()
+            .await
             .map_err(|e| format!("Failed to get default collection: {:?}", e))?;
-        
+
         // 确保集合已解锁
         if collection.is_locked().await.unwrap_or(true) {
-            collection.unlock().await
+            collection
+                .unlock()
+                .await
                 .map_err(|e| format!("Failed to unlock collection: {:?}", e))?;
         }
-        
+
         let attributes: HashMap<&str, &str> = [
             ("application", "windsurf"),
             ("xdg:schema", "chrome_libsecret_os_crypt_password_v2"),
-        ].into_iter().collect();
-        
+        ]
+        .into_iter()
+        .collect();
+
         // 尝试获取现有密钥
-        let items = collection.search_items(attributes.clone()).await
+        let items = collection
+            .search_items(attributes.clone())
+            .await
             .map_err(|e| format!("Failed to search items: {:?}", e))?;
-        
+
         if let Some(item) = items.first() {
-            let secret = item.get_secret().await
+            let secret = item
+                .get_secret()
+                .await
                 .map_err(|e| format!("Failed to get secret: {:?}", e))?;
-            
+
             if secret.len() >= 16 {
                 let mut key = [0u8; 16];
                 key.copy_from_slice(&secret[..16]);
                 return Ok(key);
             }
         }
-        
+
         // 创建新密钥
         let mut key = [0u8; 16];
         rand::thread_rng().fill_bytes(&mut key);
-        
-        collection.create_item(
-            "Windsurf Safe Storage",
-            attributes,
-            &key,
-            true, // replace
-            "text/plain",
-        ).await.map_err(|e| format!("Failed to create secret: {:?}", e))?;
-        
+
+        collection
+            .create_item(
+                "Windsurf Safe Storage",
+                attributes,
+                &key,
+                true, // replace
+                "text/plain",
+            )
+            .await
+            .map_err(|e| format!("Failed to create secret: {:?}", e))?;
+
         Ok(key)
     }
-
 }

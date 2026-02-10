@@ -8,8 +8,7 @@ pub struct OpenAIAccountMapper;
 impl AccountDbMapper<Account> for OpenAIAccountMapper {
     fn from_row(row: &Row) -> Result<Account, StorageError> {
         // 读取账号类型
-        let account_type: String = row.try_get(26)
-            .unwrap_or_else(|_| "oauth".to_string());
+        let account_type: String = row.try_get(26).unwrap_or_else(|_| "oauth".to_string());
         let account_type = match account_type.as_str() {
             "api" => AccountType::API,
             _ => AccountType::OAuth,
@@ -38,7 +37,11 @@ impl AccountDbMapper<Account> for OpenAIAccountMapper {
             let base_url: Option<String> = row.try_get(31).ok().flatten();
             let api_key: Option<String> = row.try_get(32).ok().flatten();
 
-            if model_provider.is_some() || model.is_some() || base_url.is_some() || api_key.is_some() {
+            if model_provider.is_some()
+                || model.is_some()
+                || base_url.is_some()
+                || api_key.is_some()
+            {
                 Some(ApiConfig {
                     model_provider,
                     model,
@@ -86,6 +89,7 @@ impl AccountDbMapper<Account> for OpenAIAccountMapper {
             chatgpt_account_id: row.get(8),
             chatgpt_user_id: row.get(9),
             organization_id: row.get(10),
+            openai_auth_json: row.try_get(33).ok().flatten(),
             quota,
             tag: row.try_get(16).ok().flatten(),
             tag_color: row.try_get(17).ok().flatten(),
@@ -104,7 +108,8 @@ impl AccountDbMapper<Account> for OpenAIAccountMapper {
          codex_5h_used_percent, codex_5h_reset_after_seconds, codex_5h_window_minutes, \
          codex_7d_used_percent, codex_7d_reset_after_seconds, codex_7d_window_minutes, \
          codex_primary_over_secondary_percent, codex_usage_updated_at, \
-         account_type, model_provider, model, model_reasoning_effort, wire_api, base_url, api_key"
+         account_type, model_provider, model, model_reasoning_effort, wire_api, base_url, api_key, \
+         openai_auth_json"
     }
 
     fn insert_sql() -> &'static str {
@@ -115,8 +120,8 @@ impl AccountDbMapper<Account> for OpenAIAccountMapper {
              version, deleted, tag, tag_color, codex_5h_used_percent, codex_5h_reset_after_seconds, codex_5h_window_minutes,
              codex_7d_used_percent, codex_7d_reset_after_seconds, codex_7d_window_minutes,
              codex_primary_over_secondary_percent, codex_usage_updated_at, account_type,
-             model_provider, model, model_reasoning_effort, wire_api, base_url, api_key)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33)
+             model_provider, model, model_reasoning_effort, wire_api, base_url, api_key, openai_auth_json)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34)
         ON CONFLICT (id) DO UPDATE SET
             email = EXCLUDED.email,
             access_token = EXCLUDED.access_token,
@@ -148,14 +153,25 @@ impl AccountDbMapper<Account> for OpenAIAccountMapper {
             model_reasoning_effort = EXCLUDED.model_reasoning_effort,
             wire_api = EXCLUDED.wire_api,
             base_url = EXCLUDED.base_url,
-            api_key = EXCLUDED.api_key
+            api_key = EXCLUDED.api_key,
+            openai_auth_json = EXCLUDED.openai_auth_json
         "#
     }
 
-    fn to_params(account: &Account, version: i64) -> Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> {
-        let (codex_5h_used_percent, codex_5h_reset_after_seconds, codex_5h_window_minutes,
-             codex_7d_used_percent, codex_7d_reset_after_seconds, codex_7d_window_minutes,
-             codex_primary_over_secondary_percent, codex_usage_updated_at) = if let Some(ref quota) = account.quota {
+    fn to_params(
+        account: &Account,
+        version: i64,
+    ) -> Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> {
+        let (
+            codex_5h_used_percent,
+            codex_5h_reset_after_seconds,
+            codex_5h_window_minutes,
+            codex_7d_used_percent,
+            codex_7d_reset_after_seconds,
+            codex_7d_window_minutes,
+            codex_primary_over_secondary_percent,
+            codex_usage_updated_at,
+        ) = if let Some(ref quota) = account.quota {
             (
                 quota.codex_5h_used_percent,
                 quota.codex_5h_reset_after_seconds,
@@ -167,7 +183,16 @@ impl AccountDbMapper<Account> for OpenAIAccountMapper {
                 quota.codex_usage_updated_at,
             )
         } else {
-            (None, None, None, None, None, None, None, chrono::Utc::now().timestamp())
+            (
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                chrono::Utc::now().timestamp(),
+            )
         };
 
         // 获取 account_type 字符串
@@ -177,7 +202,11 @@ impl AccountDbMapper<Account> for OpenAIAccountMapper {
         };
 
         // 获取 token 相关字段（OAuth 账号）
-        let access_token = account.token.as_ref().map(|t| t.access_token.clone()).unwrap_or_default();
+        let access_token = account
+            .token
+            .as_ref()
+            .map(|t| t.access_token.clone())
+            .unwrap_or_default();
         let refresh_token = account.token.as_ref().and_then(|t| t.refresh_token.clone());
         let id_token = account.token.as_ref().and_then(|t| t.id_token.clone());
         let expires_in = account.token.as_ref().map(|t| t.expires_in).unwrap_or(0);
@@ -233,6 +262,7 @@ impl AccountDbMapper<Account> for OpenAIAccountMapper {
             Box::new(wire_api),
             Box::new(base_url),
             Box::new(api_key),
+            Box::new(account.openai_auth_json.clone()),
         ]
     }
 }

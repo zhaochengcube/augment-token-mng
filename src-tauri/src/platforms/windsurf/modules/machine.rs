@@ -1,12 +1,12 @@
 //! 机器 ID 重置模块
 //! 用于重置 Windsurf 的设备标识
 
-use std::path::PathBuf;
-use std::fs;
-use uuid::Uuid;
 use rand::RngCore;
-use sha2::{Digest, Sha256, Sha512};
 use serde_json::Value;
+use sha2::{Digest, Sha256, Sha512};
+use std::fs;
+use std::path::PathBuf;
+use uuid::Uuid;
 
 /// 重置结果，包含是否需要管理员权限的信息
 #[derive(Debug, Clone)]
@@ -22,14 +22,14 @@ pub fn get_machine_id_path() -> Result<PathBuf, String> {
         let home = dirs::home_dir().ok_or("Cannot get home directory")?;
         Ok(home.join("Library/Application Support/Windsurf/machineid"))
     }
-    
+
     #[cfg(target_os = "windows")]
     {
         let appdata = std::env::var("APPDATA")
             .map_err(|_| "Cannot get APPDATA environment variable".to_string())?;
         Ok(PathBuf::from(appdata).join("Windsurf\\machineid"))
     }
-    
+
     #[cfg(target_os = "linux")]
     {
         let home = dirs::home_dir().ok_or("Cannot get home directory")?;
@@ -44,14 +44,14 @@ pub fn get_storage_path() -> Result<PathBuf, String> {
         let home = dirs::home_dir().ok_or("Cannot get home directory")?;
         Ok(home.join("Library/Application Support/Windsurf"))
     }
-    
+
     #[cfg(target_os = "windows")]
     {
         let appdata = std::env::var("APPDATA")
             .map_err(|_| "Cannot get APPDATA environment variable".to_string())?;
         Ok(PathBuf::from(appdata).join("Windsurf"))
     }
-    
+
     #[cfg(target_os = "linux")]
     {
         let home = dirs::home_dir().ok_or("Cannot get home directory")?;
@@ -71,10 +71,10 @@ pub fn read_machine_id() -> Result<Option<String>, String> {
     if !path.exists() {
         return Ok(None);
     }
-    
-    let content = fs::read_to_string(&path)
-        .map_err(|e| format!("Failed to read machine ID: {}", e))?;
-    
+
+    let content =
+        fs::read_to_string(&path).map_err(|e| format!("Failed to read machine ID: {}", e))?;
+
     Ok(Some(content.trim().to_string()))
 }
 
@@ -88,26 +88,24 @@ pub fn generate_machine_id() -> String {
 pub fn reset_machine_id() -> Result<ResetResult, String> {
     let path = get_machine_id_path()?;
     let mut needs_admin = false;
-    
+
     // 备份旧的机器 ID
     if path.exists() {
         let backup_path = path.with_extension("bak");
         let _ = fs::copy(&path, &backup_path);
     }
-    
+
     // 生成并写入新的机器 ID
     let new_id = generate_machine_id();
-    
+
     // 确保目录存在
     if let Some(parent) = path.parent() {
         if !parent.exists() {
-            fs::create_dir_all(parent)
-                .map_err(|e| format!("Failed to create directory: {}", e))?;
+            fs::create_dir_all(parent).map_err(|e| format!("Failed to create directory: {}", e))?;
         }
     }
-    
-    fs::write(&path, &new_id)
-        .map_err(|e| format!("Failed to write machine ID: {}", e))?;
+
+    fs::write(&path, &new_id).map_err(|e| format!("Failed to write machine ID: {}", e))?;
 
     // 同步更新 storage.json 遥测字段
     match reset_telemetry_ids() {
@@ -120,7 +118,7 @@ pub fn reset_machine_id() -> Result<ResetResult, String> {
             eprintln!("Failed to reset telemetry IDs: {}", e);
         }
     }
-    
+
     Ok(ResetResult {
         machine_id: new_id,
         needs_admin,
@@ -129,10 +127,10 @@ pub fn reset_machine_id() -> Result<ResetResult, String> {
 
 /// 生成完整的遥测 ID 集合（与 Windsurf-Tool 一致）
 pub struct TelemetryIds {
-    pub machine_id: String,      // SHA256(32 随机字节)
-    pub mac_machine_id: String,  // SHA512(64 随机字节) - macOS 专用
-    pub sqm_id: String,          // {UUID-UPPERCASE}
-    pub dev_device_id: String,   // UUID v4
+    pub machine_id: String,         // SHA256(32 随机字节)
+    pub mac_machine_id: String,     // SHA512(64 随机字节) - macOS 专用
+    pub sqm_id: String,             // {UUID-UPPERCASE}
+    pub dev_device_id: String,      // UUID v4
     pub service_machine_id: String, // UUID v4
 }
 
@@ -158,7 +156,7 @@ fn reset_telemetry_ids() -> Result<bool, String> {
     let storage_json_path = get_storage_json_path()?;
     #[allow(unused_mut)]
     let mut needs_admin = false;
-    
+
     if let Some(parent) = storage_json_path.parent() {
         if !parent.exists() {
             fs::create_dir_all(parent)
@@ -169,7 +167,8 @@ fn reset_telemetry_ids() -> Result<bool, String> {
     let mut storage_data = if storage_json_path.exists() {
         let content = fs::read_to_string(&storage_json_path)
             .map_err(|e| format!("Failed to read storage.json: {}", e))?;
-        serde_json::from_str::<Value>(&content).unwrap_or_else(|_| Value::Object(Default::default()))
+        serde_json::from_str::<Value>(&content)
+            .unwrap_or_else(|_| Value::Object(Default::default()))
     } else {
         Value::Object(Default::default())
     };
@@ -177,22 +176,40 @@ fn reset_telemetry_ids() -> Result<bool, String> {
     let ids = TelemetryIds::generate();
 
     if let Value::Object(ref mut map) = storage_data {
-        map.insert("telemetry.machineId".to_string(), Value::String(ids.machine_id.clone()));
-        map.insert("telemetry.sqmId".to_string(), Value::String(ids.sqm_id.clone()));
-        map.insert("telemetry.devDeviceId".to_string(), Value::String(ids.dev_device_id.clone()));
-        map.insert("telemetry.serviceMachineId".to_string(), Value::String(ids.service_machine_id.clone()));
+        map.insert(
+            "telemetry.machineId".to_string(),
+            Value::String(ids.machine_id.clone()),
+        );
+        map.insert(
+            "telemetry.sqmId".to_string(),
+            Value::String(ids.sqm_id.clone()),
+        );
+        map.insert(
+            "telemetry.devDeviceId".to_string(),
+            Value::String(ids.dev_device_id.clone()),
+        );
+        map.insert(
+            "telemetry.serviceMachineId".to_string(),
+            Value::String(ids.service_machine_id.clone()),
+        );
 
         // macOS 专用字段
         #[cfg(target_os = "macos")]
         {
-            map.insert("telemetry.macMachineId".to_string(), Value::String(ids.mac_machine_id.clone()));
+            map.insert(
+                "telemetry.macMachineId".to_string(),
+                Value::String(ids.mac_machine_id.clone()),
+            );
         }
-        
+
         // Windows 平台：重置 system.machineGuid
         #[cfg(windows)]
         {
             let new_machine_guid = Uuid::new_v4().to_string();
-            map.insert("system.machineGuid".to_string(), Value::String(new_machine_guid));
+            map.insert(
+                "system.machineGuid".to_string(),
+                Value::String(new_machine_guid),
+            );
         }
     }
 
@@ -205,7 +222,10 @@ fn reset_telemetry_ids() -> Result<bool, String> {
     #[cfg(windows)]
     {
         if let Err(e) = reset_windows_machine_guid() {
-            eprintln!("Warning: Failed to reset Windows MachineGuid (admin required): {}", e);
+            eprintln!(
+                "Warning: Failed to reset Windows MachineGuid (admin required): {}",
+                e
+            );
             needs_admin = true;
         }
     }
@@ -216,8 +236,8 @@ fn reset_telemetry_ids() -> Result<bool, String> {
 /// Windows: 尝试重置注册表 MachineGuid
 #[cfg(windows)]
 fn reset_windows_machine_guid() -> Result<(), String> {
-    use winreg::enums::*;
     use winreg::RegKey;
+    use winreg::enums::*;
 
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
     let crypto_key = hklm
@@ -235,25 +255,23 @@ fn reset_windows_machine_guid() -> Result<(), String> {
 /// 设置指定的机器 ID
 pub fn set_machine_id(machine_id: &str) -> Result<(), String> {
     let path = get_machine_id_path()?;
-    
+
     // 确保目录存在
     if let Some(parent) = path.parent() {
         if !parent.exists() {
-            fs::create_dir_all(parent)
-                .map_err(|e| format!("Failed to create directory: {}", e))?;
+            fs::create_dir_all(parent).map_err(|e| format!("Failed to create directory: {}", e))?;
         }
     }
-    
-    fs::write(&path, machine_id)
-        .map_err(|e| format!("Failed to write machine ID: {}", e))?;
-    
+
+    fs::write(&path, machine_id).map_err(|e| format!("Failed to write machine ID: {}", e))?;
+
     Ok(())
 }
 
 /// 清理 Windsurf 缓存（用于完全重置）
 pub fn clear_cache() -> Result<(), String> {
     let storage_path = get_storage_path()?;
-    
+
     // 需要清理的文件/目录列表
     let items_to_clear = [
         "User/globalStorage/state.vscdb",
@@ -263,7 +281,7 @@ pub fn clear_cache() -> Result<(), String> {
         "GPUCache",
         "logs",
     ];
-    
+
     for item in items_to_clear {
         let path = storage_path.join(item);
         if path.exists() {
@@ -274,6 +292,6 @@ pub fn clear_cache() -> Result<(), String> {
             }
         }
     }
-    
+
     Ok(())
 }

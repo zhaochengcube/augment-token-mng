@@ -1,5 +1,5 @@
 <template>
-  <div v-if="totalPages > 0" class="flex items-center justify-between gap-5.5 px-5.5 py-4.5">
+  <div v-if="totalPages > 0" class="flex items-center justify-between gap-5.5 px-5.5 py-2.5">
     <!-- 左侧：分页信息 -->
     <div class="shrink-0">
       <span class="text-sm text-text-muted font-mono">

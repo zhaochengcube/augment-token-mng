@@ -153,7 +153,6 @@
                   </div>
                 </th>
                 <th class="th w-[60px]">{{ $t('platform.antigravity.table.tag') }}</th>
-                <th class="th w-[60px]">{{ $t('platform.antigravity.table.status') }}</th>
                 <th class="th">{{ $t('platform.antigravity.table.email') }}</th>
                 <th class="th w-[140px]">{{ $t('platform.antigravity.table.time') }}</th>
                 <th class="th">{{ $t('platform.antigravity.table.quota') }}</th>

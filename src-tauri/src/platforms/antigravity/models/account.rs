@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
-use super::{TokenData, QuotaData};
+use super::{QuotaData, TokenData};
 use crate::data::storage::common::SyncableAccount;
+use serde::{Deserialize, Serialize};
 
 /// Antigravity 账号数据结构
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,17 +1,17 @@
-pub mod traits;
+pub mod dual_storage;
 pub mod local_storage;
 pub mod postgres_storage;
-pub mod dual_storage;
+pub mod traits;
 
-pub use traits::*;
+pub use dual_storage::*;
 pub use local_storage::*;
 pub use postgres_storage::*;
-pub use dual_storage::*;
+pub use traits::*;
 
+use crate::AppState;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::{Manager, State};
-use crate::AppState;
 
 #[tauri::command]
 pub async fn save_tokens_json(json_string: String, app: tauri::AppHandle) -> Result<(), String> {
@@ -36,10 +36,12 @@ pub async fn save_tokens_json(json_string: String, app: tauri::AppHandle) -> Res
         let mut temp_file = fs::File::create(&temp_path)
             .map_err(|e| format!("Failed to create temp file: {}", e))?;
 
-        temp_file.write_all(json_string.as_bytes())
+        temp_file
+            .write_all(json_string.as_bytes())
             .map_err(|e| format!("Failed to write temp file: {}", e))?;
 
-        temp_file.sync_all()
+        temp_file
+            .sync_all()
             .map_err(|e| format!("Failed to sync temp file: {}", e))?;
     }
 
@@ -52,12 +54,18 @@ pub async fn save_tokens_json(json_string: String, app: tauri::AppHandle) -> Res
 
             // 检查临时文件是否仍然存在
             if !temp_path.exists() {
-                return Err(format!("Failed to rename temp file (temp file was removed): {}", e));
+                return Err(format!(
+                    "Failed to rename temp file (temp file was removed): {}",
+                    e
+                ));
             }
 
             // 检查父目录是否仍然存在
             if !app_data_dir.exists() {
-                return Err(format!("Failed to rename temp file (parent directory disappeared): {}", e));
+                return Err(format!(
+                    "Failed to rename temp file (parent directory disappeared): {}",
+                    e
+                ));
             }
 
             // 在Windows上,如果目标文件被占用,尝试先删除再重命名
@@ -66,7 +74,10 @@ pub async fn save_tokens_json(json_string: String, app: tauri::AppHandle) -> Res
                 if storage_path.exists() {
                     if let Err(remove_err) = fs::remove_file(&storage_path) {
                         let _ = fs::remove_file(&temp_path);
-                        return Err(format!("Failed to remove existing file before rename: {}", remove_err));
+                        return Err(format!(
+                            "Failed to remove existing file before rename: {}",
+                            remove_err
+                        ));
                     }
                 }
 
@@ -75,7 +86,10 @@ pub async fn save_tokens_json(json_string: String, app: tauri::AppHandle) -> Res
                     Ok(_) => return Ok(()),
                     Err(retry_err) => {
                         let _ = fs::remove_file(&temp_path);
-                        return Err(format!("Failed to rename temp file after retry: {}", retry_err));
+                        return Err(format!(
+                            "Failed to rename temp file after retry: {}",
+                            retry_err
+                        ));
                     }
                 }
             }
@@ -196,55 +210,54 @@ fn process_token_content(content: String) -> Result<String, String> {
 
 // 同步相关命令
 #[tauri::command]
-pub async fn sync_tokens_to_database(
-    state: State<'_, AppState>,
-) -> Result<SyncStatus, String> {
+pub async fn sync_tokens_to_database(state: State<'_, AppState>) -> Result<SyncStatus, String> {
     let storage_manager = {
         let guard = state.storage_manager.lock().unwrap();
         guard.clone().ok_or("Storage manager not initialized")?
     };
 
-    storage_manager.sync_local_to_remote().await
+    storage_manager
+        .sync_local_to_remote()
+        .await
         .map_err(|e| format!("Sync failed: {}", e))
 }
 
 #[tauri::command]
-pub async fn sync_tokens_from_database(
-    state: State<'_, AppState>,
-) -> Result<SyncStatus, String> {
+pub async fn sync_tokens_from_database(state: State<'_, AppState>) -> Result<SyncStatus, String> {
     let storage_manager = {
         let guard = state.storage_manager.lock().unwrap();
         guard.clone().ok_or("Storage manager not initialized")?
     };
 
-    storage_manager.sync_remote_to_local().await
+    storage_manager
+        .sync_remote_to_local()
+        .await
         .map_err(|e| format!("Sync failed: {}", e))
 }
 
 #[tauri::command]
-pub async fn delete_token(
-    token_id: String,
-    state: State<'_, AppState>,
-) -> Result<bool, String> {
+pub async fn delete_token(token_id: String, state: State<'_, AppState>) -> Result<bool, String> {
     let storage_manager = {
         let guard = state.storage_manager.lock().unwrap();
         guard.clone().ok_or("Storage manager not initialized")?
     };
 
-    storage_manager.delete_token(&token_id).await
+    storage_manager
+        .delete_token(&token_id)
+        .await
         .map_err(|e| format!("Delete failed: {}", e))
 }
 
 #[tauri::command]
-pub async fn bidirectional_sync_tokens(
-    state: State<'_, AppState>,
-) -> Result<SyncStatus, String> {
+pub async fn bidirectional_sync_tokens(state: State<'_, AppState>) -> Result<SyncStatus, String> {
     let storage_manager = {
         let guard = state.storage_manager.lock().unwrap();
         guard.clone().ok_or("Storage manager not initialized")?
     };
 
-    storage_manager.bidirectional_sync().await
+    storage_manager
+        .bidirectional_sync()
+        .await
         .map_err(|e| format!("Sync failed: {}", e))
 }
 
@@ -261,7 +274,9 @@ pub async fn bidirectional_sync_tokens_with_data(
     let tokens: Vec<TokenData> = serde_json::from_str(&tokens_json)
         .map_err(|e| format!("Failed to parse tokens JSON: {}", e))?;
 
-    storage_manager.bidirectional_sync_with_tokens(tokens).await
+    storage_manager
+        .bidirectional_sync_with_tokens(tokens)
+        .await
         .map_err(|e| format!("Sync failed: {}", e))
 }
 
@@ -279,14 +294,14 @@ pub async fn sync_tokens(
     let req: ClientSyncRequest = serde_json::from_str(&req_json)
         .map_err(|e| format!("Failed to parse sync request: {}", e))?;
 
-    storage_manager.sync_tokens(req).await
+    storage_manager
+        .sync_tokens(req)
+        .await
         .map_err(|e| format!("Sync failed: {}", e))
 }
 
 #[tauri::command]
-pub async fn get_storage_status(
-    state: State<'_, AppState>,
-) -> Result<serde_json::Value, String> {
+pub async fn get_storage_status(state: State<'_, AppState>) -> Result<serde_json::Value, String> {
     let storage_manager = {
         let guard = state.storage_manager.lock().unwrap();
         guard.clone()
@@ -332,11 +347,15 @@ pub async fn get_sync_status(
                 return Err(format!("Failed to initialize storage manager: {}", e));
             }
             let guard = state.storage_manager.lock().unwrap();
-            guard.clone().ok_or("Storage manager still not initialized after initialization attempt")?
+            guard
+                .clone()
+                .ok_or("Storage manager still not initialized after initialization attempt")?
         }
     };
 
-    storage_manager.get_sync_status().await
+    storage_manager
+        .get_sync_status()
+        .await
         .map_err(|e| format!("Failed to get sync status: {}", e))
 }
 

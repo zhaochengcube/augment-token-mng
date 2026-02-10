@@ -12,13 +12,19 @@ fn try_load_proxy_config() -> Option<ProxyConfig> {
     // Linux: ~/.local/share/atm
     // Windows: C:\Users\<user>\AppData\Roaming\com.cubezhao.atm
     #[cfg(target_os = "macos")]
-    let config_path = dirs::data_dir()?.join("com.cubezhao.atm").join("proxy_config.json");
+    let config_path = dirs::data_dir()?
+        .join("com.cubezhao.atm")
+        .join("proxy_config.json");
 
     #[cfg(target_os = "linux")]
-    let config_path = dirs::data_local_dir()?.join("atm").join("proxy_config.json");
+    let config_path = dirs::data_local_dir()?
+        .join("atm")
+        .join("proxy_config.json");
 
     #[cfg(target_os = "windows")]
-    let config_path = dirs::data_dir()?.join("com.cubezhao.atm").join("proxy_config.json");
+    let config_path = dirs::data_dir()?
+        .join("com.cubezhao.atm")
+        .join("proxy_config.json");
 
     if config_path.exists() {
         if let Ok(json) = std::fs::read_to_string(&config_path) {
@@ -67,13 +73,13 @@ fn get_proxy_config() -> Option<ProxyConfig> {
 /// 创建代理客户端，自动处理 Edge Function 代理
 pub fn create_proxy_client() -> Result<ProxyClient, String> {
     let proxy_config = try_load_proxy_config();
-    
+
     let client = if let Some(config) = &proxy_config {
         config.create_client()?
     } else {
         ProxyConfig::default().create_client()?
     };
-    
+
     // 如果配置了 CustomUrl，获取 Edge Function URL
     let edge_function_url = if let Some(config) = proxy_config {
         if config.enabled && config.proxy_type == ProxyType::CustomUrl {
@@ -84,15 +90,15 @@ pub fn create_proxy_client() -> Result<ProxyClient, String> {
     } else {
         None
     };
-    
+
     Ok(ProxyClient::new(client, edge_function_url))
 }
 
 /// 创建标准的 HTTP 客户端，自动加载代理配置
-/// 
+///
 /// 注意：对于 CustomUrl 类型（如 Supabase Edge Functions），
 /// 返回的是普通客户端。调用方需要自行处理代理逻辑。
-/// 
+///
 /// @deprecated 请使用 create_proxy_client() 来获得完整的 Edge Function 支持
 pub fn create_http_client() -> Result<reqwest::Client, String> {
     let proxy_config = try_load_proxy_config();
@@ -100,7 +106,9 @@ pub fn create_http_client() -> Result<reqwest::Client, String> {
     if let Some(config) = proxy_config {
         // 如果是 CustomUrl 类型，记录警告
         if config.enabled && config.proxy_type == ProxyType::CustomUrl {
-            eprintln!("Warning: CustomUrl proxy is configured but not automatically applied. Use create_proxy_client() instead.");
+            eprintln!(
+                "Warning: CustomUrl proxy is configured but not automatically applied. Use create_proxy_client() instead."
+            );
         }
         config.create_client()
     } else {
@@ -124,4 +132,3 @@ pub fn create_http_client_with_cookies(
         ProxyConfig::default().create_client_with_cookies(jar)
     }
 }
-

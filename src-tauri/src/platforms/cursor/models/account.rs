@@ -1,21 +1,45 @@
-use serde::{Deserialize, Serialize};
 use super::TokenData;
 use crate::data::storage::common::SyncableAccount;
+use serde::{Deserialize, Serialize};
 
 /// 机器码信息
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct MachineInfo {
-    #[serde(rename = "telemetry.machineId", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "telemetry.machineId",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub machine_id: Option<String>,
-    #[serde(rename = "telemetry.macMachineId", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "telemetry.macMachineId",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub mac_machine_id: Option<String>,
-    #[serde(rename = "telemetry.devDeviceId", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "telemetry.devDeviceId",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub dev_device_id: Option<String>,
-    #[serde(rename = "telemetry.sqmId", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "telemetry.sqmId",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub sqm_id: Option<String>,
-    #[serde(rename = "system.machineGuid", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "system.machineGuid",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub system_machine_guid: Option<String>,
-    #[serde(rename = "storage.serviceMachineId", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "storage.serviceMachineId",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub storage_service_machine_id: Option<String>,
 }
 
@@ -122,7 +146,12 @@ impl Account {
     }
 
     /// 创建带机器码信息的账号
-    pub fn new_with_machine_info(id: String, email: String, token: TokenData, machine_info: Option<MachineInfo>) -> Self {
+    pub fn new_with_machine_info(
+        id: String,
+        email: String,
+        token: TokenData,
+        machine_info: Option<MachineInfo>,
+    ) -> Self {
         let now = chrono::Utc::now().timestamp();
         Self {
             id,
@@ -145,7 +174,9 @@ impl Account {
 
     /// 检查账号是否有绑定的机器码
     pub fn has_machine_info(&self) -> bool {
-        self.machine_info.as_ref().map_or(false, |info| info.has_data())
+        self.machine_info
+            .as_ref()
+            .map_or(false, |info| info.has_data())
     }
 
     pub fn update_last_used(&mut self) {
@@ -188,7 +219,6 @@ impl Default for AccountIndex {
     }
 }
 
-
 /// 导出账号数据格式（与导入格式兼容）
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExportAccountData {
@@ -201,25 +231,46 @@ pub struct ExportAccountData {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExportAuthInfo {
-    #[serde(rename = "WorkosCursorSessionToken", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "WorkosCursorSessionToken",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub workos_cursor_session_token: Option<String>,
-    #[serde(rename = "cursorAuth/accessToken", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "cursorAuth/accessToken",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub access_token: Option<String>,
-    #[serde(rename = "cursorAuth/refreshToken", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "cursorAuth/refreshToken",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub refresh_token: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExportMachineInfo {
-    #[serde(rename = "telemetry.machineId", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "telemetry.machineId",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub machine_id: Option<String>,
-    #[serde(rename = "telemetry.macMachineId", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "telemetry.macMachineId",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub mac_machine_id: Option<String>,
-    #[serde(rename = "telemetry.devDeviceId", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "telemetry.devDeviceId",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub dev_device_id: Option<String>,
     #[serde(rename = "telemetry.sqmId", skip_serializing_if = "Option::is_none")]
     pub sqm_id: Option<String>,
-    #[serde(rename = "storage.serviceMachineId", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "storage.serviceMachineId",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub storage_service_machine_id: Option<String>,
     #[serde(rename = "system.machineGuid", skip_serializing_if = "Option::is_none")]
     pub system_machine_guid: Option<String>,
@@ -244,16 +295,18 @@ impl ExportAccountData {
             None
         };
 
-        let machine_info = account.machine_info.as_ref().filter(|m| m.has_data()).map(|m| {
-            ExportMachineInfo {
+        let machine_info = account
+            .machine_info
+            .as_ref()
+            .filter(|m| m.has_data())
+            .map(|m| ExportMachineInfo {
                 machine_id: m.machine_id.clone(),
                 mac_machine_id: m.mac_machine_id.clone(),
                 dev_device_id: m.dev_device_id.clone(),
                 sqm_id: m.sqm_id.clone(),
                 storage_service_machine_id: m.storage_service_machine_id.clone(),
                 system_machine_guid: m.system_machine_guid.clone(),
-            }
-        });
+            });
 
         Self {
             email: account.email.clone(),

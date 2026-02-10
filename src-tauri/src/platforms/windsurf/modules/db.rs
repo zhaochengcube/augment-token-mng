@@ -1,10 +1,10 @@
 //! Windsurf state.vscdb 数据库操作模块
 
-use rusqlite::Connection;
-use base64::{Engine as _, engine::general_purpose};
-use std::path::PathBuf;
 use super::crypto::platform::{encrypt_for_secret_storage, encrypt_for_windsurf};
+use base64::{Engine as _, engine::general_purpose};
+use rusqlite::Connection;
 use serde::Serialize;
+use std::path::PathBuf;
 use uuid::Uuid;
 
 /// 获取 Windsurf 数据库路径（跨平台）
@@ -14,14 +14,14 @@ pub fn get_db_path() -> Result<PathBuf, String> {
         let home = dirs::home_dir().ok_or("Cannot get home directory")?;
         Ok(home.join("Library/Application Support/Windsurf/User/globalStorage/state.vscdb"))
     }
-    
+
     #[cfg(target_os = "windows")]
     {
         let appdata = std::env::var("APPDATA")
             .map_err(|_| "Cannot get APPDATA environment variable".to_string())?;
         Ok(PathBuf::from(appdata).join("Windsurf\\User\\globalStorage\\state.vscdb"))
     }
-    
+
     #[cfg(target_os = "linux")]
     {
         let home = dirs::home_dir().ok_or("Cannot get home directory")?;
@@ -47,8 +47,7 @@ pub fn inject_token(
     email: &str,
 ) -> Result<String, String> {
     // 1. 打开数据库
-    let conn = Connection::open(db_path)
-        .map_err(|e| format!("Failed to open database: {}", e))?;
+    let conn = Connection::open(db_path).map_err(|e| format!("Failed to open database: {}", e))?;
 
     // 2. 构造 Firebase 用户数据 JSON
     let user_data = serde_json::json!({
@@ -71,14 +70,16 @@ pub fn inject_token(
     // 3. 加密数据
     let json_bytes = user_data.to_string().into_bytes();
     let encrypted = encrypt_for_windsurf(&json_bytes)?;
-    
+
     // 4. Base64 编码
     let encrypted_b64 = general_purpose::STANDARD.encode(&encrypted);
 
     // 5. 写入数据库 - 更新 Firebase 用户状态
-    let key = format!("firebase:authUser:{}:[DEFAULT]", 
-        "AIzaSyB7yJsv44i4dKTdzGJC1O8x3vjfrOOkero");
-    
+    let key = format!(
+        "firebase:authUser:{}:[DEFAULT]",
+        "AIzaSyB7yJsv44i4dKTdzGJC1O8x3vjfrOOkero"
+    );
+
     conn.execute(
         "INSERT OR REPLACE INTO ItemTable (key, value) VALUES (?, ?)",
         [&key, &encrypted_b64],
@@ -96,8 +97,7 @@ pub fn inject_token(
 
 /// 清除 Windsurf 登录状态
 pub fn clear_auth_state(db_path: &PathBuf) -> Result<(), String> {
-    let conn = Connection::open(db_path)
-        .map_err(|e| format!("Failed to open database: {}", e))?;
+    let conn = Connection::open(db_path).map_err(|e| format!("Failed to open database: {}", e))?;
 
     // 删除 Firebase 认证数据
     conn.execute(
@@ -180,8 +180,8 @@ pub fn write_windsurf_auth_state(
     name: &str,
     email: &str,
 ) -> Result<(), String> {
-    let mut conn = Connection::open(db_path)
-        .map_err(|e| format!("Failed to open database: {}", e))?;
+    let mut conn =
+        Connection::open(db_path).map_err(|e| format!("Failed to open database: {}", e))?;
 
     let tx = conn
         .transaction()
@@ -212,7 +212,8 @@ pub fn write_windsurf_auth_state(
 
     let encrypted_json = buffer_json(&encrypted)?;
 
-    let sessions_key = r#"secret://{"extensionId":"codeium.windsurf","key":"windsurf_auth.sessions"}"#;
+    let sessions_key =
+        r#"secret://{"extensionId":"codeium.windsurf","key":"windsurf_auth.sessions"}"#;
     write_item(&tx, sessions_key, &encrypted_json)?;
 
     // windsurfAuthStatus 使用旧版格式
@@ -230,7 +231,10 @@ pub fn write_windsurf_auth_state(
     if auth_status_json == "null" || auth_status_json.is_empty() {
         return Err(format!(
             "AuthStatus serialization produced invalid value: '{}', params=({}, {}, {})",
-            auth_status_json, name, api_key.len(), email
+            auth_status_json,
+            name,
+            api_key.len(),
+            email
         ));
     }
 

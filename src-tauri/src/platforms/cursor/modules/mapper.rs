@@ -8,7 +8,8 @@ pub struct CursorAccountMapper;
 impl AccountDbMapper<Account> for CursorAccountMapper {
     fn from_row(row: &Row) -> Result<Account, StorageError> {
         // 解析 machine_info JSON 字段
-        let machine_info: Option<MachineInfo> = row.get::<_, Option<serde_json::Value>>(18)
+        let machine_info: Option<MachineInfo> = row
+            .get::<_, Option<serde_json::Value>>(18)
             .and_then(|v| serde_json::from_value(v).ok());
 
         Ok(Account {
@@ -74,9 +75,14 @@ impl AccountDbMapper<Account> for CursorAccountMapper {
         "#
     }
 
-    fn to_params(account: &Account, version: i64) -> Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> {
+    fn to_params(
+        account: &Account,
+        version: i64,
+    ) -> Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> {
         // 将 machine_info 序列化为 JSON
-        let machine_info_json: Option<serde_json::Value> = account.machine_info.as_ref()
+        let machine_info_json: Option<serde_json::Value> = account
+            .machine_info
+            .as_ref()
             .and_then(|info| serde_json::to_value(info).ok());
 
         vec![
@@ -103,4 +109,3 @@ impl AccountDbMapper<Account> for CursorAccountMapper {
         ]
     }
 }
-

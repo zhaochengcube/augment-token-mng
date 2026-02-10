@@ -705,7 +705,7 @@ const setSortType = (type, order) => {
 const loadSubscriptions = async () => {
   isLoading.value = true
   try {
-    await initSync()
+    initSync()
     // 从后端加载订阅列表
     const response = await invoke('subscription_list')
     subscriptions.value = response?.subscriptions || []
@@ -983,6 +983,6 @@ const handleSubscriptionUpdated = async (updatedSubscription) => {
 // 初始化
 onMounted(async () => {
   loadViewMode()
-  await loadSubscriptions()
+  loadSubscriptions()
 })
 </script>

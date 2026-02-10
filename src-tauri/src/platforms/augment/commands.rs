@@ -1,18 +1,12 @@
 use std::time::SystemTime;
 use tauri::{AppHandle, Emitter, State};
 
-use crate::{AppSessionCache, AppState};
-use super::modules::{account, oauth};
 use super::models::{
-    AccountStatus,
-    AugmentTokenResponse,
-    BatchCreditConsumptionResponse,
-    PaymentMethodLinkResult,
-    SessionRefreshResult,
-    TokenFromSessionResponse,
-    TokenInfo,
-    TokenStatusResult,
+    AccountStatus, AugmentTokenResponse, BatchCreditConsumptionResponse, PaymentMethodLinkResult,
+    SessionRefreshResult, TokenFromSessionResponse, TokenInfo, TokenStatusResult,
 };
+use super::modules::{account, oauth};
+use crate::{AppSessionCache, AppState};
 
 #[tauri::command]
 pub async fn generate_auth_url(state: State<'_, AppState>) -> Result<String, String> {
@@ -37,10 +31,14 @@ pub async fn generate_augment_auth_url(state: State<'_, AppState>) -> Result<Str
 }
 
 #[tauri::command]
-pub async fn get_token(code: String, state: State<'_, AppState>) -> Result<AugmentTokenResponse, String> {
+pub async fn get_token(
+    code: String,
+    state: State<'_, AppState>,
+) -> Result<AugmentTokenResponse, String> {
     let augment_oauth_state = {
         let guard = state.augment_oauth_state.lock().unwrap();
-        guard.clone()
+        guard
+            .clone()
             .ok_or("No Augment OAuth state found. Please generate auth URL first.")?
     };
 
@@ -50,10 +48,14 @@ pub async fn get_token(code: String, state: State<'_, AppState>) -> Result<Augme
 }
 
 #[tauri::command]
-pub async fn get_augment_token(code: String, state: State<'_, AppState>) -> Result<AugmentTokenResponse, String> {
+pub async fn get_augment_token(
+    code: String,
+    state: State<'_, AppState>,
+) -> Result<AugmentTokenResponse, String> {
     let augment_oauth_state = {
         let guard = state.augment_oauth_state.lock().unwrap();
-        guard.clone()
+        guard
+            .clone()
             .ok_or("No Augment OAuth state found. Please generate auth URL first.")?
     };
 
@@ -63,7 +65,10 @@ pub async fn get_augment_token(code: String, state: State<'_, AppState>) -> Resu
 }
 
 #[tauri::command]
-pub async fn check_account_status(token: String, tenant_url: String) -> Result<AccountStatus, String> {
+pub async fn check_account_status(
+    token: String,
+    tenant_url: String,
+) -> Result<AccountStatus, String> {
     account::check_account_ban_status(&token, &tenant_url)
         .await
         .map_err(|e| format!("Failed to check account status: {}", e))
@@ -107,7 +112,10 @@ pub async fn fetch_batch_credit_consumption(
 
     println!("Exchanging auth_session for new app_session...");
     let app_session = account::exchange_auth_session_for_app_session(&auth_session).await?;
-    println!("New app session obtained: {}", &app_session[..20.min(app_session.len())]);
+    println!(
+        "New app session obtained: {}",
+        &app_session[..20.min(app_session.len())]
+    );
 
     {
         let mut cache = state.app_session_cache.lock().unwrap();
@@ -153,7 +161,6 @@ pub async fn fetch_payment_method_link_command(
         payment_method_link: payment_link,
     })
 }
-
 
 /// Session 刷新请求
 #[derive(serde::Deserialize)]
@@ -273,10 +280,13 @@ async fn get_or_refresh_app_session(
     // 存入缓存
     {
         let mut cache = state.app_session_cache.lock().unwrap();
-        cache.insert(auth_session.to_string(), AppSessionCache {
-            app_session: app_session.clone(),
-            created_at: SystemTime::now(),
-        });
+        cache.insert(
+            auth_session.to_string(),
+            AppSessionCache {
+                app_session: app_session.clone(),
+                created_at: SystemTime::now(),
+            },
+        );
     }
 
     Ok(app_session)

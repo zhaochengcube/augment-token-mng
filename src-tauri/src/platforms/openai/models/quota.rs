@@ -8,31 +8,52 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QuotaData {
     /// 5小时窗口使用率百分比 (0-100)
-    #[serde(rename = "codex_5h_used_percent", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "codex_5h_used_percent",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub codex_5h_used_percent: Option<f64>,
 
     /// 5小时窗口重置倒计时（秒）
-    #[serde(rename = "codex_5h_reset_after_seconds", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "codex_5h_reset_after_seconds",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub codex_5h_reset_after_seconds: Option<i64>,
 
     /// 5小时窗口时长（分钟）
-    #[serde(rename = "codex_5h_window_minutes", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "codex_5h_window_minutes",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub codex_5h_window_minutes: Option<i64>,
 
     /// 7天窗口使用率百分比 (0-100)
-    #[serde(rename = "codex_7d_used_percent", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "codex_7d_used_percent",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub codex_7d_used_percent: Option<f64>,
 
     /// 7天窗口重置倒计时（秒）
-    #[serde(rename = "codex_7d_reset_after_seconds", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "codex_7d_reset_after_seconds",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub codex_7d_reset_after_seconds: Option<i64>,
 
     /// 7天窗口时长（分钟）
-    #[serde(rename = "codex_7d_window_minutes", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "codex_7d_window_minutes",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub codex_7d_window_minutes: Option<i64>,
 
     /// 主窗口超过次要窗口限制百分比
-    #[serde(rename = "codex_primary_over_secondary_percent", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "codex_primary_over_secondary_percent",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub codex_primary_over_secondary_percent: Option<f64>,
 
     /// 配额信息最后更新时间
@@ -204,9 +225,7 @@ impl QuotaData {
         }
 
         // 检查是否有任何配额数据
-        if quota.codex_5h_used_percent.is_some()
-            || quota.codex_7d_used_percent.is_some()
-        {
+        if quota.codex_5h_used_percent.is_some() || quota.codex_7d_used_percent.is_some() {
             Some(quota)
         } else {
             None

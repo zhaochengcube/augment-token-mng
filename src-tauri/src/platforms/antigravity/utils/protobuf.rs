@@ -66,24 +66,24 @@ pub fn remove_protobuf_field(data: &[u8], field_number: u8) -> Result<Vec<u8>, S
 /// 创建 OAuth Field (Field 6)
 pub fn create_oauth_field(access_token: &str, refresh_token: &str, expiry: i64) -> Vec<u8> {
     let mut field = Vec::new();
-    
+
     // Field 6, wire type 2 (length-delimited)
     field.push((6 << 3) | 2);
-    
+
     // 构建内部数据
     let mut inner = Vec::new();
-    
+
     // Field 1: access_token (string)
     inner.push((1 << 3) | 2);
     inner.extend(encode_varint(access_token.len() as u64));
     inner.extend_from_slice(access_token.as_bytes());
-    
+
     // Field 2: token_type (string)
     let token_type = "Bearer";
     inner.push((2 << 3) | 2);
     inner.extend(encode_varint(token_type.len() as u64));
     inner.extend_from_slice(token_type.as_bytes());
-    
+
     // Field 3: refresh_token (string)
     inner.push((3 << 3) | 2);
     inner.extend(encode_varint(refresh_token.len() as u64));
@@ -97,24 +97,24 @@ pub fn create_oauth_field(access_token: &str, refresh_token: &str, expiry: i64) 
     inner.push((4 << 3) | 2);
     inner.extend(encode_varint(expiry_inner.len() as u64));
     inner.extend(expiry_inner);
-    
+
     // 写入长度
     field.extend(encode_varint(inner.len() as u64));
     field.extend(inner);
-    
+
     field
 }
 
 /// 编码 Varint
 fn encode_varint(mut value: u64) -> Vec<u8> {
     let mut result = Vec::new();
-    
+
     while value >= 0x80 {
         result.push((value & 0x7F | 0x80) as u8);
         value >>= 7;
     }
     result.push(value as u8);
-    
+
     result
 }
 

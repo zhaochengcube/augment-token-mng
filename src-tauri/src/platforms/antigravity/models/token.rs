@@ -13,7 +13,7 @@ pub struct TokenData {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub project_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub session_id: Option<String>,  // Antigravity sessionId
+    pub session_id: Option<String>, // Antigravity sessionId
 }
 
 impl TokenData {
@@ -62,7 +62,8 @@ pub struct UserInfo {
 
 impl UserInfo {
     pub fn get_display_name(&self) -> Option<String> {
-        self.name.clone().or_else(|| Some(self.email.split('@').next()?.to_string()))
+        self.name
+            .clone()
+            .or_else(|| Some(self.email.split('@').next()?.to_string()))
     }
 }
-

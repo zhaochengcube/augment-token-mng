@@ -8,7 +8,7 @@ use tauri::Manager;
 use tokio::sync::Mutex;
 use tokio::time::Duration;
 
-use crate::core::telegram::{send_telegram_message, TelegramConfigManager};
+use crate::core::telegram::{TelegramConfigManager, send_telegram_message};
 use crate::data::storage::common::traits::AccountStorage;
 use crate::data::subscription::models::Subscription;
 use crate::data::subscription::storage::SubscriptionLocalStorage;
@@ -59,7 +59,8 @@ impl NotificationRecords {
     /// 清理过期记录 (30 天前的记录)
     pub fn cleanup_old_records(&mut self) {
         let threshold = chrono::Utc::now().timestamp() - 30 * 24 * 60 * 60;
-        self.records.retain(|_, record| record.notified_at > threshold);
+        self.records
+            .retain(|_, record| record.notified_at > threshold);
     }
 }
 
@@ -92,8 +93,7 @@ impl NotificationRecordManager {
         let content = fs::read_to_string(&self.record_path)
             .map_err(|e| format!("Failed to read records: {}", e))?;
 
-        serde_json::from_str(&content)
-            .map_err(|e| format!("Failed to parse records: {}", e))
+        serde_json::from_str(&content).map_err(|e| format!("Failed to parse records: {}", e))
     }
 
     /// 保存记录
@@ -101,8 +101,7 @@ impl NotificationRecordManager {
         let content = serde_json::to_string_pretty(records)
             .map_err(|e| format!("Failed to serialize records: {}", e))?;
 
-        fs::write(&self.record_path, content)
-            .map_err(|e| format!("Failed to write records: {}", e))
+        fs::write(&self.record_path, content).map_err(|e| format!("Failed to write records: {}", e))
     }
 }
 
@@ -159,11 +158,12 @@ pub async fn check_and_notify_expiring_subscriptions(app_handle: &AppHandle) -> 
                     if days_left <= notify_day && days_left > notify_day - 1 {
                         // 检查是否已通知过
                         if !records.has_notified(&sub.id, notify_day) {
-                            notifications
-                                .entry(notify_day)
-                                .or_default()
-                                .push((sub.website.clone(), days_left, expiry_date.to_string()));
-                            
+                            notifications.entry(notify_day).or_default().push((
+                                sub.website.clone(),
+                                days_left,
+                                expiry_date.to_string(),
+                            ));
+
                             // 标记为已通知
                             records.add_record(&sub.id, notify_day);
                         }
@@ -178,10 +178,8 @@ pub async fn check_and_notify_expiring_subscriptions(app_handle: &AppHandle) -> 
         let mut message = String::from("📅 <b>订阅到期提醒</b>\n\n🔔 以下订阅即将到期：\n\n");
 
         // 按剩余天数排序
-        let mut all_items: Vec<(String, i32, String)> = notifications
-            .into_values()
-            .flatten()
-            .collect();
+        let mut all_items: Vec<(String, i32, String)> =
+            notifications.into_values().flatten().collect();
         all_items.sort_by_key(|(_, days, _)| *days);
 
         for (name, days_left, expiry_date) in all_items {
@@ -192,7 +190,10 @@ pub async fn check_and_notify_expiring_subscriptions(app_handle: &AppHandle) -> 
             } else {
                 format!("{} 天后到期", days_left)
             };
-            message.push_str(&format!("• <b>{}</b> - {} ({})\n", name, days_text, expiry_date));
+            message.push_str(&format!(
+                "• <b>{}</b> - {} ({})\n",
+                name, days_text, expiry_date
+            ));
         }
 
         message.push_str("\n请及时处理续费事宜。");
@@ -250,14 +251,14 @@ pub fn start_subscription_monitor(app_handle: AppHandle) {
             let interval_hours = match TelegramConfigManager::new(&app_handle) {
                 Ok(manager) => match manager.load_config() {
                     Ok(config) => config.check_interval_hours.max(1), // 最少 1 小时
-                    Err(_) => 6, // 默认 6 小时
+                    Err(_) => 6,                                      // 默认 6 小时
                 },
                 Err(_) => 6,
             };
 
             // 等待指定的间隔时间
             tokio::time::sleep(Duration::from_secs(interval_hours as u64 * 60 * 60)).await;
-            
+
             if let Err(e) = check_and_notify_expiring_subscriptions(&app_handle).await {
                 eprintln!("Subscription monitor check failed: {}", e);
             }
@@ -275,7 +276,10 @@ pub async fn check_subscriptions_expiry(app: AppHandle) -> Result<(), String> {
 
 /// 获取即将到期的订阅列表（供前端展示）
 #[tauri::command]
-pub async fn get_expiring_subscriptions(app: AppHandle, days: i32) -> Result<Vec<Subscription>, String> {
+pub async fn get_expiring_subscriptions(
+    app: AppHandle,
+    days: i32,
+) -> Result<Vec<Subscription>, String> {
     let storage = SubscriptionLocalStorage::new(&app)
         .map_err(|e| format!("Failed to create storage: {}", e))?;
     let subscriptions = storage

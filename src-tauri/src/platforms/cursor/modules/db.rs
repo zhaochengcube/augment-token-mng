@@ -75,8 +75,8 @@ pub fn write_cursor_auth_state(
 ) -> Result<(), String> {
     println!("Writing auth state to database: {}", db_path.display());
 
-    let mut conn = Connection::open(db_path)
-        .map_err(|e| format!("Failed to open database: {}", e))?;
+    let mut conn =
+        Connection::open(db_path).map_err(|e| format!("Failed to open database: {}", e))?;
 
     let tx = conn
         .transaction()
@@ -106,7 +106,10 @@ pub fn write_cursor_auth_state(
 /// 重置 state.vscdb 中的机器标识符
 /// - storage.serviceMachineId: 如果提供了 service_machine_id 则使用，否则生成新的 UUID
 /// - workbench.experiments.statsigBootstrap.customIDs.stableID: 使用 machine_id (64字符十六进制)
-pub fn reset_machine_ids_in_db(machine_id: &str, service_machine_id: Option<&str>) -> Result<(), String> {
+pub fn reset_machine_ids_in_db(
+    machine_id: &str,
+    service_machine_id: Option<&str>,
+) -> Result<(), String> {
     let db_path = get_db_path()?;
 
     if !db_path.exists() {
@@ -116,8 +119,8 @@ pub fn reset_machine_ids_in_db(machine_id: &str, service_machine_id: Option<&str
 
     println!("Resetting machine IDs in database: {}", db_path.display());
 
-    let mut conn = Connection::open(&db_path)
-        .map_err(|e| format!("Failed to open database: {}", e))?;
+    let mut conn =
+        Connection::open(&db_path).map_err(|e| format!("Failed to open database: {}", e))?;
 
     let tx = conn
         .transaction()
@@ -142,17 +145,24 @@ pub fn reset_machine_ids_in_db(machine_id: &str, service_machine_id: Option<&str
     ) {
         Ok(existing_value) => {
             // 解析并更新 JSON
-            if let Ok(mut statsig_data) = serde_json::from_str::<serde_json::Value>(&existing_value) {
+            if let Ok(mut statsig_data) = serde_json::from_str::<serde_json::Value>(&existing_value)
+            {
                 if let Some(user_obj) = statsig_data.get_mut("user") {
                     if let Some(custom_ids) = user_obj.get_mut("customIDs") {
                         if let Some(id_map) = custom_ids.as_object_mut() {
-                            id_map.insert("stableID".to_string(), serde_json::Value::String(machine_id.to_string()));
+                            id_map.insert(
+                                "stableID".to_string(),
+                                serde_json::Value::String(machine_id.to_string()),
+                            );
                         }
                     } else if let Some(user_obj) = statsig_data["user"].as_object_mut() {
                         // customIDs 不存在，创建它
-                        user_obj.insert("customIDs".to_string(), serde_json::json!({
-                            "stableID": machine_id
-                        }));
+                        user_obj.insert(
+                            "customIDs".to_string(),
+                            serde_json::json!({
+                                "stableID": machine_id
+                            }),
+                        );
                     }
                 }
                 // 写回更新后的 JSON
@@ -162,7 +172,10 @@ pub fn reset_machine_ids_in_db(machine_id: &str, service_machine_id: Option<&str
                     "UPDATE ItemTable SET value = ? WHERE key = 'workbench.experiments.statsigBootstrap'",
                     [&updated_json],
                 ).map_err(|e| format!("Failed to update statsigBootstrap: {}", e))?;
-                println!("Written statsigBootstrap.customIDs.stableID: {}", machine_id);
+                println!(
+                    "Written statsigBootstrap.customIDs.stableID: {}",
+                    machine_id
+                );
             }
         }
         Err(_) => {
@@ -180,7 +193,10 @@ pub fn reset_machine_ids_in_db(machine_id: &str, service_machine_id: Option<&str
                 "INSERT OR REPLACE INTO ItemTable (key, value) VALUES ('workbench.experiments.statsigBootstrap', ?)",
                 [&new_statsig_json],
             ).map_err(|e| format!("Failed to insert statsigBootstrap: {}", e))?;
-            println!("Created new statsigBootstrap.customIDs.stableID: {}", machine_id);
+            println!(
+                "Created new statsigBootstrap.customIDs.stableID: {}",
+                machine_id
+            );
         }
     }
 

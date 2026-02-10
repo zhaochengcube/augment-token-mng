@@ -1,7 +1,9 @@
-use super::traits::{TokenStorage, TokenData, SyncManager, SyncStatus, ClientSyncRequest, ServerSyncResponse};
+use super::traits::{
+    ClientSyncRequest, ServerSyncResponse, SyncManager, SyncStatus, TokenData, TokenStorage,
+};
 use super::{LocalFileStorage, PostgreSQLStorage};
-use std::sync::Arc;
 use chrono::Utc;
+use std::sync::Arc;
 
 pub struct DualStorage {
     local_storage: Arc<LocalFileStorage>,
@@ -29,7 +31,10 @@ impl DualStorage {
         self.postgres_storage.is_some()
     }
 
-    async fn sync_to_both_storages(&self, token: &TokenData) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    async fn sync_to_both_storages(
+        &self,
+        token: &TokenData,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // 总是保存到本地存储
         if let Err(e) = self.local_storage.save_token(token).await {
             eprintln!("Failed to save to local storage: {}", e);
@@ -48,7 +53,10 @@ impl DualStorage {
         Ok(())
     }
 
-    async fn delete_from_both_storages(&self, token_id: &str) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
+    async fn delete_from_both_storages(
+        &self,
+        token_id: &str,
+    ) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
         let mut local_deleted = false;
         let mut db_deleted = false;
 
@@ -70,8 +78,14 @@ impl DualStorage {
     }
 
     /// 删除token及其在数据库中的重复项
-    async fn delete_token_and_duplicates(&self, token_id: &str) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
-        eprintln!("Starting delete_token_and_duplicates for token_id: {}", token_id);
+    async fn delete_token_and_duplicates(
+        &self,
+        token_id: &str,
+    ) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
+        eprintln!(
+            "Starting delete_token_and_duplicates for token_id: {}",
+            token_id
+        );
 
         // 首先获取要删除的token信息，用于查找重复项
         let token_info = if let Some(postgres) = &self.postgres_storage {
@@ -79,41 +93,53 @@ impl DualStorage {
                 eprintln!("Database is available, trying to get token from database");
                 match postgres.get_token(token_id).await {
                     Ok(Some(token)) => {
-                        eprintln!("Found token in database: tenant_url={}, access_token={}", token.tenant_url, token.access_token);
+                        eprintln!(
+                            "Found token in database: tenant_url={}, access_token={}",
+                            token.tenant_url, token.access_token
+                        );
                         Some(token)
-                    },
+                    }
                     Ok(None) => {
                         eprintln!("Token not found in database, trying local storage");
                         // 如果数据库中没有，尝试从本地存储获取
                         match self.local_storage.get_token(token_id).await {
                             Ok(token) => {
                                 if let Some(token) = token {
-                                    eprintln!("Found token in local storage: tenant_url={}, access_token={}", token.tenant_url, token.access_token);
+                                    eprintln!(
+                                        "Found token in local storage: tenant_url={}, access_token={}",
+                                        token.tenant_url, token.access_token
+                                    );
                                     Some(token)
                                 } else {
                                     eprintln!("Token not found in local storage either");
                                     None
                                 }
-                            },
+                            }
                             Err(e) => {
                                 eprintln!("Error getting token from local storage: {}", e);
                                 None
                             }
                         }
-                    },
+                    }
                     Err(e) => {
-                        eprintln!("Error getting token from database: {}, trying local storage", e);
+                        eprintln!(
+                            "Error getting token from database: {}, trying local storage",
+                            e
+                        );
                         // 数据库查询失败，尝试从本地存储获取
                         match self.local_storage.get_token(token_id).await {
                             Ok(token) => {
                                 if let Some(token) = token {
-                                    eprintln!("Found token in local storage: tenant_url={}, access_token={}", token.tenant_url, token.access_token);
+                                    eprintln!(
+                                        "Found token in local storage: tenant_url={}, access_token={}",
+                                        token.tenant_url, token.access_token
+                                    );
                                     Some(token)
                                 } else {
                                     eprintln!("Token not found in local storage either");
                                     None
                                 }
-                            },
+                            }
                             Err(e) => {
                                 eprintln!("Error getting token from local storage: {}", e);
                                 None
@@ -127,13 +153,16 @@ impl DualStorage {
                 match self.local_storage.get_token(token_id).await {
                     Ok(token) => {
                         if let Some(token) = token {
-                            eprintln!("Found token in local storage: tenant_url={}, access_token={}", token.tenant_url, token.access_token);
+                            eprintln!(
+                                "Found token in local storage: tenant_url={}, access_token={}",
+                                token.tenant_url, token.access_token
+                            );
                             Some(token)
                         } else {
                             eprintln!("Token not found in local storage");
                             None
                         }
-                    },
+                    }
                     Err(e) => {
                         eprintln!("Error getting token from local storage: {}", e);
                         None
@@ -146,13 +175,16 @@ impl DualStorage {
             match self.local_storage.get_token(token_id).await {
                 Ok(token) => {
                     if let Some(token) = token {
-                        eprintln!("Found token in local storage: tenant_url={}, access_token={}", token.tenant_url, token.access_token);
+                        eprintln!(
+                            "Found token in local storage: tenant_url={}, access_token={}",
+                            token.tenant_url, token.access_token
+                        );
                         Some(token)
                     } else {
                         eprintln!("Token not found in local storage");
                         None
                     }
-                },
+                }
                 Err(e) => {
                     eprintln!("Error getting token from local storage: {}", e);
                     None
@@ -172,32 +204,52 @@ impl DualStorage {
                     // 只有当token有邮箱时才查找重复项
                     let email_note = token.email_note.as_deref();
                     if email_note.is_some() && !email_note.unwrap().trim().is_empty() {
-                        eprintln!("Looking for duplicate tokens with email_note={:?}", email_note);
+                        eprintln!(
+                            "Looking for duplicate tokens with email_note={:?}",
+                            email_note
+                        );
                         // 查找数据库中的重复token（基于邮箱）
                         match postgres.find_duplicate_tokens(email_note, token_id).await {
                             Ok(duplicate_tokens) => {
                                 eprintln!("Found {} duplicate tokens", duplicate_tokens.len());
                                 let mut duplicate_deleted_count = 0;
                                 for duplicate_token in duplicate_tokens {
-                                    eprintln!("Attempting to delete duplicate token with ID: {}", duplicate_token.id);
+                                    eprintln!(
+                                        "Attempting to delete duplicate token with ID: {}",
+                                        duplicate_token.id
+                                    );
                                     // 删除每个重复的token
-                                    if let Ok(deleted) = postgres.delete_token(&duplicate_token.id).await {
+                                    if let Ok(deleted) =
+                                        postgres.delete_token(&duplicate_token.id).await
+                                    {
                                         if deleted {
                                             duplicate_deleted_count += 1;
-                                            eprintln!("Successfully deleted duplicate token with ID: {}", duplicate_token.id);
+                                            eprintln!(
+                                                "Successfully deleted duplicate token with ID: {}",
+                                                duplicate_token.id
+                                            );
                                         } else {
-                                            eprintln!("Failed to delete duplicate token with ID: {} (not found)", duplicate_token.id);
+                                            eprintln!(
+                                                "Failed to delete duplicate token with ID: {} (not found)",
+                                                duplicate_token.id
+                                            );
                                         }
                                     } else {
-                                        eprintln!("Error deleting duplicate token with ID: {}", duplicate_token.id);
+                                        eprintln!(
+                                            "Error deleting duplicate token with ID: {}",
+                                            duplicate_token.id
+                                        );
                                     }
                                 }
                                 if duplicate_deleted_count > 0 {
-                                    eprintln!("Deleted {} duplicate tokens", duplicate_deleted_count);
+                                    eprintln!(
+                                        "Deleted {} duplicate tokens",
+                                        duplicate_deleted_count
+                                    );
                                 } else {
                                     eprintln!("No duplicate tokens were deleted");
                                 }
-                            },
+                            }
                             Err(e) => {
                                 eprintln!("Failed to find duplicate tokens: {}", e);
                             }
@@ -218,7 +270,9 @@ impl DualStorage {
         Ok(main_deleted)
     }
 
-    async fn load_from_preferred_storage(&self) -> Result<Vec<TokenData>, Box<dyn std::error::Error + Send + Sync>> {
+    async fn load_from_preferred_storage(
+        &self,
+    ) -> Result<Vec<TokenData>, Box<dyn std::error::Error + Send + Sync>> {
         if self.prefer_database {
             if let Some(postgres) = &self.postgres_storage {
                 if postgres.is_available().await {
@@ -239,32 +293,46 @@ impl DualStorage {
 
 #[async_trait::async_trait]
 impl TokenStorage for DualStorage {
-    async fn save_token(&self, token: &TokenData) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    async fn save_token(
+        &self,
+        token: &TokenData,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         self.sync_to_both_storages(token).await
     }
 
-    async fn load_tokens(&self) -> Result<Vec<TokenData>, Box<dyn std::error::Error + Send + Sync>> {
+    async fn load_tokens(
+        &self,
+    ) -> Result<Vec<TokenData>, Box<dyn std::error::Error + Send + Sync>> {
         self.load_from_preferred_storage().await
     }
 
-    async fn update_token(&self, token: &TokenData) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    async fn update_token(
+        &self,
+        token: &TokenData,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let mut updated_token = token.clone();
         updated_token.update_timestamp();
         self.sync_to_both_storages(&updated_token).await
     }
 
-    async fn delete_token(&self, token_id: &str) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
+    async fn delete_token(
+        &self,
+        token_id: &str,
+    ) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
         self.delete_token_and_duplicates(token_id).await
     }
 
-    async fn get_token(&self, token_id: &str) -> Result<Option<TokenData>, Box<dyn std::error::Error + Send + Sync>> {
+    async fn get_token(
+        &self,
+        token_id: &str,
+    ) -> Result<Option<TokenData>, Box<dyn std::error::Error + Send + Sync>> {
         // 优先从首选存储获取
         if self.prefer_database {
             if let Some(postgres) = &self.postgres_storage {
                 if postgres.is_available().await {
                     match postgres.get_token(token_id).await {
                         Ok(Some(token)) => return Ok(Some(token)),
-                        Ok(None) => {}, // 继续尝试本地存储
+                        Ok(None) => {} // 继续尝试本地存储
                         Err(e) => {
                             eprintln!("Failed to get token from database: {}", e);
                         }
@@ -311,8 +379,12 @@ impl TokenStorage for DualStorage {
 
 #[async_trait::async_trait]
 impl SyncManager for DualStorage {
-    async fn sync_local_to_remote(&self) -> Result<SyncStatus, Box<dyn std::error::Error + Send + Sync>> {
-        let postgres = self.postgres_storage.as_ref()
+    async fn sync_local_to_remote(
+        &self,
+    ) -> Result<SyncStatus, Box<dyn std::error::Error + Send + Sync>> {
+        let postgres = self
+            .postgres_storage
+            .as_ref()
             .ok_or("Database storage not available")?;
 
         if !postgres.is_available().await {
@@ -330,7 +402,11 @@ impl SyncManager for DualStorage {
             }
         }
 
-        let status = if errors.is_empty() { "success" } else { "partial_success" };
+        let status = if errors.is_empty() {
+            "success"
+        } else {
+            "partial_success"
+        };
         let error_message = if errors.is_empty() {
             None
         } else {
@@ -348,8 +424,12 @@ impl SyncManager for DualStorage {
         Ok(sync_status)
     }
 
-    async fn sync_remote_to_local(&self) -> Result<SyncStatus, Box<dyn std::error::Error + Send + Sync>> {
-        let postgres = self.postgres_storage.as_ref()
+    async fn sync_remote_to_local(
+        &self,
+    ) -> Result<SyncStatus, Box<dyn std::error::Error + Send + Sync>> {
+        let postgres = self
+            .postgres_storage
+            .as_ref()
             .ok_or("Database storage not available")?;
 
         if !postgres.is_available().await {
@@ -367,7 +447,11 @@ impl SyncManager for DualStorage {
             }
         }
 
-        let status = if errors.is_empty() { "success" } else { "partial_success" };
+        let status = if errors.is_empty() {
+            "success"
+        } else {
+            "partial_success"
+        };
         let error_message = if errors.is_empty() {
             None
         } else {
@@ -385,8 +469,12 @@ impl SyncManager for DualStorage {
         Ok(sync_status)
     }
 
-    async fn bidirectional_sync(&self) -> Result<SyncStatus, Box<dyn std::error::Error + Send + Sync>> {
-        let postgres = self.postgres_storage.as_ref()
+    async fn bidirectional_sync(
+        &self,
+    ) -> Result<SyncStatus, Box<dyn std::error::Error + Send + Sync>> {
+        let postgres = self
+            .postgres_storage
+            .as_ref()
             .ok_or("Database storage not available")?;
 
         if !postgres.is_available().await {
@@ -396,32 +484,34 @@ impl SyncManager for DualStorage {
         let local_tokens = self.local_storage.load_tokens().await?;
         let remote_tokens = postgres.load_tokens().await?;
 
-        let resolved_tokens = self.resolve_conflicts(local_tokens.clone(), remote_tokens.clone()).await?;
+        let resolved_tokens = self
+            .resolve_conflicts(local_tokens.clone(), remote_tokens.clone())
+            .await?;
 
         let mut synced_count = 0;
         let mut errors = Vec::new();
 
         // 找出被去重淘汰的 token IDs
         use std::collections::HashSet;
-        let resolved_ids: HashSet<String> = resolved_tokens.iter()
-            .map(|t| t.id.clone())
-            .collect();
+        let resolved_ids: HashSet<String> = resolved_tokens.iter().map(|t| t.id.clone()).collect();
 
-        let all_ids: HashSet<String> = local_tokens.iter()
+        let all_ids: HashSet<String> = local_tokens
+            .iter()
             .chain(remote_tokens.iter())
             .map(|t| t.id.clone())
             .collect();
 
-        let removed_ids: Vec<String> = all_ids.difference(&resolved_ids)
-            .cloned()
-            .collect();
+        let removed_ids: Vec<String> = all_ids.difference(&resolved_ids).cloned().collect();
 
         // 从数据库中删除被淘汰的 tokens
         for removed_id in &removed_ids {
             eprintln!("Removing duplicate token from database: {}", removed_id);
             if let Err(e) = postgres.delete_token(removed_id).await {
                 eprintln!("Failed to remove duplicate token {}: {}", removed_id, e);
-                errors.push(format!("Failed to remove duplicate token {}: {}", removed_id, e));
+                errors.push(format!(
+                    "Failed to remove duplicate token {}: {}",
+                    removed_id, e
+                ));
             }
         }
 
@@ -450,7 +540,11 @@ impl SyncManager for DualStorage {
             }
         }
 
-        let status = if errors.is_empty() { "success" } else { "partial_success" };
+        let status = if errors.is_empty() {
+            "success"
+        } else {
+            "partial_success"
+        };
         let error_message = if errors.is_empty() {
             None
         } else {
@@ -468,8 +562,13 @@ impl SyncManager for DualStorage {
         Ok(sync_status)
     }
 
-    async fn bidirectional_sync_with_tokens(&self, local_tokens: Vec<TokenData>) -> Result<SyncStatus, Box<dyn std::error::Error + Send + Sync>> {
-        let postgres = self.postgres_storage.as_ref()
+    async fn bidirectional_sync_with_tokens(
+        &self,
+        local_tokens: Vec<TokenData>,
+    ) -> Result<SyncStatus, Box<dyn std::error::Error + Send + Sync>> {
+        let postgres = self
+            .postgres_storage
+            .as_ref()
             .ok_or("Database storage not available")?;
 
         if !postgres.is_available().await {
@@ -479,32 +578,34 @@ impl SyncManager for DualStorage {
         // 使用传入的 local_tokens 而不是从文件读取
         let remote_tokens = postgres.load_tokens().await?;
 
-        let resolved_tokens = self.resolve_conflicts(local_tokens.clone(), remote_tokens.clone()).await?;
+        let resolved_tokens = self
+            .resolve_conflicts(local_tokens.clone(), remote_tokens.clone())
+            .await?;
 
         let mut synced_count = 0;
         let mut errors = Vec::new();
 
         // 找出被去重淘汰的 token IDs
         use std::collections::HashSet;
-        let resolved_ids: HashSet<String> = resolved_tokens.iter()
-            .map(|t| t.id.clone())
-            .collect();
+        let resolved_ids: HashSet<String> = resolved_tokens.iter().map(|t| t.id.clone()).collect();
 
-        let all_ids: HashSet<String> = local_tokens.iter()
+        let all_ids: HashSet<String> = local_tokens
+            .iter()
             .chain(remote_tokens.iter())
             .map(|t| t.id.clone())
             .collect();
 
-        let removed_ids: Vec<String> = all_ids.difference(&resolved_ids)
-            .cloned()
-            .collect();
+        let removed_ids: Vec<String> = all_ids.difference(&resolved_ids).cloned().collect();
 
         // 从数据库中删除被淘汰的 tokens
         for removed_id in &removed_ids {
             eprintln!("Removing duplicate token from database: {}", removed_id);
             if let Err(e) = postgres.delete_token(removed_id).await {
                 eprintln!("Failed to remove duplicate token {}: {}", removed_id, e);
-                errors.push(format!("Failed to remove duplicate token {}: {}", removed_id, e));
+                errors.push(format!(
+                    "Failed to remove duplicate token {}: {}",
+                    removed_id, e
+                ));
             }
         }
 
@@ -533,7 +634,11 @@ impl SyncManager for DualStorage {
             }
         }
 
-        let status = if errors.is_empty() { "success" } else { "partial_success" };
+        let status = if errors.is_empty() {
+            "success"
+        } else {
+            "partial_success"
+        };
         let error_message = if errors.is_empty() {
             None
         } else {
@@ -551,12 +656,18 @@ impl SyncManager for DualStorage {
         Ok(sync_status)
     }
 
-    async fn get_sync_status(&self) -> Result<Option<SyncStatus>, Box<dyn std::error::Error + Send + Sync>> {
+    async fn get_sync_status(
+        &self,
+    ) -> Result<Option<SyncStatus>, Box<dyn std::error::Error + Send + Sync>> {
         // sync_status 表已删除，返回 None
         Ok(None)
     }
 
-    async fn resolve_conflicts(&self, local_tokens: Vec<TokenData>, remote_tokens: Vec<TokenData>) -> Result<Vec<TokenData>, Box<dyn std::error::Error + Send + Sync>> {
+    async fn resolve_conflicts(
+        &self,
+        local_tokens: Vec<TokenData>,
+        remote_tokens: Vec<TokenData>,
+    ) -> Result<Vec<TokenData>, Box<dyn std::error::Error + Send + Sync>> {
         use std::collections::HashMap;
 
         let mut resolved = HashMap::new();
@@ -594,12 +705,24 @@ impl SyncManager for DualStorage {
                     if let Some(existing) = email_map.get(&email_key) {
                         // 比较更新时间，保留更新的
                         if token.updated_at > existing.updated_at {
-                            eprintln!("Email conflict: keeping newer token {} (updated_at={:?}) over {} (updated_at={:?}) for email {}",
-                                token.id, token.updated_at, existing.id, existing.updated_at, email_key);
+                            eprintln!(
+                                "Email conflict: keeping newer token {} (updated_at={:?}) over {} (updated_at={:?}) for email {}",
+                                token.id,
+                                token.updated_at,
+                                existing.id,
+                                existing.updated_at,
+                                email_key
+                            );
                             email_map.insert(email_key, token);
                         } else {
-                            eprintln!("Email conflict: keeping existing token {} (updated_at={:?}) over {} (updated_at={:?}) for email {}",
-                                existing.id, existing.updated_at, token.id, token.updated_at, email_key);
+                            eprintln!(
+                                "Email conflict: keeping existing token {} (updated_at={:?}) over {} (updated_at={:?}) for email {}",
+                                existing.id,
+                                existing.updated_at,
+                                token.id,
+                                token.updated_at,
+                                email_key
+                            );
                         }
                     } else {
                         email_map.insert(email_key, token);
@@ -622,8 +745,13 @@ impl SyncManager for DualStorage {
     }
 
     /// 新的基于 version + tombstone 的增量同步方法
-    async fn sync_tokens(&self, req: ClientSyncRequest) -> Result<ServerSyncResponse, Box<dyn std::error::Error + Send + Sync>> {
-        let postgres = self.postgres_storage.as_ref()
+    async fn sync_tokens(
+        &self,
+        req: ClientSyncRequest,
+    ) -> Result<ServerSyncResponse, Box<dyn std::error::Error + Send + Sync>> {
+        let postgres = self
+            .postgres_storage
+            .as_ref()
             .ok_or("Database storage not available")?;
 
         if !postgres.is_available().await {
@@ -633,7 +761,7 @@ impl SyncManager for DualStorage {
         // 1. 处理客户端 upserts
         for change in &req.upserts {
             let token = &change.token;
-            
+
             // 获取服务器端已有的 token（如果存在）
             if let Ok(Some(existing)) = postgres.get_token(&token.id).await {
                 // 比较 updated_at，客户端更新时间更新则更新服务器
@@ -654,7 +782,9 @@ impl SyncManager for DualStorage {
 
         // 3. 查询服务器相对于 last_version 的变更
         let server_upserts = postgres.load_tokens_since_version(req.last_version).await?;
-        let server_deletions = postgres.load_tombstones_since_version(req.last_version).await?;
+        let server_deletions = postgres
+            .load_tombstones_since_version(req.last_version)
+            .await?;
 
         // 4. 计算 new_version
         let new_version = postgres.get_max_version().await?;
@@ -688,9 +818,9 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let storage_path = temp_dir.path().join("test_tokens.json");
         let local_storage = Arc::new(LocalFileStorage::new_with_path(storage_path));
-        
+
         let dual_storage = DualStorage::new(local_storage, None);
-        
+
         assert!(!dual_storage.is_database_available());
         assert_eq!(dual_storage.storage_type(), "local_only");
         assert!(dual_storage.is_available().await);

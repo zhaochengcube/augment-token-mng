@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::data::storage::common::SyncableAccount;
+use serde::{Deserialize, Serialize};
 
 /// Claude 账号数据结构
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -103,6 +103,8 @@ impl Account {
 
     /// 检查账号是否已存在（服务名称相同）
     pub fn is_duplicate(service_name: &str, existing_accounts: &[Self]) -> bool {
-        existing_accounts.iter().any(|a| &a.service_name == service_name)
+        existing_accounts
+            .iter()
+            .any(|a| &a.service_name == service_name)
     }
 }

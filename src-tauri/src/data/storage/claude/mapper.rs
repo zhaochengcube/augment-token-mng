@@ -66,7 +66,10 @@ impl AccountDbMapper<Account> for ClaudeAccountMapper {
         "#
     }
 
-    fn to_params(account: &Account, version: i64) -> Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> {
+    fn to_params(
+        account: &Account,
+        version: i64,
+    ) -> Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> {
         vec![
             Box::new(account.id.clone()),
             Box::new(account.service_name.clone()),

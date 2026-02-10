@@ -4,12 +4,12 @@ pub use traits::*;
 // 使用 platforms 中已定义的 mapper
 pub use crate::platforms::windsurf::modules::mapper::WindsurfAccountMapper;
 
+use crate::AppState;
 use crate::data::storage::common::{
-    GenericLocalStorage, GenericPostgreSQLStorage, GenericDualStorage,
-    AccountSyncManager as CommonAccountSyncManager,
+    AccountSyncManager as CommonAccountSyncManager, GenericDualStorage, GenericLocalStorage,
+    GenericPostgreSQLStorage,
 };
 use crate::platforms::windsurf::models::Account;
-use crate::AppState;
 use std::sync::Arc;
 use tauri::State;
 
@@ -28,10 +28,14 @@ pub async fn windsurf_sync_accounts_to_database(
 ) -> Result<AccountSyncStatus, String> {
     let storage_manager = {
         let guard = state.windsurf_storage_manager.lock().unwrap();
-        guard.clone().ok_or("Windsurf storage manager not initialized")?
+        guard
+            .clone()
+            .ok_or("Windsurf storage manager not initialized")?
     };
 
-    storage_manager.sync_local_to_remote().await
+    storage_manager
+        .sync_local_to_remote()
+        .await
         .map_err(|e| format!("Sync failed: {}", e))
 }
 
@@ -41,10 +45,14 @@ pub async fn windsurf_sync_accounts_from_database(
 ) -> Result<AccountSyncStatus, String> {
     let storage_manager = {
         let guard = state.windsurf_storage_manager.lock().unwrap();
-        guard.clone().ok_or("Windsurf storage manager not initialized")?
+        guard
+            .clone()
+            .ok_or("Windsurf storage manager not initialized")?
     };
 
-    storage_manager.sync_remote_to_local().await
+    storage_manager
+        .sync_remote_to_local()
+        .await
         .map_err(|e| format!("Sync failed: {}", e))
 }
 
@@ -54,10 +62,14 @@ pub async fn windsurf_bidirectional_sync_accounts(
 ) -> Result<AccountSyncStatus, String> {
     let storage_manager = {
         let guard = state.windsurf_storage_manager.lock().unwrap();
-        guard.clone().ok_or("Windsurf storage manager not initialized")?
+        guard
+            .clone()
+            .ok_or("Windsurf storage manager not initialized")?
     };
 
-    storage_manager.bidirectional_sync().await
+    storage_manager
+        .bidirectional_sync()
+        .await
         .map_err(|e| format!("Sync failed: {}", e))
 }
 
@@ -68,7 +80,9 @@ pub async fn windsurf_sync_accounts(
 ) -> Result<ServerAccountSyncResponse<Account>, String> {
     let storage_manager = {
         let guard = state.windsurf_storage_manager.lock().unwrap();
-        guard.clone().ok_or("Windsurf storage manager not initialized")?
+        guard
+            .clone()
+            .ok_or("Windsurf storage manager not initialized")?
     };
 
     let req: ClientAccountSyncRequest<Account> = serde_json::from_str(&req_json)
@@ -83,10 +97,7 @@ pub async fn windsurf_sync_accounts(
         Err(e) => {
             println!(
                 "Windsurf sync_accounts failed (last_version={}, upserts={}, deletions={}): {}",
-                last_version,
-                upserts_len,
-                deletions_len,
-                e
+                last_version, upserts_len, deletions_len, e
             );
             Err(format!("Sync failed: {}", e))
         }

@@ -1,7 +1,9 @@
 use crate::platforms::claude::Account;
 use tokio_postgres::Client as PgClient;
 
-pub async fn list_accounts(client: &PgClient) -> Result<Vec<Account>, Box<dyn std::error::Error + Send + Sync>> {
+pub async fn list_accounts(
+    client: &PgClient,
+) -> Result<Vec<Account>, Box<dyn std::error::Error + Send + Sync>> {
     let rows = client.query(
         "SELECT id, service_name, website_url, start_date, duration_days, expiry_date, tag, tag_color, notes,
                 base_url, auth_token, default_opus_model, default_sonnet_model, default_haiku_model, use_model,
@@ -39,7 +41,10 @@ pub async fn list_accounts(client: &PgClient) -> Result<Vec<Account>, Box<dyn st
     Ok(accounts)
 }
 
-pub async fn get_account(client: &PgClient, id: &str) -> Result<Option<Account>, Box<dyn std::error::Error + Send + Sync>> {
+pub async fn get_account(
+    client: &PgClient,
+    id: &str,
+) -> Result<Option<Account>, Box<dyn std::error::Error + Send + Sync>> {
     let rows = client.query(
         "SELECT id, service_name, website_url, start_date, duration_days, expiry_date, tag, tag_color, notes,
                 base_url, auth_token, default_opus_model, default_sonnet_model, default_haiku_model, use_model,
@@ -75,7 +80,10 @@ pub async fn get_account(client: &PgClient, id: &str) -> Result<Option<Account>,
     }
 }
 
-pub async fn insert_account(client: &PgClient, account: &Account) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+pub async fn insert_account(
+    client: &PgClient,
+    account: &Account,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     client.execute(
         "INSERT INTO claude_accounts
             (id, service_name, website_url, start_date, duration_days, expiry_date, tag, tag_color, notes,
@@ -107,7 +115,10 @@ pub async fn insert_account(client: &PgClient, account: &Account) -> Result<(), 
     Ok(())
 }
 
-pub async fn update_account(client: &PgClient, account: &Account) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+pub async fn update_account(
+    client: &PgClient,
+    account: &Account,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     client.execute(
         "UPDATE claude_accounts
          SET service_name = $2, website_url = $3, start_date = $4, duration_days = $5, expiry_date = $6,
@@ -138,15 +149,22 @@ pub async fn update_account(client: &PgClient, account: &Account) -> Result<(), 
     Ok(())
 }
 
-pub async fn delete_account(client: &PgClient, id: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    client.execute(
-        "UPDATE claude_accounts SET deleted = TRUE, updated_at = $2 WHERE id = $1",
-        &[&id, &chrono::Utc::now().timestamp()],
-    ).await?;
+pub async fn delete_account(
+    client: &PgClient,
+    id: &str,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    client
+        .execute(
+            "UPDATE claude_accounts SET deleted = TRUE, updated_at = $2 WHERE id = $1",
+            &[&id, &chrono::Utc::now().timestamp()],
+        )
+        .await?;
     Ok(())
 }
 
-pub async fn get_pending_sync_operations(client: &PgClient) -> Result<(Vec<Account>, Vec<String>), Box<dyn std::error::Error + Send + Sync>> {
+pub async fn get_pending_sync_operations(
+    client: &PgClient,
+) -> Result<(Vec<Account>, Vec<String>), Box<dyn std::error::Error + Send + Sync>> {
     // Get pending upserts (accounts with version > 0 or recently updated)
     let upserts = client.query(
         "SELECT id, service_name, website_url, start_date, duration_days, expiry_date, tag, tag_color, notes,
@@ -183,10 +201,12 @@ pub async fn get_pending_sync_operations(client: &PgClient) -> Result<(Vec<Accou
     }
 
     // Get pending deletions
-    let deletions = client.query(
-        "SELECT id FROM claude_accounts WHERE deleted = TRUE ORDER BY updated_at DESC",
-        &[],
-    ).await?;
+    let deletions = client
+        .query(
+            "SELECT id FROM claude_accounts WHERE deleted = TRUE ORDER BY updated_at DESC",
+            &[],
+        )
+        .await?;
 
     let deletion_ids = deletions.iter().map(|row| row.get(0)).collect();
 

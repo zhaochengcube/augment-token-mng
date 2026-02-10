@@ -1,9 +1,10 @@
 //! Cursor 进程管理模块
 
-use std::process::Command;
 use std::path::PathBuf;
-use sysinfo::{System, ProcessRefreshKind, ProcessesToUpdate};
+use std::process::Command;
+use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, System};
 
+#[cfg(target_os = "macos")]
 fn is_helper_process(name: &str, args: &str) -> bool {
     let name = name.to_lowercase();
     let args = args.to_lowercase();
@@ -92,7 +93,10 @@ pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
     {
         let pids = get_cursor_pids();
         if pids.is_empty() {
-            return CloseResult { success: true, warning: None };
+            return CloseResult {
+                success: true,
+                warning: None,
+            };
         }
 
         // macOS: 尝试优雅退出
@@ -105,7 +109,10 @@ pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
         let start_quit = std::time::Instant::now();
         while start_quit.elapsed() < std::time::Duration::from_secs(quit_wait) {
             if !is_cursor_running() {
-                return CloseResult { success: true, warning: None };
+                return CloseResult {
+                    success: true,
+                    warning: None,
+                };
             }
             std::thread::sleep(std::time::Duration::from_millis(100));
         }
@@ -134,10 +141,14 @@ pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
         }
 
         if let Some(pid) = main_pid {
-            let _ = Command::new("kill").args(["-15", &pid.to_string()]).output();
+            let _ = Command::new("kill")
+                .args(["-15", &pid.to_string()])
+                .output();
         } else {
             for pid in &pids {
-                let _ = Command::new("kill").args(["-15", &pid.to_string()]).output();
+                let _ = Command::new("kill")
+                    .args(["-15", &pid.to_string()])
+                    .output();
             }
         }
 
@@ -146,7 +157,10 @@ pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
         let start = std::time::Instant::now();
         while start.elapsed() < std::time::Duration::from_secs(sigterm_wait) {
             if !is_cursor_running() {
-                return CloseResult { success: true, warning: None };
+                return CloseResult {
+                    success: true,
+                    warning: None,
+                };
             }
             std::thread::sleep(std::time::Duration::from_millis(100));
         }
@@ -162,9 +176,7 @@ pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
             }
 
             for pid in remaining {
-                let _ = Command::new("kill")
-                    .args(["-9", &pid.to_string()])
-                    .output();
+                let _ = Command::new("kill").args(["-9", &pid.to_string()]).output();
             }
 
             attempts += 1;
@@ -181,14 +193,20 @@ pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
             };
         }
 
-        CloseResult { success: true, warning: None }
+        CloseResult {
+            success: true,
+            warning: None,
+        }
     }
 
     #[cfg(target_os = "windows")]
     {
         let pids = get_cursor_pids();
         if pids.is_empty() {
-            return CloseResult { success: true, warning: None };
+            return CloseResult {
+                success: true,
+                warning: None,
+            };
         }
 
         // Windows: 使用 taskkill 优雅关闭（带子进程树）
@@ -201,7 +219,10 @@ pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
         let start = std::time::Instant::now();
         while start.elapsed() < std::time::Duration::from_secs(graceful_wait) {
             if !is_cursor_running() {
-                return CloseResult { success: true, warning: None };
+                return CloseResult {
+                    success: true,
+                    warning: None,
+                };
             }
             std::thread::sleep(std::time::Duration::from_millis(100));
         }
@@ -227,14 +248,20 @@ pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
             };
         }
 
-        CloseResult { success: true, warning: None }
+        CloseResult {
+            success: true,
+            warning: None,
+        }
     }
 
     #[cfg(target_os = "linux")]
     {
         let pids = get_cursor_pids();
         if pids.is_empty() {
-            return CloseResult { success: true, warning: None };
+            return CloseResult {
+                success: true,
+                warning: None,
+            };
         }
 
         // 第一阶段: 发送 SIGTERM (优雅退出)
@@ -249,7 +276,10 @@ pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
         let start = std::time::Instant::now();
         while start.elapsed() < std::time::Duration::from_secs(graceful_timeout) {
             if !is_cursor_running() {
-                return CloseResult { success: true, warning: None };
+                return CloseResult {
+                    success: true,
+                    warning: None,
+                };
             }
             std::thread::sleep(std::time::Duration::from_millis(100));
         }
@@ -265,9 +295,7 @@ pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
             }
 
             for pid in remaining {
-                let _ = Command::new("kill")
-                    .args(["-9", &pid.to_string()])
-                    .output();
+                let _ = Command::new("kill").args(["-9", &pid.to_string()]).output();
             }
 
             attempts += 1;
@@ -284,7 +312,10 @@ pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
             };
         }
 
-        CloseResult { success: true, warning: None }
+        CloseResult {
+            success: true,
+            warning: None,
+        }
     }
 }
 
@@ -299,7 +330,11 @@ pub fn kill_cursor_processes() -> Result<(), String> {
         if is_cursor_process(process) {
             if process.kill() {
                 killed_count += 1;
-                println!("Killed Cursor process: {} (PID: {})", process.name().to_string_lossy(), pid);
+                println!(
+                    "Killed Cursor process: {} (PID: {})",
+                    process.name().to_string_lossy(),
+                    pid
+                );
             }
         }
     }
@@ -328,8 +363,8 @@ pub fn get_cursor_executable_path() -> Result<PathBuf, String> {
         use std::env;
 
         let local_appdata = env::var("LOCALAPPDATA").ok();
-        let program_files = env::var("ProgramFiles")
-            .unwrap_or_else(|_| "C:\\Program Files".to_string());
+        let program_files =
+            env::var("ProgramFiles").unwrap_or_else(|_| "C:\\Program Files".to_string());
 
         let mut possible_paths = Vec::new();
 
@@ -338,14 +373,14 @@ pub fn get_cursor_executable_path() -> Result<PathBuf, String> {
                 PathBuf::from(&local)
                     .join("Programs")
                     .join("cursor")
-                    .join("Cursor.exe")
+                    .join("Cursor.exe"),
             );
         }
 
         possible_paths.push(
             PathBuf::from(&program_files)
                 .join("Cursor")
-                .join("Cursor.exe")
+                .join("Cursor.exe"),
         );
 
         for path in possible_paths {
@@ -448,7 +483,8 @@ pub fn validate_cursor_path(path: &str) -> Result<bool, String> {
 
     #[cfg(target_os = "windows")]
     {
-        let file_name = path_buf.file_name()
+        let file_name = path_buf
+            .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("")
             .to_lowercase();
@@ -463,11 +499,11 @@ pub fn validate_cursor_path(path: &str) -> Result<bool, String> {
 
     #[cfg(target_os = "linux")]
     {
-        let file_name = path_buf.file_name()
+        let file_name = path_buf
+            .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("")
             .to_lowercase();
         return Ok(file_name.contains("cursor"));
     }
 }
-

@@ -67,13 +67,17 @@ impl ProxyConfig {
                     _ => return None,
                 };
 
-                let auth = if let (Some(username), Some(password)) = (&self.username, &self.password) {
-                    format!("{}:{}@", username, password)
-                } else {
-                    String::new()
-                };
+                let auth =
+                    if let (Some(username), Some(password)) = (&self.username, &self.password) {
+                        format!("{}:{}@", username, password)
+                    } else {
+                        String::new()
+                    };
 
-                Some(format!("{}://{}{}:{}", protocol, auth, self.host, self.port))
+                Some(format!(
+                    "{}://{}{}:{}",
+                    protocol, auth, self.host, self.port
+                ))
             }
         }
     }
@@ -107,7 +111,8 @@ impl ProxyConfig {
         // 如果 enabled = false,也不调用 no_proxy()
         // 让 reqwest 使用默认行为 (尝试系统代理)
 
-        builder.build()
+        builder
+            .build()
             .map_err(|e| format!("Failed to build HTTP client: {}", e))
     }
 
@@ -145,7 +150,8 @@ impl ProxyConfig {
         // 如果 enabled = false,也不调用 no_proxy()
         // 让 reqwest 使用默认行为 (尝试系统代理)
 
-        builder.build()
+        builder
+            .build()
             .map_err(|e| format!("Failed to build HTTP client: {}", e))
     }
 }
@@ -168,8 +174,7 @@ impl ProxyConfigManager {
         let json = serde_json::to_string_pretty(config)
             .map_err(|e| format!("Failed to serialize proxy config: {}", e))?;
 
-        fs::write(&path, json)
-            .map_err(|e| format!("Failed to write proxy config: {}", e))?;
+        fs::write(&path, json).map_err(|e| format!("Failed to write proxy config: {}", e))?;
 
         Ok(())
     }
@@ -211,7 +216,8 @@ impl ProxyConfigManager {
     }
 
     fn get_config_path(&self) -> Result<PathBuf, String> {
-        let app_data_dir = self.app
+        let app_data_dir = self
+            .app
             .path()
             .app_data_dir()
             .map_err(|e| format!("Failed to get app data directory: {}", e))?;
@@ -239,7 +245,10 @@ fn get_proxy_config_path(app_handle: &tauri::AppHandle) -> Result<PathBuf, Strin
 }
 
 /// 保存代理配置到文件
-pub fn save_proxy_config_internal(app_handle: &tauri::AppHandle, config: &ProxyConfig) -> Result<(), String> {
+pub fn save_proxy_config_internal(
+    app_handle: &tauri::AppHandle,
+    config: &ProxyConfig,
+) -> Result<(), String> {
     let config_path = get_proxy_config_path(app_handle)?;
 
     // 如果配置文件已存在且新密码为空，则保留原有密码
@@ -250,7 +259,8 @@ pub fn save_proxy_config_internal(app_handle: &tauri::AppHandle, config: &ProxyC
             if let Ok(existing_config) = serde_json::from_str::<ProxyConfig>(&existing_json) {
                 // 如果新密码为空但旧密码不为空，使用旧密码
                 if config.password.as_ref().map_or(true, |p| p.is_empty())
-                    && existing_config.password.is_some() {
+                    && existing_config.password.is_some()
+                {
                     final_config.password = existing_config.password;
                 }
             }
@@ -262,8 +272,7 @@ pub fn save_proxy_config_internal(app_handle: &tauri::AppHandle, config: &ProxyC
         .map_err(|e| format!("Failed to serialize config: {}", e))?;
 
     // 写入文件
-    fs::write(&config_path, json)
-        .map_err(|e| format!("Failed to write config file: {}", e))?;
+    fs::write(&config_path, json).map_err(|e| format!("Failed to write config file: {}", e))?;
 
     Ok(())
 }
@@ -282,8 +291,8 @@ pub fn load_proxy_config_internal(app_handle: &tauri::AppHandle) -> Result<Proxy
         .map_err(|e| format!("Failed to read config file: {}", e))?;
 
     // 反序列化配置
-    let config: ProxyConfig = serde_json::from_str(&json)
-        .map_err(|e| format!("Failed to parse config file: {}", e))?;
+    let config: ProxyConfig =
+        serde_json::from_str(&json).map_err(|e| format!("Failed to parse config file: {}", e))?;
 
     Ok(config)
 }
@@ -314,21 +323,21 @@ pub async fn test_proxy_connection(config: &ProxyConfig) -> Result<(), String> {
             // 创建普通客户端（显式禁用代理,避免系统代理干扰）
             let client = reqwest::Client::builder()
                 .timeout(Duration::from_secs(10))
-                .no_proxy()  // 显式禁用所有代理
+                .no_proxy() // 显式禁用所有代理
                 .build()
                 .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
-            
+
             // 向 Edge Function 发送测试请求
             // 这个 Edge Function 使用路径参数而不是查询参数
-            let test_url = "d15.api.augmentcode.com/get-models";  // 不需要 https://
-            
+            let test_url = "d15.api.augmentcode.com/get-models"; // 不需要 https://
+
             // 构建完整的代理 URL（路径方式）
             let proxy_url = if custom_url.ends_with("/") {
                 format!("{}{}", custom_url, test_url)
             } else {
                 format!("{}/{}", custom_url, test_url)
             };
-            
+
             // 构建请求到 Edge Function
             let response = client
                 .get(&proxy_url)
@@ -336,7 +345,7 @@ pub async fn test_proxy_connection(config: &ProxyConfig) -> Result<(), String> {
                 .send()
                 .await
                 .map_err(|e| format!("Edge Function test failed: {}", e))?;
-            
+
             // 对于 Edge Function，我们接受任何响应状态
             // 只要 Edge Function 本身能响应就算成功
             // 因为目标服务可能返回各种状态码
@@ -354,10 +363,10 @@ pub async fn test_proxy_connection(config: &ProxyConfig) -> Result<(), String> {
     } else {
         // 传统代理的测试方式
         let client = config.create_client()?;
-        
+
         // 简单的健康检查请求
         let test_url = "https://app.augmentcode.com";
-        
+
         let _response = client
             .get(test_url)
             .timeout(Duration::from_secs(10))
@@ -408,8 +417,7 @@ pub async fn save_proxy_config(
 
 #[tauri::command]
 pub async fn load_proxy_config(app: tauri::AppHandle) -> Result<ProxyConfig, String> {
-    load_proxy_config_internal(&app)
-        .map_err(|e| format!("Failed to load proxy config: {}", e))
+    load_proxy_config_internal(&app).map_err(|e| format!("Failed to load proxy config: {}", e))
 }
 
 #[tauri::command]
@@ -446,12 +454,10 @@ pub async fn test_proxy_config(
 
 #[tauri::command]
 pub async fn delete_proxy_config(app: tauri::AppHandle) -> Result<(), String> {
-    delete_proxy_config_internal(&app)
-        .map_err(|e| format!("Failed to delete proxy config: {}", e))
+    delete_proxy_config_internal(&app).map_err(|e| format!("Failed to delete proxy config: {}", e))
 }
 
 #[tauri::command]
 pub async fn proxy_config_exists(app: tauri::AppHandle) -> Result<bool, String> {
-    proxy_config_exists_internal(&app)
-        .map_err(|e| format!("Failed to check proxy config: {}", e))
+    proxy_config_exists_internal(&app).map_err(|e| format!("Failed to check proxy config: {}", e))
 }

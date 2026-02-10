@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::data::storage::common::SyncableAccount;
+use serde::{Deserialize, Serialize};
 
 /// 订阅数据结构
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -104,4 +104,3 @@ impl Subscription {
         }
     }
 }
-

@@ -1,10 +1,10 @@
-use tokio::net::TcpListener;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::sync::oneshot;
-use std::sync::{Mutex, OnceLock};
-use tauri::{Url, Emitter};
+use crate::platforms::openai::models::{Account, TokenData};
 use crate::platforms::openai::modules::oauth;
-use crate::platforms::openai::models::{TokenData, Account};
+use std::sync::{Mutex, OnceLock};
+use tauri::{Emitter, Url};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpListener;
+use tokio::sync::oneshot;
 
 // 全局取消 Token 存储
 static CANCELLATION_TOKEN: OnceLock<Mutex<Option<oneshot::Sender<()>>>> = OnceLock::new();
@@ -31,7 +31,10 @@ fn get_oauth_data() -> &'static Mutex<Option<OAuthData>> {
 fn set_oauth_data(code_verifier: String, state: String) {
     let mutex = get_oauth_data();
     if let Ok(mut lock) = mutex.lock() {
-        *lock = Some(OAuthData { code_verifier, state });
+        *lock = Some(OAuthData {
+            code_verifier,
+            state,
+        });
     }
 }
 
@@ -82,7 +85,9 @@ pub async fn start_oauth_flow(app_handle: tauri::AppHandle) -> Result<Account, S
     set_oauth_data(code_verifier, state.clone());
 
     // 2. 启动本地监听器 (使用固定端口 1455)
-    let listener = TcpListener::bind("127.0.0.1:1455").await.map_err(|e| format!("无法绑定本地端口 1455: {}", e))?;
+    let listener = TcpListener::bind("127.0.0.1:1455")
+        .await
+        .map_err(|e| format!("无法绑定本地端口 1455: {}", e))?;
     let redirect_uri = "http://localhost:1455/auth/callback".to_string();
 
     // 3. 构建授权 URL
@@ -93,7 +98,10 @@ pub async fn start_oauth_flow(app_handle: tauri::AppHandle) -> Result<Account, S
 
     // 4. 打开浏览器
     use tauri_plugin_opener::OpenerExt;
-    app_handle.opener().open_url(&auth_url, None::<String>).map_err(|e| format!("无法打开浏览器: {}", e))?;
+    app_handle
+        .opener()
+        .open_url(&auth_url, None::<String>)
+        .map_err(|e| format!("无法打开浏览器: {}", e))?;
 
     println!("已打开浏览器进行 OpenAI OAuth 授权");
     println!("回调地址: {}", redirect_uri);
@@ -114,19 +122,22 @@ pub async fn start_oauth_flow(app_handle: tauri::AppHandle) -> Result<Account, S
     {
         let mutex = get_cancellation_token();
         if let Ok(mut lock) = mutex.lock() {
-             *lock = None;
+            *lock = None;
         }
     }
 
     let mut buffer = [0; 2048];
-    let n = stream.read(&mut buffer).await.map_err(|e| format!("读取请求失败: {}", e))?;
+    let n = stream
+        .read(&mut buffer)
+        .await
+        .map_err(|e| format!("读取请求失败: {}", e))?;
 
     let request = String::from_utf8_lossy(&buffer[..n]);
     println!("收到回调请求: {}", request.lines().next().unwrap_or(""));
 
     // 获取并清除 OAuth 数据
-    let (code_verifier, expected_state) = take_oauth_data()
-        .ok_or("OAuth 数据已过期，请重新开始".to_string())?;
+    let (code_verifier, expected_state) =
+        take_oauth_data().ok_or("OAuth 数据已过期，请重新开始".to_string())?;
 
     // 解析请求行获取 code 和 state
     let (code, _returned_state) = if let Some(line) = request.lines().next() {
@@ -201,24 +212,36 @@ pub async fn start_oauth_flow(app_handle: tauri::AppHandle) -> Result<Account, S
         </html>"
     };
 
-    stream.write_all(response_html.as_bytes()).await.unwrap_or(());
+    stream
+        .write_all(response_html.as_bytes())
+        .await
+        .unwrap_or(());
     stream.flush().await.unwrap_or(());
 
     let code = code.ok_or("未能在回调中获取 Authorization Code".to_string())?;
-    println!("获取到授权码: {}...", &code.chars().take(20).collect::<String>());
+    println!(
+        "获取到授权码: {}...",
+        &code.chars().take(20).collect::<String>()
+    );
 
     // 6. 交换 Token
     let token = oauth::exchange_code(&code, &code_verifier, &redirect_uri).await?;
 
     // 7. 解析用户信息
     let user_info = token.id_token.as_deref().and_then(oauth::parse_id_token);
+    let openai_auth_json = token
+        .id_token
+        .as_deref()
+        .and_then(oauth::extract_openai_auth_json);
 
     // 获取邮箱和 chatgpt_account_id
-    let email = user_info.as_ref()
+    let email = user_info
+        .as_ref()
         .and_then(|u| u.email.as_ref())
         .ok_or_else(|| "Failed to get email from token".to_string())?;
 
-    let chatgpt_account_id = user_info.as_ref()
+    let chatgpt_account_id = user_info
+        .as_ref()
         .and_then(|u| u.chatgpt_account_id.clone());
 
     println!("=== OpenAI OAuth Flow ===");
@@ -237,13 +260,14 @@ pub async fn start_oauth_flow(app_handle: tauri::AppHandle) -> Result<Account, S
     );
 
     // 创建账号
-    let account = Account::new_oauth(
+    let mut account = Account::new_oauth(
         email.clone(),
         token_data,
         chatgpt_account_id.clone(),
         user_info.as_ref().and_then(|u| u.chatgpt_user_id.clone()),
         user_info.as_ref().and_then(|u| u.organization_id.clone()),
     );
+    account.openai_auth_json = openai_auth_json;
 
     println!("OpenAI OAuth 授权成功: {}", account.email);
 

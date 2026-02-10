@@ -1,13 +1,14 @@
-use std::sync::{Arc, Mutex};
-use tokio::sync::{oneshot, Semaphore};
-use warp::{Filter, Reply, Rejection};
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-use tauri::Emitter;
-use crate::storage::{TokenData, TokenStorage};
-use crate::features::mail::outlook::OutlookManager;
 use crate::AppState;
+use crate::features::mail::outlook::OutlookManager;
+use crate::storage::{TokenData, TokenStorage};
+use serde::{Deserialize, Serialize};
+use serde_json::json;
+use std::sync::{Arc, Mutex};
+use tauri::Emitter;
 use tauri::State;
+use tokio::sync::{Semaphore, oneshot};
+use uuid::Uuid;
+use warp::{Filter, Rejection, Reply};
 
 // ==================== 数据结构定义 ====================
 
@@ -98,7 +99,10 @@ pub async fn get_api_server_status(state: State<'_, AppState>) -> Result<ApiServ
 }
 
 #[tauri::command]
-pub async fn start_api_server_cmd(state: State<'_, AppState>) -> Result<(), String> {
+pub async fn start_api_server_cmd(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
     {
         let server_guard = state.api_server.lock().unwrap();
         if server_guard.is_some() {
@@ -122,22 +126,52 @@ pub async fn start_api_server_cmd(state: State<'_, AppState>) -> Result<(), Stri
             database_manager: state.database_manager.clone(),
             app_session_cache: state.app_session_cache.clone(),
             app_handle: state.app_handle.clone(),
+            codex_pool: state.codex_pool.clone(),
+            codex_executor: state.codex_executor.clone(),
+            codex_logger: state.codex_logger.clone(),
+            codex_server: state.codex_server.clone(),
+            codex_server_config: state.codex_server_config.clone(),
+            codex_log_storage: state.codex_log_storage.clone(),
+            proxy_config: state.proxy_config.clone(),
         }),
         8766,
-    ).await?;
+    )
+    .await?;
 
     *state.api_server.lock().unwrap() = Some(server);
+
+    // 初始化 Codex 状态
+    if let Err(err) = crate::platforms::openai::codex::commands::init_codex_enabled_state_on_startup(
+        &app,
+        state.inner(),
+    )
+    .await
+    {
+        eprintln!("Failed to initialize Codex enabled state: {}", err);
+    }
+
+    // 通知前端 API 服务器状态变化
+    let _ = app.emit("api-server-status-changed", true);
 
     Ok(())
 }
 
 #[tauri::command]
-pub async fn stop_api_server(state: State<'_, AppState>) -> Result<(), String> {
+pub async fn stop_api_server(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
     let mut server_guard = state.api_server.lock().unwrap();
 
     if let Some(mut server) = server_guard.take() {
         server.shutdown();
+        // 同步清除 Codex 服务器状态
+        *state.codex_server.lock().unwrap() = None;
         println!("🛑 API Server stopped");
+
+        // 通知前端 API 服务器状态变化
+        let _ = app.emit("api-server-status-changed", false);
+
         Ok(())
     } else {
         Err("API server is not running".to_string())
@@ -197,7 +231,7 @@ fn mask_session(session: &str) -> String {
     if session.len() <= 5 {
         return "***".to_string();
     }
-    format!("{}***{}", &session[..4], &session[session.len()-1..])
+    format!("{}***{}", &session[..4], &session[session.len() - 1..])
 }
 
 /// 验证 session 格式
@@ -228,7 +262,10 @@ async fn import_session_handler(
     request: ImportSessionRequest,
     state: Arc<crate::AppState>,
 ) -> Result<impl Reply, Rejection> {
-    println!("📥 API: Importing single session: {}", mask_session(&request.session));
+    println!(
+        "📥 API: Importing single session: {}",
+        mask_session(&request.session)
+    );
 
     // 验证 session
     if let Err(e) = validate_session(&request.session) {
@@ -243,7 +280,12 @@ async fn import_session_handler(
     }
 
     // 调用内部函数导入
-    match crate::platforms::augment::oauth::add_token_from_session_internal_with_cache(&request.session, &state).await {
+    match crate::platforms::augment::oauth::add_token_from_session_internal_with_cache(
+        &request.session,
+        &state,
+    )
+    .await
+    {
         Ok(response) => {
             // 检查重复 email（与前端逻辑保持一致）
             if let Some(ref email_note) = response.email {
@@ -268,7 +310,10 @@ async fn import_session_handler(
                             }) {
                                 println!("⚠️  API: Duplicate email detected: {}", email_note);
                                 let error_response = ApiErrorResponse {
-                                    error: format!("Token with email '{}' already exists", email_note),
+                                    error: format!(
+                                        "Token with email '{}' already exists",
+                                        email_note
+                                    ),
                                     code: "DUPLICATE_EMAIL".to_string(),
                                 };
                                 return Ok(warp::reply::with_status(
@@ -278,7 +323,10 @@ async fn import_session_handler(
                             }
                         }
                         Err(e) => {
-                            eprintln!("⚠️  API: Failed to load existing tokens for duplicate check: {}", e);
+                            eprintln!(
+                                "⚠️  API: Failed to load existing tokens for duplicate check: {}",
+                                e
+                            );
                             // 继续导入，不因为加载失败而阻止导入
                         }
                     }
@@ -296,18 +344,18 @@ async fn import_session_handler(
                 access_token: response.access_token.clone(),
                 created_at: now,
                 updated_at: now,
-                portal_url: None,  // Session 导入不再获取 portal_url
+                portal_url: None, // Session 导入不再获取 portal_url
                 email_note: response.email.clone(),
                 tag_name: None,
                 tag_color: None,
-                ban_status: Some(serde_json::Value::String("ACTIVE".to_string())),  // Session 导入默认设置为 ACTIVE
-                portal_info: None,  // Session 导入不再获取 portal_info
+                ban_status: Some(serde_json::Value::String("ACTIVE".to_string())), // Session 导入默认设置为 ACTIVE
+                portal_info: None, // Session 导入不再获取 portal_info
                 auth_session: Some(request.session.clone()),
-                suspensions: None,  // Session 导入不再获取 suspensions
+                suspensions: None, // Session 导入不再获取 suspensions
                 balance_color_mode: None,
-                skip_check: Some(false),  // 与前端保持一致，默认不跳过检测
-                session_updated_at: Some(now),  // 设置 session 初始更新时间
-                version: 0,  // 本地创建时版本号为0，由数据库分配
+                skip_check: Some(false), // 与前端保持一致，默认不跳过检测
+                session_updated_at: Some(now), // 设置 session 初始更新时间
+                version: 0,              // 本地创建时版本号为0，由数据库分配
             };
 
             // 保存到存储
@@ -317,7 +365,10 @@ async fn import_session_handler(
             };
 
             let storage_result = if let Some(storage) = storage {
-                storage.save_token(&token_data).await.map_err(|e| e.to_string())
+                storage
+                    .save_token(&token_data)
+                    .await
+                    .map_err(|e| e.to_string())
             } else {
                 Err("Storage manager not initialized".to_string())
             };
@@ -438,7 +489,11 @@ async fn import_sessions_handler(
             }
 
             // 导入 session
-            match crate::platforms::augment::oauth::add_token_from_session_internal_with_cache(&session, &state).await {
+            match crate::platforms::augment::oauth::add_token_from_session_internal_with_cache(
+                &session, &state,
+            )
+            .await
+            {
                 Ok(response) => {
                     // 检查重复 email（与前端逻辑保持一致）
                     if let Some(ref email_note) = response.email {
@@ -461,17 +516,26 @@ async fn import_sessions_handler(
                                             false
                                         }
                                     }) {
-                                        println!("⚠️  API: Duplicate email detected in batch: {}", email_note);
+                                        println!(
+                                            "⚠️  API: Duplicate email detected in batch: {}",
+                                            email_note
+                                        );
                                         return ImportResult {
                                             success: false,
                                             token_data: None,
-                                            error: Some(format!("Token with email '{}' already exists", email_note)),
+                                            error: Some(format!(
+                                                "Token with email '{}' already exists",
+                                                email_note
+                                            )),
                                             session_preview: Some(mask_session(&session)),
                                         };
                                     }
                                 }
                                 Err(e) => {
-                                    eprintln!("⚠️  API: Failed to load existing tokens for duplicate check: {}", e);
+                                    eprintln!(
+                                        "⚠️  API: Failed to load existing tokens for duplicate check: {}",
+                                        e
+                                    );
                                     // 继续导入，不因为加载失败而阻止导入
                                 }
                             }
@@ -488,18 +552,18 @@ async fn import_sessions_handler(
                         access_token: response.access_token.clone(),
                         created_at: now,
                         updated_at: now,
-                        portal_url: None,  // Session 导入不再获取 portal_url
+                        portal_url: None, // Session 导入不再获取 portal_url
                         email_note: response.email.clone(),
                         tag_name: None,
                         tag_color: None,
-                        ban_status: Some(serde_json::Value::String("ACTIVE".to_string())),  // Session 导入默认设置为 ACTIVE
-                        portal_info: None,  // Session 导入不再获取 portal_info
+                        ban_status: Some(serde_json::Value::String("ACTIVE".to_string())), // Session 导入默认设置为 ACTIVE
+                        portal_info: None, // Session 导入不再获取 portal_info
                         auth_session: Some(session.clone()),
-                        suspensions: None,  // Session 导入不再获取 suspensions
+                        suspensions: None, // Session 导入不再获取 suspensions
                         balance_color_mode: None,
-                        skip_check: Some(false),  // 与前端保持一致，默认不跳过检测
-                        session_updated_at: Some(now),  // 设置 session 初始更新时间
-                        version: 0,  // 本地创建时版本号为0，由数据库分配
+                        skip_check: Some(false), // 与前端保持一致，默认不跳过检测
+                        session_updated_at: Some(now), // 设置 session 初始更新时间
+                        version: 0,              // 本地创建时版本号为0，由数据库分配
                     };
 
                     // 保存到存储
@@ -509,7 +573,10 @@ async fn import_sessions_handler(
                     };
 
                     let storage_result = if let Some(storage) = storage {
-                        storage.save_token(&token_data).await.map_err(|e| e.to_string())
+                        storage
+                            .save_token(&token_data)
+                            .await
+                            .map_err(|e| e.to_string())
                     } else {
                         Err("Storage manager not initialized".to_string())
                     };
@@ -561,7 +628,11 @@ async fn import_sessions_handler(
     let successful = results.iter().filter(|r| r.success).count();
     let failed = results.len() - successful;
 
-    println!("✅ API: Batch import completed - {}/{} successful", successful, results.len());
+    println!(
+        "✅ API: Batch import completed - {}/{} successful",
+        successful,
+        results.len()
+    );
 
     // 如果有成功导入的 token，发送前端刷新事件
     if successful > 0 {
@@ -587,7 +658,11 @@ async fn import_sessions_handler(
         // 返回简化响应
         let result = SimpleImportResult {
             success: true,
-            message: Some(format!("{} of {} sessions imported successfully", successful, results.len())),
+            message: Some(format!(
+                "{} of {} sessions imported successfully",
+                successful,
+                results.len()
+            )),
             error: None,
             code: None,
         };
@@ -601,36 +676,35 @@ async fn import_sessions_handler(
 // ==================== 服务器启动 ====================
 
 /// 启动 API 服务器（固定端口）
-pub async fn start_api_server(
-    state: Arc<crate::AppState>,
-    port: u16,
-) -> Result<ApiServer, String> {
+pub async fn start_api_server(state: Arc<crate::AppState>, port: u16) -> Result<ApiServer, String> {
     println!("🚀 Starting API Server on port {}...", port);
 
     match try_bind_server(state.clone(), port).await {
         Ok(server) => {
-            println!("✅ API Server started successfully on http://127.0.0.1:{}", port);
+            println!(
+                "✅ API Server started successfully on http://127.0.0.1:{}",
+                port
+            );
             println!("📡 Available endpoints:");
             println!("   - GET  http://127.0.0.1:{}/api/health", port);
             println!("   - POST http://127.0.0.1:{}/api/import/session", port);
             println!("   - POST http://127.0.0.1:{}/api/import/sessions", port);
             Ok(server)
         }
-        Err(e) => {
-            Err(format!("Failed to start API server on port {}: {}", port, e))
-        }
+        Err(e) => Err(format!(
+            "Failed to start API server on port {}: {}",
+            port, e
+        )),
     }
 }
 
 /// 尝试在指定端口绑定服务器
-async fn try_bind_server(
-    state: Arc<crate::AppState>,
-    port: u16,
-) -> Result<ApiServer, String> {
+async fn try_bind_server(state: Arc<crate::AppState>, port: u16) -> Result<ApiServer, String> {
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
 
     // 克隆 state 用于各个路由
-    let state_filter = warp::any().map(move || state.clone());
+    let state_for_filters = state.clone();
+    let state_filter = warp::any().map(move || state_for_filters.clone());
     let port_filter = warp::any().map(move || port);
 
     // 健康检查路由
@@ -655,16 +729,31 @@ async fn try_bind_server(
         .and(state_filter.clone())
         .and_then(import_sessions_handler);
 
-    // 组合所有路由
-    let routes = health_route
+    // API 子路由
+    let api_routes = health_route
         .or(import_session_route)
         .or(import_sessions_route)
-        .with(
-            warp::cors()
-                .allow_any_origin() // 允许任何来源（因为只监听 localhost）
-                .allow_methods(vec!["GET", "POST"])
-                .allow_headers(vec!["Content-Type"])
-        )
+        .boxed();
+
+    // Codex /v1/* 路由（复用同一个 HTTP 监听器）
+    let codex_routes =
+        crate::platforms::openai::codex::server::codex_routes_from_state(state).boxed();
+
+    let cors = warp::cors()
+        .allow_any_origin() // 允许任何来源（因为只监听 localhost）
+        .allow_methods(vec!["GET", "POST", "OPTIONS"])
+        .allow_headers(vec![
+            "Content-Type",
+            "Authorization",
+            "X-API-Key",
+            "Accept",
+            "Accept-Encoding",
+        ]);
+
+    // 组合所有路由
+    let routes = api_routes
+        .or(codex_routes)
+        .with(cors)
         .recover(handle_rejection);
 
     // 尝试绑定端口
@@ -685,7 +774,80 @@ async fn try_bind_server(
 
 /// 处理 warp 拒绝错误
 async fn handle_rejection(err: Rejection) -> Result<impl Reply, Rejection> {
-    if err.is_not_found() {
+    if let Some(_) = err.find::<warp::reject::MethodNotAllowed>() {
+        let error_response = ApiErrorResponse {
+            error: "Method not allowed".to_string(),
+            code: "METHOD_NOT_ALLOWED".to_string(),
+        };
+        Ok(warp::reply::with_status(
+            warp::reply::json(&error_response),
+            warp::http::StatusCode::METHOD_NOT_ALLOWED,
+        ))
+    } else if let Some(rej) = err.find::<crate::platforms::openai::codex::server::CodexRejection>()
+    {
+        let (status, message, code) = match rej {
+            crate::platforms::openai::codex::server::CodexRejection::InvalidRequest(msg) => (
+                warp::http::StatusCode::BAD_REQUEST,
+                msg.as_str(),
+                "invalid_request_error",
+            ),
+            crate::platforms::openai::codex::server::CodexRejection::TranslationError(msg) => (
+                warp::http::StatusCode::BAD_REQUEST,
+                msg.as_str(),
+                "translation_error",
+            ),
+            crate::platforms::openai::codex::server::CodexRejection::ExecutionError(msg)
+                if msg.to_ascii_lowercase().contains("unauthorized") =>
+            {
+                (
+                    warp::http::StatusCode::UNAUTHORIZED,
+                    msg.as_str(),
+                    "unauthorized",
+                )
+            }
+            crate::platforms::openai::codex::server::CodexRejection::ExecutionError(msg)
+                if msg.to_ascii_lowercase().contains("timed out")
+                    || msg.to_ascii_lowercase().contains("timeout") =>
+            {
+                (
+                    warp::http::StatusCode::GATEWAY_TIMEOUT,
+                    msg.as_str(),
+                    "upstream_timeout",
+                )
+            }
+            crate::platforms::openai::codex::server::CodexRejection::ExecutionError(msg) => (
+                warp::http::StatusCode::BAD_GATEWAY,
+                msg.as_str(),
+                "execution_error",
+            ),
+            crate::platforms::openai::codex::server::CodexRejection::NoAvailableAccount => (
+                warp::http::StatusCode::SERVICE_UNAVAILABLE,
+                "No available account in pool",
+                "no_available_account",
+            ),
+            crate::platforms::openai::codex::server::CodexRejection::ServiceUnavailable(msg) => (
+                warp::http::StatusCode::SERVICE_UNAVAILABLE,
+                msg.as_str(),
+                "service_unavailable",
+            ),
+            crate::platforms::openai::codex::server::CodexRejection::InternalError(msg) => (
+                warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+                msg.as_str(),
+                "internal_error",
+            ),
+        };
+
+        Ok(warp::reply::with_status(
+            warp::reply::json(&json!({
+                "error": {
+                    "message": message,
+                    "type": code,
+                    "code": status.as_u16().to_string()
+                }
+            })),
+            status,
+        ))
+    } else if err.is_not_found() {
         let error_response = ApiErrorResponse {
             error: "Endpoint not found".to_string(),
             code: "NOT_FOUND".to_string(),

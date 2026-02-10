@@ -2,8 +2,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
-use uuid::Uuid;
 use tauri::Manager;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bookmark {
@@ -50,14 +50,26 @@ impl BookmarkStorage {
         }
     }
 
-    pub fn add_bookmark(&mut self, name: String, url: String, description: Option<String>, category: String) -> String {
+    pub fn add_bookmark(
+        &mut self,
+        name: String,
+        url: String,
+        description: Option<String>,
+        category: String,
+    ) -> String {
         let bookmark = Bookmark::new(name, url, description, category);
         let id = bookmark.id.clone();
         self.bookmarks.push(bookmark);
         id
     }
 
-    pub fn update_bookmark(&mut self, id: &str, name: String, url: String, description: Option<String>) -> bool {
+    pub fn update_bookmark(
+        &mut self,
+        id: &str,
+        name: String,
+        url: String,
+        description: Option<String>,
+    ) -> bool {
         if let Some(bookmark) = self.bookmarks.iter_mut().find(|b| b.id == id) {
             bookmark.update(name, url, description);
             true
@@ -79,8 +91,6 @@ impl BookmarkStorage {
             .cloned()
             .collect()
     }
-
-
 }
 
 #[derive(Clone)]
@@ -94,13 +104,13 @@ impl BookmarkManager {
             .path()
             .app_data_dir()
             .map_err(|e| format!("Failed to get app data directory: {}", e))?;
-        
+
         // Create app data directory if it doesn't exist
         fs::create_dir_all(&app_data_dir)
             .map_err(|e| format!("Failed to create app data directory: {}", e))?;
-        
+
         let storage_path = app_data_dir.join("bookmarks.json");
-        
+
         Ok(Self { storage_path })
     }
 
@@ -111,31 +121,46 @@ impl BookmarkManager {
 
         let content = fs::read_to_string(&self.storage_path)
             .map_err(|e| format!("Failed to read bookmarks file: {}", e))?;
-        
+
         let storage: BookmarkStorage = serde_json::from_str(&content)
             .map_err(|e| format!("Failed to parse bookmarks file: {}", e))?;
-        
+
         Ok(storage)
     }
 
-    pub fn save_bookmarks(&self, storage: &BookmarkStorage) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn save_bookmarks(
+        &self,
+        storage: &BookmarkStorage,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let content = serde_json::to_string_pretty(storage)
             .map_err(|e| format!("Failed to serialize bookmarks: {}", e))?;
-        
+
         fs::write(&self.storage_path, content)
             .map_err(|e| format!("Failed to write bookmarks file: {}", e))?;
-        
+
         Ok(())
     }
 
-    pub fn add_bookmark(&self, name: String, url: String, description: Option<String>, category: String) -> Result<String, Box<dyn std::error::Error>> {
+    pub fn add_bookmark(
+        &self,
+        name: String,
+        url: String,
+        description: Option<String>,
+        category: String,
+    ) -> Result<String, Box<dyn std::error::Error>> {
         let mut storage = self.load_bookmarks()?;
         let id = storage.add_bookmark(name, url, description, category);
         self.save_bookmarks(&storage)?;
         Ok(id)
     }
 
-    pub fn update_bookmark(&self, id: &str, name: String, url: String, description: Option<String>) -> Result<bool, Box<dyn std::error::Error>> {
+    pub fn update_bookmark(
+        &self,
+        id: &str,
+        name: String,
+        url: String,
+        description: Option<String>,
+    ) -> Result<bool, Box<dyn std::error::Error>> {
         let mut storage = self.load_bookmarks()?;
         let updated = storage.update_bookmark(id, name, url, description);
         if updated {
@@ -153,7 +178,10 @@ impl BookmarkManager {
         Ok(removed)
     }
 
-    pub fn get_bookmarks_by_category(&self, category: &str) -> Result<Vec<Bookmark>, Box<dyn std::error::Error>> {
+    pub fn get_bookmarks_by_category(
+        &self,
+        category: &str,
+    ) -> Result<Vec<Bookmark>, Box<dyn std::error::Error>> {
         let storage = self.load_bookmarks()?;
         Ok(storage.get_bookmarks_by_category(category))
     }
@@ -176,7 +204,8 @@ pub async fn add_bookmark(
     let bookmark_manager = BookmarkManager::new(&app)
         .map_err(|e| format!("Failed to initialize bookmark manager: {}", e))?;
 
-    bookmark_manager.add_bookmark(name, url, description, category)
+    bookmark_manager
+        .add_bookmark(name, url, description, category)
         .map_err(|e| format!("Failed to add bookmark: {}", e))
 }
 
@@ -191,19 +220,18 @@ pub async fn update_bookmark(
     let bookmark_manager = BookmarkManager::new(&app)
         .map_err(|e| format!("Failed to initialize bookmark manager: {}", e))?;
 
-    bookmark_manager.update_bookmark(&id, name, url, description)
+    bookmark_manager
+        .update_bookmark(&id, name, url, description)
         .map_err(|e| format!("Failed to update bookmark: {}", e))
 }
 
 #[tauri::command]
-pub async fn delete_bookmark(
-    id: String,
-    app: tauri::AppHandle,
-) -> Result<bool, String> {
+pub async fn delete_bookmark(id: String, app: tauri::AppHandle) -> Result<bool, String> {
     let bookmark_manager = BookmarkManager::new(&app)
         .map_err(|e| format!("Failed to initialize bookmark manager: {}", e))?;
 
-    bookmark_manager.remove_bookmark(&id)
+    bookmark_manager
+        .remove_bookmark(&id)
         .map_err(|e| format!("Failed to delete bookmark: {}", e))
 }
 
@@ -215,17 +243,17 @@ pub async fn get_bookmarks(
     let bookmark_manager = BookmarkManager::new(&app)
         .map_err(|e| format!("Failed to initialize bookmark manager: {}", e))?;
 
-    bookmark_manager.get_bookmarks_by_category(&category)
+    bookmark_manager
+        .get_bookmarks_by_category(&category)
         .map_err(|e| format!("Failed to get bookmarks: {}", e))
 }
 
 #[tauri::command]
-pub async fn get_all_bookmarks(
-    app: tauri::AppHandle,
-) -> Result<Vec<Bookmark>, String> {
+pub async fn get_all_bookmarks(app: tauri::AppHandle) -> Result<Vec<Bookmark>, String> {
     let bookmark_manager = BookmarkManager::new(&app)
         .map_err(|e| format!("Failed to initialize bookmark manager: {}", e))?;
 
-    bookmark_manager.get_all_bookmarks()
+    bookmark_manager
+        .get_all_bookmarks()
         .map_err(|e| format!("Failed to get all bookmarks: {}", e))
 }

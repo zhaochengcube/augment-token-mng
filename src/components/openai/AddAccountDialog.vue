@@ -138,17 +138,6 @@
 
     <!-- 手动添加方式 -->
     <div v-else-if="addMethod === 'manual'" class="animate-fade-in">
-      <div class="form-group">
-        <label class="label">{{ $t('platform.openai.addAccountDialog.email') }}</label>
-        <input
-          v-model="email"
-          type="email"
-          :placeholder="$t('platform.openai.addAccountDialog.emailPlaceholder')"
-          class="input"
-          :disabled="isLoading"
-        />
-      </div>
-
       <div class="form-group mb-0">
         <label class="label">{{ $t('platform.openai.addAccountDialog.refreshToken') }}</label>
         <textarea
@@ -310,7 +299,6 @@ const handleClose = () => {
 }
 
 const addMethod = ref('oauth') // 'oauth', 'manual', or 'api'
-const email = ref('')
 const refreshToken = ref('')
 const isLoading = ref(false)
 const isManualLoading = ref(false)
@@ -332,7 +320,7 @@ const selectedWireApi = ref('responses')
 
 const canSubmit = computed(() => {
   if (addMethod.value === 'oauth') return true
-  return email.value.trim() && refreshToken.value.trim()
+  return refreshToken.value.trim()
 })
 
 const canSubmitApi = computed(() => {
@@ -478,7 +466,6 @@ const handleAdd = async () => {
 
   try {
     const account = await invoke('openai_add_account', {
-      email: email.value.trim(),
       refreshToken: refreshToken.value.trim()
     })
     emit('added', account)

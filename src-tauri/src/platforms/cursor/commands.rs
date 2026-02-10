@@ -1,10 +1,10 @@
 //! Cursor Tauri Commands
 
-use tauri::AppHandle;
-use serde::{Deserialize, Serialize};
-use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use crate::cursor::models::{Account, MachineInfo, TokenData};
-use crate::cursor::modules::{storage, auth, process, db, machine};
+use crate::cursor::modules::{auth, db, machine, process, storage};
+use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+use serde::{Deserialize, Serialize};
+use tauri::AppHandle;
 
 /// 从 JWT token 中解析 exp 字段（过期时间戳）
 fn parse_jwt_exp(token: &str) -> Option<i64> {
@@ -66,10 +66,7 @@ pub async fn cursor_list_accounts(app: AppHandle) -> Result<AccountListResponse,
 
 /// 删除账号
 #[tauri::command]
-pub async fn cursor_delete_account(
-    app: AppHandle,
-    account_id: String,
-) -> Result<(), String> {
+pub async fn cursor_delete_account(app: AppHandle, account_id: String) -> Result<(), String> {
     let deleted = storage::delete_account(&app, &account_id).await?;
     if !deleted {
         return Err(format!("Account not found: {}", account_id));
@@ -95,7 +92,7 @@ pub async fn cursor_switch_account(
     }
 
     // 3. 获取自定义路径用于 JS 修改
-    use crate::core::path_manager::{read_custom_path_from_config, CURSOR_CONFIG};
+    use crate::core::path_manager::{CURSOR_CONFIG, read_custom_path_from_config};
     let custom_path = read_custom_path_from_config(&app, &CURSOR_CONFIG);
 
     // 4. 机器码处理：根据选项决定使用绑定机器码还是随机生成
@@ -152,7 +149,9 @@ pub async fn cursor_switch_account(
             let app_clone = app.clone();
             let mut acc_clone = acc.clone();
             tokio::spawn(async move {
-                if let Ok(token_response) = auth::get_access_token_from_session(&session_token).await {
+                if let Ok(token_response) =
+                    auth::get_access_token_from_session(&session_token).await
+                {
                     acc_clone.token.access_token = token_response.access_token;
                     if let Some(refresh_token) = token_response.refresh_token {
                         acc_clone.token.refresh_token = refresh_token;
@@ -203,7 +202,7 @@ pub async fn cursor_generate_and_bind_machine_id(
     }
 
     // 5. 获取自定义路径
-    use crate::core::path_manager::{read_custom_path_from_config, CURSOR_CONFIG};
+    use crate::core::path_manager::{CURSOR_CONFIG, read_custom_path_from_config};
     let custom_path = read_custom_path_from_config(&app, &CURSOR_CONFIG);
 
     // 6. 写入 token 到数据库
@@ -225,7 +224,8 @@ pub async fn cursor_generate_and_bind_machine_id(
     )?;
 
     // 7. 使用新机器码重置
-    let reset_result = machine::complete_reset_with_machine_info(custom_path.as_deref(), &machine_info)?;
+    let reset_result =
+        machine::complete_reset_with_machine_info(custom_path.as_deref(), &machine_info)?;
 
     // 8. 更新为当前账号
     storage::set_current_account_id(&app, Some(account_id.clone())).await?;
@@ -245,18 +245,17 @@ pub async fn cursor_generate_and_bind_machine_id(
 /// 获取自定义 Cursor 路径
 #[tauri::command]
 pub async fn cursor_get_custom_path(app: AppHandle) -> Result<Option<String>, String> {
-    use crate::core::path_manager::{get_custom_path, CURSOR_CONFIG};
+    use crate::core::path_manager::{CURSOR_CONFIG, get_custom_path};
     get_custom_path(&app, &CURSOR_CONFIG)
 }
 
 /// 设置自定义 Cursor 路径
 #[tauri::command]
-pub async fn cursor_set_custom_path(
-    app: AppHandle,
-    path: Option<String>,
-) -> Result<(), String> {
-    use crate::core::path_manager::{set_custom_path, CURSOR_CONFIG};
-    set_custom_path(&app, &CURSOR_CONFIG, path, |p| process::validate_cursor_path(p))
+pub async fn cursor_set_custom_path(app: AppHandle, path: Option<String>) -> Result<(), String> {
+    use crate::core::path_manager::{CURSOR_CONFIG, set_custom_path};
+    set_custom_path(&app, &CURSOR_CONFIG, path, |p| {
+        process::validate_cursor_path(p)
+    })
 }
 
 /// 验证 Cursor 路径
@@ -268,25 +267,24 @@ pub async fn cursor_validate_path(path: String) -> Result<bool, String> {
 /// 获取默认 Cursor 路径
 #[tauri::command]
 pub async fn cursor_get_default_path() -> Result<String, String> {
-    process::get_cursor_executable_path()
-        .map(|p| p.to_string_lossy().to_string())
+    process::get_cursor_executable_path().map(|p| p.to_string_lossy().to_string())
 }
 
 /// 打开文件选择对话框选择 Cursor 可执行文件
 #[tauri::command]
 pub async fn cursor_select_executable_path() -> Result<Option<String>, String> {
-    use crate::core::path_manager::{select_executable_path, CURSOR_CONFIG};
+    use crate::core::path_manager::{CURSOR_CONFIG, select_executable_path};
     select_executable_path(&CURSOR_CONFIG)
 }
 
 /// 验证账号 Token 是否有效
 #[tauri::command]
-pub async fn cursor_validate_account(
-    app: AppHandle,
-    account_id: String,
-) -> Result<bool, String> {
+pub async fn cursor_validate_account(app: AppHandle, account_id: String) -> Result<bool, String> {
     let acc = storage::load_account(&app, &account_id).await?;
-    let session_token = acc.token.workos_cursor_session_token.as_deref()
+    let session_token = acc
+        .token
+        .workos_cursor_session_token
+        .as_deref()
         .ok_or_else(|| "No session token available".to_string())?;
 
     // 尝试获取用户信息来验证 token 是否有效
@@ -306,9 +304,9 @@ pub async fn cursor_validate_account(
 
 //     for acc in accounts {
 //         let is_valid = if let Some(session_token) = acc.token.workos_cursor_session_token.as_deref() {
-            
+
 //         } else {
-            
+
 //         };
 //         results.push((acc.id, is_valid));
 //     }
@@ -345,7 +343,15 @@ pub async fn cursor_get_filtered_usage_events(
     page_size: i32,
     team_id: i32,
 ) -> Result<Option<auth::FilteredUsageEventsData>, String> {
-    auth::get_filtered_usage_events(&session_token, team_id, &start_date, &end_date, page, page_size).await
+    auth::get_filtered_usage_events(
+        &session_token,
+        team_id,
+        &start_date,
+        &end_date,
+        page,
+        page_size,
+    )
+    .await
 }
 
 /// 从 session token 获取用户信息
@@ -440,10 +446,7 @@ pub async fn cursor_add_account_with_session(
 
 /// 更新账号信息
 #[tauri::command]
-pub async fn cursor_update_account(
-    app: AppHandle,
-    account: Account,
-) -> Result<(), String> {
+pub async fn cursor_update_account(app: AppHandle, account: Account) -> Result<(), String> {
     storage::save_account(&app, &account).await
 }
 
@@ -538,8 +541,14 @@ pub async fn cursor_import_accounts(
         };
 
         // 检查是否有直接的 accessToken 和 refreshToken
-        let has_direct_tokens = auth_info.access_token.as_ref().map_or(false, |t| !t.is_empty())
-            && auth_info.refresh_token.as_ref().map_or(false, |t| !t.is_empty());
+        let has_direct_tokens = auth_info
+            .access_token
+            .as_ref()
+            .map_or(false, |t| !t.is_empty())
+            && auth_info
+                .refresh_token
+                .as_ref()
+                .map_or(false, |t| !t.is_empty());
 
         let import_result = if has_direct_tokens {
             // 直接使用提供的 accessToken 和 refreshToken
@@ -550,16 +559,29 @@ pub async fn cursor_import_accounts(
                 auth_info.refresh_token.as_ref().unwrap(),
                 auth_info.workos_cursor_session_token.clone(),
                 data.machine_info.clone(),
-            ).await
+            )
+            .await
         } else if let Some(ref session_token) = auth_info.workos_cursor_session_token {
             if !session_token.is_empty() {
                 // 使用 session token 获取 access token
-                import_account_with_session_token(&app, &email, session_token, data.machine_info.clone()).await
+                import_account_with_session_token(
+                    &app,
+                    &email,
+                    session_token,
+                    data.machine_info.clone(),
+                )
+                .await
             } else {
-                Err("Missing valid auth credentials (accessToken or WorkosCursorSessionToken)".to_string())
+                Err(
+                    "Missing valid auth credentials (accessToken or WorkosCursorSessionToken)"
+                        .to_string(),
+                )
             }
         } else {
-            Err("Missing valid auth credentials (accessToken or WorkosCursorSessionToken)".to_string())
+            Err(
+                "Missing valid auth credentials (accessToken or WorkosCursorSessionToken)"
+                    .to_string(),
+            )
         };
 
         match import_result {
@@ -602,11 +624,12 @@ async fn import_account_with_tokens(
     machine_info: Option<MachineInfo>,
 ) -> Result<Account, String> {
     // 1. 解析 JWT 中的过期时间
-    let expiry_timestamp = parse_jwt_exp(access_token)
-        .unwrap_or_else(|| chrono::Utc::now().timestamp() + 86400 * 60); // 默认 60 天
+    let expiry_timestamp =
+        parse_jwt_exp(access_token).unwrap_or_else(|| chrono::Utc::now().timestamp() + 86400 * 60); // 默认 60 天
 
     // 2. 解析 session token 的过期时间（如果有的话）
-    let session_expiry_timestamp = session_token.as_ref()
+    let session_expiry_timestamp = session_token
+        .as_ref()
         .and_then(|t| parse_session_token_exp(t));
 
     // 3. 尝试从 session token 获取用户信息（用于获取 user_id）
@@ -631,12 +654,8 @@ async fn import_account_with_tokens(
 
     // 5. 创建账号（带机器码信息）
     let account_id = uuid::Uuid::new_v4().to_string();
-    let account = Account::new_with_machine_info(
-        account_id,
-        email.to_string(),
-        token,
-        machine_info,
-    );
+    let account =
+        Account::new_with_machine_info(account_id, email.to_string(), token, machine_info);
 
     // 6. 保存账号
     storage::save_account(app, &account).await?;
@@ -679,12 +698,8 @@ async fn import_account_with_session_token(
 
     // 6. 创建账号（带机器码信息）
     let account_id = uuid::Uuid::new_v4().to_string();
-    let account = Account::new_with_machine_info(
-        account_id,
-        email.to_string(),
-        token,
-        machine_info,
-    );
+    let account =
+        Account::new_with_machine_info(account_id, email.to_string(), token, machine_info);
 
     // 7. 保存账号
     storage::save_account(app, &account).await?;
@@ -718,10 +733,10 @@ pub async fn cursor_export_accounts(
     };
 
     // 转换为导出格式
-    let export_data: Vec<ExportAccountData> = accounts.into_iter().map(|acc| {
-        ExportAccountData::from_account(&acc)
-    }).collect();
+    let export_data: Vec<ExportAccountData> = accounts
+        .into_iter()
+        .map(|acc| ExportAccountData::from_account(&acc))
+        .collect();
 
-    to_string_pretty(&export_data)
-        .map_err(|e| format!("Failed to serialize accounts: {}", e))
+    to_string_pretty(&export_data).map_err(|e| format!("Failed to serialize accounts: {}", e))
 }

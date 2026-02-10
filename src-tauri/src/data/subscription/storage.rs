@@ -1,8 +1,8 @@
+use crate::AppState;
 use crate::data::storage::common::{
-    GenericLocalStorage, GenericPostgreSQLStorage, GenericDualStorage,
+    GenericDualStorage, GenericLocalStorage, GenericPostgreSQLStorage,
 };
 use crate::data::subscription::{Subscription, SubscriptionMapper};
-use crate::AppState;
 use std::sync::Arc;
 use tauri::State;
 
@@ -24,7 +24,9 @@ pub async fn initialize_subscription_storage_manager(
     let postgres_storage = {
         let db_manager_guard = state.database_manager.lock().unwrap();
         if let Some(db_manager) = db_manager_guard.as_ref() {
-            Some(Arc::new(SubscriptionPostgreSQLStorage::new(db_manager.clone())))
+            Some(Arc::new(SubscriptionPostgreSQLStorage::new(
+                db_manager.clone(),
+            )))
         } else {
             None
         }
@@ -40,4 +42,3 @@ pub async fn initialize_subscription_storage_manager(
 
     Ok(())
 }
-

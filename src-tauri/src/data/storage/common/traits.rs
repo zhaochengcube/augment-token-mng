@@ -1,5 +1,5 @@
-use serde::{Serialize, de::DeserializeOwned};
 use chrono::{DateTime, Utc};
+use serde::{Serialize, de::DeserializeOwned};
 
 pub type StorageError = Box<dyn std::error::Error + Send + Sync>;
 
@@ -89,9 +89,18 @@ pub trait AccountSyncManager<T: SyncableAccount>: Send + Sync {
     async fn sync_local_to_remote(&self) -> Result<AccountSyncStatus, StorageError>;
     async fn sync_remote_to_local(&self) -> Result<AccountSyncStatus, StorageError>;
     async fn bidirectional_sync(&self) -> Result<AccountSyncStatus, StorageError>;
-    async fn bidirectional_sync_with_accounts(&self, local_accounts: Vec<T>) -> Result<AccountSyncStatus, StorageError>;
+    async fn bidirectional_sync_with_accounts(
+        &self,
+        local_accounts: Vec<T>,
+    ) -> Result<AccountSyncStatus, StorageError>;
     async fn get_sync_status(&self) -> Result<Option<AccountSyncStatus>, StorageError>;
-    async fn resolve_conflicts(&self, local: Vec<T>, remote: Vec<T>) -> Result<Vec<T>, StorageError>;
-    async fn sync_accounts(&self, req: ClientAccountSyncRequest<T>) -> Result<ServerAccountSyncResponse<T>, StorageError>;
+    async fn resolve_conflicts(
+        &self,
+        local: Vec<T>,
+        remote: Vec<T>,
+    ) -> Result<Vec<T>, StorageError>;
+    async fn sync_accounts(
+        &self,
+        req: ClientAccountSyncRequest<T>,
+    ) -> Result<ServerAccountSyncResponse<T>, StorageError>;
 }
-

@@ -1,9 +1,9 @@
+use super::config::{DatabaseConfig, SslMode};
 use deadpool_postgres::{Config, Pool, Runtime};
-use tokio_postgres::NoTls;
-use tokio_postgres_rustls::MakeRustlsConnect;
 use rustls::{ClientConfig, RootCertStore};
 use std::sync::Arc;
-use super::config::{DatabaseConfig, SslMode};
+use tokio_postgres::NoTls;
+use tokio_postgres_rustls::MakeRustlsConnect;
 
 pub type DbPool = Pool;
 
@@ -15,10 +15,7 @@ pub struct DatabaseManager {
 
 impl DatabaseManager {
     pub fn new(config: DatabaseConfig) -> Self {
-        Self {
-            pool: None,
-            config,
-        }
+        Self { pool: None, config }
     }
 
     pub async fn initialize(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -34,9 +31,7 @@ impl DatabaseManager {
         cfg.password = Some(self.config.password.clone());
 
         let pool = match self.config.ssl_mode {
-            SslMode::Disable => {
-                cfg.create_pool(Some(Runtime::Tokio1), NoTls)?
-            },
+            SslMode::Disable => cfg.create_pool(Some(Runtime::Tokio1), NoTls)?,
             SslMode::Prefer | SslMode::Require => {
                 let mut root_store = RootCertStore::empty();
                 root_store.add_trust_anchors(webpki_roots::TLS_SERVER_ROOTS.iter().map(|ta| {
@@ -91,7 +86,9 @@ impl DatabaseManager {
     }
 }
 
-pub async fn test_database_connection(config: &DatabaseConfig) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+pub async fn test_database_connection(
+    config: &DatabaseConfig,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut cfg = Config::new();
     cfg.host = Some(config.host.clone());
     cfg.port = Some(config.port);
@@ -100,9 +97,7 @@ pub async fn test_database_connection(config: &DatabaseConfig) -> Result<(), Box
     cfg.password = Some(config.password.clone());
 
     let pool = match config.ssl_mode {
-        SslMode::Disable => {
-            cfg.create_pool(Some(Runtime::Tokio1), NoTls)?
-        },
+        SslMode::Disable => cfg.create_pool(Some(Runtime::Tokio1), NoTls)?,
         SslMode::Prefer | SslMode::Require => {
             let mut root_store = RootCertStore::empty();
             root_store.add_trust_anchors(webpki_roots::TLS_SERVER_ROOTS.iter().map(|ta| {

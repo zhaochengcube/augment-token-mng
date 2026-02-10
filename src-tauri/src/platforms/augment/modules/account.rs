@@ -1,22 +1,12 @@
 use std::time::SystemTime;
 
+use super::oauth::extract_token_from_session;
 use crate::http_client::{create_http_client_with_cookies, create_proxy_client};
 use crate::platforms::augment::models::{
-    AccountStatus,
-    BatchCreditConsumptionResponse,
-    CompleteUserInfo,
-    CreditConsumptionResponse,
-    CreditInfoResponse,
-    CreditsInfoResponse,
-    ModelsResponse,
-    PaymentMethodLinkResponse,
-    PortalInfo,
-    SubscriptionInfo,
-    TokenInfo,
-    TokenStatusResult,
-    UserInfo,
+    AccountStatus, BatchCreditConsumptionResponse, CompleteUserInfo, CreditConsumptionResponse,
+    CreditInfoResponse, CreditsInfoResponse, ModelsResponse, PaymentMethodLinkResponse, PortalInfo,
+    SubscriptionInfo, TokenInfo, TokenStatusResult, UserInfo,
 };
-use super::oauth::{extract_token_from_session};
 
 pub async fn check_account_ban_status(
     token: &str,
@@ -51,43 +41,34 @@ pub async fn check_account_ban_status(
     println!("Response Status: {}", status_code);
 
     // Read response body
-    let response_body = response.text().await
+    let response_body = response
+        .text()
+        .await
         .map_err(|e| format!("Failed to read response body: {}", e))?;
 
     // Analyze response based on status code
     match status_code {
-        200 => {
-            Ok(AccountStatus {
-                status: "ACTIVE".to_string(),
-                error_message: None,
-            })
-        }
-        401 => {
-            Ok(AccountStatus {
-                status: "INVALID_TOKEN".to_string(),
-                error_message: None,
-            })
-        }
-        403 => {
-            Ok(AccountStatus {
-                status: "SUSPENDED".to_string(),
-                error_message: None,
-            })
-        }
-        _ => {
-            Ok(AccountStatus {
-                status: "ERROR".to_string(),
-                error_message: Some(format!("HTTP {}: {}", status_code, response_body)),
-            })
-        }
+        200 => Ok(AccountStatus {
+            status: "ACTIVE".to_string(),
+            error_message: None,
+        }),
+        401 => Ok(AccountStatus {
+            status: "INVALID_TOKEN".to_string(),
+            error_message: None,
+        }),
+        403 => Ok(AccountStatus {
+            status: "SUSPENDED".to_string(),
+            error_message: None,
+        }),
+        _ => Ok(AccountStatus {
+            status: "ERROR".to_string(),
+            error_message: Some(format!("HTTP {}: {}", status_code, response_body)),
+        }),
     }
 }
 
 /// 获取用户模型信息 (get-models API)
-pub async fn get_models(
-    token: &str,
-    tenant_url: &str,
-) -> Result<ModelsResponse, String> {
+pub async fn get_models(token: &str, tenant_url: &str) -> Result<ModelsResponse, String> {
     // 使用 ProxyClient，自动处理 Edge Function
     let client = create_proxy_client()?;
 
@@ -117,13 +98,20 @@ pub async fn get_models(
     println!("Response Status: {}", status_code);
 
     if !response.status().is_success() {
-        let error_body = response.text().await
+        let error_body = response
+            .text()
+            .await
             .unwrap_or_else(|_| "Unknown error".to_string());
-        return Err(format!("API request failed with status {}: {}", status_code, error_body));
+        return Err(format!(
+            "API request failed with status {}: {}",
+            status_code, error_body
+        ));
     }
 
     // Read response body
-    let response_body = response.text().await
+    let response_body = response
+        .text()
+        .await
         .map_err(|e| format!("Failed to read response body: {}", e))?;
 
     // Parse response
@@ -134,10 +122,7 @@ pub async fn get_models(
 }
 
 /// 获取用户额度信息 (get-credit-info API)
-pub async fn get_credit_info(
-    token: &str,
-    tenant_url: &str,
-) -> Result<CreditInfoResponse, String> {
+pub async fn get_credit_info(token: &str, tenant_url: &str) -> Result<CreditInfoResponse, String> {
     // 使用 ProxyClient，自动处理 Edge Function
     let client = create_proxy_client()?;
 
@@ -167,13 +152,20 @@ pub async fn get_credit_info(
     println!("Response Status: {}", status_code);
 
     if !response.status().is_success() {
-        let error_body = response.text().await
+        let error_body = response
+            .text()
+            .await
             .unwrap_or_else(|_| "Unknown error".to_string());
-        return Err(format!("API request failed with status {}: {}", status_code, error_body));
+        return Err(format!(
+            "API request failed with status {}: {}",
+            status_code, error_body
+        ));
     }
 
     // Read response body
-    let response_body = response.text().await
+    let response_body = response
+        .text()
+        .await
         .map_err(|e| format!("Failed to read response body: {}", e))?;
 
     // Parse response
@@ -186,7 +178,9 @@ pub async fn get_credit_info(
 // 批量检测账号状态
 pub async fn batch_check_account_status(
     tokens: Vec<TokenInfo>,
-    app_session_cache: std::sync::Arc<std::sync::Mutex<std::collections::HashMap<String, crate::AppSessionCache>>>,
+    app_session_cache: std::sync::Arc<
+        std::sync::Mutex<std::collections::HashMap<String, crate::AppSessionCache>>,
+    >,
 ) -> Result<Vec<TokenStatusResult>, String> {
     // 创建并发任务并立即spawn
     let mut handles = Vec::new();
@@ -206,7 +200,10 @@ pub async fn batch_check_account_status(
             // 1. 根据前端标记决定是否刷新 session
             if should_refresh_session {
                 if let Some(session) = &auth_session {
-                    println!("⚠️ Frontend requested session refresh for token {:?}, attempting to refresh", token_id);
+                    println!(
+                        "⚠️ Frontend requested session refresh for token {:?}, attempting to refresh",
+                        token_id
+                    );
                     match crate::platforms::augment::oauth::refresh_auth_session(session).await {
                         Ok(new_session) => {
                             println!("✅ Session refreshed successfully for token {:?}", token_id);
@@ -214,12 +211,18 @@ pub async fn batch_check_account_status(
                             // 注意：session_updated_at 将在返回结果时由前端设置
                         }
                         Err(err) => {
-                            println!("❌ Failed to refresh session for token {:?}: {}", token_id, err);
+                            println!(
+                                "❌ Failed to refresh session for token {:?}: {}",
+                                token_id, err
+                            );
                             // 刷新失败不影响后续检测
                         }
                     }
                 } else {
-                    println!("  - Frontend requested session refresh but no auth_session available for token {:?}", token_id);
+                    println!(
+                        "  - Frontend requested session refresh but no auth_session available for token {:?}",
+                        token_id
+                    );
                 }
             } else {
                 println!("  - No session refresh requested for token {:?}", token_id);
@@ -256,7 +259,10 @@ pub async fn batch_check_account_status(
             // 2. 如果检测到 INVALID_TOKEN 且有 auth_session，尝试自动刷新
             if status_result.status == "INVALID_TOKEN" {
                 if let Some(ref session) = auth_session {
-                    println!("Detected INVALID_TOKEN for {:?}, attempting auto-refresh with auth_session", token_id);
+                    println!(
+                        "Detected INVALID_TOKEN for {:?}, attempting auto-refresh with auth_session",
+                        token_id
+                    );
 
                     match extract_token_from_session(session).await {
                         Ok(new_token_response) => {
@@ -290,20 +296,22 @@ pub async fn batch_check_account_status(
                             if err.contains("SESSION_ERROR_OR_ACCOUNT_BANNED") {
                                 status_result.status = "SUSPENDED".to_string();
                                 status_result.error_message = Some(
-                                    "Account is suspended (detected during token refresh)".to_string()
+                                    "Account is suspended (detected during token refresh)"
+                                        .to_string(),
                                 );
                             } else {
-                                status_result.error_message = Some(format!(
-                                    "Token is invalid. Auto-refresh failed: {}",
-                                    err
-                                ));
+                                status_result.error_message =
+                                    Some(format!("Token is invalid. Auto-refresh failed: {}", err));
                             }
                         }
                     }
                 } else {
-                    println!("Token {:?} is invalid but no auth_session available for refresh", token_id);
+                    println!(
+                        "Token {:?} is invalid but no auth_session available for refresh",
+                        token_id
+                    );
                     status_result.error_message = Some(
-                        "Token is invalid. No auth_session available for auto-refresh".to_string()
+                        "Token is invalid. No auth_session available for auto-refresh".to_string(),
                     );
                 }
             }
@@ -315,23 +323,33 @@ pub async fn batch_check_account_status(
             if status_result.status == "SUSPENDED" {
                 // 如果有 auth_session,获取详细的封禁信息和额度信息
                 if let Some(ref session) = auth_session {
-                    println!("Account banned for {:?}, fetching detailed user info and credits", token_id);
+                    println!(
+                        "Account banned for {:?}, fetching detailed user info and credits",
+                        token_id
+                    );
 
                     // 获取用户封禁信息
                     match get_user_info(session, &cache).await {
                         Ok(user_info) => {
-                            println!("Successfully fetched user info for banned account {:?}", token_id);
+                            println!(
+                                "Successfully fetched user info for banned account {:?}",
+                                token_id
+                            );
                             // 保存 suspensions 信息
                             if let Some(suspensions) = user_info.suspensions {
                                 suspensions_info = Some(suspensions.clone());
                                 status_result.error_message = Some(format!(
                                     "Account banned. Suspensions: {}",
-                                    serde_json::to_string(&suspensions).unwrap_or_else(|_| "N/A".to_string())
+                                    serde_json::to_string(&suspensions)
+                                        .unwrap_or_else(|_| "N/A".to_string())
                                 ));
                             }
                         }
                         Err(err) => {
-                            println!("Failed to fetch user info for banned account {:?}: {}", token_id, err);
+                            println!(
+                                "Failed to fetch user info for banned account {:?}: {}",
+                                token_id, err
+                            );
                             // 不影响主流程,只记录错误
                         }
                     }
@@ -348,7 +366,8 @@ pub async fn batch_check_account_status(
                         println!("Using cached app_session for banned account credits fetch");
                         match get_credits_info(&app_session).await {
                             Ok(credits) => {
-                                let credit_total = credits.usage_units_remaining + credits.usage_units_consumed_this_billing_cycle;
+                                let credit_total = credits.usage_units_remaining
+                                    + credits.usage_units_consumed_this_billing_cycle;
                                 banned_portal_info = Some(PortalInfo {
                                     credits_balance: credits.usage_units_remaining,
                                     credit_total: Some(credit_total),
@@ -357,12 +376,17 @@ pub async fn batch_check_account_status(
                                 Some(app_session)
                             }
                             Err(e) => {
-                                println!("Cached app_session failed for credits: {}, will refresh", e);
+                                println!(
+                                    "Cached app_session failed for credits: {}, will refresh",
+                                    e
+                                );
                                 None
                             }
                         }
                     } else {
-                        println!("No cached app_session found for banned account, will exchange auth_session");
+                        println!(
+                            "No cached app_session found for banned account, will exchange auth_session"
+                        );
                         None
                     };
 
@@ -370,22 +394,32 @@ pub async fn batch_check_account_status(
                     if app_session.is_none() && banned_portal_info.is_none() {
                         match exchange_auth_session_for_app_session(session).await {
                             Ok(new_app_session) => {
-                                println!("Successfully exchanged auth_session for app_session for banned account {:?}", token_id);
+                                println!(
+                                    "Successfully exchanged auth_session for app_session for banned account {:?}",
+                                    token_id
+                                );
 
                                 // 更新缓存
                                 {
                                     let mut cache_guard = cache.lock().unwrap();
-                                    cache_guard.insert(session.clone(), crate::AppSessionCache {
-                                        app_session: new_app_session.clone(),
-                                        created_at: std::time::SystemTime::now(),
-                                    });
+                                    cache_guard.insert(
+                                        session.clone(),
+                                        crate::AppSessionCache {
+                                            app_session: new_app_session.clone(),
+                                            created_at: std::time::SystemTime::now(),
+                                        },
+                                    );
                                 }
 
                                 // 获取额度信息
                                 match get_credits_info(&new_app_session).await {
                                     Ok(credits) => {
-                                        println!("Successfully fetched credits for banned account {:?}", token_id);
-                                        let credit_total = credits.usage_units_remaining + credits.usage_units_consumed_this_billing_cycle;
+                                        println!(
+                                            "Successfully fetched credits for banned account {:?}",
+                                            token_id
+                                        );
+                                        let credit_total = credits.usage_units_remaining
+                                            + credits.usage_units_consumed_this_billing_cycle;
                                         banned_portal_info = Some(PortalInfo {
                                             credits_balance: credits.usage_units_remaining,
                                             credit_total: Some(credit_total),
@@ -393,14 +427,22 @@ pub async fn batch_check_account_status(
                                         });
                                     }
                                     Err(e) => {
-                                        println!("Failed to fetch credits for banned account {:?}: {}", token_id, e);
-                                        banned_portal_error = Some(format!("Failed to fetch credits: {}", e));
+                                        println!(
+                                            "Failed to fetch credits for banned account {:?}: {}",
+                                            token_id, e
+                                        );
+                                        banned_portal_error =
+                                            Some(format!("Failed to fetch credits: {}", e));
                                     }
                                 }
                             }
                             Err(e) => {
-                                println!("Failed to exchange auth_session for banned account {:?}: {}", token_id, e);
-                                banned_portal_error = Some(format!("Failed to exchange auth_session: {}", e));
+                                println!(
+                                    "Failed to exchange auth_session for banned account {:?}: {}",
+                                    token_id, e
+                                );
+                                banned_portal_error =
+                                    Some(format!("Failed to exchange auth_session: {}", e));
                             }
                         }
                     }
@@ -414,7 +456,7 @@ pub async fn batch_check_account_status(
                     portal_info: banned_portal_info,
                     portal_error: banned_portal_error,
                     suspensions: suspensions_info,
-                    email_note: None,  // 封禁账号不获取邮箱
+                    email_note: None, // 封禁账号不获取邮箱
                     portal_url: None,
                     auth_session,
                 };
@@ -425,11 +467,15 @@ pub async fn batch_check_account_status(
             let mut fetched_portal_url = portal_url.clone();
 
             // 首次尝试获取余额
-            let mut balance_result = get_balance_info(&token, &tenant_url, fetched_portal_url.as_deref()).await;
+            let mut balance_result =
+                get_balance_info(&token, &tenant_url, fetched_portal_url.as_deref()).await;
 
             // 5. 如果获取余额失败且没有 portal_url 但有 auth_session，尝试获取 portal_url 后重试
             if balance_result.is_err() && fetched_portal_url.is_none() && auth_session.is_some() {
-                println!("Failed to fetch balance info for token {:?}, attempting to fetch portal_url from auth_session", token_id);
+                println!(
+                    "Failed to fetch balance info for token {:?}, attempting to fetch portal_url from auth_session",
+                    token_id
+                );
 
                 if let Some(ref session) = auth_session {
                     // 检查缓存
@@ -445,7 +491,10 @@ pub async fn batch_check_account_status(
                             Ok(subscription) => {
                                 fetched_portal_url = subscription.portal_url.clone();
                                 if let Some(ref url) = fetched_portal_url {
-                                    println!("Successfully fetched portal_url from cached app_session: {}", url);
+                                    println!(
+                                        "Successfully fetched portal_url from cached app_session: {}",
+                                        url
+                                    );
                                 } else {
                                     println!("Subscription response has no portal_url");
                                 }
@@ -468,10 +517,13 @@ pub async fn batch_check_account_status(
                                 // 更新缓存
                                 {
                                     let mut cache_guard = cache.lock().unwrap();
-                                    cache_guard.insert(session.clone(), crate::AppSessionCache {
-                                        app_session: new_app_session.clone(),
-                                        created_at: std::time::SystemTime::now(),
-                                    });
+                                    cache_guard.insert(
+                                        session.clone(),
+                                        crate::AppSessionCache {
+                                            app_session: new_app_session.clone(),
+                                            created_at: std::time::SystemTime::now(),
+                                        },
+                                    );
                                 }
 
                                 // 获取订阅信息
@@ -480,7 +532,10 @@ pub async fn batch_check_account_status(
                                         fetched_portal_url = subscription.portal_url;
                                     }
                                     Err(e) => {
-                                        println!("Failed to fetch subscription with new app_session: {}", e);
+                                        println!(
+                                            "Failed to fetch subscription with new app_session: {}",
+                                            e
+                                        );
                                     }
                                 }
                             }
@@ -492,8 +547,12 @@ pub async fn batch_check_account_status(
 
                     // 如果成功获取到 portal_url，重试获取余额信息
                     if let Some(ref url) = fetched_portal_url {
-                        println!("Successfully fetched portal_url for token {:?}: {}, retrying balance fetch", token_id, url);
-                        balance_result = get_balance_info(&token, &tenant_url, Some(url.as_str())).await;
+                        println!(
+                            "Successfully fetched portal_url for token {:?}: {}, retrying balance fetch",
+                            token_id, url
+                        );
+                        balance_result =
+                            get_balance_info(&token, &tenant_url, Some(url.as_str())).await;
                     }
                 }
             }
@@ -501,12 +560,17 @@ pub async fn batch_check_account_status(
             // 处理最终的余额结果
             let (portal_info, portal_error) = match balance_result {
                 Ok(info) => {
-                    println!("Successfully fetched balance info for token {:?}: balance={}, total={:?}, expiry={:?}",
-                             token_id, info.credits_balance, info.credit_total, info.expiry_date);
+                    println!(
+                        "Successfully fetched balance info for token {:?}: balance={}, total={:?}, expiry={:?}",
+                        token_id, info.credits_balance, info.credit_total, info.expiry_date
+                    );
                     (Some(info), None)
                 }
                 Err(err) => {
-                    println!("Failed to fetch balance info for token {:?}: {}", token_id, err);
+                    println!(
+                        "Failed to fetch balance info for token {:?}: {}",
+                        token_id, err
+                    );
                     (None, Some(err))
                 }
             };
@@ -514,12 +578,8 @@ pub async fn batch_check_account_status(
             // 6. 如果没有邮箱备注,尝试获取邮箱
             let email_note = if token_info.email_note.is_none() {
                 match get_models(&token, &tenant_url).await {
-                    Ok(models_response) => {
-                        Some(models_response.user.email)
-                    }
-                    Err(_err) => {
-                        None
-                    }
+                    Ok(models_response) => Some(models_response.user.email),
+                    Err(_err) => None,
                 }
             } else {
                 token_info.email_note.clone()
@@ -532,13 +592,13 @@ pub async fn batch_check_account_status(
                 status_result,
                 portal_info,
                 portal_error,
-                suspensions: None,  // 正常情况下不需要 suspensions
+                suspensions: None, // 正常情况下不需要 suspensions
                 email_note,
                 portal_url: fetched_portal_url,
                 auth_session,
             }
         });
-        
+
         handles.push(handle);
     }
 
@@ -588,13 +648,19 @@ async fn get_portal_info(portal_url: &str) -> Result<PortalInfo, String> {
         .ok_or("Failed to extract token from portal URL")?;
 
     // 获取customer信息
-    let customer_url = format!("https://portal.withorb.com/api/v1/customer_from_link?token={}", token);
+    let customer_url = format!(
+        "https://portal.withorb.com/api/v1/customer_from_link?token={}",
+        token
+    );
 
     // 使用 ProxyClient，自动处理 Edge Function
     let client = create_proxy_client()?;
     let customer_response = client
         .get(&customer_url)
-        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+        .header(
+            "User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        )
         .header("Accept", "application/json, text/plain, */*")
         .header("Accept-Language", "en-US,en;q=0.9")
         .send()
@@ -602,12 +668,17 @@ async fn get_portal_info(portal_url: &str) -> Result<PortalInfo, String> {
         .map_err(|e| format!("Failed to get customer info: {}", e))?;
 
     if !customer_response.status().is_success() {
-        return Err(format!("Customer API request failed: {}", customer_response.status()));
+        return Err(format!(
+            "Customer API request failed: {}",
+            customer_response.status()
+        ));
     }
 
-    let customer_text = customer_response.text().await
+    let customer_text = customer_response
+        .text()
+        .await
         .map_err(|e| format!("Failed to read customer response: {}", e))?;
-    
+
     let customer_data: serde_json::Value = serde_json::from_str(&customer_text)
         .map_err(|e| format!("Failed to parse customer response: {}", e))?;
 
@@ -615,11 +686,10 @@ async fn get_portal_info(portal_url: &str) -> Result<PortalInfo, String> {
     let customer_id = customer_data["customer"]["id"]
         .as_str()
         .ok_or("Customer ID not found")?;
-    
+
     let pricing_unit_id = customer_data["customer"]["ledger_pricing_units"][0]["id"]
         .as_str()
         .ok_or("Pricing unit ID not found")?;
-    
 
     // 获取ledger summary
     let ledger_url = format!(
@@ -629,7 +699,10 @@ async fn get_portal_info(portal_url: &str) -> Result<PortalInfo, String> {
 
     let ledger_response = client
         .get(&ledger_url)
-        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+        .header(
+            "User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        )
         .header("Accept", "application/json, text/plain, */*")
         .header("Accept-Language", "en-US,en;q=0.9")
         .send()
@@ -637,21 +710,27 @@ async fn get_portal_info(portal_url: &str) -> Result<PortalInfo, String> {
         .map_err(|e| format!("Failed to get ledger info: {}", e))?;
 
     if !ledger_response.status().is_success() {
-        return Err(format!("Ledger API request failed: {}", ledger_response.status()));
+        return Err(format!(
+            "Ledger API request failed: {}",
+            ledger_response.status()
+        ));
     }
 
-    let ledger_text = ledger_response.text().await
+    let ledger_text = ledger_response
+        .text()
+        .await
         .map_err(|e| format!("Failed to read ledger response: {}", e))?;
-    
+
     let ledger_data: serde_json::Value = serde_json::from_str(&ledger_text)
         .map_err(|e| format!("Failed to parse ledger response: {}", e))?;
 
     // 解析Portal信息（根据当前返回，credits_balance 为字符串，如 "9.00"）
-    let credits_balance: i32 = ledger_data["credits_balance"].as_str()
+    let credits_balance: i32 = ledger_data["credits_balance"]
+        .as_str()
         .and_then(|s| s.parse::<f64>().ok())
         .map(|v| v.floor() as i32)
         .unwrap_or(0);
-    
+
     // println removed by request: parsed credits balance
 
     let mut expiry_date = None;
@@ -667,9 +746,11 @@ async fn get_portal_info(portal_url: &str) -> Result<PortalInfo, String> {
             // 获取 effective_date 并加 1 个月
             if let Some(effective_date_str) = first_block["effective_date"].as_str() {
                 // 尝试解析日期
-                if let Ok(effective_date) = chrono::DateTime::parse_from_rfc3339(effective_date_str) {
+                if let Ok(effective_date) = chrono::DateTime::parse_from_rfc3339(effective_date_str)
+                {
                     // 加 1 个月（精确月份）
-                    let expiry = effective_date.with_timezone(&chrono::Utc) + chrono::Months::new(1);
+                    let expiry =
+                        effective_date.with_timezone(&chrono::Utc) + chrono::Months::new(1);
                     expiry_date = Some(expiry.to_rfc3339());
                 }
             }
@@ -710,7 +791,10 @@ async fn get_balance_info(
             if let Some(url) = portal_url {
                 get_portal_info(url).await
             } else {
-                Err(format!("get_credit_info failed and no portal_url available: {}", err))
+                Err(format!(
+                    "get_credit_info failed and no portal_url available: {}",
+                    err
+                ))
             }
         }
     }
@@ -736,8 +820,14 @@ pub async fn get_batch_credit_consumption_with_app_session(
         async {
             let response = client
                 .get(stats_url)
-                .header("Cookie", format!("_session={}", urlencoding::encode(app_session)))
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                .header(
+                    "Cookie",
+                    format!("_session={}", urlencoding::encode(app_session)),
+                )
+                .header(
+                    "User-Agent",
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                )
                 .header("Accept", "application/json")
                 .send()
                 .await
@@ -745,23 +835,41 @@ pub async fn get_batch_credit_consumption_with_app_session(
 
             let status = response.status();
             if !status.is_success() {
-                let error_body = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
-                return Err(format!("Stats API returned status {}: {}", status, error_body));
+                let error_body = response
+                    .text()
+                    .await
+                    .unwrap_or_else(|_| "Unknown error".to_string());
+                return Err(format!(
+                    "Stats API returned status {}: {}",
+                    status, error_body
+                ));
             }
 
-            let response_text = response.text().await
+            let response_text = response
+                .text()
+                .await
                 .map_err(|e| format!("Failed to read stats response body: {}", e))?;
 
             println!("Stats response: {}", response_text);
 
-            serde_json::from_str::<CreditConsumptionResponse>(&response_text)
-                .map_err(|e| format!("Failed to parse stats response: {}. Response body: {}", e, response_text))
+            serde_json::from_str::<CreditConsumptionResponse>(&response_text).map_err(|e| {
+                format!(
+                    "Failed to parse stats response: {}. Response body: {}",
+                    e, response_text
+                )
+            })
         },
         async {
             let response = client
                 .get(chart_url)
-                .header("Cookie", format!("_session={}", urlencoding::encode(app_session)))
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                .header(
+                    "Cookie",
+                    format!("_session={}", urlencoding::encode(app_session)),
+                )
+                .header(
+                    "User-Agent",
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                )
                 .header("Accept", "application/json")
                 .send()
                 .await
@@ -769,17 +877,29 @@ pub async fn get_batch_credit_consumption_with_app_session(
 
             let status = response.status();
             if !status.is_success() {
-                let error_body = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
-                return Err(format!("Chart API returned status {}: {}", status, error_body));
+                let error_body = response
+                    .text()
+                    .await
+                    .unwrap_or_else(|_| "Unknown error".to_string());
+                return Err(format!(
+                    "Chart API returned status {}: {}",
+                    status, error_body
+                ));
             }
 
-            let response_text = response.text().await
+            let response_text = response
+                .text()
+                .await
                 .map_err(|e| format!("Failed to read chart response body: {}", e))?;
 
             println!("Chart response: {}", response_text);
 
-            serde_json::from_str::<CreditConsumptionResponse>(&response_text)
-                .map_err(|e| format!("Failed to parse chart response: {}. Response body: {}", e, response_text))
+            serde_json::from_str::<CreditConsumptionResponse>(&response_text).map_err(|e| {
+                format!(
+                    "Failed to parse chart response: {}. Response body: {}",
+                    e, response_text
+                )
+            })
         }
     );
 
@@ -795,19 +915,17 @@ pub async fn get_batch_credit_consumption_with_app_session(
 
 /// 通过 auth session 交换 app session
 pub async fn exchange_auth_session_for_app_session(auth_session: &str) -> Result<String, String> {
-    use reqwest::cookie::{Jar, CookieStore};
+    use reqwest::cookie::{CookieStore, Jar};
     use std::sync::Arc;
 
     // 创建 cookie jar
     let jar = Arc::new(Jar::default());
 
     // 设置 auth session cookie 到 auth.augmentcode.com 域
-    let auth_url = "https://auth.augmentcode.com/".parse::<reqwest::Url>()
+    let auth_url = "https://auth.augmentcode.com/"
+        .parse::<reqwest::Url>()
         .map_err(|e| format!("Failed to parse auth URL: {}", e))?;
-    jar.add_cookie_str(
-        &format!("session={}", auth_session),
-        &auth_url
-    );
+    jar.add_cookie_str(&format!("session={}", auth_session), &auth_url);
 
     // 创建带 cookie store 的客户端
     let client = create_http_client_with_cookies(jar.clone())?;
@@ -815,13 +933,17 @@ pub async fn exchange_auth_session_for_app_session(auth_session: &str) -> Result
     // 直接 GET /login 触发授权流
     let _login_response = client
         .get("https://app.augmentcode.com/login")
-        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+        .header(
+            "User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        )
         .send()
         .await
         .map_err(|e| format!("Failed to exchange session: {}", e))?;
 
     // 从 cookie jar 中获取 app.augmentcode.com 的 cookies
-    let app_url = "https://app.augmentcode.com/".parse::<reqwest::Url>()
+    let app_url = "https://app.augmentcode.com/"
+        .parse::<reqwest::Url>()
         .map_err(|e| format!("Failed to parse app URL: {}", e))?;
 
     if let Some(header_value) = jar.cookies(&app_url) {
@@ -862,8 +984,14 @@ pub async fn fetch_app_user(app_session: &str) -> Result<UserInfo, String> {
     let client = create_proxy_client()?;
     let response = client
         .get("https://app.augmentcode.com/api/user")
-        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-        .header("Cookie", format!("_session={}", urlencoding::encode(app_session)))
+        .header(
+            "User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        )
+        .header(
+            "Cookie",
+            format!("_session={}", urlencoding::encode(app_session)),
+        )
         .send()
         .await
         .map_err(|e| format!("Failed to fetch user info: {}", e))?;
@@ -880,8 +1008,14 @@ pub async fn fetch_app_subscription(app_session: &str) -> Result<SubscriptionInf
     let client = create_proxy_client()?;
     let response = client
         .get("https://app.augmentcode.com/api/subscription")
-        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-        .header("Cookie", format!("_session={}", urlencoding::encode(app_session)))
+        .header(
+            "User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        )
+        .header(
+            "Cookie",
+            format!("_session={}", urlencoding::encode(app_session)),
+        )
         .send()
         .await
         .map_err(|e| format!("Failed to fetch subscription info: {}", e))?;
@@ -905,7 +1039,10 @@ pub async fn fetch_payment_method_link(cookie_string: &str) -> Result<String, St
 
     let response = client
         .post("https://app.augmentcode.com/api/setup-trial-payment-method")
-        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+        .header(
+            "User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        )
         .header("Cookie", cookie_header_value)
         .header("Content-Type", "application/json")
         .header("Content-Length", body.len().to_string())
@@ -920,7 +1057,12 @@ pub async fn fetch_payment_method_link(cookie_string: &str) -> Result<String, St
         .map_err(|e| format!("Failed to read response text: {}", e))?;
 
     let payment_response: PaymentMethodLinkResponse = serde_json::from_str(&response_text)
-        .map_err(|e| format!("Failed to parse payment method link response: {}. Response was: {}", e, response_text))?;
+        .map_err(|e| {
+            format!(
+                "Failed to parse payment method link response: {}. Response was: {}",
+                e, response_text
+            )
+        })?;
 
     Ok(payment_response.url)
 }
@@ -936,7 +1078,9 @@ pub async fn get_user_info_with_app_session(app_session: &str) -> Result<Complet
             if let Some(arr) = suspensions.as_array() {
                 if !arr.is_empty() {
                     if let Some(first) = arr.first() {
-                        if let Some(suspension_type) = first.get("suspensionType").and_then(|v| v.as_str()) {
+                        if let Some(suspension_type) =
+                            first.get("suspensionType").and_then(|v| v.as_str())
+                        {
                             format!("BANNED-{}", suspension_type)
                         } else {
                             "BANNED".to_string()
@@ -966,7 +1110,9 @@ pub async fn get_user_info_with_app_session(app_session: &str) -> Result<Complet
 /// 获取完整的用户信息 (使用缓存的 app_session)
 pub async fn get_user_info(
     auth_session: &str,
-    app_session_cache: &std::sync::Arc<std::sync::Mutex<std::collections::HashMap<String, crate::AppSessionCache>>>,
+    app_session_cache: &std::sync::Arc<
+        std::sync::Mutex<std::collections::HashMap<String, crate::AppSessionCache>>,
+    >,
 ) -> Result<CompleteUserInfo, String> {
     // 1. 检查缓存中是否有有效的 app_session
     let cached_app_session = {
@@ -985,15 +1131,21 @@ pub async fn get_user_info(
     // 3. 交换新的 app_session
     let app_session = exchange_auth_session_for_app_session(auth_session).await?;
 
-    println!("App session obtained: {}", &app_session[..20.min(app_session.len())]);
+    println!(
+        "App session obtained: {}",
+        &app_session[..20.min(app_session.len())]
+    );
 
     // 4. 更新缓存
     {
         let mut cache = app_session_cache.lock().unwrap();
-        cache.insert(auth_session.to_string(), crate::AppSessionCache {
-            app_session: app_session.clone(),
-            created_at: SystemTime::now(),
-        });
+        cache.insert(
+            auth_session.to_string(),
+            crate::AppSessionCache {
+                app_session: app_session.clone(),
+                created_at: SystemTime::now(),
+            },
+        );
     }
 
     // 5. 获取用户信息
@@ -1008,8 +1160,14 @@ pub async fn invite_team_members(app_session: &str, emails: Vec<String>) -> Resu
 
     let response = client
         .post("https://app.augmentcode.com/api/team/invite")
-        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-        .header("Cookie", format!("_session={}", urlencoding::encode(app_session)))
+        .header(
+            "User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        )
+        .header(
+            "Cookie",
+            format!("_session={}", urlencoding::encode(app_session)),
+        )
         .header("Content-Type", "application/json")
         .json(&serde_json::json!({ "emails": emails }))
         .send()
@@ -1018,9 +1176,14 @@ pub async fn invite_team_members(app_session: &str, emails: Vec<String>) -> Resu
 
     if !response.status().is_success() {
         let status = response.status();
-        let error_body = response.text().await
+        let error_body = response
+            .text()
+            .await
             .unwrap_or_else(|_| "Unknown error".to_string());
-        return Err(format!("Failed to invite team members (HTTP {}): {}", status, error_body));
+        return Err(format!(
+            "Failed to invite team members (HTTP {}): {}",
+            status, error_body
+        ));
     }
 
     Ok(())
@@ -1031,9 +1194,18 @@ pub async fn update_team_seats(app_session: &str, seats: u32) -> Result<serde_js
     let client = create_proxy_client()?;
 
     let response = client
-        .request(reqwest::Method::PATCH, "https://app.augmentcode.com/api/team")
-        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-        .header("Cookie", format!("_session={}", urlencoding::encode(app_session)))
+        .request(
+            reqwest::Method::PATCH,
+            "https://app.augmentcode.com/api/team",
+        )
+        .header(
+            "User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        )
+        .header(
+            "Cookie",
+            format!("_session={}", urlencoding::encode(app_session)),
+        )
         .header("Content-Type", "application/json")
         .json(&serde_json::json!({ "seats": seats }))
         .send()
@@ -1042,9 +1214,14 @@ pub async fn update_team_seats(app_session: &str, seats: u32) -> Result<serde_js
 
     if !response.status().is_success() {
         let status = response.status();
-        let error_body = response.text().await
+        let error_body = response
+            .text()
+            .await
             .unwrap_or_else(|_| "Unknown error".to_string());
-        return Err(format!("Failed to update team seats (HTTP {}): {}", status, error_body));
+        return Err(format!(
+            "Failed to update team seats (HTTP {}): {}",
+            status, error_body
+        ));
     }
 
     response
@@ -1057,21 +1234,35 @@ pub async fn update_team_seats(app_session: &str, seats: u32) -> Result<serde_js
 pub async fn delete_team_invitation(app_session: &str, invitation_id: &str) -> Result<(), String> {
     let client = create_proxy_client()?;
 
-    let url = format!("https://app.augmentcode.com/api/team/invite/{}", invitation_id);
+    let url = format!(
+        "https://app.augmentcode.com/api/team/invite/{}",
+        invitation_id
+    );
 
     let response = client
         .delete(&url)
-        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-        .header("Cookie", format!("_session={}", urlencoding::encode(app_session)))
+        .header(
+            "User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        )
+        .header(
+            "Cookie",
+            format!("_session={}", urlencoding::encode(app_session)),
+        )
         .send()
         .await
         .map_err(|e| format!("Failed to delete team invitation: {}", e))?;
 
     if !response.status().is_success() {
         let status = response.status();
-        let error_body = response.text().await
+        let error_body = response
+            .text()
+            .await
             .unwrap_or_else(|_| "Unknown error".to_string());
-        return Err(format!("Failed to delete team invitation (HTTP {}): {}", status, error_body));
+        return Err(format!(
+            "Failed to delete team invitation (HTTP {}): {}",
+            status, error_body
+        ));
     }
 
     Ok(())
@@ -1085,17 +1276,28 @@ pub async fn delete_team_member(app_session: &str, user_id: &str) -> Result<(), 
 
     let response = client
         .delete(&url)
-        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-        .header("Cookie", format!("_session={}", urlencoding::encode(app_session)))
+        .header(
+            "User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        )
+        .header(
+            "Cookie",
+            format!("_session={}", urlencoding::encode(app_session)),
+        )
         .send()
         .await
         .map_err(|e| format!("Failed to delete team member: {}", e))?;
 
     if !response.status().is_success() {
         let status = response.status();
-        let error_body = response.text().await
+        let error_body = response
+            .text()
+            .await
             .unwrap_or_else(|_| "Unknown error".to_string());
-        return Err(format!("Failed to delete team member (HTTP {}): {}", status, error_body));
+        return Err(format!(
+            "Failed to delete team member (HTTP {}): {}",
+            status, error_body
+        ));
     }
 
     Ok(())
@@ -1107,17 +1309,28 @@ pub async fn fetch_team_info(app_session: &str) -> Result<serde_json::Value, Str
 
     let response = client
         .get("https://app.augmentcode.com/api/team")
-        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-        .header("Cookie", format!("_session={}", urlencoding::encode(app_session)))
+        .header(
+            "User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        )
+        .header(
+            "Cookie",
+            format!("_session={}", urlencoding::encode(app_session)),
+        )
         .send()
         .await
         .map_err(|e| format!("Failed to fetch team info: {}", e))?;
 
     if !response.status().is_success() {
         let status = response.status();
-        let error_body = response.text().await
+        let error_body = response
+            .text()
+            .await
             .unwrap_or_else(|_| "Unknown error".to_string());
-        return Err(format!("Failed to fetch team info (HTTP {}): {}", status, error_body));
+        return Err(format!(
+            "Failed to fetch team info (HTTP {}): {}",
+            status, error_body
+        ));
     }
 
     response
@@ -1135,8 +1348,14 @@ pub async fn get_credits_info(app_session: &str) -> Result<CreditsInfoResponse, 
 
     let response = client
         .get("https://app.augmentcode.com/api/credits")
-        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-        .header("Cookie", format!("_session={}", urlencoding::encode(app_session)))
+        .header(
+            "User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        )
+        .header(
+            "Cookie",
+            format!("_session={}", urlencoding::encode(app_session)),
+        )
         .send()
         .await
         .map_err(|e| format!("Failed to fetch credits info: {}", e))?;
@@ -1145,12 +1364,19 @@ pub async fn get_credits_info(app_session: &str) -> Result<CreditsInfoResponse, 
     println!("Response Status: {}", status_code);
 
     if !response.status().is_success() {
-        let error_body = response.text().await
+        let error_body = response
+            .text()
+            .await
             .unwrap_or_else(|_| "Unknown error".to_string());
-        return Err(format!("API request failed with status {}: {}", status_code, error_body));
+        return Err(format!(
+            "API request failed with status {}: {}",
+            status_code, error_body
+        ));
     }
 
-    let response_body = response.text().await
+    let response_body = response
+        .text()
+        .await
         .map_err(|e| format!("Failed to read response body: {}", e))?;
 
     println!("Credits info response: {}", response_body);

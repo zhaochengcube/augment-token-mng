@@ -74,4 +74,3 @@ pub struct FirebaseUserInfo {
     #[serde(rename = "emailVerified", default)]
     pub email_verified: bool,
 }
-

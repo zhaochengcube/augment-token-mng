@@ -1,6 +1,6 @@
-use std::process::Command;
 use std::path::PathBuf;
-use sysinfo::{System, ProcessRefreshKind, ProcessesToUpdate};
+use std::process::Command;
+use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, System};
 
 #[allow(dead_code)]
 fn is_helper_process(name: &str, args: &str) -> bool {
@@ -114,10 +114,14 @@ pub fn close_antigravity(timeout_secs: u64) -> Result<(), String> {
         }
 
         if let Some(pid) = main_pid {
-            let _ = Command::new("kill").args(["-15", &pid.to_string()]).output();
+            let _ = Command::new("kill")
+                .args(["-15", &pid.to_string()])
+                .output();
         } else {
             for pid in &pids {
-                let _ = Command::new("kill").args(["-15", &pid.to_string()]).output();
+                let _ = Command::new("kill")
+                    .args(["-15", &pid.to_string()])
+                    .output();
             }
         }
 
@@ -158,7 +162,11 @@ pub fn kill_antigravity_processes() -> Result<(), String> {
         if is_antigravity_process(process) {
             if process.kill() {
                 killed_count += 1;
-                println!("Killed Antigravity process: {} (PID: {})", process.name().to_string_lossy(), pid);
+                println!(
+                    "Killed Antigravity process: {} (PID: {})",
+                    process.name().to_string_lossy(),
+                    pid
+                );
             }
         }
     }
@@ -182,41 +190,41 @@ pub fn get_antigravity_executable_path() -> Result<PathBuf, String> {
         }
         Err("Antigravity not found in /Applications".to_string())
     }
-    
+
     #[cfg(target_os = "windows")]
     {
         use std::env;
-        
+
         let local_appdata = env::var("LOCALAPPDATA").ok();
-        let program_files = env::var("ProgramFiles")
-            .unwrap_or_else(|_| "C:\\Program Files".to_string());
-        
+        let program_files =
+            env::var("ProgramFiles").unwrap_or_else(|_| "C:\\Program Files".to_string());
+
         let mut possible_paths = Vec::new();
-        
+
         if let Some(local) = local_appdata {
             possible_paths.push(
                 PathBuf::from(&local)
                     .join("Programs")
                     .join("Antigravity")
-                    .join("Antigravity.exe")
+                    .join("Antigravity.exe"),
             );
         }
-        
+
         possible_paths.push(
             PathBuf::from(&program_files)
                 .join("Antigravity")
-                .join("Antigravity.exe")
+                .join("Antigravity.exe"),
         );
-        
+
         for path in possible_paths {
             if path.exists() {
                 return Ok(path);
             }
         }
-        
+
         Err("Antigravity not found".to_string())
     }
-    
+
     #[cfg(target_os = "linux")]
     {
         let possible_paths = vec![
@@ -224,13 +232,13 @@ pub fn get_antigravity_executable_path() -> Result<PathBuf, String> {
             PathBuf::from("/usr/local/bin/antigravity"),
             PathBuf::from("/opt/Antigravity/antigravity"),
         ];
-        
+
         for path in possible_paths {
             if path.exists() {
                 return Ok(path);
             }
         }
-        
+
         Err("Antigravity not found".to_string())
     }
 }
@@ -249,7 +257,7 @@ pub fn launch_antigravity() -> Result<(), String> {
             .spawn()
             .map_err(|e| format!("Failed to launch Antigravity: {}", e))?;
     }
-    
+
     #[cfg(target_os = "windows")]
     {
         let exe_path = get_antigravity_executable_path()?;
@@ -257,7 +265,7 @@ pub fn launch_antigravity() -> Result<(), String> {
             .spawn()
             .map_err(|e| format!("Failed to launch Antigravity: {}", e))?;
     }
-    
+
     #[cfg(target_os = "linux")]
     {
         let exe_path = get_antigravity_executable_path()?;
@@ -338,10 +346,12 @@ pub fn validate_antigravity_path(path: &str) -> Result<bool, String> {
     #[cfg(target_os = "windows")]
     {
         // Windows: 检查是否是 .exe 文件且文件名包含 antigravity
-        let is_exe = path.extension()
+        let is_exe = path
+            .extension()
             .map(|ext| ext.eq_ignore_ascii_case("exe"))
             .unwrap_or(false);
-        let name_matches = path.file_name()
+        let name_matches = path
+            .file_name()
             .and_then(|n| n.to_str())
             .map(|n| n.to_lowercase().contains("antigravity"))
             .unwrap_or(false);
@@ -351,10 +361,9 @@ pub fn validate_antigravity_path(path: &str) -> Result<bool, String> {
     #[cfg(target_os = "macos")]
     {
         // macOS: 检查是否是 .app 包或可执行文件
-        let is_app = path.extension()
-            .map(|ext| ext == "app")
-            .unwrap_or(false);
-        let name_matches = path.file_name()
+        let is_app = path.extension().map(|ext| ext == "app").unwrap_or(false);
+        let name_matches = path
+            .file_name()
             .and_then(|n| n.to_str())
             .map(|n| n.to_lowercase().contains("antigravity"))
             .unwrap_or(false);
@@ -365,7 +374,8 @@ pub fn validate_antigravity_path(path: &str) -> Result<bool, String> {
     {
         // Linux: 检查是否是可执行文件且文件名包含 antigravity
         let is_executable = path.is_file();
-        let name_matches = path.file_name()
+        let name_matches = path
+            .file_name()
             .and_then(|n| n.to_str())
             .map(|n| n.to_lowercase().contains("antigravity"))
             .unwrap_or(false);

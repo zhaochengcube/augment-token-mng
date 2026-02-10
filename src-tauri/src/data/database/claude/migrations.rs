@@ -1,16 +1,20 @@
 use tokio_postgres::Client;
 
-pub async fn check_tables_exist(client: &Client) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
-    let rows = client.query(
-        r#"
+pub async fn check_tables_exist(
+    client: &Client,
+) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
+    let rows = client
+        .query(
+            r#"
         SELECT EXISTS (
             SELECT FROM information_schema.tables
             WHERE table_schema = 'public'
             AND table_name = 'claude_accounts'
         )
         "#,
-        &[],
-    ).await?;
+            &[],
+        )
+        .await?;
 
     if let Some(row) = rows.first() {
         let exists: bool = row.get(0);
@@ -20,14 +24,19 @@ pub async fn check_tables_exist(client: &Client) -> Result<bool, Box<dyn std::er
     }
 }
 
-pub async fn create_tables(client: &Client) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    client.execute(
-        "CREATE SEQUENCE IF NOT EXISTS claude_account_version_seq START 1",
-        &[],
-    ).await?;
+pub async fn create_tables(
+    client: &Client,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    client
+        .execute(
+            "CREATE SEQUENCE IF NOT EXISTS claude_account_version_seq START 1",
+            &[],
+        )
+        .await?;
 
-    client.execute(
-        r#"
+    client
+        .execute(
+            r#"
         CREATE TABLE IF NOT EXISTS claude_accounts (
             id VARCHAR(255) PRIMARY KEY,
             service_name TEXT NOT NULL,
@@ -50,18 +59,23 @@ pub async fn create_tables(client: &Client) -> Result<(), Box<dyn std::error::Er
             version BIGINT NOT NULL DEFAULT nextval('claude_account_version_seq')
         )
         "#,
-        &[],
-    ).await?;
+            &[],
+        )
+        .await?;
 
-    client.execute(
-        "CREATE INDEX IF NOT EXISTS idx_claude_accounts_version ON claude_accounts(version)",
-        &[],
-    ).await?;
+    client
+        .execute(
+            "CREATE INDEX IF NOT EXISTS idx_claude_accounts_version ON claude_accounts(version)",
+            &[],
+        )
+        .await?;
 
     Ok(())
 }
 
-pub async fn add_new_fields_if_not_exist(client: &Client) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+pub async fn add_new_fields_if_not_exist(
+    client: &Client,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // 添加 use_model 字段（如果不存在）
     client.execute(
         "ALTER TABLE claude_accounts ADD COLUMN IF NOT EXISTS use_model TEXT NOT NULL DEFAULT 'default'",
@@ -73,7 +87,14 @@ pub async fn add_new_fields_if_not_exist(client: &Client) -> Result<(), Box<dyn 
 
 #[allow(dead_code)]
 pub async fn drop_tables(client: &Client) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    client.execute("DROP TABLE IF EXISTS claude_accounts CASCADE", &[]).await?;
-    client.execute("DROP SEQUENCE IF EXISTS claude_account_version_seq CASCADE", &[]).await?;
+    client
+        .execute("DROP TABLE IF EXISTS claude_accounts CASCADE", &[])
+        .await?;
+    client
+        .execute(
+            "DROP SEQUENCE IF EXISTS claude_account_version_seq CASCADE",
+            &[],
+        )
+        .await?;
     Ok(())
 }

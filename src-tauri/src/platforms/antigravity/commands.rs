@@ -1,8 +1,11 @@
-use tauri::{AppHandle, Manager};
 use crate::antigravity::models::{Account, QuotaData, TokenData};
-use crate::antigravity::modules::{storage, account, oauth, oauth_server, process, db};
+use crate::antigravity::modules::{account, db, oauth, oauth_server, process, storage};
+use tauri::{AppHandle, Manager};
 
-async fn internal_refresh_account_quota(app: &AppHandle, account: &mut Account) -> Result<QuotaData, String> {
+async fn internal_refresh_account_quota(
+    app: &AppHandle,
+    account: &mut Account,
+) -> Result<QuotaData, String> {
     let quota = account::fetch_quota_with_retry(app, account).await?;
     account::update_account_quota(app, &account.id, quota.clone()).await?;
     Ok(quota)
@@ -54,19 +57,13 @@ pub async fn antigravity_add_account(
 
 /// 更新账号（标签等属性）
 #[tauri::command]
-pub async fn antigravity_update_account(
-    app: AppHandle,
-    account: Account,
-) -> Result<(), String> {
+pub async fn antigravity_update_account(app: AppHandle, account: Account) -> Result<(), String> {
     storage::save_account(&app, &account).await
 }
 
 /// 删除账号
 #[tauri::command]
-pub async fn antigravity_delete_account(
-    app: AppHandle,
-    account_id: String,
-) -> Result<(), String> {
+pub async fn antigravity_delete_account(app: AppHandle, account_id: String) -> Result<(), String> {
     account::delete_account(&app, account_id).await
 }
 
@@ -140,7 +137,12 @@ pub async fn antigravity_refresh_all_quotas(app: AppHandle) -> Result<RefreshSta
         }
     }
 
-    Ok(RefreshStats { total: success + failed, success, failed, details })
+    Ok(RefreshStats {
+        total: success + failed,
+        success,
+        failed,
+        details,
+    })
 }
 
 /// 切换账号（完整流程）
@@ -151,22 +153,22 @@ pub async fn antigravity_switch_account(
 ) -> Result<String, String> {
     // 1. 加载账号
     let mut acc = storage::load_account(&app, &account_id).await?;
-    
+
     // 2. 确保 Token 有效
     let token = oauth::ensure_fresh_token(&acc.token).await?;
     if token.access_token != acc.token.access_token {
         acc.token = token.clone();
         storage::save_account(&app, &acc).await?;
     }
-    
+
     // 3. 检查 Antigravity 是否运行
     let was_running = process::is_antigravity_running();
-    
+
     if was_running {
         // 4. 关闭进程（优先主进程）
         process::close_antigravity(20)?;
     }
-    
+
     // 5. 注入 Token（先备份数据库）
     let db_path = db::get_db_path()?;
     if db_path.exists() {
@@ -180,17 +182,17 @@ pub async fn antigravity_switch_account(
         &acc.token.refresh_token,
         acc.token.expiry_timestamp,
     )?;
-    
+
     // 6. 更新当前账号
     storage::set_current_account_id(&app, Some(account_id.clone())).await?;
-    
+
     // 7. 更新最后使用时间
     acc.update_last_used();
     storage::save_account(&app, &acc).await?;
 
     // 8. 获取自定义路径并启动 Antigravity
     std::thread::sleep(std::time::Duration::from_secs(1));
-    use crate::core::path_manager::{read_custom_path_from_config, ANTIGRAVITY_CONFIG};
+    use crate::core::path_manager::{ANTIGRAVITY_CONFIG, read_custom_path_from_config};
     let custom_path = read_custom_path_from_config(&app, &ANTIGRAVITY_CONFIG);
 
     process::launch_antigravity_with_path(custom_path.as_deref())?;
@@ -241,9 +243,10 @@ pub async fn antigravity_exchange_code(
     let email_to_check = user_info.email.trim().to_lowercase();
     let existing_accounts = storage::list_accounts(&app).await?;
 
-    if existing_accounts.iter().any(|account| {
-        account.email.trim().to_lowercase() == email_to_check
-    }) {
+    if existing_accounts
+        .iter()
+        .any(|account| account.email.trim().to_lowercase() == email_to_check)
+    {
         return Err("ANTIGRAVITY_EMAIL_EXISTS".to_string());
     }
 
@@ -285,7 +288,8 @@ pub async fn antigravity_start_oauth_login(app: AppHandle) -> Result<Account, St
          1. 访问 https://myaccount.google.com/permissions\n\
          2. 撤销 'Antigravity Tools' 的访问权限\n\
          3. 重新进行 OAuth 授权\n\n\
-         或者使用 '手动添加' 方式添加账号".to_string()
+         或者使用 '手动添加' 方式添加账号"
+            .to_string()
     })?;
 
     // 3. 获取用户信息
@@ -296,10 +300,14 @@ pub async fn antigravity_start_oauth_login(app: AppHandle) -> Result<Account, St
     let email_to_check = user_info.email.trim().to_lowercase();
     let existing_accounts = storage::list_accounts(&app).await?;
 
-    if existing_accounts.iter().any(|account| {
-        account.email.trim().to_lowercase() == email_to_check
-    }) {
-        return Err(format!("Account with email '{}' already exists", user_info.email));
+    if existing_accounts
+        .iter()
+        .any(|account| account.email.trim().to_lowercase() == email_to_check)
+    {
+        return Err(format!(
+            "Account with email '{}' already exists",
+            user_info.email
+        ));
     }
 
     // 5. 创建账号
@@ -314,8 +322,14 @@ pub async fn antigravity_start_oauth_login(app: AppHandle) -> Result<Account, St
     );
 
     eprintln!("创建 TokenData:");
-    eprintln!("  access_token: {}...", &token_res.access_token.chars().take(20).collect::<String>());
-    eprintln!("  refresh_token: {}...", &refresh_token.chars().take(20).collect::<String>());
+    eprintln!(
+        "  access_token: {}...",
+        &token_res.access_token.chars().take(20).collect::<String>()
+    );
+    eprintln!(
+        "  refresh_token: {}...",
+        &refresh_token.chars().take(20).collect::<String>()
+    );
     eprintln!("  expires_in: {}", token_res.expires_in);
     eprintln!("  email: {:?}", user_info.email);
 
@@ -326,7 +340,15 @@ pub async fn antigravity_start_oauth_login(app: AppHandle) -> Result<Account, St
     eprintln!("  id: {}", account.id);
     eprintln!("  email: {}", account.email);
     eprintln!("  name: {:?}", account.name);
-    eprintln!("  token.refresh_token: {}...", &account.token.refresh_token.chars().take(20).collect::<String>());
+    eprintln!(
+        "  token.refresh_token: {}...",
+        &account
+            .token
+            .refresh_token
+            .chars()
+            .take(20)
+            .collect::<String>()
+    );
 
     // 6. 保存账号
     eprintln!("正在保存账号信息...");
@@ -348,7 +370,7 @@ pub async fn antigravity_cancel_oauth_login() -> Result<(), String> {
 /// 获取自定义 Antigravity 路径
 #[tauri::command]
 pub async fn antigravity_get_custom_path(app: AppHandle) -> Result<Option<String>, String> {
-    use crate::core::path_manager::{get_custom_path, ANTIGRAVITY_CONFIG};
+    use crate::core::path_manager::{ANTIGRAVITY_CONFIG, get_custom_path};
     get_custom_path(&app, &ANTIGRAVITY_CONFIG)
 }
 
@@ -358,8 +380,10 @@ pub async fn antigravity_set_custom_path(
     app: AppHandle,
     path: Option<String>,
 ) -> Result<(), String> {
-    use crate::core::path_manager::{set_custom_path, ANTIGRAVITY_CONFIG};
-    set_custom_path(&app, &ANTIGRAVITY_CONFIG, path, |p| process::validate_antigravity_path(p))
+    use crate::core::path_manager::{ANTIGRAVITY_CONFIG, set_custom_path};
+    set_custom_path(&app, &ANTIGRAVITY_CONFIG, path, |p| {
+        process::validate_antigravity_path(p)
+    })
 }
 
 /// 验证 Antigravity 路径
@@ -371,13 +395,12 @@ pub async fn antigravity_validate_path(path: String) -> Result<bool, String> {
 /// 获取默认 Antigravity 路径
 #[tauri::command]
 pub async fn antigravity_get_default_path() -> Result<String, String> {
-    process::get_antigravity_executable_path()
-        .map(|p| p.to_string_lossy().to_string())
+    process::get_antigravity_executable_path().map(|p| p.to_string_lossy().to_string())
 }
 
 /// 打开文件选择对话框选择 Antigravity 可执行文件
 #[tauri::command]
 pub async fn antigravity_select_executable_path() -> Result<Option<String>, String> {
-    use crate::core::path_manager::{select_executable_path, ANTIGRAVITY_CONFIG};
+    use crate::core::path_manager::{ANTIGRAVITY_CONFIG, select_executable_path};
     select_executable_path(&ANTIGRAVITY_CONFIG)
 }
