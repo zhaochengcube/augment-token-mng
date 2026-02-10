@@ -4,7 +4,7 @@ version = "1.9.0"
 description = "Augment Token Manager - 用于生成和管理 Augment OAuth 访问令牌的桌面应用"
 authors = ["cubezhao"]
 license = "MIT"
-repository = "https://github.com/zhaochengcube/augment-token-mng"
+repository = "https://github.com/cubezhao/augment-token-mng"
 edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

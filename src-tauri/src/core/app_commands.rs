@@ -78,7 +78,7 @@ pub async fn check_for_updates() -> Result<UpdateInfo, String> {
     // 使用 GitHub RSS Feed，避免 API 速率限制
     let client = http_client::create_proxy_client()?;
     let response = client
-        .get("https://github.com/zhaochengcube/augment-token-mng/releases.atom")
+        .get("https://github.com/cubezhao/augment-token-mng/releases.atom")
         .header("User-Agent", "Mozilla/5.0 (compatible; ATM-App/1.0)")
         .send()
         .await
