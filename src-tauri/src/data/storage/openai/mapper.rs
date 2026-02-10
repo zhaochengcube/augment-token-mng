@@ -58,6 +58,8 @@ impl AccountDbMapper<Account> for OpenAIAccountMapper {
         };
 
         // 检查是否有配额字段（通过检查 codex_usage_updated_at 字段是否存在）
+        // is_forbidden 在索引 34
+        let is_forbidden: bool = row.try_get(34).unwrap_or(false);
         let quota = if row.len() > 18 {
             // 有配额字段
             let quota_data = QuotaData {
@@ -69,13 +71,19 @@ impl AccountDbMapper<Account> for OpenAIAccountMapper {
                 codex_7d_window_minutes: row.try_get(23).ok().flatten(),
                 codex_primary_over_secondary_percent: row.try_get(24).ok().flatten(),
                 codex_usage_updated_at: row.try_get(25).unwrap_or(chrono::Utc::now().timestamp()),
-                is_forbidden: false,
+                is_forbidden,
             };
-            if quota_data.is_valid() {
+            if quota_data.is_valid() || is_forbidden {
                 Some(quota_data)
             } else {
                 None
             }
+        } else if is_forbidden {
+            // 即使没有配额数据，如果 is_forbidden 为 true，也需要创建 quota
+            Some(QuotaData {
+                is_forbidden: true,
+                ..QuotaData::new()
+            })
         } else {
             None
         };
@@ -109,7 +117,7 @@ impl AccountDbMapper<Account> for OpenAIAccountMapper {
          codex_7d_used_percent, codex_7d_reset_after_seconds, codex_7d_window_minutes, \
          codex_primary_over_secondary_percent, codex_usage_updated_at, \
          account_type, model_provider, model, model_reasoning_effort, wire_api, base_url, api_key, \
-         openai_auth_json"
+         openai_auth_json, is_forbidden"
     }
 
     fn insert_sql() -> &'static str {
@@ -120,8 +128,8 @@ impl AccountDbMapper<Account> for OpenAIAccountMapper {
              version, deleted, tag, tag_color, codex_5h_used_percent, codex_5h_reset_after_seconds, codex_5h_window_minutes,
              codex_7d_used_percent, codex_7d_reset_after_seconds, codex_7d_window_minutes,
              codex_primary_over_secondary_percent, codex_usage_updated_at, account_type,
-             model_provider, model, model_reasoning_effort, wire_api, base_url, api_key, openai_auth_json)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34)
+             model_provider, model, model_reasoning_effort, wire_api, base_url, api_key, openai_auth_json, is_forbidden)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35)
         ON CONFLICT (id) DO UPDATE SET
             email = EXCLUDED.email,
             access_token = EXCLUDED.access_token,
@@ -154,7 +162,8 @@ impl AccountDbMapper<Account> for OpenAIAccountMapper {
             wire_api = EXCLUDED.wire_api,
             base_url = EXCLUDED.base_url,
             api_key = EXCLUDED.api_key,
-            openai_auth_json = EXCLUDED.openai_auth_json
+            openai_auth_json = EXCLUDED.openai_auth_json,
+            is_forbidden = EXCLUDED.is_forbidden
         "#
     }
 
@@ -228,6 +237,13 @@ impl AccountDbMapper<Account> for OpenAIAccountMapper {
                 (None, None, None, None, None, None)
             };
 
+        // 获取 is_forbidden
+        let is_forbidden = account
+            .quota
+            .as_ref()
+            .map(|q| q.is_forbidden)
+            .unwrap_or(false);
+
         vec![
             Box::new(account.id.clone()),
             Box::new(account.email.clone()),
@@ -263,6 +279,7 @@ impl AccountDbMapper<Account> for OpenAIAccountMapper {
             Box::new(base_url),
             Box::new(api_key),
             Box::new(account.openai_auth_json.clone()),
+            Box::new(is_forbidden),
         ]
     }
 }

@@ -54,7 +54,8 @@ pub async fn create_tables(
             last_used BIGINT NOT NULL,
             updated_at BIGINT NOT NULL,
             deleted BOOLEAN NOT NULL DEFAULT FALSE,
-            version BIGINT NOT NULL DEFAULT nextval('openai_account_version_seq')
+            version BIGINT NOT NULL DEFAULT nextval('openai_account_version_seq'),
+            is_forbidden BOOLEAN NOT NULL DEFAULT FALSE
         )
         "#,
             &[],
@@ -184,6 +185,30 @@ pub async fn add_new_fields_if_not_exist(
                 .await?;
             println!("Added column {} to openai_accounts", column);
         }
+    }
+
+    // 添加 is_forbidden 字段
+    let check_forbidden = client
+        .query_one(
+            "SELECT EXISTS (
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_name = 'openai_accounts'
+                AND column_name = 'is_forbidden'
+            )",
+            &[],
+        )
+        .await?;
+
+    let forbidden_exists: bool = check_forbidden.get(0);
+    if !forbidden_exists {
+        client
+            .execute(
+                "ALTER TABLE openai_accounts ADD COLUMN is_forbidden BOOLEAN NOT NULL DEFAULT FALSE",
+                &[],
+            )
+            .await?;
+        println!("Added column is_forbidden to openai_accounts");
     }
 
     // 添加 API 账号字段
