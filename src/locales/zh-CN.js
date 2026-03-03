@@ -1295,6 +1295,7 @@ export default {
       refreshQuota: '刷新',
       refreshAllQuota: '刷新本页配额',
       addAccount: '添加账号',
+      importAccounts: '导入账号',
       currentAccount: '当前账号',
       switching: '切换中...',
       switch: '切换',
@@ -1400,6 +1401,23 @@ export default {
       editApiAccountDialog: {
         title: '编辑 API 账号'
       },
+      importDialog: {
+        title: '导入 OpenAI 账号',
+        info: '从 JSON 文件导入 refresh token 列表，每行一个 token 对应一个账号。',
+        formatExample: '导入格式',
+        selectFile: '选择文件',
+        clickToSelect: '点击选择 JSON 文件',
+        supportFormat: '支持 JSON 数组格式：["refresh_token", "refresh_token", ...]',
+        reselect: '重新选择',
+        previewTitle: '预览（共 {count} 个 refresh token）',
+        resultTitle: '导入结果',
+        resultSummary: '成功 {success} / 失败 {failed} / 共 {total}',
+        import: '导入 ({count})',
+        emptyFile: '文件内容为空或没有有效的 refresh token',
+        invalidFormat: '无效的 JSON 格式，需要字符串数组',
+        readError: '读取文件失败',
+        importFailed: '导入失败'
+      },
       codexDialog: {
         buttonTooltip: 'Codex API 服务',
         title: 'Codex API 服务',
@@ -1487,7 +1505,8 @@ export default {
         deleteSuccess: '账号删除成功',
         deleteFailed: '删除失败: {error}',
         batchDeleteConfirm: '确定要删除选中的 {count} 个账号吗？',
-        noSelection: '请先选择要操作的账号'
+        noSelection: '请先选择要操作的账号',
+        importSuccess: '成功导入 {count} 个账号'
       }
     },
     claude: {

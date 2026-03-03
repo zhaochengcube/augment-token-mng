@@ -1303,6 +1303,7 @@ export default {
       refreshQuota: 'Refresh',
       refreshAllQuota: 'Refresh all quotas on current page',
       addAccount: 'Add Account',
+      importAccounts: 'Import Accounts',
       currentAccount: 'Current Account',
       switching: 'Switching...',
       switch: 'Switch',
@@ -1408,6 +1409,23 @@ export default {
       editApiAccountDialog: {
         title: 'Edit API Account'
       },
+      importDialog: {
+        title: 'Import OpenAI Accounts',
+        info: 'Import a list of refresh tokens from a JSON file. Each token will be added as one account.',
+        formatExample: 'Import Format',
+        selectFile: 'Select File',
+        clickToSelect: 'Click to select JSON file',
+        supportFormat: 'Supports JSON array format: ["refresh_token", "refresh_token", ...]',
+        reselect: 'Reselect',
+        previewTitle: 'Preview ({count} refresh tokens)',
+        resultTitle: 'Import Result',
+        resultSummary: 'Success {success} / Failed {failed} / Total {total}',
+        import: 'Import ({count})',
+        emptyFile: 'File is empty or has no valid refresh tokens',
+        invalidFormat: 'Invalid JSON format, expected array of strings',
+        readError: 'Failed to read file',
+        importFailed: 'Import failed'
+      },
       codexDialog: {
         buttonTooltip: 'Codex API Service',
         title: 'Codex API Service',
@@ -1495,7 +1513,8 @@ export default {
         deleteSuccess: 'Account deleted successfully',
         deleteFailed: 'Delete failed: {error}',
         batchDeleteConfirm: 'Are you sure you want to delete {count} selected accounts?',
-        noSelection: 'Please select accounts to operate'
+        noSelection: 'Please select accounts to operate',
+        importSuccess: 'Successfully imported {count} accounts'
       }
     },
     claude: {
