@@ -183,7 +183,7 @@ pub async fn load_database_config(app: AppHandle) -> Result<DatabaseConfig, Stri
         .map_err(|e| format!("Failed to load config: {}", e))
 }
 
-#[tauri::command(rename = "test_database_connection")]
+#[tauri::command]
 pub async fn test_database_connection_cmd(
     host: String,
     port: u16,

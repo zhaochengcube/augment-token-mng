@@ -275,7 +275,7 @@ const testConnection = async () => {
   isConnectionTested.value = false
 
   try {
-    await invoke('test_database_connection', {
+    await invoke('test_database_connection_cmd', {
       host: config.value.host,
       port: config.value.port,
       database: config.value.database,
