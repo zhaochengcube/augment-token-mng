@@ -715,9 +715,8 @@ async fn start_periodic_quota_refresh(app: tauri::AppHandle, state: &AppState) {
                     continue;
                 }
 
-                match crate::platforms::openai::modules::account::fetch_quota_with_retry(&mut account).await {
-                    Ok(quota) => {
-                        account.update_quota(quota);
+                match crate::platforms::openai::modules::account::refresh_quota_and_backfill(&mut account).await {
+                    Ok(_) => {
                         // 保存更新后的账号
                         if let Err(e) = crate::platforms::openai::modules::storage::save_account(&app, &account).await {
                             eprintln!("[Codex] Failed to save account {}: {}", account.email, e);

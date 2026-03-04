@@ -8,6 +8,10 @@ use tauri::Manager;
 
 const SCHEMA_VERSION: i32 = 2;
 
+fn default_schema_version() -> i32 {
+    SCHEMA_VERSION
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct DeletedRecord {
     id: String,
@@ -16,6 +20,7 @@ struct DeletedRecord {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct AccountStore<T> {
+    #[serde(default = "default_schema_version")]
     schema_version: i32,
     version: i64,
     current_account_id: Option<String>,

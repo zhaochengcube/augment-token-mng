@@ -82,7 +82,10 @@ pub async fn fetch_quota_with_retry(account: &mut Account) -> Result<QuotaData, 
                         Ok(new_token_res) => {
                             let new_token = crate::platforms::openai::models::TokenData::new(
                                 new_token_res.access_token.clone(),
-                                new_token_res.refresh_token.clone(),
+                                new_token_res
+                                    .refresh_token
+                                    .clone()
+                                    .or_else(|| account_token.refresh_token.clone()),
                                 new_token_res.id_token.clone(),
                                 new_token_res.expires_in,
                                 chrono::Utc::now().timestamp() + new_token_res.expires_in,
@@ -112,6 +115,15 @@ pub async fn fetch_quota_with_retry(account: &mut Account) -> Result<QuotaData, 
     }
 
     result
+}
+
+/// 刷新配额（含 token 续期、拉取配额、更新 account 配额与 openai_auth_json）。
+/// 供手动刷新、批量刷新、定时任务等统一调用；调用方负责保存账号。
+pub async fn refresh_quota_and_backfill(account: &mut Account) -> Result<QuotaData, String> {
+    let quota = fetch_quota_with_retry(account).await?;
+    account.update_quota(quota.clone());
+    backfill_openai_auth_json_if_missing(account);
+    Ok(quota)
 }
 
 pub async fn refresh_token_if_needed(
@@ -170,4 +182,31 @@ pub async fn refresh_token_if_needed(
     account.updated_at = chrono::Utc::now().timestamp();
 
     Ok(true)
+}
+
+fn has_empty_openai_auth_json(account: &Account) -> bool {
+    account
+        .openai_auth_json
+        .as_ref()
+        .map(|v| v.trim().is_empty())
+        .unwrap_or(true)
+}
+
+/// 用当前 token 中的 id_token 解析并更新 account.openai_auth_json（订阅到期、套餐等字段）。
+/// 解析逻辑在 oauth::extract_openai_auth_json：解码 JWT payload，取出 "https://api.openai.com/auth" 并序列化为 JSON。
+/// 可在刷新配额/刷新 token 后调用，保证订阅信息与 id_token 一致。
+pub fn backfill_openai_auth_json_if_missing(account: &mut Account) -> bool {
+    let id_token = account
+        .token
+        .as_ref()
+        .and_then(|t| t.id_token.as_deref());
+    let Some(id_token) = id_token else {
+        return false;
+    };
+    let Some(auth_json) = oauth::extract_openai_auth_json(id_token) else {
+        return false;
+    };
+    let was_empty = has_empty_openai_auth_json(account);
+    account.openai_auth_json = Some(auth_json);
+    was_empty
 }
