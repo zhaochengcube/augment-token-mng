@@ -37,7 +37,7 @@
       />
 
       <!-- 文件选择 -->
-      <div v-if="!previewTokens.length" class="form-group">
+      <div v-if="!previewItems.length" class="form-group">
         <label class="label">{{ $t('platform.openai.importDialog.selectFile') }}</label>
         <div
           class="flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-border p-8 cursor-pointer hover:border-accent hover:bg-accent/5 transition-colors"
@@ -73,17 +73,21 @@
         <div class="rounded-lg border border-border">
           <div class="flex items-center justify-between border-b border-border px-4 py-2 bg-surface-alt">
             <span class="text-sm font-medium text-text">
-              {{ $t('platform.openai.importDialog.previewTitle', { count: previewTokens.length }) }}
+              {{ $t('platform.openai.importDialog.previewTitle', { count: previewItems.length }) }}
             </span>
           </div>
           <div class="max-h-[300px] overflow-y-auto">
             <div
-              v-for="(token, index) in previewTokens"
+              v-for="(item, index) in previewItems"
               :key="index"
               class="flex items-center gap-2 px-4 py-2.5 border-b border-border last:border-b-0"
             >
               <span class="text-xs text-text-muted shrink-0">#{{ index + 1 }}</span>
-              <span class="text-sm text-text truncate font-mono">{{ maskToken(token) }}</span>
+              <span v-if="item.type === 'cpa'" class="flex items-center gap-2 text-sm text-text truncate">
+                <span class="badge badge--sm bg-accent/15 text-accent">CPA</span>
+                <span class="font-mono truncate">{{ item.email }}</span>
+              </span>
+              <span v-else class="text-sm text-text truncate font-mono">{{ maskToken(item.value) }}</span>
             </div>
           </div>
         </div>
@@ -143,14 +147,14 @@
         {{ importResult ? $t('common.close') : $t('common.cancel') }}
       </button>
       <button
-        v-if="previewTokens.length && !importResult"
+        v-if="previewItems.length && !importResult"
         @click="handleImport"
         class="btn btn--primary"
         :disabled="isImporting"
       >
         <span class="relative inline-flex items-center justify-center">
           <span :style="{ visibility: isImporting ? 'hidden' : 'visible' }">
-            {{ $t('platform.openai.importDialog.import', { count: previewTokens.length }) }}
+            {{ $t('platform.openai.importDialog.import', { count: previewItems.length }) }}
           </span>
           <span v-if="isImporting" class="btn-spinner absolute inset-0 m-auto" aria-hidden="true"></span>
         </span>
@@ -187,18 +191,43 @@ const { t: $t } = useI18n()
 const emit = defineEmits(['close', 'imported'])
 
 const showFormatModal = ref(false)
-const formatExampleJson = `[
-  "refresh_token_1",
-  "refresh_token_2",
-  "refresh_token_3"
+const formatExampleJson = `// 格式 1：Refresh Token 数组
+[
+  "rt_refresh_token_1",
+  "rt_refresh_token_2"
+]
+
+// 格式 2：CPA 单个对象
+{
+  "type": "codex",
+  "email": "user@example.com",
+  "account_id": "861bf615-...",
+  "access_token": "eyJ...",
+  "refresh_token": "rt_...",
+  "id_token": "eyJ..."
+}
+
+// 格式 3：CPA 对象数组
+[
+  {
+    "type": "codex",
+    "email": "user1@example.com",
+    "access_token": "eyJ...",
+    "refresh_token": "rt_...",
+    ...
+  }
 ]`
 
 const fileName = ref('')
-const previewTokens = ref([])
+const previewItems = ref([])
 const importResult = ref(null)
 const isImporting = ref(false)
 const error = ref('')
 const fileInputRef = ref(null)
+
+const isCpaObject = (item) => {
+  return item && typeof item === 'object' && typeof item.access_token === 'string'
+}
 
 const handleClose = () => {
   if (isImporting.value) return
@@ -222,17 +251,37 @@ const handleFileChange = async (event) => {
     const content = await file.text()
     const data = JSON.parse(content)
 
-    const tokens = Array.isArray(data) ? data : [data]
+    const items = []
 
-    const validTokens = tokens.filter(item => typeof item === 'string' && item.trim().length > 0)
+    if (Array.isArray(data)) {
+      for (const entry of data) {
+        if (typeof entry === 'string' && entry.trim().length > 0) {
+          items.push({ type: 'rt', value: entry.trim() })
+        } else if (isCpaObject(entry)) {
+          items.push({
+            type: 'cpa',
+            email: entry.email || '',
+            data: entry
+          })
+        }
+      }
+    } else if (isCpaObject(data)) {
+      items.push({
+        type: 'cpa',
+        email: data.email || '',
+        data: data
+      })
+    } else if (typeof data === 'string' && data.trim().length > 0) {
+      items.push({ type: 'rt', value: data.trim() })
+    }
 
-    if (validTokens.length === 0) {
+    if (items.length === 0) {
       error.value = $t('platform.openai.importDialog.emptyFile')
       return
     }
 
     fileName.value = file.name
-    previewTokens.value = validTokens.map(s => s.trim())
+    previewItems.value = items
     importResult.value = null
     error.value = ''
   } catch (err) {
@@ -245,35 +294,43 @@ const handleFileChange = async (event) => {
 
 const clearFile = () => {
   fileName.value = ''
-  previewTokens.value = []
+  previewItems.value = []
   importResult.value = null
   error.value = ''
 }
 
 const handleImport = async () => {
-  if (!previewTokens.value.length || isImporting.value) return
+  if (!previewItems.value.length || isImporting.value) return
 
   error.value = ''
   isImporting.value = true
   const results = []
+  const accountIds = []
   let success_count = 0
   let failed_count = 0
 
   try {
-    for (let i = 0; i < previewTokens.value.length; i++) {
-      const token = previewTokens.value[i]
+    for (const item of previewItems.value) {
       try {
-        const account = await invoke('openai_add_account', { refreshToken: token })
-        try {
-          await invoke('openai_fetch_quota', { accountId: account?.id })
-        } catch (quotaErr) {
-          console.warn('Fetch quota after add failed:', quotaErr)
+        let account
+        if (item.type === 'cpa') {
+          const d = item.data
+          account = await invoke('openai_import_account_direct', {
+            email: d.email,
+            accountId: d.account_id || null,
+            accessToken: d.access_token,
+            refreshToken: d.refresh_token || null,
+            idToken: d.id_token || null
+          })
+        } else {
+          account = await invoke('openai_add_account', { refreshToken: item.value })
         }
-        results.push({ success: true, email: account?.email || '' })
+        results.push({ success: true, email: account?.email || item.email || '' })
+        if (account?.id) accountIds.push(account.id)
         success_count++
       } catch (err) {
         const msg = err?.message || err || String(err)
-        results.push({ success: false, email: '', error: msg })
+        results.push({ success: false, email: item.email || '', error: msg })
         failed_count++
       }
     }
@@ -281,12 +338,12 @@ const handleImport = async () => {
     importResult.value = {
       success_count,
       failed_count,
-      total: previewTokens.value.length,
+      total: previewItems.value.length,
       results
     }
 
     if (success_count > 0) {
-      emit('imported', importResult.value)
+      emit('imported', { ...importResult.value, accountIds })
     }
   } catch (err) {
     console.error('Import error:', err)

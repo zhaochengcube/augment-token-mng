@@ -27,6 +27,10 @@ export const useSettingsStore = defineStore('settings', () => {
   // Tray state - read from localStorage
   const trayEnabled = ref(localStorage.getItem('tray_enabled') === 'true')
 
+  // Dock visibility state (macOS only) - default visible
+  const isMacOS = navigator.platform?.startsWith('Mac') || navigator.userAgent?.includes('Macintosh')
+  const dockVisible = ref(localStorage.getItem('dock_visible') !== 'false')
+
   // Telegram config state
   const telegramConfig = ref({
     enabled: false,
@@ -193,6 +197,31 @@ export const useSettingsStore = defineStore('settings', () => {
     }
   }
 
+  // Toggle dock visibility (macOS only)
+  const toggleDock = async (visible) => {
+    if (!isMacOS) return
+    try {
+      const { setDockVisibility } = await import('@tauri-apps/api/app')
+      await setDockVisibility(visible)
+      dockVisible.value = visible
+      localStorage.setItem('dock_visible', String(visible))
+    } catch (error) {
+      console.error('Failed to toggle dock:', error)
+      throw error
+    }
+  }
+
+  // Initialize dock based on stored preference
+  const initializeDock = async () => {
+    if (!isMacOS || dockVisible.value) return
+    try {
+      const { setDockVisibility } = await import('@tauri-apps/api/app')
+      await setDockVisibility(false)
+    } catch (error) {
+      console.error('Failed to initialize dock:', error)
+    }
+  }
+
   // Load telegram config
   const loadTelegramConfig = async (force = false) => {
     if (!force && telegramLoaded.value) {
@@ -244,6 +273,8 @@ export const useSettingsStore = defineStore('settings', () => {
     proxyConfig,
     databaseConfig,
     trayEnabled,
+    isMacOS,
+    dockVisible,
     telegramConfig,
     
     // Loading states
@@ -262,7 +293,9 @@ export const useSettingsStore = defineStore('settings', () => {
     loadTelegramConfig,
     loadAllSettings,
     toggleTray,
-    initializeTray
+    initializeTray,
+    toggleDock,
+    initializeDock
   }
 })
 

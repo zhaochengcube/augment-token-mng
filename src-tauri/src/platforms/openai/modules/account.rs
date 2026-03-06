@@ -42,28 +42,31 @@ pub async fn fetch_quota_with_retry(account: &mut Account) -> Result<QuotaData, 
         return Err("API accounts do not support quota fetching".to_string());
     }
 
-    // 1. 确保Token有效（提前 1 天刷新，配合定时任务自动续期）
+    // 1. 尝试刷新 Token（提前 1 天刷新），失败则 fallback 用现有 token
     let current_token = account
         .token
         .as_ref()
         .ok_or_else(|| "OAuth account missing token".to_string())?;
     let token = match oauth::ensure_fresh_token_with_window(current_token, 86400).await {
-        Ok(token) => token,
-        Err(e) => {
-            if e.contains("invalid_grant") || e.contains("401") {
-                return Err(format!("Token refresh failed: {}", e));
+        Ok(token) => {
+            if let Some(ref account_token) = account.token {
+                if token.access_token != account_token.access_token {
+                    println!("Token refreshed, updating account");
+                    account.token = Some(token.clone());
+                    account.updated_at = chrono::Utc::now().timestamp();
+                }
             }
-            return Err(e);
+            account.rt_invalid = false;
+            token
+        }
+        Err(e) => {
+            println!("Token refresh failed (will try existing token): {}", e);
+            if e.contains("refresh_token_reused") || e.contains("invalid_grant") {
+                account.rt_invalid = true;
+            }
+            current_token.clone()
         }
     };
-
-    if let Some(ref account_token) = account.token {
-        if token.access_token != account_token.access_token {
-            println!("Token refreshed, updating account");
-            account.token = Some(token.clone());
-            account.updated_at = chrono::Utc::now().timestamp();
-        }
-    }
 
     // 2. 查询配额
     let result =
@@ -91,8 +94,8 @@ pub async fn fetch_quota_with_retry(account: &mut Account) -> Result<QuotaData, 
 
                             account.token = Some(new_token.clone());
                             account.updated_at = chrono::Utc::now().timestamp();
+                            account.rt_invalid = false;
 
-                            // 重试查询
                             println!("Retrying quota fetch with new token...");
                             return quota::fetch_quota(
                                 &new_token.access_token,
@@ -101,6 +104,9 @@ pub async fn fetch_quota_with_retry(account: &mut Account) -> Result<QuotaData, 
                             .await;
                         }
                         Err(e) => {
+                            if e.contains("refresh_token_reused") || e.contains("invalid_grant") {
+                                account.rt_invalid = true;
+                            }
                             return Err(format!("Token refresh failed: {}", e));
                         }
                     }

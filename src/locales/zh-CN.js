@@ -821,6 +821,11 @@ export default {
     quit: '退出',
     toggleFailed: '切换托盘状态失败'
   },
+  dock: {
+    title: 'Dock 图标',
+    description: '在 macOS Dock 栏显示应用图标',
+    toggleFailed: '切换 Dock 图标失败'
+  },
   telegram: {
     title: 'Telegram 通知',
     description: '通过 Telegram Bot 发送订阅到期提醒',
@@ -919,6 +924,86 @@ export default {
     subject: '主题',
     time: '时间',
     noContent: '(无内容)'
+  },
+  hmeManager: {
+    title: 'iCloud HME',
+    cookie: {
+      title: 'iCloud Cookie',
+      placeholder: '粘贴你的 iCloud Cookie...',
+      replacePlaceholder: '粘贴新的 Cookie 以替换当前值...',
+      alreadySet: 'Cookie 已保存在内存中',
+      clickToEdit: '点击更换',
+      save: '保存',
+      validate: '验证',
+      clear: '清空',
+      helpTitle: '如何获取 Cookie',
+      helpText: '打开 icloud.com 并登录，按 F12 打开开发者工具，在任意网络请求的请求头中找到完整的 Cookie 值——通常会以 X_APPLE_WEB 开头。',
+      status: {
+        unset: '未设置',
+        loaded: '已加载',
+        valid: '有效',
+        invalid: '无效'
+      }
+    },
+    generate: {
+      title: '生成 HME 邮箱',
+      count: '数量',
+      label: '标签',
+      labelPlaceholder: '例如: ATM HME',
+      limitHint: '30 分钟内最多创建 5 个，总上限约 750 个',
+      btn: '生成并预留',
+      generating: '生成中...',
+      cooldownSuffix: '后可再次生成',
+      successCount: '成功 {n} 个',
+      failedCount: '失败 {n} 个',
+      stoppedEarly: '提前停止'
+    },
+    list: {
+      title: 'HME 邮箱列表',
+      active: '活跃',
+      inactive: '停用',
+      searchPlaceholder: '搜索标签或邮箱...',
+      empty: '暂无数据',
+      labelCol: '标签',
+      emailCol: '邮箱',
+      createdAtCol: '创建时间'
+    },
+    batch: {
+      selected: '已选择 {n} 项',
+      deactivate: '停用所选',
+      delete: '删除所选',
+      cleanup: '一键清理'
+    },
+    confirm: {
+      deactivateTitle: '停用确认',
+      deactivateMessage: '确定要停用选中的 {n} 个邮箱吗？',
+      deleteTitle: '删除确认',
+      deleteMessage: '确定要删除选中的 {n} 个邮箱吗？此操作无法撤销。',
+      cleanupTitle: '清理确认',
+      cleanupMessage: '确定要停用并删除选中的 {n} 个邮箱吗？此操作无法撤销。'
+    },
+    messages: {
+      cookieSaved: 'Cookie 已保存',
+      cookieSaveFailed: 'Cookie 保存失败',
+      cookieValid: 'Cookie 验证通过',
+      cookieInvalid: 'Cookie 无效或已过期',
+      cookieValidateFailed: 'Cookie 验证失败',
+      cookieCleared: 'Cookie 已清空',
+      cookieClearFailed: 'Cookie 清空失败',
+      generateSuccess: '成功生成 {n} 个邮箱',
+      generatePartialFail: '{n} 个生成失败',
+      generateRateLimited: '30 分钟内最多创建 5 个，请 {time} 后再试',
+      generateFailed: '生成邮箱失败',
+      listFailed: '获取列表失败',
+      listFallbackLocal: '网络异常，已显示本地缓存',
+      deactivateSuccess: '成功停用 {n} 个邮箱',
+      deactivateFailed: '停用失败',
+      deleteSuccess: '成功删除 {n} 个邮箱',
+      deleteFailed: '删除失败',
+      cleanupSuccess: '成功清理 {n} 个邮箱',
+      cleanupFailed: '清理失败',
+      batchPartialFail: '{n} 个操作失败'
+    }
   },
   apiServer: {
     title: 'API 服务器状态',
@@ -1348,6 +1433,7 @@ export default {
       },
       quota5h: '5h配额',
       quota7d: '7d配额',
+      rtInvalid: 'Refresh Token 已失效',
       actions: {
         switch: '切换账号',
         refresh: '刷新账号',
@@ -1403,18 +1489,18 @@ export default {
       },
       importDialog: {
         title: '导入 OpenAI 账号',
-        info: '从 JSON 文件导入 refresh token 列表，每行一个 token 对应一个账号。',
+        info: '支持导入 Refresh Token 数组或 CPA 格式账号文件（单个对象或对象数组）。',
         formatExample: '导入格式',
         selectFile: '选择文件',
         clickToSelect: '点击选择 JSON 文件',
-        supportFormat: '支持 JSON 数组格式：["refresh_token", "refresh_token", ...]',
+        supportFormat: '支持 RT 数组 / CPA 单个对象 / CPA 对象数组',
         reselect: '重新选择',
-        previewTitle: '预览（共 {count} 个 refresh token）',
+        previewTitle: '预览（共 {count} 个账号）',
         resultTitle: '导入结果',
         resultSummary: '成功 {success} / 失败 {failed} / 共 {total}',
         import: '导入 ({count})',
-        emptyFile: '文件内容为空或没有有效的 refresh token',
-        invalidFormat: '无效的 JSON 格式，需要字符串数组',
+        emptyFile: '文件内容为空或没有有效的账号数据',
+        invalidFormat: '无效的 JSON 格式',
         readError: '读取文件失败',
         importFailed: '导入失败'
       },

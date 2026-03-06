@@ -179,6 +179,14 @@
         <span>{{ $t('platform.antigravity.quotaForbidden') }}</span>
       </div>
 
+      <!-- RT 失效警告 -->
+      <div v-if="!isApiAccount && account.rt_invalid" class="flex items-center gap-2 rounded bg-warning/10 px-2 py-1.5 text-xs text-warning">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+        </svg>
+        <span>{{ $t('platform.openai.rtInvalid') }}</span>
+      </div>
+
       <!-- 5h 配额 (仅 OAuth 账号) -->
       <div v-if="!isApiAccount && !account.quota?.is_forbidden && account.quota?.codex_5h_used_percent !== null && account.quota?.codex_5h_used_percent !== undefined"
            class="flex items-center gap-1 min-h-6">

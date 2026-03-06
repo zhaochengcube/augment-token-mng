@@ -840,6 +840,13 @@ const handleRefreshQuota = async (accountId) => {
     window.$notify?.success($t('platform.openai.messages.quotaRefreshSuccess'))
   } catch (error) {
     console.error('Failed to refresh quota:', error)
+    try {
+      const reloaded = await invoke('openai_load_account', { accountId })
+      const index = accounts.value.findIndex(a => a.id === accountId)
+      if (index !== -1) {
+        accounts.value[index] = reloaded
+      }
+    } catch {}
     window.$notify?.error($t('platform.openai.messages.quotaRefreshFailed', { error: error?.message || error }))
   } finally {
     refreshingIds.value.delete(accountId)
@@ -867,7 +874,6 @@ const handleRefreshToken = async (accountId) => {
   refreshingIds.value.add(accountId)
   try {
     const updatedAccount = await invoke('openai_refresh_account', { accountId })
-    // 直接更新本地数组中的账号数据
     const index = accounts.value.findIndex(a => a.id === accountId)
     if (index !== -1) {
       accounts.value[index] = updatedAccount
@@ -876,6 +882,13 @@ const handleRefreshToken = async (accountId) => {
     window.$notify?.success($t('platform.openai.messages.refreshSuccess'))
   } catch (error) {
     console.error('Failed to refresh account:', error)
+    try {
+      const reloaded = await invoke('openai_load_account', { accountId })
+      const index = accounts.value.findIndex(a => a.id === accountId)
+      if (index !== -1) {
+        accounts.value[index] = reloaded
+      }
+    } catch {}
     window.$notify?.error($t('platform.openai.messages.refreshFailed', { error: error?.message || error }))
   } finally {
     refreshingIds.value.delete(accountId)
@@ -919,6 +932,16 @@ const handleAccountsImported = async (result) => {
   await loadAccounts()
   if (result?.success_count > 0) {
     window.$notify?.success($t('platform.openai.messages.importSuccess', { count: result.success_count }))
+    if (result.accountIds?.length) {
+      result.accountIds.forEach(id => markItemUpsertById(id))
+      const oauthIds = result.accountIds.filter(id => {
+        const acc = accounts.value.find(a => a.id === id)
+        return acc && acc.account_type !== 'api'
+      })
+      if (oauthIds.length) {
+        Promise.allSettled(oauthIds.map(id => handleRefreshQuota(id)))
+      }
+    }
   }
 }
 

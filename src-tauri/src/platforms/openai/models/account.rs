@@ -77,6 +77,9 @@ pub struct Account {
     pub version: i64,
     #[serde(default)]
     pub deleted: bool,
+    /// Refresh Token 是否已失效
+    #[serde(default)]
+    pub rt_invalid: bool,
 }
 
 impl SyncableAccount for Account {
@@ -149,6 +152,7 @@ impl Account {
             updated_at: now,
             version: 0,
             deleted: false,
+            rt_invalid: false,
         }
     }
 
@@ -174,6 +178,7 @@ impl Account {
             updated_at: now,
             version: 0,
             deleted: false,
+            rt_invalid: false,
         }
     }
 

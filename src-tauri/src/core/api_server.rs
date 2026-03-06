@@ -116,6 +116,8 @@ pub async fn start_api_server_cmd(
             openai_oauth_sessions: state.openai_oauth_sessions.clone(),
             api_server: Mutex::new(None),
             outlook_manager: Mutex::new(OutlookManager::new()),
+            hme_cookie: state.hme_cookie.clone(),
+            hme_storage: state.hme_storage.clone(),
             storage_manager: state.storage_manager.clone(),
             antigravity_storage_manager: state.antigravity_storage_manager.clone(),
             windsurf_storage_manager: state.windsurf_storage_manager.clone(),

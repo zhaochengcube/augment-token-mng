@@ -11,7 +11,8 @@
     "dialog:allow-save",
     "fs:allow-write-text-file",
     "fs:allow-write-file",
-    "fs:write-all"
+    "fs:write-all",
+    "core:app:allow-set-dock-visibility"
   ]
 }
 

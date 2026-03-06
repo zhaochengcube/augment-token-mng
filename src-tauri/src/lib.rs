@@ -40,7 +40,7 @@ pub use platforms::{antigravity, augment, claude, cursor, openai, windsurf};
 
 use crate::core::tray::TrayState;
 use crate::data::subscription::SubscriptionDualStorage;
-use crate::features::mail::{gptmail, outlook};
+use crate::features::mail::{gptmail, hme, hme_storage::HmeStorage, outlook};
 use crate::platforms::augment::models::AugmentOAuthState;
 use crate::platforms::openai::codex::logger::RequestLogger;
 use crate::platforms::openai::codex::pool::CodexServerConfig;
@@ -72,6 +72,8 @@ pub struct AppState {
     pub openai_oauth_sessions: Arc<Mutex<HashMap<String, OpenAIOAuthSession>>>,
     api_server: Mutex<Option<api_server::ApiServer>>,
     outlook_manager: Mutex<OutlookManager>,
+    pub hme_cookie: Arc<Mutex<Option<String>>>,
+    pub hme_storage: Arc<Mutex<Option<Arc<HmeStorage>>>>,
     pub storage_manager: Arc<Mutex<Option<Arc<DualStorage>>>>,
     pub antigravity_storage_manager: Arc<Mutex<Option<Arc<AntigravityDualStorage>>>>,
     pub windsurf_storage_manager: Arc<Mutex<Option<Arc<WindsurfDualStorage>>>>,
@@ -127,6 +129,12 @@ pub fn run() {
                 openai_oauth_sessions: Arc::new(Mutex::new(HashMap::new())),
                 api_server: Mutex::new(None),
                 outlook_manager: Mutex::new(OutlookManager::new()),
+                hme_cookie: Arc::new(Mutex::new(None)),
+                hme_storage: Arc::new(Mutex::new(
+                    HmeStorage::new(app_data_dir.clone())
+                        .map(Arc::new)
+                        .ok(),
+                )),
                 storage_manager: Arc::new(Mutex::new(None)),
                 antigravity_storage_manager: Arc::new(Mutex::new(None)),
                 windsurf_storage_manager: Arc::new(Mutex::new(None)),
@@ -372,6 +380,8 @@ pub fn run() {
                         openai_oauth_sessions: state.openai_oauth_sessions.clone(),
                         api_server: Mutex::new(None),
                         outlook_manager: Mutex::new(OutlookManager::new()),
+                        hme_cookie: state.hme_cookie.clone(),
+                        hme_storage: state.hme_storage.clone(),
                         storage_manager: state.storage_manager.clone(),
                         antigravity_storage_manager: state.antigravity_storage_manager.clone(),
                         windsurf_storage_manager: state.windsurf_storage_manager.clone(),
@@ -545,6 +555,7 @@ pub fn run() {
             openai::openai_refresh_all_tokens,
             openai::openai_load_accounts_json,
             openai::openai_add_account,
+            openai::openai_import_account_direct,
             openai::openai_add_api_account,
             openai::openai_update_api_account,
             openai::openai_save_accounts,
@@ -703,6 +714,20 @@ pub fn run() {
             // GPTMail 管理命令
             gptmail::generate_random_email,
             gptmail::get_emails,
+
+            // iCloud HME 管理命令
+            hme::hme_set_cookie,
+            hme::hme_get_cookie,
+            hme::hme_clear_cookie,
+            hme::hme_has_cookie,
+            hme::hme_validate_cookie,
+            hme::hme_generate,
+            hme::hme_list,
+            hme::hme_list_local,
+            hme::hme_sync,
+            hme::hme_deactivate,
+            hme::hme_delete,
+            hme::hme_cleanup,
 
             // 数据库配置命令
             database::save_database_config,

@@ -196,18 +196,23 @@ pub async fn openai_fetch_quota(app: AppHandle, account_id: String) -> Result<Ac
         return Err("API accounts do not support quota fetching".to_string());
     }
 
-    let quota = account_module::fetch_quota_with_retry(&mut acc).await?;
-    println!("Fetched quota: {:?}", quota);
+    match account_module::fetch_quota_with_retry(&mut acc).await {
+        Ok(quota) => {
+            println!("Fetched quota: {:?}", quota);
+            acc.update_quota(quota);
+        }
+        Err(e) => {
+            println!("Quota fetch failed: {}", e);
+            // 保存状态变更（rt_invalid、token 更新等）后返回错误
+            let _ = storage::save_account(&app, &acc).await;
+            return Err(e);
+        }
+    }
 
-    // 更新账户配额
-    acc.update_quota(quota);
     backfill_openai_auth_json_if_missing(&mut acc);
-
-    // 保存账户
     storage::save_account(&app, &acc).await?;
     println!("Updated account quota");
 
-    // 重新加载账户以获取更新后的完整数据
     let updated_acc = storage::load_account(&app, &account_id).await?;
     Ok(updated_acc)
 }
@@ -470,6 +475,72 @@ pub async fn openai_add_account(app: AppHandle, refresh_token: String) -> Result
     Ok(account)
 }
 
+/// 从 JWT 的 payload 中解析 exp 字段
+fn parse_jwt_exp(jwt: &str) -> Option<i64> {
+    let payload = jwt.split('.').nth(1)?;
+    let decoded = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(payload.as_bytes())
+        .ok()?;
+    let claims: serde_json::Value = serde_json::from_slice(&decoded).ok()?;
+    claims.get("exp")?.as_i64()
+}
+
+/// 直接导入 CPA 格式账号（无需调用 OpenAI API）
+#[tauri::command]
+pub async fn openai_import_account_direct(
+    app: AppHandle,
+    email: String,
+    account_id: Option<String>,
+    access_token: String,
+    refresh_token: Option<String>,
+    id_token: Option<String>,
+) -> Result<Account, String> {
+    let existing_accounts = storage::list_accounts(&app).await.unwrap_or_default();
+
+    let chatgpt_account_id = account_id.clone().or_else(|| {
+        id_token
+            .as_deref()
+            .and_then(oauth::parse_id_token)
+            .and_then(|u| u.chatgpt_account_id)
+    });
+
+    if Account::is_duplicate(&email, &chatgpt_account_id, &existing_accounts) {
+        return Err(format!("账号已存在: {}", email));
+    }
+
+    let unique_email =
+        Account::generate_unique_email(&email, &chatgpt_account_id, &existing_accounts);
+
+    let user_info = id_token.as_deref().and_then(oauth::parse_id_token);
+    let openai_auth_json = id_token.as_deref().and_then(oauth::extract_openai_auth_json);
+
+    let now = chrono::Utc::now().timestamp();
+    let expires_at = parse_jwt_exp(&access_token).unwrap_or(now + 864000);
+    let expires_in = (expires_at - now).max(0);
+
+    let token = TokenData::new(
+        access_token,
+        refresh_token,
+        id_token,
+        expires_in,
+        expires_at,
+        Some("Bearer".to_string()),
+    );
+
+    let mut account = Account::new_oauth(
+        unique_email,
+        token,
+        chatgpt_account_id,
+        user_info.as_ref().and_then(|u| u.chatgpt_user_id.clone()),
+        user_info.as_ref().and_then(|u| u.organization_id.clone()),
+    );
+    account.openai_auth_json = openai_auth_json;
+
+    storage::save_account(&app, &account).await?;
+
+    Ok(account)
+}
+
 /// 添加 API 类型账号
 #[tauri::command]
 pub async fn openai_add_api_account(
@@ -633,33 +704,44 @@ pub async fn openai_refresh_account(app: AppHandle, account_id: String) -> Resul
     // 刷新 token
     if let Some(ref token) = acc.token {
         if let Some(refresh_token) = &token.refresh_token {
-            let token_res = oauth::refresh_token(refresh_token).await?;
+            match oauth::refresh_token(refresh_token).await {
+                Ok(token_res) => {
+                    let now = chrono::Utc::now().timestamp();
+                    acc.token = Some(TokenData::new(
+                        token_res.access_token,
+                        token_res.refresh_token,
+                        token_res.id_token,
+                        token_res.expires_in,
+                        now + token_res.expires_in,
+                        token_res.token_type,
+                    ));
+                    acc.updated_at = now;
+                    acc.rt_invalid = false;
 
-            let now = chrono::Utc::now().timestamp();
-            acc.token = Some(TokenData::new(
-                token_res.access_token,
-                token_res.refresh_token,
-                token_res.id_token,
-                token_res.expires_in,
-                now + token_res.expires_in,
-                token_res.token_type,
-            ));
-            acc.updated_at = now;
-
-            // 解析新的 id_token 获取 chatgpt_account_id
-            if let Some(id_token) = &acc.token.as_ref().and_then(|t| t.id_token.as_ref()) {
-                if let Some(user_info) = oauth::parse_id_token(id_token) {
-                    println!(
-                        "New ChatGPT Account ID from refresh: {:?}",
-                        user_info.chatgpt_account_id
-                    );
-                    if let Some(new_chatgpt_id) = user_info.chatgpt_account_id {
-                        acc.chatgpt_account_id = Some(new_chatgpt_id);
+                    if let Some(id_token) =
+                        &acc.token.as_ref().and_then(|t| t.id_token.as_ref())
+                    {
+                        if let Some(user_info) = oauth::parse_id_token(id_token) {
+                            println!(
+                                "New ChatGPT Account ID from refresh: {:?}",
+                                user_info.chatgpt_account_id
+                            );
+                            if let Some(new_chatgpt_id) = user_info.chatgpt_account_id {
+                                acc.chatgpt_account_id = Some(new_chatgpt_id);
+                            }
+                        }
                     }
+
+                    storage::save_account(&app, &acc).await?;
+                }
+                Err(e) => {
+                    if e.contains("refresh_token_reused") || e.contains("invalid_grant") {
+                        acc.rt_invalid = true;
+                        let _ = storage::save_account(&app, &acc).await;
+                    }
+                    return Err(e);
                 }
             }
-
-            storage::save_account(&app, &acc).await?;
         }
     }
 

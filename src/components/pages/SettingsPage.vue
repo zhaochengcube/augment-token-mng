@@ -35,25 +35,48 @@
 
         <!-- Section Content -->
         <div class="flex flex-col gap-[18px]">
-          <!-- System Tray Row -->
-          <div class="flex items-center justify-between gap-[18px]">
-            <div class="flex flex-col gap-1">
-              <span class="text-sm font-semibold text-text">{{ $t('tray.title') }}</span>
-              <span class="text-xs text-text-muted">{{ $t('tray.description') }}</span>
+          <div class="grid gap-[18px]" :class="isMacOS ? 'grid-cols-2' : 'grid-cols-1'">
+            <!-- System Tray -->
+            <div class="flex items-center justify-between gap-3">
+              <div class="flex flex-col gap-1">
+                <span class="text-sm font-semibold text-text">{{ $t('tray.title') }}</span>
+                <span class="text-xs text-text-muted">{{ $t('tray.description') }}</span>
+              </div>
+              <button
+                @click="handleTrayToggle"
+                :disabled="isTogglingTray"
+                class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+                :class="trayEnabled ? 'bg-accent' : 'bg-border'"
+                role="switch"
+                :aria-checked="trayEnabled"
+              >
+                <span
+                  class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out"
+                  :class="trayEnabled ? 'translate-x-6' : 'translate-x-1'"
+                />
+              </button>
             </div>
-            <button
-              @click="handleTrayToggle"
-              :disabled="isTogglingTray"
-              class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
-              :class="trayEnabled ? 'bg-accent' : 'bg-border'"
-              role="switch"
-              :aria-checked="trayEnabled"
-            >
-              <span
-                class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out"
-                :class="trayEnabled ? 'translate-x-6' : 'translate-x-1'"
-              />
-            </button>
+
+            <!-- Dock Visibility (macOS only) -->
+            <div v-if="isMacOS" class="flex items-center justify-between gap-3">
+              <div class="flex flex-col gap-1">
+                <span class="text-sm font-semibold text-text">{{ $t('dock.title') }}</span>
+                <span class="text-xs text-text-muted">{{ $t('dock.description') }}</span>
+              </div>
+              <button
+                @click="handleDockToggle"
+                :disabled="isTogglingDock"
+                class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+                :class="dockVisible ? 'bg-accent' : 'bg-border'"
+                role="switch"
+                :aria-checked="dockVisible"
+              >
+                <span
+                  class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out"
+                  :class="dockVisible ? 'translate-x-6' : 'translate-x-1'"
+                />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -163,10 +186,13 @@ const proxyEnabled = computed(() => settingsStore.proxyConfig.enabled)
 const databaseConnected = computed(() => settingsStore.databaseConfig.enabled)
 const hasCustomFont = computed(() => !!localStorage.getItem('user-font-sans'))
 const trayEnabled = computed(() => settingsStore.trayEnabled)
+const isMacOS = computed(() => settingsStore.isMacOS)
+const dockVisible = computed(() => settingsStore.dockVisible)
 const telegramEnabled = computed(() => settingsStore.telegramConfig.enabled)
 
-// Tray toggle state
+// Toggle states
 const isTogglingTray = ref(false)
+const isTogglingDock = ref(false)
 
 // Configuration cards data
 const configCards = computed(() => [
@@ -243,6 +269,18 @@ const handleTrayToggle = async () => {
     window.$notify?.error(t('tray.toggleFailed'))
   } finally {
     isTogglingTray.value = false
+  }
+}
+
+const handleDockToggle = async () => {
+  isTogglingDock.value = true
+  try {
+    await settingsStore.toggleDock(!dockVisible.value)
+  } catch (error) {
+    console.error('Failed to toggle dock:', error)
+    window.$notify?.error(t('dock.toggleFailed'))
+  } finally {
+    isTogglingDock.value = false
   }
 }
 

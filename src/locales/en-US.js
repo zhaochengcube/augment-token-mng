@@ -254,7 +254,7 @@ export default {
     databaseConfig: 'Database Config',
     sync: 'Sync',
     syncing: 'Syncing...',
-    syncTooltip: 'Perform bidirectional sync (Local ↔ Database)',
+    syncTooltip: 'Perform bidirectional sync (Local 鈫?Database)',
     showRealEmail: 'Show Real Email',
     hideRealEmail: 'Hide Real Email',
     sessionExpiring: '{count} Session(s) Expiring Soon',
@@ -819,6 +819,11 @@ export default {
     quit: 'Quit',
     toggleFailed: 'Failed to toggle tray'
   },
+  dock: {
+    title: 'Dock Icon',
+    description: 'Show app icon in macOS Dock',
+    toggleFailed: 'Failed to toggle Dock icon'
+  },
   telegram: {
     title: 'Telegram Notification',
     description: 'Send subscription expiry reminders via Telegram Bot',
@@ -917,6 +922,85 @@ export default {
     subject: 'Subject',
     time: 'Time',
     noContent: '(No content)'
+  },
+  hmeManager: {
+    title: 'iCloud HME',
+    cookie: {
+      title: 'iCloud Cookie',
+      placeholder: 'Paste your iCloud Cookie here...',
+      replacePlaceholder: 'Paste new Cookie to replace current one...',
+      alreadySet: 'Cookie is saved in memory',
+      clickToEdit: 'Click to change',
+      save: 'Save',
+      clear: 'Clear',
+      helpTitle: 'How to get Cookie',
+      helpText: 'Open icloud.com and log in, press F12 to open DevTools, find the full Cookie value in the request headers of any network request — it usually starts with X_APPLE_WEB',
+      status: {
+        unset: 'Not Set',
+        loaded: 'Loaded',
+        valid: 'Valid',
+        invalid: 'Invalid'
+      }
+    },
+    generate: {
+      title: 'Generate HME Emails',
+      count: 'Count',
+      label: 'Label',
+      labelPlaceholder: 'e.g. ATM HME',
+      limitHint: 'Max 5 every 30 minutes, about 750 total.',
+      btn: 'Generate & Reserve',
+      generating: 'Generating...',
+      cooldownSuffix: 'remaining',
+      successCount: '{n} succeeded',
+      failedCount: '{n} failed',
+      stoppedEarly: 'Stopped early'
+    },
+    list: {
+      title: 'HME Email List',
+      active: 'Active',
+      inactive: 'Inactive',
+      searchPlaceholder: 'Search label or email...',
+      empty: 'No data',
+      labelCol: 'Label',
+      emailCol: 'Email',
+      createdAtCol: 'Created At'
+    },
+    batch: {
+      selected: '{n} selected',
+      deactivate: 'Deactivate Selected',
+      delete: 'Delete Selected',
+      cleanup: 'Deactivate & Delete'
+    },
+    confirm: {
+      deactivateTitle: 'Confirm Deactivation',
+      deactivateMessage: 'Are you sure you want to deactivate {n} selected email(s)?',
+      deleteTitle: 'Confirm Deletion',
+      deleteMessage: 'Are you sure you want to delete {n} selected email(s)? This cannot be undone.',
+      cleanupTitle: 'Confirm Cleanup',
+      cleanupMessage: 'Are you sure you want to deactivate and delete {n} selected email(s)? This cannot be undone.'
+    },
+    messages: {
+      cookieSaved: 'Cookie saved',
+      cookieSaveFailed: 'Failed to save cookie',
+      cookieValid: 'Cookie is valid',
+      cookieInvalid: 'Cookie is invalid or expired',
+      cookieValidateFailed: 'Failed to validate cookie',
+      cookieCleared: 'Cookie cleared',
+      cookieClearFailed: 'Failed to clear cookie',
+      generateSuccess: 'Successfully generated {n} email(s)',
+      generatePartialFail: '{n} generation(s) failed',
+      generateRateLimited: 'Max 5 emails every 30 minutes. Please try again in {time}.',
+      generateFailed: 'Failed to generate emails',
+      listFailed: 'Failed to load list',
+      listFallbackLocal: 'API unavailable, showing local cached data',
+      deactivateSuccess: 'Successfully deactivated {n} email(s)',
+      deactivateFailed: 'Failed to deactivate',
+      deleteSuccess: 'Successfully deleted {n} email(s)',
+      deleteFailed: 'Failed to delete',
+      cleanupSuccess: 'Successfully cleaned up {n} email(s)',
+      cleanupFailed: 'Failed to cleanup',
+      batchPartialFail: '{n} operation(s) failed'
+    }
   },
   apiServer: {
     title: 'API Server Status',
@@ -1356,6 +1440,7 @@ export default {
       },
       quota5h: '5h Quota',
       quota7d: '7d Quota',
+      rtInvalid: 'Refresh Token is invalid',
       actions: {
         switch: 'Switch account',
         refresh: 'Refresh account',
@@ -1411,18 +1496,18 @@ export default {
       },
       importDialog: {
         title: 'Import OpenAI Accounts',
-        info: 'Import a list of refresh tokens from a JSON file. Each token will be added as one account.',
+        info: 'Supports importing Refresh Token arrays or CPA format account files (single object or array).',
         formatExample: 'Import Format',
         selectFile: 'Select File',
         clickToSelect: 'Click to select JSON file',
-        supportFormat: 'Supports JSON array format: ["refresh_token", "refresh_token", ...]',
+        supportFormat: 'Supports RT array / CPA single object / CPA object array',
         reselect: 'Reselect',
-        previewTitle: 'Preview ({count} refresh tokens)',
+        previewTitle: 'Preview ({count} accounts)',
         resultTitle: 'Import Result',
         resultSummary: 'Success {success} / Failed {failed} / Total {total}',
         import: 'Import ({count})',
-        emptyFile: 'File is empty or has no valid refresh tokens',
-        invalidFormat: 'Invalid JSON format, expected array of strings',
+        emptyFile: 'File is empty or has no valid account data',
+        invalidFormat: 'Invalid JSON format',
         readError: 'Failed to read file',
         importFailed: 'Import failed'
       },
@@ -1628,7 +1713,7 @@ export default {
     size: 'Font Size',
     sizeHint: 'Unit: px. Recommended range: 10-24.',
     preview: 'Preview',
-    previewText: 'The quick brown fox jumps over the lazy dog. 快速的棕色狐狸跳过懒狗。1234567890',
+    previewText: 'The quick brown fox jumps over the lazy dog. 蹇€熺殑妫曡壊鐙愮嫺璺宠繃鎳掔嫍銆?234567890',
     reset: 'Reset to Default',
     apply: 'Apply',
     currentFont: 'Current Font',
@@ -1644,8 +1729,8 @@ export default {
     defaultPath: 'Default Path',
     selecting: 'Selecting...',
     browse: 'Browse',
-    pathValid: '✓ Path is valid',
-    pathInvalid: '✗ Invalid path',
+    pathValid: '鉁?Path is valid',
+    pathInvalid: '鉁?Invalid path',
     resetToDefault: 'Reset to Default',
     save: 'Save',
     saving: 'Saving...',
@@ -1726,3 +1811,4 @@ export default {
     sortByExpiry: 'By Expiry'
   }
 }
+

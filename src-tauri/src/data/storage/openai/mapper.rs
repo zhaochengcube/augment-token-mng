@@ -88,6 +88,8 @@ impl AccountDbMapper<Account> for OpenAIAccountMapper {
             None
         };
 
+        let rt_invalid: bool = row.try_get(35).unwrap_or(false);
+
         Ok(Account {
             id: row.get(0),
             email: row.get(1),
@@ -106,6 +108,7 @@ impl AccountDbMapper<Account> for OpenAIAccountMapper {
             updated_at: row.get(13),
             deleted: row.get(14),
             version: row.get(15),
+            rt_invalid,
         })
     }
 
@@ -117,7 +120,7 @@ impl AccountDbMapper<Account> for OpenAIAccountMapper {
          codex_7d_used_percent, codex_7d_reset_after_seconds, codex_7d_window_minutes, \
          codex_primary_over_secondary_percent, codex_usage_updated_at, \
          account_type, model_provider, model, model_reasoning_effort, wire_api, base_url, api_key, \
-         openai_auth_json, is_forbidden"
+         openai_auth_json, is_forbidden, rt_invalid"
     }
 
     fn insert_sql() -> &'static str {
@@ -128,8 +131,8 @@ impl AccountDbMapper<Account> for OpenAIAccountMapper {
              version, deleted, tag, tag_color, codex_5h_used_percent, codex_5h_reset_after_seconds, codex_5h_window_minutes,
              codex_7d_used_percent, codex_7d_reset_after_seconds, codex_7d_window_minutes,
              codex_primary_over_secondary_percent, codex_usage_updated_at, account_type,
-             model_provider, model, model_reasoning_effort, wire_api, base_url, api_key, openai_auth_json, is_forbidden)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35)
+             model_provider, model, model_reasoning_effort, wire_api, base_url, api_key, openai_auth_json, is_forbidden, rt_invalid)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36)
         ON CONFLICT (id) DO UPDATE SET
             email = EXCLUDED.email,
             access_token = EXCLUDED.access_token,
@@ -163,7 +166,8 @@ impl AccountDbMapper<Account> for OpenAIAccountMapper {
             base_url = EXCLUDED.base_url,
             api_key = EXCLUDED.api_key,
             openai_auth_json = EXCLUDED.openai_auth_json,
-            is_forbidden = EXCLUDED.is_forbidden
+            is_forbidden = EXCLUDED.is_forbidden,
+            rt_invalid = EXCLUDED.rt_invalid
         "#
     }
 
@@ -280,6 +284,7 @@ impl AccountDbMapper<Account> for OpenAIAccountMapper {
             Box::new(api_key),
             Box::new(account.openai_auth_json.clone()),
             Box::new(is_forbidden),
+            Box::new(account.rt_invalid),
         ]
     }
 }

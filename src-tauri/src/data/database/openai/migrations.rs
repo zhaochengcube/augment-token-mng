@@ -211,6 +211,30 @@ pub async fn add_new_fields_if_not_exist(
         println!("Added column is_forbidden to openai_accounts");
     }
 
+    // 添加 rt_invalid 字段
+    let check_rt_invalid = client
+        .query_one(
+            "SELECT EXISTS (
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_name = 'openai_accounts'
+                AND column_name = 'rt_invalid'
+            )",
+            &[],
+        )
+        .await?;
+
+    let rt_invalid_exists: bool = check_rt_invalid.get(0);
+    if !rt_invalid_exists {
+        client
+            .execute(
+                "ALTER TABLE openai_accounts ADD COLUMN rt_invalid BOOLEAN NOT NULL DEFAULT FALSE",
+                &[],
+            )
+            .await?;
+        println!("Added column rt_invalid to openai_accounts");
+    }
+
     // 添加 API 账号字段
     for (column, data_type) in &api_columns {
         let check_column = client

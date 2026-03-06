@@ -83,6 +83,7 @@
               </svg>
               <span v-if="!isSidebarCollapsed" class="flex-1 min-w-0 truncate">{{ $t('app.bookmarkManager') }}</span>
             </button>
+            -->
 
             <button
               :class="[
@@ -100,7 +101,6 @@
               </svg>
               <span v-if="!isSidebarCollapsed" class="flex-1 min-w-0 truncate">{{ $t('emails.title') }}</span>
             </button>
-            -->
 
           </nav>
 
@@ -199,8 +199,8 @@
         <!-- Bookmarks View -->
         <BookmarkPage v-if="activeView === 'bookmarks'" :key="'bookmarks-' + viewRefreshKey" />
 
-        <!-- Emails View -->
-        <EmailPage v-if="activeView === 'emails'" :key="'emails-' + viewRefreshKey" />
+        <!-- Emails View (v-show to preserve sub-view state when switching sidebar) -->
+        <EmailPage v-show="activeView === 'emails'" ref="emailPageRef" />
 
         <!-- Subscriptions View -->
         <SubscriptionPage
@@ -270,6 +270,7 @@ const settingsStore = useSettingsStore()
 // 主视图类型定义：'platforms' | 'bookmarks' | 'emails' | 'settings'
 const activeView = ref('platforms')
 const platformSelectorRef = ref(null)
+const emailPageRef = ref(null)
 // 侧边栏折叠状态
 const isSidebarCollapsed = ref(false)
 
@@ -282,6 +283,14 @@ const navigateToView = (view) => {
     const selector = platformSelectorRef.value
     if (selector && typeof selector.clearSelection === 'function') {
       selector.clearSelection()
+    }
+    return
+  }
+
+  if (view === 'emails' && activeView.value === 'emails') {
+    const page = emailPageRef.value
+    if (page && typeof page.clearSelection === 'function') {
+      page.clearSelection()
     }
     return
   }
@@ -532,6 +541,9 @@ onMounted(async () => {
 
   // 初始化系统托盘（根据用户设置）
   settingsStore.initializeTray()
+
+  // 初始化 Dock 图标状态（macOS，根据用户设置）
+  settingsStore.initializeDock()
 
   // 监听托盘菜单点击事件
   await listen('tray-menu-clicked', (event) => {
