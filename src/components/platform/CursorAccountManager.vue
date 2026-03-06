@@ -753,9 +753,13 @@ const handleAccountUpdated = async (updatedAccount) => {
   }
 }
 
-const handleMachineIdGenerated = async () => {
+const handleMachineIdGenerated = async (accountId) => {
   // 重新加载账号列表以获取更新后的机器码信息
   await loadAccounts()
+  // 触发同步队列更新（标记该账号待同步，不自动执行同步）
+  if (accountId && isDatabaseAvailable.value) {
+    markItemUpsertById(accountId)
+  }
 }
 
 const toggleViewMode = () => {

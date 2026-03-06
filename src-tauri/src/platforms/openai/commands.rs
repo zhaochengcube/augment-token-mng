@@ -7,32 +7,6 @@ use crate::AppState;
 use crate::platforms::openai::models::{Account, OpenAIAuthUrlResult, OpenAITokenInfo, TokenData};
 use crate::platforms::openai::modules::{account as account_module, oauth, oauth_server, storage};
 
-fn has_empty_openai_auth_json(account: &Account) -> bool {
-    account
-        .openai_auth_json
-        .as_ref()
-        .map(|v| v.trim().is_empty())
-        .unwrap_or(true)
-}
-
-fn backfill_openai_auth_json_if_missing(account: &mut Account) -> bool {
-    if !has_empty_openai_auth_json(account) {
-        return false;
-    }
-    let id_token = account
-        .token
-        .as_ref()
-        .and_then(|t| t.id_token.as_deref());
-    let Some(id_token) = id_token else {
-        return false;
-    };
-    let Some(auth_json) = oauth::extract_openai_auth_json(id_token) else {
-        return false;
-    };
-    account.openai_auth_json = Some(auth_json);
-    true
-}
-
 #[tauri::command]
 pub async fn openai_generate_auth_url(
     state: State<'_, AppState>,
@@ -140,7 +114,9 @@ pub async fn openai_exchange_code(
 pub async fn openai_refresh_token(refresh_token: String) -> Result<OpenAITokenInfo, String> {
     let token = oauth::refresh_token(&refresh_token).await?;
     let user_info = token.id_token.as_deref().and_then(oauth::parse_id_token);
-    oauth::build_token_info(token, user_info)
+    let mut info = oauth::build_token_info(token, user_info)?;
+    info.refresh_token = info.refresh_token.or(Some(refresh_token));
+    Ok(info)
 }
 
 /// 列出所有 OpenAI 账号
@@ -234,10 +210,8 @@ pub async fn openai_refresh_all_quotas(app: AppHandle) -> Result<RefreshStats, S
     let mut details = Vec::new();
 
     for mut account in accounts {
-        match account_module::fetch_quota_with_retry(&mut account).await {
-            Ok(quota) => {
-                account.update_quota(quota);
-                backfill_openai_auth_json_if_missing(&mut account);
+        match account_module::refresh_quota_and_backfill(&mut account).await {
+            Ok(_) => {
                 if let Err(e) = storage::save_account(&app, &account).await {
                     failed += 1;
                     details.push(format!("Account {}: Failed to save: {}", account.email, e));
@@ -298,6 +272,7 @@ pub async fn openai_refresh_account_token(
     let refreshed =
         account_module::refresh_token_if_needed(&mut account, window_secs, force).await?;
     if refreshed {
+        account_module::backfill_openai_auth_json_if_missing(&mut account);
         storage::save_account(&app, &account).await?;
     }
 
@@ -448,11 +423,14 @@ pub async fn openai_add_account(app: AppHandle, refresh_token: String) -> Result
         Account::generate_unique_email(&email, &chatgpt_account_id, &existing_accounts);
     println!("Unique Email: {}", unique_email);
 
-    // 2. 构造 TokenData
+    // 2. 构造 TokenData（优先使用接口返回的新 refresh_token，未返回则保留用户提供的）
     let now = chrono::Utc::now().timestamp();
     let token = TokenData::new(
         token_res.access_token.clone(),
-        token_res.refresh_token.clone(),
+        token_res
+            .refresh_token
+            .clone()
+            .or(Some(refresh_token.clone())),
         token_res.id_token.clone(),
         token_res.expires_in,
         now + token_res.expires_in,
