@@ -1,5 +1,5 @@
 export default {
-  base: '/',
+  base: '/augment-token-mng/',
   title: 'AI Tools Manager',
   description: 'ATM 文档',
   head: [['meta', { name: 'theme-color', content: '#646cff' }]],
