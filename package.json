@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "docs:dev": "pnpm --prefix docs docs:dev",
+    "docs:build": "pnpm --prefix docs docs:build",
+    "docs:preview": "pnpm --prefix docs docs:preview"
   },
   "dependencies": {
     "@floating-ui/vue": "^1.1.9",

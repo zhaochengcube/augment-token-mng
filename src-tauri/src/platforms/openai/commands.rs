@@ -185,7 +185,7 @@ pub async fn openai_fetch_quota(app: AppHandle, account_id: String) -> Result<Ac
         }
     }
 
-    backfill_openai_auth_json_if_missing(&mut acc);
+    account_module::backfill_openai_auth_json_if_missing(&mut acc);
     storage::save_account(&app, &acc).await?;
     println!("Updated account quota");
 

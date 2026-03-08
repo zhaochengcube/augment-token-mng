@@ -42,7 +42,7 @@ export default {
     actions: '操作'
   },
   app: {
-    title: 'Augment Token Manager',
+    title: 'AI Tools Manager',
     appHome: 'App仓库',
     pluginHome: '插件仓库',
     telegramGroup: 'ATM群聊',
@@ -623,7 +623,7 @@ export default {
     sessionAutoImportFailed: 'Session 自动导入失败',
     openAuthUrlFailed: '打开授权URL失败',
     oauthTitle: 'Augment OAuth 授权',
-    appHomeTitle: 'App主页 - Augment Token Manager',
+    appHomeTitle: 'App主页 - AI Tools Manager',
     pluginHomeTitle: '插件主页 - Augment Code Auto',
     noTokensToCheck: '没有可检查的 Token',
     accountStatusCheckComplete: '账号状态检查完成 ({success}/{total})',

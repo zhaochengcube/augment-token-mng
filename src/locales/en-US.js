@@ -42,7 +42,7 @@ export default {
     actions: 'Actions'
   },
   app: {
-    title: 'Augment Token Manager',
+    title: 'AI Tools Manager',
     appHome: 'App Repository',
     pluginHome: 'Plugin Repository',
     telegramGroup: 'ATM Group Chat',
@@ -621,7 +621,7 @@ export default {
     sessionAutoImportFailed: 'Session auto-import failed',
     openAuthUrlFailed: 'Failed to open authorization URL',
     oauthTitle: 'Augment OAuth Authorization',
-    appHomeTitle: 'App Home - Augment Token Manager',
+    appHomeTitle: 'App Home - AI Tools Manager',
     pluginHomeTitle: 'Plugin Home - Augment Code Auto',
     noTokensToCheck: 'No tokens to check',
     accountStatusCheckComplete: 'Account status check complete ({success}/{total})',
@@ -1036,7 +1036,7 @@ export default {
   },
   platform: {
     augment: {
-      title: 'Augment Token Manager',
+      title: 'AI Tools Manager',
       subtitle: 'Manage your Augment access tokens'
     },
     windsurf: {

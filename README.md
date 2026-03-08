@@ -1,10 +1,24 @@
-# Augment Token Manager
+# AI Tools Manager
 
-一个基于 Tauri 构建的跨平台桌面应用程序，用于生成和管理 Augment Code 访问令牌。
+[English](README.en.md) | 中文
 
-![](./3.png)
+基于 Tauri 的跨平台桌面应用，用于管理多平台 AI 账号，以及订阅与邮箱。
 
-![](./4.png)
+![](./img/atm.png)
+
+## 功能概览
+
+- **账号与平台**：支持 Augment、Antigravity、Windsurf、Cursor、OpenAI（Codex、API）、Claude Code 与 API 账号管理与一键切号。
+- **代理**：支持 Codex 本地透传反代，仅限在 Codex Cli/Droid 中使用。
+- **订阅**：支持订阅管理，配置到期时间与 Telegram 通知，查看剩余时间与到期提醒。
+- **邮箱**：支持 iCloud 隐藏邮箱（HME）（需 iCloud+ 账号）的生成、停用和删除。
+
+## 技术栈
+
+- Tauri 2（Rust）
+- Vue3、Pinia
+- Tailwind 4
+- Vite
 
 ## 安装指南
 
@@ -16,7 +30,7 @@
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
 # 使用 Homebrew 安装依赖
-brew tap zhaochengcube/atm
+brew tap cubezhao/atm
 brew install --cask atm
 # 更新
 brew update
@@ -32,7 +46,7 @@ Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
 irm get.scoop.sh | iex
 
 # 使用 Scoop 安装依赖
-scoop bucket add atm https://github.com/zhaochengcube/scoop-atm
+scoop bucket add atm https://github.com/cubezhao/scoop-atm
 scoop install atm
 # 更新
 scoop update atm
@@ -41,7 +55,12 @@ scoop uninstall atm
 ```
 
 ### Release 下载安装
-在[Release](https://github.com/zhaochengcube/augment-token-mng/releases) 中根据平台选择对应的安装包进行安装即可
+在[Release](https://github.com/cubezhao/augment-token-mng/releases) 中根据平台选择对应的安装包进行安装即可
+
+### 安装问题
+MacOS平台安装之后出现“ATM.app已损坏，无法打开...”，在终端执行以下命令即可
+
+`sudo xattr -dr com.apple.quarantine /Applications/ATM.app`
 
 ### 手动环境准备
 
@@ -111,34 +130,6 @@ cargo tauri build    # 构建生产版本
 ```
 
 
-## 使用方法
-
-1. **生成授权 URL**
-   - 点击"生成 Augment 授权 URL"按钮
-   - 复制生成的 URL 或点击"打开授权 URL"在浏览器中打开
-
-2. **浏览器授权**
-   - 完成 OAuth 授权流程
-   - 从浏览器复制 JSON 响应
-
-3. **获取访问令牌**
-   - 将 JSON 响应粘贴到文本区域
-   - 点击"获取访问令牌"
-   - 复制生成的访问令牌和租户 URL
-
-4. **令牌管理**
-   - 点击"保存 Token"保存当前令牌
-   - 点击"已保存 Token"查看和管理所有保存的令牌
-   - 支持编辑、删除和复制令牌
-
-5. **Session导入/自动导入**
-   - Session导入按照主页中的帮助按钮提示操作
-   - 自动导入，点击"自动导入"按钮，按照提示在浏览器中登录augment，登录后会在窗口右边显示导入Session的按钮，点击即可导入
-
-6. **插件下载**
-   - VSCode及其Fork使用[配套插件](https://github.com/zhaochengcube/augment-code-auto)
-   - JetBrains系列产品使用[此插件](https://github.com/zhaochengcube/augment-token-mng/releases/download/v0.5.0/augment-token-mng-1.0.zip) 注意：JetBrains插件可能导致封号
-
 ## 许可证
 
 本项目是开源项目，采用 MIT 许可证。
@@ -151,15 +142,15 @@ cargo tauri build    # 构建生产版本
   <tr>
     <td align="center" style="padding: 20px; background: rgba(232, 248, 236, 0.6); border-radius: 16px;">
       <h4>⭐ 微信支付</h4>
-      <img src="./wx.jpg" width="180" style="border-radius: 12px;">
+      <img src="./img/wx.jpg" width="180" style="border-radius: 12px;">
     </td>
     <td align="center" style="padding: 20px; background: rgba(234, 243, 255, 0.6); border-radius: 16px;">
       <h4>⭐ 支付宝</h4>
-      <img src="./zfb.jpg" width="180" style="border-radius: 12px;">
+      <img src="./img/zfb.jpg" width="180" style="border-radius: 12px;">
     </td>
   </tr>
 </table>
 
 ## ⭐ Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=zhaochengcube/augment-token-mng&type=Date)](https://star-history.com/#zhaochengcube/augment-token-mng&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=cubezhao/augment-token-mng&type=Date)](https://star-history.com/#cubezhao/augment-token-mng&Date)

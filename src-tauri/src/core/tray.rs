@@ -76,7 +76,7 @@ pub fn create_tray(app: AppHandle) -> Result<bool, String> {
         .icon(app.default_window_icon().unwrap().clone())
         .menu(&menu)
         .show_menu_on_left_click(false)
-        .tooltip("ATM - Account Token Manager")
+        .tooltip("ATM - AI Tools Manager")
         .on_tray_icon_event(|tray, event| {
             // Handle left click - show window
             if let TrayIconEvent::Click {
