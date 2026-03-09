@@ -66,7 +66,11 @@ impl CodexExecutor {
         }
 
         let mapped_path = map_upstream_path(&request.path)?;
-        let upstream_url = build_upstream_url(&self.upstream_origin, &mapped_path, request.query.as_deref());
+        let upstream_url = build_upstream_url(
+            &self.upstream_origin,
+            &mapped_path,
+            request.query.as_deref(),
+        );
 
         let mut attempted_ids = HashSet::new();
         let mut selection_budget = active_count.saturating_mul(3).max(1);
@@ -90,10 +94,7 @@ impl CodexExecutor {
                 started_at: Instant::now(),
             };
 
-            let response = match self
-                .send_once(&upstream_url, &request, &account)
-                .await
-            {
+            let response = match self.send_once(&upstream_url, &request, &account).await {
                 Ok(resp) => resp,
                 Err(err) => {
                     self.pool.record_failure(&account.id, None).await;
@@ -234,7 +235,10 @@ fn should_strip_request_header(header_name: &str) -> bool {
 }
 
 fn should_retry_status(status: StatusCode) -> bool {
-    matches!(status.as_u16(), 401 | 403 | 408 | 429 | 500 | 502 | 503 | 504)
+    matches!(
+        status.as_u16(),
+        401 | 403 | 408 | 429 | 500 | 502 | 503 | 504
+    )
 }
 
 fn is_retryable_transport_error(err: &reqwest::Error) -> bool {

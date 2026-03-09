@@ -1576,6 +1576,23 @@ export default {
         switchSuccess: '账号切换成功',
         switchFailed: '切换失败: {error}'
       },
+      codexRuntimeSettings: {
+        title: 'Codex 运行时设置',
+        quotaRefresh: {
+          title: '配额自动刷新',
+          description: '定期为 OAuth 账号刷新 Codex 配额。',
+          intervalLabel: '间隔（分钟）'
+        },
+        fastMode: {
+          title: '快速模式',
+          description: '修改 Codex 配置文件（~/.codex/config.toml）中的 service_tier 与 fast_mode。'
+        },
+        messages: {
+          loadFailed: '加载设置失败: {error}',
+          saveSuccess: 'Codex 设置已保存',
+          saveFailed: '保存设置失败: {error}'
+        }
+      },
       messages: {
         switchSuccess: '账号切换成功',
         updateSuccess: '账号更新成功',

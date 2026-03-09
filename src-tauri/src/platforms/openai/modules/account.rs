@@ -47,6 +47,7 @@ pub async fn fetch_quota_with_retry(account: &mut Account) -> Result<QuotaData, 
         .token
         .as_ref()
         .ok_or_else(|| "OAuth account missing token".to_string())?;
+    let needs_proactive_refresh = oauth::token_needs_refresh(current_token, 86400);
     let token = match oauth::ensure_fresh_token_with_window(current_token, 86400).await {
         Ok(token) => {
             if let Some(ref account_token) = account.token {
@@ -56,7 +57,10 @@ pub async fn fetch_quota_with_retry(account: &mut Account) -> Result<QuotaData, 
                     account.updated_at = chrono::Utc::now().timestamp();
                 }
             }
-            account.rt_invalid = false;
+            // Only clear rt_invalid when a refresh was actually needed and succeeded.
+            if needs_proactive_refresh {
+                account.rt_invalid = false;
+            }
             token
         }
         Err(e) => {
@@ -202,10 +206,7 @@ fn has_empty_openai_auth_json(account: &Account) -> bool {
 /// 解析逻辑在 oauth::extract_openai_auth_json：解码 JWT payload，取出 "https://api.openai.com/auth" 并序列化为 JSON。
 /// 可在刷新配额/刷新 token 后调用，保证订阅信息与 id_token 一致。
 pub fn backfill_openai_auth_json_if_missing(account: &mut Account) -> bool {
-    let id_token = account
-        .token
-        .as_ref()
-        .and_then(|t| t.id_token.as_deref());
+    let id_token = account.token.as_ref().and_then(|t| t.id_token.as_deref());
     let Some(id_token) = id_token else {
         return false;
     };

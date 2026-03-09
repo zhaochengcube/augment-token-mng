@@ -144,11 +144,12 @@ pub async fn start_api_server_cmd(
     *state.api_server.lock().unwrap() = Some(server);
 
     // 初始化 Codex 状态
-    if let Err(err) = crate::platforms::openai::codex::commands::init_codex_enabled_state_on_startup(
-        &app,
-        state.inner(),
-    )
-    .await
+    if let Err(err) =
+        crate::platforms::openai::codex::commands::init_codex_enabled_state_on_startup(
+            &app,
+            state.inner(),
+        )
+        .await
     {
         eprintln!("Failed to initialize Codex enabled state: {}", err);
     }

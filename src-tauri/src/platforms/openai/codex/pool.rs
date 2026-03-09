@@ -131,7 +131,9 @@ impl CodexPool {
         let selected_id = self.selected_account_id.read().await.clone();
 
         let account = if let Some(id) = selected_id {
-            pool.iter().find(|a| a.id == id && a.is_available()).cloned()
+            pool.iter()
+                .find(|a| a.id == id && a.is_available())
+                .cloned()
         } else {
             // 没有选中账号时，使用第一个可用账号
             pool.iter().find(|a| a.is_available()).cloned()
@@ -148,8 +150,7 @@ impl CodexPool {
 
     /// 智能选号：按打分从高到低选择，同分随机打破平衡
     async fn select_smart(&self, pool: &[CodexPoolAccount]) -> Option<CodexPoolAccount> {
-        let available: Vec<&CodexPoolAccount> =
-            pool.iter().filter(|a| a.is_available()).collect();
+        let available: Vec<&CodexPoolAccount> = pool.iter().filter(|a| a.is_available()).collect();
 
         if available.is_empty() {
             return None;
@@ -193,7 +194,11 @@ impl CodexPool {
 
     /// 记录账号请求失败并进入冷却
     /// 返回 Some(account_id) 如果账号被标记为 forbidden
-    pub async fn record_failure(&self, account_id: &str, status_code: Option<u16>) -> Option<String> {
+    pub async fn record_failure(
+        &self,
+        account_id: &str,
+        status_code: Option<u16>,
+    ) -> Option<String> {
         let mut pool = self.accounts.write().await;
         let Some(account) = pool.iter_mut().find(|a| a.id == account_id) else {
             return None;
@@ -282,12 +287,16 @@ impl CodexPool {
 
         let total_tokens: i64 = pool.iter().map(|a| a.total_tokens_used).sum();
 
+        let selected_account_id = if matches!(strategy, PoolStrategy::Single) {
+            selected_id.clone()
+        } else {
+            None
+        };
+
         // 获取选中账号的邮箱
         let selected_account_email = if matches!(strategy, PoolStrategy::Single) {
             if let Some(id) = &selected_id {
-                pool.iter()
-                    .find(|a| &a.id == id)
-                    .map(|a| a.email.clone())
+                pool.iter().find(|a| &a.id == id).map(|a| a.email.clone())
             } else {
                 None
             }
@@ -305,6 +314,7 @@ impl CodexPool {
             total_requests_today: *counter,
             total_tokens_used: total_tokens as u64,
             strategy,
+            selected_account_id,
             selected_account_email,
         }
     }
@@ -395,10 +405,24 @@ pub struct CodexServerConfig {
     pub selected_account_id: Option<String>,
     #[serde(default)]
     pub api_key: Option<String>,
+    #[serde(default = "default_quota_refresh_enabled")]
+    pub quota_refresh_enabled: bool,
+    #[serde(default = "default_quota_refresh_interval_seconds")]
+    pub quota_refresh_interval_seconds: u64,
+    #[serde(default)]
+    pub fast_mode_enabled: bool,
 }
 
 fn default_codex_enabled() -> bool {
     true
+}
+
+fn default_quota_refresh_enabled() -> bool {
+    true
+}
+
+fn default_quota_refresh_interval_seconds() -> u64 {
+    30 * 60
 }
 
 impl Default for CodexServerConfig {
@@ -409,6 +433,9 @@ impl Default for CodexServerConfig {
             pool_strategy: "round-robin".to_string(),
             selected_account_id: None,
             api_key: None,
+            quota_refresh_enabled: true,
+            quota_refresh_interval_seconds: 30 * 60,
+            fast_mode_enabled: false,
         }
     }
 }

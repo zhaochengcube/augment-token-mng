@@ -91,7 +91,8 @@ pub struct AppState {
     pub codex_executor: Arc<Mutex<Option<Arc<CodexExecutor>>>>,
     pub codex_logger: Arc<Mutex<Option<Arc<tokio::sync::RwLock<RequestLogger>>>>>,
     codex_server: Arc<Mutex<Option<CodexServer>>>,
-    pub codex_unsupported_params: Arc<crate::platforms::openai::codex::server::UnsupportedParamCache>,
+    pub codex_unsupported_params:
+        Arc<crate::platforms::openai::codex::server::UnsupportedParamCache>,
     pub codex_server_config: Arc<Mutex<Option<CodexServerConfig>>>,
     pub codex_log_storage: Arc<Mutex<Option<Arc<CodexLogStorage>>>>,
     pub proxy_config: Arc<Mutex<Option<crate::core::proxy_config::ProxyConfig>>>,
@@ -335,21 +336,6 @@ pub fn run() {
                 }
 
                 // 启动 Codex 日志定期刷新任务
-                let app_handle_for_flush = app_handle.clone();
-                tauri::async_runtime::spawn(async move {
-                    let state = app_handle_for_flush.state::<AppState>();
-                    let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(60));
-                    loop {
-                        interval.tick().await;
-                        let storage = {
-                            let guard = state.codex_log_storage.lock().unwrap();
-                            guard.clone()
-                        };
-                        if let Some(s) = storage {
-                            s.flush().await;
-                        }
-                    }
-                });
             });
 
             // 启动 API 服务器
@@ -771,6 +757,8 @@ pub fn run() {
             crate::platforms::openai::codex::commands::set_codex_selected_account,
             crate::platforms::openai::codex::commands::get_codex_access_config,
             crate::platforms::openai::codex::commands::set_codex_access_config,
+            crate::platforms::openai::codex::commands::get_codex_runtime_settings,
+            crate::platforms::openai::codex::commands::set_codex_runtime_settings,
             // Codex 日志存储命令
             crate::platforms::openai::codex::commands::query_codex_logs_from_storage,
             crate::platforms::openai::codex::commands::get_codex_model_stats_from_storage,

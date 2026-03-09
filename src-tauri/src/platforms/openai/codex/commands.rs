@@ -1,7 +1,6 @@
 //! Codex 模块 Tauri Commands
 //!
 //! 提供给前端调用的 Codex API 管理命令
-
 use std::fs;
 use std::sync::Arc;
 
@@ -9,15 +8,14 @@ use serde::{Deserialize, Serialize};
 use tauri::{Manager, State};
 use tokio::sync::Mutex as TokioMutex;
 
+use super::logger::RequestLogger;
 use super::models::{
-    DailyStatsResponse, LogPage, LogQuery, ModelTokenStats, PeriodTokenStats, PoolStrategy, RequestLog, TokenStats,
+    DailyStatsResponse, LogPage, LogQuery, ModelTokenStats, PeriodTokenStats, PoolStrategy,
+    RequestLog, TokenStats,
 };
 use super::pool::{CodexServerConfig, CodexServerStatus};
-use super::logger::RequestLogger;
 use crate::AppState;
 use crate::platforms::openai::codex::server::CodexServer;
-
-/// 定时刷新配额任务句柄
 static QUOTA_REFRESH_TASK: std::sync::LazyLock<TokioMutex<Option<tokio::task::JoinHandle<()>>>> =
     std::sync::LazyLock::new(|| TokioMutex::new(None));
 
@@ -27,8 +25,17 @@ pub struct CodexAccessConfig {
     pub api_key: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CodexRuntimeSettings {
+    pub quota_refresh_enabled: bool,
+    pub quota_refresh_interval_seconds: u64,
+    pub fast_mode_enabled: bool,
+}
+
 const CODEX_CONFIG_FILE: &str = "openai_codex_config.json";
 const SHARED_API_SERVER_PORT: u16 = 8766;
+const MIN_QUOTA_REFRESH_INTERVAL_SECONDS: u64 = 60;
+const MAX_QUOTA_REFRESH_INTERVAL_SECONDS: u64 = 24 * 60 * 60;
 
 fn normalize_access_fields(config: &mut CodexServerConfig) {
     config.api_key = config.api_key.as_ref().and_then(|v| {
@@ -51,6 +58,74 @@ fn normalize_runtime_fields(config: &mut CodexServerConfig) {
     if config.pool_strategy.trim().is_empty() {
         config.pool_strategy = defaults.pool_strategy;
     }
+
+    if config.quota_refresh_interval_seconds < MIN_QUOTA_REFRESH_INTERVAL_SECONDS {
+        config.quota_refresh_interval_seconds = defaults
+            .quota_refresh_interval_seconds
+            .max(MIN_QUOTA_REFRESH_INTERVAL_SECONDS);
+    }
+    if config.quota_refresh_interval_seconds > MAX_QUOTA_REFRESH_INTERVAL_SECONDS {
+        config.quota_refresh_interval_seconds = MAX_QUOTA_REFRESH_INTERVAL_SECONDS;
+    }
+}
+
+fn runtime_settings_from_config(config: &CodexServerConfig) -> CodexRuntimeSettings {
+    CodexRuntimeSettings {
+        quota_refresh_enabled: config.quota_refresh_enabled,
+        quota_refresh_interval_seconds: config.quota_refresh_interval_seconds,
+        fast_mode_enabled: config.fast_mode_enabled,
+    }
+}
+
+/// 根据快速模式开关同步编辑用户目录下的 ~/.codex/config.toml：
+/// 开启时写入 service_tier = "fast" 和 [features] fast_mode = true；
+/// 关闭时移除这两处。路径与 Codex 切换账号一致。
+fn apply_fast_mode_to_codex_config_toml(
+    app: &tauri::AppHandle,
+    fast_mode_enabled: bool,
+) -> Result<(), String> {
+    let home_dir = app
+        .path()
+        .home_dir()
+        .map_err(|e| format!("Failed to get home directory: {}", e))?;
+    let codex_dir = home_dir.join(".codex");
+    let config_path = codex_dir.join("config.toml");
+
+    if !fast_mode_enabled && !config_path.exists() {
+        return Ok(());
+    }
+
+    let mut config: toml::Table = if config_path.exists() {
+        let content = fs::read_to_string(&config_path)
+            .map_err(|e| format!("Failed to read config.toml: {}", e))?;
+        toml::from_str(&content).map_err(|e| format!("Failed to parse config.toml: {}", e))?
+    } else {
+        fs::create_dir_all(&codex_dir)
+            .map_err(|e| format!("Failed to create .codex directory: {}", e))?;
+        toml::Table::new()
+    };
+
+    if fast_mode_enabled {
+        config.insert(
+            "service_tier".to_string(),
+            toml::Value::String("fast".to_string()),
+        );
+        let mut features = toml::Table::new();
+        features.insert(
+            "fast_mode".to_string(),
+            toml::Value::Boolean(true),
+        );
+        config.insert("features".to_string(), toml::Value::Table(features));
+    } else {
+        config.remove("service_tier");
+        config.remove("features");
+    }
+
+    let content = toml::to_string_pretty(&config)
+        .map_err(|e| format!("Failed to serialize config.toml: {}", e))?;
+    fs::write(&config_path, content)
+        .map_err(|e| format!("Failed to write config.toml: {}", e))?;
+    Ok(())
 }
 
 fn read_persisted_config(app: &tauri::AppHandle) -> Result<Option<CodexServerConfig>, String> {
@@ -101,7 +176,6 @@ fn get_or_load_codex_config(
         return Ok(config);
     }
     if let Some(config) = read_persisted_config(app)? {
-        // 自动迁移历史冲突端口
         let _ = write_persisted_config(app, &config);
         *state.codex_server_config.lock().unwrap() = Some(config.clone());
         return Ok(config);
@@ -124,6 +198,19 @@ fn current_api_server_port(state: &AppState) -> u16 {
         .unwrap_or(SHARED_API_SERVER_PORT)
 }
 
+async fn apply_periodic_tasks(app: tauri::AppHandle, state: &AppState, config: &CodexServerConfig) {
+    if config.enabled && config.quota_refresh_enabled {
+        start_periodic_quota_refresh(
+            app,
+            state,
+            config.quota_refresh_interval_seconds,
+        )
+        .await;
+    } else {
+        stop_periodic_quota_refresh().await;
+    }
+}
+
 async fn init_codex_runtime(
     app: &tauri::AppHandle,
     state: &AppState,
@@ -139,23 +226,18 @@ async fn init_codex_runtime(
 
     let accounts = crate::platforms::openai::modules::storage::list_accounts(app).await?;
     pool.refresh_from_accounts(&accounts).await;
-
-    // 同步策略
     let strategy = match config.pool_strategy.as_str() {
         "single" => PoolStrategy::Single,
         "smart" => PoolStrategy::Smart,
         _ => PoolStrategy::RoundRobin,
     };
     pool.set_strategy(strategy).await;
-
-    // 同步选中账号
     if let Some(ref account_id) = config.selected_account_id {
         pool.set_selected_account_id(account_id.clone()).await;
     }
 
-    let executor = Arc::new(crate::platforms::openai::codex::executor::CodexExecutor::new(
-        pool.clone(),
-    )?);
+    let executor =
+        Arc::new(crate::platforms::openai::codex::executor::CodexExecutor::new(pool.clone())?);
     *state.codex_executor.lock().unwrap() = Some(executor);
 
     // 初始化 logger
@@ -179,12 +261,11 @@ pub async fn init_codex_enabled_state_on_startup(
     if config.enabled {
         init_codex_runtime(app, state, &config).await?;
         *state.codex_server.lock().unwrap() = Some(CodexServer::new(config.port));
-
-        // 启动定时刷新配额任务
-        start_periodic_quota_refresh(app.clone(), state).await;
     } else {
         *state.codex_server.lock().unwrap() = None;
     }
+
+    apply_periodic_tasks(app.clone(), state, &config).await;
 
     *state.codex_server_config.lock().unwrap() = Some(config.clone());
     write_persisted_config(app, &config)?;
@@ -201,7 +282,6 @@ pub async fn get_codex_server_status(
     let pool = state.codex_pool.lock().unwrap().clone();
     let _cfg = get_or_load_codex_config(&app, state.inner())?;
 
-    // 获取 pool 状态
     let pool_status = if let Some(p) = pool {
         Some(p.status().await)
     } else {
@@ -228,7 +308,6 @@ pub async fn start_codex_server(
     state: State<'_, AppState>,
     mut config: CodexServerConfig,
 ) -> Result<(), String> {
-    // 检查是否已启动
     {
         let server = state.codex_server.lock().unwrap();
         if server.is_some() {
@@ -236,7 +315,6 @@ pub async fn start_codex_server(
         }
     }
 
-    // 检查 API 服务器是否运行，如果没有则自动启动
     let need_start_api_server = state.api_server.lock().unwrap().is_none();
     if need_start_api_server {
         // 先更新持久化配置，确保 enabled = true
@@ -248,15 +326,24 @@ pub async fn start_codex_server(
         crate::core::api_server::start_api_server_cmd(app.clone(), state.clone())
             .await
             .map_err(|e| format!("Failed to start API server: {}", e))?;
-        // API 服务器启动时会自动初始化 Codex 状态，直接返回
         return Ok(());
     }
 
-    // 合并已有运行配置，避免前端只传了部分字段时丢失 key
+    // 合并已有配置，避免前端只传部分字段时覆盖现有配置
     if let Ok(existing) = get_or_load_codex_config(&app, state.inner()) {
         if config.api_key.is_none() {
             config.api_key = existing.api_key;
         }
+        if config.pool_strategy.trim().is_empty() {
+            config.pool_strategy = existing.pool_strategy;
+        }
+        if config.selected_account_id.is_none() {
+            config.selected_account_id = existing.selected_account_id;
+        }
+        // Runtime settings are managed separately from server start/stop dialog.
+        config.quota_refresh_enabled = existing.quota_refresh_enabled;
+        config.quota_refresh_interval_seconds = existing.quota_refresh_interval_seconds;
+        config.fast_mode_enabled = existing.fast_mode_enabled;
     }
     normalize_access_fields(&mut config);
     normalize_server_port(&mut config);
@@ -267,10 +354,7 @@ pub async fn start_codex_server(
     *state.codex_server.lock().unwrap() = Some(CodexServer::new(config.port));
     *state.codex_server_config.lock().unwrap() = Some(config.clone());
     write_persisted_config(&app, &config)?;
-
-    // 启动定时刷新配额任务
-    start_periodic_quota_refresh(app.clone(), state.inner()).await;
-
+    apply_periodic_tasks(app.clone(), state.inner(), &config).await;
     Ok(())
 }
 
@@ -280,15 +364,17 @@ pub async fn stop_codex_server(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    // 停止定时刷新配额任务
-    stop_periodic_quota_refresh().await;
-
-    let mut server = state.codex_server.lock().unwrap();
-    if server.take().is_some() {
+    // 停用 Codex 路由并更新持久化状态
+    let was_running = {
+        let mut server = state.codex_server.lock().unwrap();
+        server.take().is_some()
+    };
+    if was_running {
         let mut config = get_or_load_codex_config(&app, state.inner())?;
         config.enabled = false;
         *state.codex_server_config.lock().unwrap() = Some(config.clone());
         write_persisted_config(&app, &config)?;
+        apply_periodic_tasks(app.clone(), state.inner(), &config).await;
         println!("Codex routes disabled");
         Ok(())
     } else {
@@ -328,7 +414,7 @@ pub async fn refresh_codex_pool(
     Ok(pool_ref.status().await)
 }
 
-/// 获取请求日志
+/// 获取内存中的请求日志
 #[tauri::command]
 pub async fn get_codex_logs(
     state: State<'_, AppState>,
@@ -417,7 +503,8 @@ pub async fn get_codex_model_stats(
     }
 }
 
-/// 清空日志
+
+
 #[tauri::command]
 pub async fn clear_codex_logs(state: State<'_, AppState>) -> Result<(), String> {
     let logger = state.codex_logger.lock().unwrap().clone();
@@ -430,7 +517,7 @@ pub async fn clear_codex_logs(state: State<'_, AppState>) -> Result<(), String> 
     }
 }
 
-/// 设置号池策略（持久化）
+/// 设置号池策略并持久化
 #[tauri::command]
 pub async fn set_codex_pool_strategy(
     app: tauri::AppHandle,
@@ -446,8 +533,6 @@ pub async fn set_codex_pool_strategy(
             _ => return Err(format!("Invalid strategy: {}", strategy)),
         };
         pool_ref.set_strategy(strategy_enum).await;
-
-        // 持久化到配置文件
         let mut config = get_or_load_codex_config(&app, state.inner())?;
         config.pool_strategy = strategy;
         *state.codex_server_config.lock().unwrap() = Some(config.clone());
@@ -459,8 +544,11 @@ pub async fn set_codex_pool_strategy(
     }
 }
 
-/// 设置单个策略选中的账号（持久化）
+
+
 #[tauri::command]
+
+
 pub async fn set_codex_selected_account(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
@@ -469,8 +557,6 @@ pub async fn set_codex_selected_account(
     let pool = state.codex_pool.lock().unwrap().clone();
     if let Some(pool_ref) = pool {
         pool_ref.set_selected_account_id(account_id.clone()).await;
-
-        // 持久化到配置文件
         let mut config = get_or_load_codex_config(&app, state.inner())?;
         config.selected_account_id = Some(account_id);
         *state.codex_server_config.lock().unwrap() = Some(config.clone());
@@ -520,7 +606,37 @@ pub async fn set_codex_access_config(
     })
 }
 
-/// 从 SQLite 存储查询日志
+/// 获取 Codex 运行时设置
+#[tauri::command]
+pub async fn get_codex_runtime_settings(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<CodexRuntimeSettings, String> {
+    let mut config = get_or_load_codex_config(&app, state.inner())?;
+    normalize_runtime_fields(&mut config);
+    Ok(runtime_settings_from_config(&config))
+}
+
+#[tauri::command]
+pub async fn set_codex_runtime_settings(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    settings: CodexRuntimeSettings,
+) -> Result<CodexRuntimeSettings, String> {
+    let mut config = get_or_load_codex_config(&app, state.inner())?;
+    config.quota_refresh_enabled = settings.quota_refresh_enabled;
+    config.quota_refresh_interval_seconds = settings.quota_refresh_interval_seconds;
+    config.fast_mode_enabled = settings.fast_mode_enabled;
+    normalize_access_fields(&mut config);
+    normalize_server_port(&mut config);
+    normalize_runtime_fields(&mut config);
+    *state.codex_server_config.lock().unwrap() = Some(config.clone());
+    write_persisted_config(&app, &config)?;
+    apply_periodic_tasks(app.clone(), state.inner(), &config).await;
+    apply_fast_mode_to_codex_config_toml(&app, settings.fast_mode_enabled)?;
+    Ok(runtime_settings_from_config(&config))
+}
+
 #[tauri::command]
 pub async fn query_codex_logs_from_storage(
     state: State<'_, AppState>,
@@ -536,8 +652,6 @@ pub async fn query_codex_logs_from_storage(
         })
     }
 }
-
-/// 从 SQLite 存储获取模型统计
 #[tauri::command]
 pub async fn get_codex_model_stats_from_storage(
     state: State<'_, AppState>,
@@ -546,13 +660,12 @@ pub async fn get_codex_model_stats_from_storage(
 ) -> Result<Vec<ModelTokenStats>, String> {
     let storage = state.codex_log_storage.lock().unwrap().clone();
     if let Some(s) = storage {
-        s.get_model_stats(start_ts, end_ts).map_err(|e| e.to_string())
+        s.get_model_stats(start_ts, end_ts)
+            .map_err(|e| e.to_string())
     } else {
         Ok(vec![])
     }
 }
-
-/// 从 SQLite 存储获取周期统计
 #[tauri::command]
 pub async fn get_codex_period_stats_from_storage(
     state: State<'_, AppState>,
@@ -573,7 +686,7 @@ pub async fn get_codex_period_stats_from_storage(
     }
 }
 
-/// 从 SQLite 存储获取每日统计数据（过去30天）
+/// 从 SQLite 存储获取每日统计
 #[tauri::command]
 pub async fn get_codex_daily_stats_from_storage(
     state: State<'_, AppState>,
@@ -581,7 +694,7 @@ pub async fn get_codex_daily_stats_from_storage(
 ) -> Result<DailyStatsResponse, String> {
     let storage = state.codex_log_storage.lock().unwrap().clone();
     if let Some(s) = storage {
-        let days = days.unwrap_or(30).min(365); // 默认30天，最多365天
+        let days = days.unwrap_or(30).min(365);
         s.get_daily_stats(days).map_err(|e| e.to_string())
     } else {
         Ok(DailyStatsResponse { stats: vec![] })
@@ -590,9 +703,7 @@ pub async fn get_codex_daily_stats_from_storage(
 
 /// 清空 SQLite 存储中的日志
 #[tauri::command]
-pub async fn clear_codex_logs_in_storage(
-    state: State<'_, AppState>,
-) -> Result<usize, String> {
+pub async fn clear_codex_logs_in_storage(state: State<'_, AppState>) -> Result<usize, String> {
     let storage = state.codex_log_storage.lock().unwrap().clone();
     if let Some(s) = storage {
         s.clear_all().map_err(|e| e.to_string())
@@ -601,7 +712,7 @@ pub async fn clear_codex_logs_in_storage(
     }
 }
 
-/// 删除指定日期之前的日志
+/// 删除指定日期之前的 SQLite 日志
 #[tauri::command]
 pub async fn delete_codex_logs_before(
     state: State<'_, AppState>,
@@ -615,7 +726,8 @@ pub async fn delete_codex_logs_before(
     }
 }
 
-/// 获取存储状态信息
+/// 存储状态信息
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CodexLogStorageStatus {
     pub total_logs: i64,
@@ -635,7 +747,7 @@ pub async fn get_codex_log_storage_status(
         Ok(CodexLogStorageStatus {
             total_logs,
             db_size_bytes: db_size,
-            db_path: format!("{:?}", s), // 简化显示，实际可以改进
+            db_path: format!("{:?}", s),
         })
     } else {
         Err("Codex log storage not initialized".to_string())
@@ -655,6 +767,7 @@ pub async fn flush_codex_logs(state: State<'_, AppState>) -> Result<(), String> 
 }
 
 /// 全时间统计
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CodexAllTimeStats {
     pub requests: u64,
@@ -663,7 +776,9 @@ pub struct CodexAllTimeStats {
 
 /// 获取全时间累计统计
 #[tauri::command]
-pub async fn get_codex_all_time_stats(state: State<'_, AppState>) -> Result<CodexAllTimeStats, String> {
+pub async fn get_codex_all_time_stats(
+    state: State<'_, AppState>,
+) -> Result<CodexAllTimeStats, String> {
     let storage = state.codex_log_storage.lock().unwrap().clone();
     if let Some(s) = storage {
         let (requests, tokens) = s.get_all_time_stats()?;
@@ -676,26 +791,30 @@ pub async fn get_codex_all_time_stats(state: State<'_, AppState>) -> Result<Code
     }
 }
 
-// ==================== 定时刷新配额 ====================
+// ==================== 定时任务 ====================
 
-/// 启动定时刷新配额任务（每 30 分钟）
-async fn start_periodic_quota_refresh(app: tauri::AppHandle, state: &AppState) {
-    // 先停止已有任务
+async fn start_periodic_quota_refresh(
+    app: tauri::AppHandle,
+    state: &AppState,
+    interval_seconds: u64,
+) {
     stop_periodic_quota_refresh().await;
 
     let pool = state.codex_pool.lock().unwrap().clone();
-    let Some(pool_ref) = pool else { return };
+    let Some(pool_ref) = pool else {
+        return;
+    };
 
+    let tick_seconds = interval_seconds.max(1);
     let handle = tokio::spawn(async move {
-        let mut interval = tokio::time::interval(std::time::Duration::from_secs(30 * 60));
-        interval.tick().await; // 跳过第一次立即执行
-
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(tick_seconds));
+        interval.tick().await;
         loop {
             interval.tick().await;
             println!("[Codex] Starting periodic quota refresh...");
 
-            // 获取所有账号并刷新配额
-            let accounts = match crate::platforms::openai::modules::storage::list_accounts(&app).await {
+            let accounts = match crate::platforms::openai::modules::storage::list_accounts(&app).await
+            {
                 Ok(accs) => accs,
                 Err(e) => {
                     eprintln!("[Codex] Failed to list accounts for quota refresh: {}", e);
@@ -705,20 +824,29 @@ async fn start_periodic_quota_refresh(app: tauri::AppHandle, state: &AppState) {
 
             let mut refreshed = 0;
             for mut account in accounts {
-                // 跳过 API 账号
-                if account.account_type == crate::platforms::openai::models::account::AccountType::API {
+                if account.account_type == crate::platforms::openai::models::account::AccountType::API
+                {
+                    continue;
+                }
+                if account
+                    .quota
+                    .as_ref()
+                    .map(|q| q.is_forbidden)
+                    .unwrap_or(false)
+                {
                     continue;
                 }
 
-                // 跳过被禁用的账号
-                if account.quota.as_ref().map(|q| q.is_forbidden).unwrap_or(false) {
-                    continue;
-                }
-
-                match crate::platforms::openai::modules::account::refresh_quota_and_backfill(&mut account).await {
+                match crate::platforms::openai::modules::account::refresh_quota_and_backfill(
+                    &mut account,
+                )
+                .await
+                {
                     Ok(_) => {
-                        // 保存更新后的账号
-                        if let Err(e) = crate::platforms::openai::modules::storage::save_account(&app, &account).await {
+                        if let Err(e) =
+                            crate::platforms::openai::modules::storage::save_account(&app, &account)
+                                .await
+                        {
                             eprintln!("[Codex] Failed to save account {}: {}", account.email, e);
                         } else {
                             refreshed += 1;
@@ -730,19 +858,21 @@ async fn start_periodic_quota_refresh(app: tauri::AppHandle, state: &AppState) {
                 }
             }
 
-            // 刷新号池
-            if let Ok(accounts) = crate::platforms::openai::modules::storage::list_accounts(&app).await {
+            if let Ok(accounts) = crate::platforms::openai::modules::storage::list_accounts(&app).await
+            {
                 pool_ref.refresh_from_accounts(&accounts).await;
             }
 
-            println!("[Codex] Periodic quota refresh completed: {} accounts refreshed", refreshed);
+            println!(
+                "[Codex] Periodic quota refresh completed: {} accounts refreshed",
+                refreshed
+            );
         }
     });
 
     *QUOTA_REFRESH_TASK.lock().await = Some(handle);
 }
 
-/// 停止定时刷新配额任务
 async fn stop_periodic_quota_refresh() {
     let mut task = QUOTA_REFRESH_TASK.lock().await;
     if let Some(handle) = task.take() {

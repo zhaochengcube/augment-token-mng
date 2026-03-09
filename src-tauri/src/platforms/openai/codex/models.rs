@@ -81,7 +81,12 @@ impl CodexPoolAccount {
         let token = account.token.as_ref()?;
 
         // 跳过被禁用的账号
-        if account.quota.as_ref().map(|q| q.is_forbidden).unwrap_or(false) {
+        if account
+            .quota
+            .as_ref()
+            .map(|q| q.is_forbidden)
+            .unwrap_or(false)
+        {
             return None;
         }
 
@@ -105,14 +110,8 @@ impl CodexPoolAccount {
             .unwrap_or((None, None));
 
         // 提取配额百分比
-        let codex_5h_used_percent = account
-            .quota
-            .as_ref()
-            .and_then(|q| q.codex_5h_used_percent);
-        let codex_7d_used_percent = account
-            .quota
-            .as_ref()
-            .and_then(|q| q.codex_7d_used_percent);
+        let codex_5h_used_percent = account.quota.as_ref().and_then(|q| q.codex_5h_used_percent);
+        let codex_7d_used_percent = account.quota.as_ref().and_then(|q| q.codex_7d_used_percent);
 
         // 从 quota 获取 is_forbidden
         let is_forbidden = account
@@ -262,6 +261,8 @@ pub struct PoolStatus {
     pub total_requests_today: u64,
     pub total_tokens_used: u64,
     pub strategy: PoolStrategy,
+    #[serde(default)]
+    pub selected_account_id: Option<String>, // Single 策略时选中的账号 ID
     #[serde(default)]
     pub selected_account_email: Option<String>, // Single 策略时选中的账号邮箱
 }

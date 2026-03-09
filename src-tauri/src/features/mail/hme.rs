@@ -1,9 +1,9 @@
-use crate::core::http_client::create_proxy_client;
 use crate::AppState;
+use crate::core::http_client::create_proxy_client;
 use chrono::{DateTime, Utc};
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 use tauri::State;
 
@@ -105,12 +105,14 @@ impl HmeApiClient {
     async fn validate_cookie(&self) -> Result<Value, String> {
         let proxy_client =
             create_proxy_client().map_err(|e| format!("Failed to create HTTP client: {}", e))?;
-        let request = proxy_client.request(Method::POST, COOKIE_VALIDATE_URL).query(&[
-            ("clientBuildNumber", CLIENT_BUILD_NUMBER),
-            ("clientMasteringNumber", CLIENT_MASTERING_NUMBER),
-            ("clientId", ""),
-            ("dsid", ""),
-        ]);
+        let request = proxy_client
+            .request(Method::POST, COOKIE_VALIDATE_URL)
+            .query(&[
+                ("clientBuildNumber", CLIENT_BUILD_NUMBER),
+                ("clientMasteringNumber", CLIENT_MASTERING_NUMBER),
+                ("clientId", ""),
+                ("dsid", ""),
+            ]);
         let request = self.with_headers(request, false);
         self.send(request).await
     }
@@ -134,11 +136,18 @@ impl HmeApiClient {
             .map_err(|e| format!("Failed to read response: {}", e))?;
 
         if matches!(status.as_u16(), 401 | 403 | 421) {
-            return Err(format!("Cookie expired or invalid (HTTP {})", status.as_u16()));
+            return Err(format!(
+                "Cookie expired or invalid (HTTP {})",
+                status.as_u16()
+            ));
         }
 
         if !status.is_success() {
-            return Err(format!("HTTP {}: {}", status.as_u16(), truncate_for_error(&body)));
+            return Err(format!(
+                "HTTP {}: {}",
+                status.as_u16(),
+                truncate_for_error(&body)
+            ));
         }
 
         if !content_type.contains("json") && !content_type.contains("text/plain") {
@@ -148,8 +157,13 @@ impl HmeApiClient {
             }
         }
 
-        serde_json::from_str::<Value>(&body)
-            .map_err(|e| format!("Failed to parse response: {} ({})", e, truncate_for_error(&body)))
+        serde_json::from_str::<Value>(&body).map_err(|e| {
+            format!(
+                "Failed to parse response: {} ({})",
+                e,
+                truncate_for_error(&body)
+            )
+        })
     }
 }
 

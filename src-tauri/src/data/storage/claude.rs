@@ -72,7 +72,9 @@ pub async fn claude_list(
 
 /// 直接从本地文件加载 Claude 账户（不依赖 storage manager 初始化）
 #[tauri::command]
-pub async fn claude_load_accounts_local(app: tauri::AppHandle) -> Result<AccountListResponse, String> {
+pub async fn claude_load_accounts_local(
+    app: tauri::AppHandle,
+) -> Result<AccountListResponse, String> {
     let local_storage = ClaudeLocalStorage::new(&app)
         .map_err(|e| format!("Failed to create Claude local storage: {}", e))?;
 

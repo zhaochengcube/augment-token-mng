@@ -104,6 +104,16 @@
               </svg>
               <span v-else class="btn-spinner text-accent" aria-hidden="true"></span>
             </button>
+            <button
+              class="btn btn--icon btn--ghost"
+              @click="showCodexSettingsModal = true"
+              v-tooltip="$t('app.settings')"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.08a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.08a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.08a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              </svg>
+            </button>
             <button class="btn btn--icon btn--ghost" @click="setToolbarMode('more')" v-tooltip="'更多'">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 7a2 2 0 110-4 2 2 0 010 4zm0 7a2 2 0 110-4 2 2 0 010 4zm0 7a2 2 0 110-4 2 2 0 010 4z"/>
@@ -510,6 +520,10 @@
     />
 
     <CodexServerDialog v-if="showCodexDialog" @close="showCodexDialog = false" />
+    <CodexRuntimeSettingsModal
+      v-if="showCodexSettingsModal"
+      @close="showCodexSettingsModal = false"
+    />
 
     <!-- Sync Queue Modal -->
     <SyncQueueModal
@@ -543,6 +557,7 @@ import AddAccountDialog from '../openai/AddAccountDialog.vue'
 import OpenAIImportAccountsDialog from '../openai/OpenAIImportAccountsDialog.vue'
 import EditApiAccountDialog from '../openai/EditApiAccountDialog.vue'
 import CodexServerDialog from '../openai/CodexServerDialog.vue'
+import CodexRuntimeSettingsModal from '../openai/CodexRuntimeSettingsModal.vue'
 import SyncQueueModal from '../common/SyncQueueModal.vue'
 import Pagination from '../common/Pagination.vue'
 import BatchToolbar from '../common/BatchToolbar.vue'
@@ -567,6 +582,7 @@ const currentAccountId = ref(null)
 const showAddDialog = ref(false)
 const showImportDialog = ref(false)
 const showCodexDialog = ref(false)
+const showCodexSettingsModal = ref(false)
 const editingAccount = ref(null)
 const isLoading = ref(false)
 const refreshingIds = ref(new Set())

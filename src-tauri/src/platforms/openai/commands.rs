@@ -490,7 +490,9 @@ pub async fn openai_import_account_direct(
         Account::generate_unique_email(&email, &chatgpt_account_id, &existing_accounts);
 
     let user_info = id_token.as_deref().and_then(oauth::parse_id_token);
-    let openai_auth_json = id_token.as_deref().and_then(oauth::extract_openai_auth_json);
+    let openai_auth_json = id_token
+        .as_deref()
+        .and_then(oauth::extract_openai_auth_json);
 
     let now = chrono::Utc::now().timestamp();
     let expires_at = parse_jwt_exp(&access_token).unwrap_or(now + 864000);
@@ -696,9 +698,7 @@ pub async fn openai_refresh_account(app: AppHandle, account_id: String) -> Resul
                     acc.updated_at = now;
                     acc.rt_invalid = false;
 
-                    if let Some(id_token) =
-                        &acc.token.as_ref().and_then(|t| t.id_token.as_ref())
-                    {
+                    if let Some(id_token) = &acc.token.as_ref().and_then(|t| t.id_token.as_ref()) {
                         if let Some(user_info) = oauth::parse_id_token(id_token) {
                             println!(
                                 "New ChatGPT Account ID from refresh: {:?}",
@@ -863,7 +863,10 @@ fn switch_codex_to_api_profile(
         toml::Value::String(wire_api_value.to_string()),
     );
     let mut providers = toml::Table::new();
-    providers.insert(model_provider.to_string(), toml::Value::Table(provider_config));
+    providers.insert(
+        model_provider.to_string(),
+        toml::Value::Table(provider_config),
+    );
     config.insert("model_providers".to_string(), toml::Value::Table(providers));
 
     let config_content = toml::to_string_pretty(&config)

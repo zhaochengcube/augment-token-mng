@@ -2,10 +2,13 @@
 //!
 //! 使用 SQLite 存储请求日志，支持高效的查询和筛选
 
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 use std::path::PathBuf;
 
-use super::models::{DailyStats, DailyStatsResponse, LogQuery, LogPage, ModelTokenStats, PeriodTokenStats, RequestLog};
+use super::models::{
+    DailyStats, DailyStatsResponse, LogPage, LogQuery, ModelTokenStats, PeriodTokenStats,
+    RequestLog,
+};
 
 /// 日志存储管理器
 #[derive(Debug)]
@@ -24,9 +27,11 @@ impl CodexLogStorage {
         let storage = Self { db_path };
 
         // 初始化数据库表
-        let mut conn = storage.get_connection()
+        let mut conn = storage
+            .get_connection()
             .map_err(|e| format!("Failed to open database: {}", e))?;
-        storage.init_schema(&mut conn)
+        storage
+            .init_schema(&mut conn)
             .map_err(|e| format!("Failed to initialize schema: {}", e))?;
 
         Ok(storage)
@@ -57,25 +62,30 @@ impl CodexLogStorage {
                 date_key INTEGER NOT NULL
             )",
             [],
-        ).map_err(|e| format!("Failed to create table: {}", e))?;
+        )
+        .map_err(|e| format!("Failed to create table: {}", e))?;
 
         // 创建索引
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_timestamp ON codex_requests(timestamp DESC)",
             [],
-        ).map_err(|e| format!("Failed to create timestamp index: {}", e))?;
+        )
+        .map_err(|e| format!("Failed to create timestamp index: {}", e))?;
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_date_key ON codex_requests(date_key)",
             [],
-        ).map_err(|e| format!("Failed to create date_key index: {}", e))?;
+        )
+        .map_err(|e| format!("Failed to create date_key index: {}", e))?;
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_status ON codex_requests(status)",
             [],
-        ).map_err(|e| format!("Failed to create status index: {}", e))?;
+        )
+        .map_err(|e| format!("Failed to create status index: {}", e))?;
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_model ON codex_requests(model)",
             [],
-        ).map_err(|e| format!("Failed to create model index: {}", e))?;
+        )
+        .map_err(|e| format!("Failed to create model index: {}", e))?;
 
         Ok(())
     }
@@ -87,7 +97,8 @@ impl CodexLogStorage {
         }
 
         let mut conn = self.get_connection()?;
-        let tx = conn.transaction()
+        let tx = conn
+            .transaction()
             .map_err(|e| format!("Failed to begin transaction: {}", e))?;
 
         for log in logs {
@@ -114,7 +125,8 @@ impl CodexLogStorage {
                     log.request_duration_ms,
                     date_key,
                 ],
-            ).map_err(|e| format!("Failed to insert log: {}", e))?;
+            )
+            .map_err(|e| format!("Failed to insert log: {}", e))?;
         }
 
         tx.commit()
@@ -139,9 +151,7 @@ impl CodexLogStorage {
     pub fn query_logs(&self, query: &LogQuery) -> Result<LogPage, String> {
         let conn = self.get_connection()?;
 
-        let mut sql = String::from(
-            "SELECT * FROM codex_requests WHERE 1=1"
-        );
+        let mut sql = String::from("SELECT * FROM codex_requests WHERE 1=1");
 
         if let Some(start_ts) = query.start_ts {
             sql.push_str(&format!(" AND timestamp >= {}", start_ts));
@@ -151,12 +161,18 @@ impl CodexLogStorage {
         }
         if let Some(model) = &query.model {
             if !model.trim().is_empty() {
-                sql.push_str(&format!(" AND model LIKE '%{}%'", model.trim().replace('\'', "''")));
+                sql.push_str(&format!(
+                    " AND model LIKE '%{}%'",
+                    model.trim().replace('\'', "''")
+                ));
             }
         }
         if let Some(format) = &query.format {
             if !format.trim().is_empty() {
-                sql.push_str(&format!(" AND format LIKE '%{}%'", format.trim().replace('\'', "''")));
+                sql.push_str(&format!(
+                    " AND format LIKE '%{}%'",
+                    format.trim().replace('\'', "''")
+                ));
             }
         }
         if let Some(status) = &query.status {
@@ -166,42 +182,50 @@ impl CodexLogStorage {
         }
         if let Some(account_id) = &query.account_id {
             if !account_id.trim().is_empty() {
-                sql.push_str(&format!(" AND account_id = '{}'", account_id.trim().replace('\'', "''")));
+                sql.push_str(&format!(
+                    " AND account_id = '{}'",
+                    account_id.trim().replace('\'', "''")
+                ));
             }
         }
 
         // 先获取总数
         let count_sql = sql.replace("SELECT *", "SELECT COUNT(*)");
-        let total: i64 = conn.query_row(&count_sql, [], |row| row.get(0))
+        let total: i64 = conn
+            .query_row(&count_sql, [], |row| row.get(0))
             .map_err(|e| format!("Failed to count logs: {}", e))?;
         let total = total as usize;
 
         // 排序和分页
-        sql.push_str(&format!(" ORDER BY timestamp DESC LIMIT {} OFFSET {}",
+        sql.push_str(&format!(
+            " ORDER BY timestamp DESC LIMIT {} OFFSET {}",
             query.limit.unwrap_or(100).max(1),
             query.offset.unwrap_or(0)
         ));
 
-        let mut stmt = conn.prepare(&sql)
+        let mut stmt = conn
+            .prepare(&sql)
             .map_err(|e| format!("Failed to prepare query: {}", e))?;
 
         let mut items = Vec::new();
-        let log_rows = stmt.query_map([], |row| {
-            Ok(RequestLog {
-                id: row.get(0)?,
-                timestamp: row.get(1)?,
-                account_id: row.get(2)?,
-                account_email: row.get(3)?,
-                model: row.get(4)?,
-                format: row.get(5)?,
-                input_tokens: row.get(6)?,
-                output_tokens: row.get(7)?,
-                total_tokens: row.get(8)?,
-                status: row.get(9)?,
-                error_message: row.get(10)?,
-                request_duration_ms: row.get(11)?,
+        let log_rows = stmt
+            .query_map([], |row| {
+                Ok(RequestLog {
+                    id: row.get(0)?,
+                    timestamp: row.get(1)?,
+                    account_id: row.get(2)?,
+                    account_email: row.get(3)?,
+                    model: row.get(4)?,
+                    format: row.get(5)?,
+                    input_tokens: row.get(6)?,
+                    output_tokens: row.get(7)?,
+                    total_tokens: row.get(8)?,
+                    status: row.get(9)?,
+                    error_message: row.get(10)?,
+                    request_duration_ms: row.get(11)?,
+                })
             })
-        }).map_err(|e| format!("Failed to execute query: {}", e))?;
+            .map_err(|e| format!("Failed to execute query: {}", e))?;
 
         for log in log_rows {
             items.push(log.map_err(|e| format!("Failed to read log row: {}", e))?);
@@ -211,11 +235,16 @@ impl CodexLogStorage {
     }
 
     /// 获取模型统计
-    pub fn get_model_stats(&self, start_ts: i64, end_ts: i64) -> Result<Vec<ModelTokenStats>, String> {
+    pub fn get_model_stats(
+        &self,
+        start_ts: i64,
+        end_ts: i64,
+    ) -> Result<Vec<ModelTokenStats>, String> {
         let conn = self.get_connection()?;
 
-        let mut stmt = conn.prepare(
-            "SELECT model,
+        let mut stmt = conn
+            .prepare(
+                "SELECT model,
                     COUNT(*) as requests,
                     SUM(input_tokens) as input_tokens,
                     SUM(output_tokens) as output_tokens,
@@ -223,19 +252,22 @@ impl CodexLogStorage {
              FROM codex_requests
              WHERE timestamp >= ?1 AND timestamp <= ?2
              GROUP BY model
-             ORDER BY total_tokens DESC"
-        ).map_err(|e| format!("Failed to prepare stats query: {}", e))?;
+             ORDER BY total_tokens DESC",
+            )
+            .map_err(|e| format!("Failed to prepare stats query: {}", e))?;
 
         let mut stats = Vec::new();
-        let rows = stmt.query_map([start_ts, end_ts], |row| {
-            Ok(ModelTokenStats {
-                model: row.get(0)?,
-                requests: row.get(1)?,
-                input_tokens: row.get(2)?,
-                output_tokens: row.get(3)?,
-                total_tokens: row.get(4)?,
+        let rows = stmt
+            .query_map([start_ts, end_ts], |row| {
+                Ok(ModelTokenStats {
+                    model: row.get(0)?,
+                    requests: row.get(1)?,
+                    input_tokens: row.get(2)?,
+                    output_tokens: row.get(3)?,
+                    total_tokens: row.get(4)?,
+                })
             })
-        }).map_err(|e| format!("Failed to execute stats query: {}", e))?;
+            .map_err(|e| format!("Failed to execute stats query: {}", e))?;
 
         for stat in rows {
             stats.push(stat.map_err(|e| format!("Failed to read stat row: {}", e))?);
@@ -249,16 +281,20 @@ impl CodexLogStorage {
         let conn = self.get_connection()?;
 
         let calculate_stats = |period_start: i64| -> Result<(u64, u64), String> {
-            let mut stmt = conn.prepare(
-                "SELECT COUNT(*) as requests, SUM(total_tokens) as tokens
+            let mut stmt = conn
+                .prepare(
+                    "SELECT COUNT(*) as requests, SUM(total_tokens) as tokens
                  FROM codex_requests
-                 WHERE timestamp >= ?1 AND timestamp <= ?2"
-            ).map_err(|e| format!("Failed to prepare period query: {}", e))?;
+                 WHERE timestamp >= ?1 AND timestamp <= ?2",
+                )
+                .map_err(|e| format!("Failed to prepare period query: {}", e))?;
 
             let mut result = (0u64, 0u64);
-            let rows = stmt.query_map([period_start, now_ts], |row| {
-                Ok((row.get::<_, i64>(0)? as u64, row.get::<_, i64>(1)? as u64))
-            }).map_err(|e| format!("Failed to execute period query: {}", e))?;
+            let rows = stmt
+                .query_map([period_start, now_ts], |row| {
+                    Ok((row.get::<_, i64>(0)? as u64, row.get::<_, i64>(1)? as u64))
+                })
+                .map_err(|e| format!("Failed to execute period query: {}", e))?;
 
             for row in rows {
                 result = row.map_err(|e| format!("Failed to read period result: {}", e))?;
@@ -320,21 +356,22 @@ impl CodexLogStorage {
                 .map(|d| d.and_utc().timestamp())
                 .unwrap_or(0);
 
-            let mut stmt = conn.prepare(
-                "SELECT COUNT(*) as requests, SUM(total_tokens) as tokens
+            let mut stmt = conn
+                .prepare(
+                    "SELECT COUNT(*) as requests, SUM(total_tokens) as tokens
                  FROM codex_requests
-                 WHERE timestamp >= ?1 AND timestamp <= ?2"
-            ).map_err(|e| format!("Failed to prepare daily stats query: {}", e))?;
+                 WHERE timestamp >= ?1 AND timestamp <= ?2",
+                )
+                .map_err(|e| format!("Failed to prepare daily stats query: {}", e))?;
 
             let mut result = (0u64, 0u64);
-            let rows = stmt.query_map([day_start, day_end], |row| {
-                let requests: i64 = row.get(0)?;
-                let tokens: Option<i64> = row.get(1)?;
-                Ok((
-                    requests as u64,
-                    tokens.unwrap_or(0) as u64
-                ))
-            }).map_err(|e| format!("Failed to execute daily stats query: {}", e))?;
+            let rows = stmt
+                .query_map([day_start, day_end], |row| {
+                    let requests: i64 = row.get(0)?;
+                    let tokens: Option<i64> = row.get(1)?;
+                    Ok((requests as u64, tokens.unwrap_or(0) as u64))
+                })
+                .map_err(|e| format!("Failed to execute daily stats query: {}", e))?;
 
             for row in rows {
                 result = row.map_err(|e| format!("Failed to read daily stats result: {}", e))?;
@@ -354,7 +391,8 @@ impl CodexLogStorage {
     /// 清空所有日志
     pub fn clear_all(&self) -> Result<usize, String> {
         let conn = self.get_connection()?;
-        let count = conn.execute("DELETE FROM codex_requests", [])
+        let count = conn
+            .execute("DELETE FROM codex_requests", [])
             .map_err(|e| format!("Failed to clear logs: {}", e))?;
         Ok(count)
     }
@@ -362,7 +400,8 @@ impl CodexLogStorage {
     /// 删除指定日期之前的日志
     pub fn delete_before(&self, date_key: i64) -> Result<usize, String> {
         let conn = self.get_connection()?;
-        let count = conn.execute("DELETE FROM codex_requests WHERE date_key < ?1", [date_key])
+        let count = conn
+            .execute("DELETE FROM codex_requests WHERE date_key < ?1", [date_key])
             .map_err(|e| format!("Failed to delete old logs: {}", e))?;
         Ok(count)
     }
@@ -399,8 +438,7 @@ impl CodexLogStorage {
 
 /// 计算日期键 (YYYYMMDD)
 fn calculate_date_key(timestamp: i64) -> i64 {
-    let dt = chrono::DateTime::from_timestamp(timestamp, 0)
-        .unwrap_or_else(chrono::Utc::now);
+    let dt = chrono::DateTime::from_timestamp(timestamp, 0).unwrap_or_else(chrono::Utc::now);
     let date = dt.format("%Y%m%d").to_string();
     date.parse().unwrap_or(0)
 }

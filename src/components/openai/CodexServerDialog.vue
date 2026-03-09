@@ -48,7 +48,6 @@
               <input class="input font-mono" :value="accessConfig.serverUrl" readonly />
               <button
                 class="btn btn--icon btn--ghost !h-[34px] !w-[34px] shrink-0"
-                :title="$t('common.copy')"
                 v-tooltip="$t('common.copy')"
                 @click="copyText(accessConfig.serverUrl)"
               >
@@ -75,7 +74,6 @@
               />
               <button
                 class="btn btn--icon btn--ghost !h-[34px] !w-[34px] shrink-0"
-                :title="showApiKey ? $t('platform.openai.codexDialog.hideApiKey') : $t('platform.openai.codexDialog.showApiKey')"
                 v-tooltip="showApiKey ? $t('platform.openai.codexDialog.hideApiKey') : $t('platform.openai.codexDialog.showApiKey')"
                 @click="showApiKey = !showApiKey"
               >
@@ -88,7 +86,6 @@
               </button>
               <button
                 class="btn btn--icon btn--ghost !h-[34px] !w-[34px] shrink-0"
-                :title="$t('platform.openai.codexDialog.generateApiKey')"
                 v-tooltip="$t('platform.openai.codexDialog.generateApiKey')"
                 @click="generateApiKey"
               >
@@ -99,7 +96,6 @@
               </button>
               <button
                 class="btn btn--icon btn--ghost !h-[34px] !w-[34px] shrink-0"
-                :title="$t('common.copy')"
                 v-tooltip="$t('common.copy')"
                 @click="copyText(apiKeyInput)"
               >
@@ -150,7 +146,7 @@
                 <template #trigger="{ isOpen }">
                   <button
                     class="btn btn--secondary btn--sm h-8 flex items-center gap-1 px-2"
-                    :title="poolStatus.selectedAccountEmail || $t('platform.openai.codexDialog.selectAccount')"
+                    v-tooltip="poolStatus.selectedAccountEmail || $t('platform.openai.codexDialog.selectAccount')"
                     :class="{ 'btn--light': !isOpen }"
                     type="button"
                   >
@@ -424,7 +420,8 @@ const poolStatus = ref({
   paymentRequiredAccounts: 0,
   totalRequestsToday: 0,
   totalTokensUsed: 0,
-  strategy: 'round-robin'
+  strategy: 'round-robin',
+  selectedAccountId: ''
 })
 const periodStats = ref({ todayRequests: 0, todayTokens: 0, weekRequests: 0, weekTokens: 0, monthRequests: 0, monthTokens: 0 })
 const allTimeStats = ref({ requests: 0, tokens: 0 })
@@ -434,6 +431,20 @@ const poolStrategy = ref('round-robin')
 const selectedAccountId = ref('')
 const isChangingStrategy = ref(false)
 const availableAccounts = ref([])
+
+const applyPoolStatus = (rawStatus) => {
+  poolStatus.value = toCamel(rawStatus)
+  selectedAccountId.value = poolStatus.value.selectedAccountId || ''
+
+  if (poolStatus.value.strategy) {
+    const strategyMap = {
+      RoundRobin: 'round-robin',
+      Single: 'single',
+      Smart: 'smart'
+    }
+    poolStrategy.value = strategyMap[poolStatus.value.strategy] || 'round-robin'
+  }
+}
 
 // 策略选项
 const strategyOptions = [
@@ -595,22 +606,12 @@ const loadAccessConfig = async () => {
 const loadPoolStatus = async () => {
   try {
     const raw = await invoke('get_codex_pool_status')
-    poolStatus.value = toCamel(raw)
-
-    // 同步策略到前端
-    if (poolStatus.value.strategy) {
-      const strategyMap = {
-        'RoundRobin': 'round-robin',
-        'Single': 'single',
-        'Smart': 'smart'
-      }
-      poolStrategy.value = strategyMap[poolStatus.value.strategy] || 'round-robin'
-    }
+    applyPoolStatus(raw)
 
     // 加载账号列表
     await loadAccounts()
   } catch {
-    poolStatus.value = toCamel(serverStatus.value.poolStatus || poolStatus.value)
+    applyPoolStatus(serverStatus.value.poolStatus || poolStatus.value)
   }
 }
 
@@ -859,7 +860,7 @@ const refreshAllData = async ({ refreshPool = false } = {}) => {
     await Promise.all([loadServerStatus(), loadAccessConfig()])
     if (refreshPool) {
       const refreshed = await invoke('refresh_codex_pool')
-      poolStatus.value = toCamel(refreshed)
+      applyPoolStatus(refreshed)
     }
     await Promise.all([loadPoolStatus(), loadPeriodStats(), loadAllTimeStats(), loadLogs(), loadDailyStats()])
   } catch (error) {

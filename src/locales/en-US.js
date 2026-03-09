@@ -1583,6 +1583,23 @@ export default {
         switchSuccess: 'Account switched successfully',
         switchFailed: 'Switch failed: {error}'
       },
+      codexRuntimeSettings: {
+        title: 'Codex Runtime Settings',
+        quotaRefresh: {
+          title: 'Quota Auto Refresh',
+          description: 'Periodically refresh Codex quota for OAuth accounts.',
+          intervalLabel: 'Interval (minutes)'
+        },
+        fastMode: {
+          title: 'Fast Mode',
+          description: 'Modify Codex config file (~/.codex/config.toml) for service_tier and fast_mode.'
+        },
+        messages: {
+          loadFailed: 'Failed to load settings: {error}',
+          saveSuccess: 'Codex settings saved',
+          saveFailed: 'Failed to save settings: {error}'
+        }
+      },
       messages: {
         switchSuccess: 'Account switched successfully',
         updateSuccess: 'Account updated successfully',
@@ -1713,7 +1730,7 @@ export default {
     size: 'Font Size',
     sizeHint: 'Unit: px. Recommended range: 10-24.',
     preview: 'Preview',
-    previewText: 'The quick brown fox jumps over the lazy dog. 蹇€熺殑妫曡壊鐙愮嫺璺宠繃鎳掔嫍銆?234567890',
+    previewText: 'The quick brown fox jumps over the lazy dog. 快速的棕色狐狸跳过懒狗。1234567890',
     reset: 'Reset to Default',
     apply: 'Apply',
     currentFont: 'Current Font',

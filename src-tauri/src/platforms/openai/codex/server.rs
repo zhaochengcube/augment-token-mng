@@ -22,8 +22,8 @@ use super::{
     pool::CodexPool,
     storage::CodexLogStorage,
 };
-use crate::data::storage::common::traits::AccountStorage;
 use crate::AppState;
+use crate::data::storage::common::traits::AccountStorage;
 
 // ==================== 不支持参数缓存 ====================
 
@@ -220,7 +220,8 @@ async fn handle_passthrough(
 
     let (pool, executor, logger, storage) = get_runtime_or_reject(&state)?;
     let request_format = infer_request_format(&path).to_string();
-    let request_model = extract_model_from_json_bytes(&body).unwrap_or_else(|| "unknown".to_string());
+    let request_model =
+        extract_model_from_json_bytes(&body).unwrap_or_else(|| "unknown".to_string());
 
     let is_responses = request_format == "openai-responses";
 
@@ -233,7 +234,11 @@ async fn handle_passthrough(
 
     // 用缓存移除已知的不支持参数
     if is_responses {
-        if let Some(stripped) = state.codex_unsupported_params.strip_known_params(&body).await {
+        if let Some(stripped) = state
+            .codex_unsupported_params
+            .strip_known_params(&body)
+            .await
+        {
             body = stripped;
         }
     }
@@ -276,12 +281,14 @@ async fn handle_passthrough(
             }
         };
 
-        let upstream_status =
-            StatusCode::from_u16(upstream_response.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
+        let upstream_status = StatusCode::from_u16(upstream_response.status().as_u16())
+            .unwrap_or(StatusCode::BAD_GATEWAY);
         let upstream_headers = upstream_response.headers().clone();
 
         // 如果是 402/403，异步更新数据库中的 forbidden 状态
-        if upstream_status == StatusCode::PAYMENT_REQUIRED || upstream_status == StatusCode::FORBIDDEN {
+        if upstream_status == StatusCode::PAYMENT_REQUIRED
+            || upstream_status == StatusCode::FORBIDDEN
+        {
             let state_clone = state.clone();
             let account_id = meta.account_id.clone();
             tokio::spawn(async move {
@@ -290,14 +297,26 @@ async fn handle_passthrough(
         }
 
         // 对于非流式响应，检查是否包含 "Unsupported parameter" 错误并自动重试
-        if is_responses && retries < MAX_UNSUPPORTED_PARAM_RETRIES && !is_event_stream(&upstream_headers) {
+        if is_responses
+            && retries < MAX_UNSUPPORTED_PARAM_RETRIES
+            && !is_event_stream(&upstream_headers)
+        {
             let peek_bytes = match upstream_response.bytes().await {
                 Ok(b) => b,
                 Err(err) => {
                     pool.record_failure(&meta.account_id, None).await;
                     let err_text = format!("Failed to read upstream response body: {}", err);
-                    add_failed_log(logger, storage, &request_model, &request_format, err_text.clone()).await;
-                    return Err(warp::reject::custom(CodexRejection::ExecutionError(err_text)));
+                    add_failed_log(
+                        logger,
+                        storage,
+                        &request_model,
+                        &request_format,
+                        err_text.clone(),
+                    )
+                    .await;
+                    return Err(warp::reject::custom(CodexRejection::ExecutionError(
+                        err_text,
+                    )));
                 }
             };
 
@@ -317,7 +336,8 @@ async fn handle_passthrough(
             // 不是不支持参数的错误，正常返回
             let usage = extract_usage_from_json_bytes(&peek_bytes);
             if upstream_status.is_success() && usage.total_tokens > 0 {
-                pool.record_usage(&meta.account_id, usage.total_tokens).await;
+                pool.record_usage(&meta.account_id, usage.total_tokens)
+                    .await;
             }
 
             let log_model = if request_model == "unknown" {
@@ -333,7 +353,11 @@ async fn handle_passthrough(
             let log = build_request_log(
                 &meta,
                 log_model,
-                if upstream_status.is_success() { "success" } else { "error" },
+                if upstream_status.is_success() {
+                    "success"
+                } else {
+                    "error"
+                },
                 usage,
                 error_message,
             );
@@ -380,14 +404,24 @@ async fn handle_passthrough(
             Err(err) => {
                 pool.record_failure(&meta.account_id, None).await;
                 let err_text = format!("Failed to read upstream response body: {}", err);
-                add_failed_log(logger, storage, &request_model, &request_format, err_text.clone()).await;
-                return Err(warp::reject::custom(CodexRejection::ExecutionError(err_text)));
+                add_failed_log(
+                    logger,
+                    storage,
+                    &request_model,
+                    &request_format,
+                    err_text.clone(),
+                )
+                .await;
+                return Err(warp::reject::custom(CodexRejection::ExecutionError(
+                    err_text,
+                )));
             }
         };
 
         let usage = extract_usage_from_json_bytes(&upstream_bytes);
         if upstream_status.is_success() && usage.total_tokens > 0 {
-            pool.record_usage(&meta.account_id, usage.total_tokens).await;
+            pool.record_usage(&meta.account_id, usage.total_tokens)
+                .await;
         }
 
         let log_model = if request_model == "unknown" {
@@ -403,7 +437,11 @@ async fn handle_passthrough(
         let log = build_request_log(
             &meta,
             log_model,
-            if upstream_status.is_success() { "success" } else { "error" },
+            if upstream_status.is_success() {
+                "success"
+            } else {
+                "error"
+            },
             usage,
             error_message,
         );
@@ -448,7 +486,8 @@ async fn destream_responses_sse(
     // 记录 usage
     let usage = extractor.usage;
     if status.is_success() && usage.total_tokens > 0 {
-        pool.record_usage(&meta.account_id, usage.total_tokens).await;
+        pool.record_usage(&meta.account_id, usage.total_tokens)
+            .await;
     }
 
     let log_model = if request_model == "unknown" {
@@ -464,7 +503,11 @@ async fn destream_responses_sse(
     let log = build_request_log(
         &meta,
         log_model,
-        if status.is_success() { "success" } else { "error" },
+        if status.is_success() {
+            "success"
+        } else {
+            "error"
+        },
         usage,
         error_message,
     );
@@ -597,7 +640,8 @@ fn build_streaming_response_with_metrics(
         extractor.finish();
         let usage = extractor.usage;
         if status.is_success() && usage.total_tokens > 0 {
-            pool.record_usage(&meta.account_id, usage.total_tokens).await;
+            pool.record_usage(&meta.account_id, usage.total_tokens)
+                .await;
         }
 
         let log_model = if request_model == "unknown" {
@@ -818,10 +862,16 @@ struct NormalizeResult {
 /// - 强制 `stream: true`
 fn normalize_responses_body(body: &Bytes) -> NormalizeResult {
     let Some(mut root) = serde_json::from_slice::<Value>(body).ok() else {
-        return NormalizeResult { body: None, stream_forced: false };
+        return NormalizeResult {
+            body: None,
+            stream_forced: false,
+        };
     };
     let Some(obj) = root.as_object_mut() else {
-        return NormalizeResult { body: None, stream_forced: false };
+        return NormalizeResult {
+            body: None,
+            stream_forced: false,
+        };
     };
     let mut modified = false;
     let mut stream_forced = false;
@@ -866,7 +916,10 @@ fn normalize_responses_body(body: &Bytes) -> NormalizeResult {
         None
     };
 
-    NormalizeResult { body: new_body, stream_forced }
+    NormalizeResult {
+        body: new_body,
+        stream_forced,
+    }
 }
 
 /// 从上游错误响应中提取 "Unsupported parameter" 的参数名
@@ -901,9 +954,11 @@ fn remove_json_key(body: &Bytes, key: &str) -> Bytes {
 }
 
 fn extract_model_from_json_bytes(body: &Bytes) -> Option<String> {
-    serde_json::from_slice::<Value>(body)
-        .ok()
-        .and_then(|v| v.get("model").and_then(|m| m.as_str()).map(|m| m.to_string()))
+    serde_json::from_slice::<Value>(body).ok().and_then(|v| {
+        v.get("model")
+            .and_then(|m| m.as_str())
+            .map(|m| m.to_string())
+    })
 }
 
 fn extract_usage_from_json_bytes(body: &Bytes) -> UsageStats {
@@ -1014,7 +1069,11 @@ fn build_request_log(
     }
 }
 
-async fn record_log(logger: Arc<RwLock<RequestLogger>>, storage: Option<Arc<CodexLogStorage>>, log: RequestLog) {
+async fn record_log(
+    logger: Arc<RwLock<RequestLogger>>,
+    storage: Option<Arc<CodexLogStorage>>,
+    log: RequestLog,
+) {
     let mut guard = logger.write().await;
     guard.add_log(log.clone());
 
@@ -1181,11 +1240,7 @@ fn extract_bearer_token(header: &str) -> Option<&str> {
     }
 
     let token = rest.trim();
-    if token.is_empty() {
-        None
-    } else {
-        Some(token)
-    }
+    if token.is_empty() { None } else { Some(token) }
 }
 
 fn get_models() -> serde_json::Value {
