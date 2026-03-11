@@ -10,91 +10,56 @@
       ]"
     >
       <template #header>
-        <!-- Page Header -->
-        <div class="flex items-center justify-between gap-4 px-5 py-4 border-b border-border bg-surface shrink-0">
-          <!-- 左侧：存储状态 + 功能性操作 -->
-          <div class="flex items-center gap-3 shrink-0">
-            <!-- 存储状态徽章 -->
-            <div
-              :class="['badge', storageStatusClass, { clickable: isDatabaseAvailable }]"
-              v-tooltip="isDatabaseAvailable ? $t('platform.antigravity.viewSyncQueueTooltip') : ''"
-              @click="isDatabaseAvailable && openSyncQueue()"
-            >
-              <span :class="['status-dot', storageStatusClass]"></span>
-              <span class="text-[11px] font-semibold tracking-[0.3px]">{{ storageStatusText }}</span>
-            </div>
-
-            <!-- 功能性操作按钮 -->
-            <div class="flex items-center gap-2" @click.stop>
-              <button class="btn btn--icon btn--ghost" @click="setToolbarMode('search')" v-tooltip="$t('common.search')">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5z" />
-                </svg>
-              </button>
-              <button class="btn btn--icon btn--ghost" @click="setToolbarMode('filter')" v-tooltip="$t('common.filter')">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/>
-                </svg>
-              </button>
-              <button class="btn btn--icon btn--ghost" @click="setToolbarMode('sort')" v-tooltip="$t('common.sort')">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                  <path d="M7 16V6M4 9l3-3 3 3" />
-                  <path d="M17 8v10M14 15l3 3 3-3" />
-                </svg>
-              </button>
-              <button
-                class="btn btn--icon btn--ghost"
-                @click="toggleViewMode"
-                v-tooltip="viewMode === 'card' ? $t('common.switchToTable') : $t('common.switchToCard')"
-                :class="{ 'active': viewMode === 'table' }"
-              >
-                <svg v-if="viewMode === 'table'" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M4 11h5V5H4v6zm0 7h5v-6H4v6zm6 0h5v-6h-5v6zm6 0h5v-6h-5v6zm-6-7h5V5h-5v6zm6-6v6h5V5h-5z"/>
-                </svg>
-                <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M3 14h4v-4H3v4zm0 5h4v-4H3v4zM3 9h4V5H3v4zm5 5h13v-4H8v4zm0 5h13v-4H8v4zM8 5v4h13V5H8z"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <!-- 右侧：主要操作按钮 -->
-          <div class="flex items-center gap-2 shrink-0" @click.stop>
-            <button @click="showAddDialog = true" class="btn btn--icon btn--ghost" v-tooltip="$t('platform.antigravity.addAccount')">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-              </svg>
-            </button>
-            <button
-              v-if="isDatabaseAvailable"
-              class="btn btn--icon btn--ghost"
-              @click="handleSync"
-              :disabled="isSyncing"
-              v-tooltip="$t('tokenList.syncTooltip')"
-            >
-              <svg v-if="!isSyncing" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" />
-              </svg>
-              <span v-else class="btn-spinner text-accent" aria-hidden="true"></span>
-            </button>
-            <button
-              class="btn btn--icon btn--ghost"
-              @click="handleRefresh"
-              :disabled="isRefreshing"
-              v-tooltip="$t('platform.antigravity.refreshQuota')"
-            >
-              <svg v-if="!isRefreshing" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
-              </svg>
-              <span v-else class="btn-spinner text-accent" aria-hidden="true"></span>
-            </button>
-            <button class="btn btn--icon btn--ghost" @click="setToolbarMode('more')" v-tooltip="'更多'">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 7a2 2 0 110-4 2 2 0 010 4zm0 7a2 2 0 110-4 2 2 0 010 4zm0 7a2 2 0 110-4 2 2 0 010 4z"/>
-              </svg>
-            </button>
-          </div>
-        </div>
+        <AccountManagerHeader
+          :storage-status-text="storageStatusText"
+          :storage-status-class="storageStatusClass"
+          :is-database-available="isDatabaseAvailable"
+          :sync-queue-tooltip="$t('platform.antigravity.viewSyncQueueTooltip')"
+          :search-active="isSearchActive"
+          :filter-active="isFilterActive"
+          :sort-active="isSortNonDefault"
+          :view-mode="viewMode"
+          @open-sync-queue="openSyncQueue"
+          @search="setToolbarMode('search')"
+          @filter="setToolbarMode('filter')"
+          @sort="setToolbarMode('sort')"
+          @toggle-view="toggleViewMode"
+          @clear-all="clearAllFilters"
+        >
+          <button @click="showAddDialog = true" class="btn btn--icon btn--ghost" v-tooltip="$t('platform.antigravity.addAccount')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+            </svg>
+          </button>
+          <button
+            v-if="isDatabaseAvailable"
+            class="btn btn--icon btn--ghost"
+            @click="handleSync"
+            :disabled="isSyncing"
+            v-tooltip="$t('tokenList.syncTooltip')"
+          >
+            <svg v-if="!isSyncing" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" />
+            </svg>
+            <span v-else class="btn-spinner text-accent" aria-hidden="true"></span>
+          </button>
+          <button
+            class="btn btn--icon btn--ghost"
+            @click="handleRefresh"
+            :disabled="isRefreshing"
+            v-tooltip="$t('platform.antigravity.refreshQuota')"
+          >
+            <svg v-if="!isRefreshing" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
+            </svg>
+            <span v-else class="btn-spinner text-accent" aria-hidden="true"></span>
+          </button>
+          <button class="btn btn--icon btn--ghost" @click="setToolbarMode('more')" v-tooltip="'更多'">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 7a2 2 0 110-4 2 2 0 010 4zm0 7a2 2 0 110-4 2 2 0 010 4zm0 7a2 2 0 110-4 2 2 0 010 4z"/>
+            </svg>
+          </button>
+        </AccountManagerHeader>
       </template>
 
       <!-- Loading State -->
@@ -267,6 +232,45 @@
             >
               <span>{{ $t('platform.antigravity.filter.forbidden') }}</span>
               <span class="ml-1 opacity-70">({{ statusStatistics.forbidden }})</span>
+            </button>
+          </div>
+        </div>
+        <!-- 标签筛选 -->
+        <div v-if="allTags.length > 0" class="flex flex-col gap-2">
+          <span class="label">{{ $t('platform.antigravity.table.tag') }}</span>
+          <div class="flex flex-wrap gap-2">
+            <button
+              :class="['btn btn--sm', 'btn--secondary']"
+              @click="toggleTagFilterMode"
+              v-tooltip="tagFilterMode === 'include' ? '切换到排除模式' : '切换到包含模式'"
+              data-toolbar-keep-open
+            >
+              <svg v-if="tagFilterMode === 'include'" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+              <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+              <span class="ml-1">{{ tagFilterMode === 'include' ? '包含' : '排除' }}</span>
+            </button>
+            <button
+              :class="['btn btn--sm', selectedTags.size === 0 ? 'btn--primary' : 'btn--secondary']"
+              @click="clearTagFilter"
+            >
+              {{ $t('platform.antigravity.filter.all') }}
+              <span class="ml-1 opacity-70">({{ accounts.length }})</span>
+            </button>
+            <button
+              v-for="tag in allTags"
+              :key="tag"
+              :class="['btn btn--sm', selectedTags.has(tag) ? 'btn--primary' : 'btn--secondary']"
+              @click="toggleTag(tag)"
+            >
+              {{ tag }}
+              <span class="ml-1 opacity-70">({{ tagCounts[tag] || 0 }})</span>
+            </button>
+            <button
+              :class="['btn btn--sm', selectedTags.has('__no_tag__') ? 'btn--primary' : 'btn--secondary']"
+              @click="toggleTag('__no_tag__')"
+            >
+              无标签
+              <span class="ml-1 opacity-70">({{ noTagCount }})</span>
             </button>
           </div>
         </div>
@@ -497,6 +501,7 @@ import Pagination from '../common/Pagination.vue'
 import BatchToolbar from '../common/BatchToolbar.vue'
 import ActionToolbar from '../common/ActionToolbar.vue'
 import FixedPaginationLayout from '../common/FixedPaginationLayout.vue'
+import AccountManagerHeader from '../common/AccountManagerHeader.vue'
 import CustomPathDialog from '../common/CustomPathDialog.vue'
 import TagEditorModal from '../token/TagEditorModal.vue'
 import { useStorageSync } from '@/composables/useStorageSync'
@@ -564,6 +569,8 @@ const defaultAntigravityPath = ref('')
 // 搜索和筛选
 const searchQuery = ref('')
 const selectedStatusFilter = ref(null)
+const selectedTags = ref(new Set())
+const tagFilterMode = ref('include')
 const toolbarMode = ref('hidden') // 'hidden', 'search', 'filter', 'sort', 'more'
 const toolbarSearchInputRef = ref(null)
 const statusOptions = ['available', 'low', 'forbidden']
@@ -609,6 +616,32 @@ const allAccountsAsTokens = computed(() =>
     tag_color: acc.tag_color || ''
   }))
 )
+
+// 提取所有唯一标签
+const allTags = computed(() => {
+  const tags = new Set()
+  accounts.value.forEach(a => {
+    if (a.tag?.trim()) {
+      tags.add(a.tag.trim())
+    }
+  })
+  return Array.from(tags).sort((a, b) => a.localeCompare(b, 'zh-CN'))
+})
+
+const tagCounts = computed(() => {
+  const counts = {}
+  accounts.value.forEach(a => {
+    const tag = a.tag?.trim()
+    if (tag) {
+      counts[tag] = (counts[tag] || 0) + 1
+    }
+  })
+  return counts
+})
+
+const noTagCount = computed(() => {
+  return accounts.value.filter(a => !a.tag?.trim()).length
+})
 
 const statusStatistics = computed(() => {
   const stats = {
@@ -665,6 +698,27 @@ const filteredAccounts = computed(() => {
     })
   }
 
+  // 标签筛选
+  if (selectedTags.value.size > 0) {
+    const hasNoTagFilter = selectedTags.value.has('__no_tag__')
+    const lowerSelectedTags = new Set(
+      Array.from(selectedTags.value)
+        .filter(t => t !== '__no_tag__')
+        .map(tag => tag.toLowerCase())
+    )
+    result = result.filter(account => {
+      const tagName = account.tag?.trim() || ''
+      const isNoTag = !tagName
+      let matches = false
+      if (isNoTag) {
+        matches = hasNoTagFilter
+      } else {
+        matches = lowerSelectedTags.has(tagName.toLowerCase())
+      }
+      return tagFilterMode.value === 'include' ? matches : !matches
+    })
+  }
+
   // 排序（当前账号置顶，其余按设置排序）
   result = [...result].sort((a, b) => {
     const currentId = currentAccountId.value
@@ -714,6 +768,20 @@ const isPartialSelected = computed(() => {
 
 const showEmptyState = computed(() => !isLoading.value && filteredAccounts.value.length === 0)
 const shouldShowPagination = computed(() => !isLoading.value && accounts.value.length > 0 && filteredAccounts.value.length > 0)
+
+// 搜索/筛选/排序活跃状态
+const isSearchActive = computed(() => searchQuery.value.trim() !== '')
+const isFilterActive = computed(() => selectedStatusFilter.value !== null || selectedTags.value.size > 0)
+const isSortNonDefault = computed(() => sortType.value !== 'time' || sortOrder.value !== 'desc')
+
+const clearAllFilters = () => {
+  searchQuery.value = ''
+  selectedStatusFilter.value = null
+  selectedTags.value = new Set()
+  tagFilterMode.value = 'include'
+  sortType.value = 'time'
+  sortOrder.value = 'desc'
+}
 
 // 方法
 const loadAccounts = async () => {
@@ -863,6 +931,25 @@ const setToolbarMode = (mode) => {
   if (toolbarMode.value === 'search') {
     nextTick(() => toolbarSearchInputRef.value?.focus())
   }
+}
+
+// 标签筛选方法
+const toggleTagFilterMode = () => {
+  tagFilterMode.value = tagFilterMode.value === 'include' ? 'exclude' : 'include'
+}
+
+const toggleTag = (tagName) => {
+  const newSet = new Set(selectedTags.value)
+  if (newSet.has(tagName)) {
+    newSet.delete(tagName)
+  } else {
+    newSet.add(tagName)
+  }
+  selectedTags.value = newSet
+}
+
+const clearTagFilter = () => {
+  selectedTags.value = new Set()
 }
 
 // 筛选和排序
@@ -1085,7 +1172,7 @@ const refreshModelsModal = async () => {
 }
 
 // 监听搜索和筛选变化，重置分页
-watch([searchQuery, selectedStatusFilter], () => {
+watch([searchQuery, selectedStatusFilter, selectedTags, tagFilterMode], () => {
   currentPage.value = 1
 })
 

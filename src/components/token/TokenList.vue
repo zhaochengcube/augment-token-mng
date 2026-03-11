@@ -301,13 +301,10 @@
               :class="['btn btn--sm', 'btn--secondary']"
               @click="toggleTagFilterMode"
               v-tooltip="tagFilterMode === 'include' ? '切换到排除模式' : '切换到包含模式'"
+              data-toolbar-keep-open
             >
-              <svg v-if="tagFilterMode === 'include'" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-              </svg>
-              <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19 13H5v-2h14v2z"/>
-              </svg>
+              <svg v-if="tagFilterMode === 'include'" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+              <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
               <span class="ml-1">{{ tagFilterMode === 'include' ? '包含' : '排除' }}</span>
             </button>
             <button
@@ -318,6 +315,7 @@
               @click="clearTagFilter"
             >
               全部
+              <span class="ml-1 opacity-70">({{ statusOnlyFilteredTokens.length }})</span>
             </button>
             <button
               v-for="tag in allTags"
@@ -329,6 +327,14 @@
               @click="toggleTag(tag)"
             >
               {{ tag }}
+              <span class="ml-1 opacity-70">({{ tagCounts[tag] || 0 }})</span>
+            </button>
+            <button
+              :class="['btn btn--sm', selectedTags.has('__no_tag__') ? 'btn--primary' : 'btn--secondary']"
+              @click="toggleTag('__no_tag__')"
+            >
+              无标签
+              <span class="ml-1 opacity-70">({{ noTagCount }})</span>
             </button>
             <span v-if="allTags.length === 0" class="text-xs text-text-muted">暂无标签</span>
           </div>
@@ -1123,6 +1129,21 @@ const allTags = computed(() => {
   })
 })
 
+const tagCounts = computed(() => {
+  const counts = {}
+  statusOnlyFilteredTokens.value.forEach(token => {
+    const tag = token.tag_name?.trim()
+    if (tag) {
+      counts[tag] = (counts[tag] || 0) + 1
+    }
+  })
+  return counts
+})
+
+const noTagCount = computed(() => {
+  return statusOnlyFilteredTokens.value.filter(t => !t.tag_name?.trim()).length
+})
+
 // 排序后的tokens计算属性
 const sortedTokens = computed(() => {
   if (tokens.value.length === 0) return []
@@ -1215,19 +1236,23 @@ const filteredTokens = computed(() => {
 
   // 2. 应用标签筛选（忽略大小写）
   if (selectedTags.value.size > 0) {
+    const hasNoTagFilter = selectedTags.value.has('__no_tag__')
     const lowerSelectedTags = new Set(
-      Array.from(selectedTags.value).map(tag => tag.toLowerCase())
+      Array.from(selectedTags.value)
+        .filter(t => t !== '__no_tag__')
+        .map(tag => tag.toLowerCase())
     )
 
     result = result.filter(token => {
       const tagName = token.tag_name?.trim() || ''
-      const lowerTagName = tagName.toLowerCase()
-
-      if (tagFilterMode.value === 'include') {
-        return tagName && lowerSelectedTags.has(lowerTagName)
+      const isNoTag = !tagName
+      let matches = false
+      if (isNoTag) {
+        matches = hasNoTagFilter
       } else {
-        return !tagName || !lowerSelectedTags.has(lowerTagName)
+        matches = lowerSelectedTags.has(tagName.toLowerCase())
       }
+      return tagFilterMode.value === 'include' ? matches : !matches
     })
   }
 

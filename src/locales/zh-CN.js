@@ -18,6 +18,7 @@ export default {
     ascending: '升序',
     descending: '降序',
     filter: '筛选',
+    clearFilters: '清除搜索/筛选/排序',
     today: '今天',
     yesterday: '昨天',
     daysAgo: '{days} 天前',

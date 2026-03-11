@@ -18,6 +18,7 @@ export default {
     ascending: 'Ascending',
     descending: 'Descending',
     filter: 'Filter',
+    clearFilters: 'Clear search/filter/sort',
     today: 'Today',
     yesterday: 'Yesterday',
     daysAgo: '{days} days ago',

@@ -10,85 +10,51 @@
       ]"
     >
       <template #header>
-        <!-- Page Header -->
-        <div class="flex items-center justify-between gap-4 px-5 py-4 border-b border-border bg-surface shrink-0">
-          <!-- 左侧：存储状态 + 功能性操作 -->
-          <div class="flex items-center gap-3 shrink-0">
-            <!-- 存储状态徽章 -->
-            <div
-              :class="['badge', storageStatusClass, { clickable: isDatabaseAvailable }]"
-              v-tooltip="isDatabaseAvailable ? $t('subscriptions.viewSyncQueueTooltip') : ''"
-              @click="isDatabaseAvailable && openSyncQueue()"
-            >
-              <span :class="['status-dot', storageStatusClass]"></span>
-              <span class="text-[11px] font-semibold tracking-[0.3px]">{{ storageStatusText }}</span>
-            </div>
-
-            <!-- 功能性操作按钮 -->
-            <div class="flex items-center gap-2" @click.stop>
-              <button class="btn btn--icon btn--ghost" @click="setToolbarMode('search')" v-tooltip="$t('common.search')">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5z" />
-                </svg>
-              </button>
-              <button class="btn btn--icon btn--ghost" @click="setToolbarMode('filter')" v-tooltip="$t('common.filter')">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/>
-                </svg>
-              </button>
-              <button class="btn btn--icon btn--ghost" @click="setToolbarMode('sort')" v-tooltip="$t('common.sort')">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                  <path d="M7 16V6M4 9l3-3 3 3" />
-                  <path d="M17 8v10M14 15l3 3 3-3" />
-                </svg>
-              </button>
-              <button
-                class="btn btn--icon btn--ghost"
-                @click="toggleViewMode"
-                v-tooltip="viewMode === 'card' ? $t('common.switchToTable') : $t('common.switchToCard')"
-              >
-                <svg v-if="viewMode === 'table'" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M4 11h5V5H4v6zm0 7h5v-6H4v6zm6 0h5v-6h-5v6zm6 0h5v-6h-5v6zm-6-7h5V5h-5v6zm6-6v6h5V5h-5z"/>
-                </svg>
-                <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M3 14h4v-4H3v4zm0 5h4v-4H3v4zM3 9h4V5H3v4zm5 5h13v-4H8v4zm0 5h13v-4H8v4zM8 5v4h13V5H8z"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <!-- 右侧：主要操作按钮 -->
-          <div class="flex items-center gap-2 shrink-0" @click.stop>
-            <button @click="showAddDialog = true" class="btn btn--icon btn--ghost" v-tooltip="$t('subscriptions.add')">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-              </svg>
-            </button>
-            <button
-              v-if="isDatabaseAvailable"
-              class="btn btn--icon btn--ghost"
-              @click="handleSync"
-              :disabled="isSyncing"
-              v-tooltip="$t('tokenList.syncTooltip')"
-            >
-              <svg v-if="!isSyncing" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" />
-              </svg>
-              <span v-else class="btn-spinner text-accent" aria-hidden="true"></span>
-            </button>
-            <button
-              class="btn btn--icon btn--ghost"
-              @click="handleRefresh"
-              :disabled="isRefreshing"
-              v-tooltip="$t('common.refresh')"
-            >
-              <svg v-if="!isRefreshing" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
-              </svg>
-              <span v-else class="btn-spinner text-accent" aria-hidden="true"></span>
-            </button>
-          </div>
-        </div>
+        <AccountManagerHeader
+          :storage-status-text="storageStatusText"
+          :storage-status-class="storageStatusClass"
+          :is-database-available="isDatabaseAvailable"
+          :sync-queue-tooltip="$t('subscriptions.viewSyncQueueTooltip')"
+          :search-active="isSearchActive"
+          :filter-active="isFilterActive"
+          :sort-active="isSortNonDefault"
+          :view-mode="viewMode"
+          @open-sync-queue="openSyncQueue"
+          @search="setToolbarMode('search')"
+          @filter="setToolbarMode('filter')"
+          @sort="setToolbarMode('sort')"
+          @toggle-view="toggleViewMode"
+          @clear-all="clearAllFilters"
+        >
+          <button @click="showAddDialog = true" class="btn btn--icon btn--ghost" v-tooltip="$t('subscriptions.add')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+            </svg>
+          </button>
+          <button
+            v-if="isDatabaseAvailable"
+            class="btn btn--icon btn--ghost"
+            @click="handleSync"
+            :disabled="isSyncing"
+            v-tooltip="$t('tokenList.syncTooltip')"
+          >
+            <svg v-if="!isSyncing" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" />
+            </svg>
+            <span v-else class="btn-spinner text-accent" aria-hidden="true"></span>
+          </button>
+          <button
+            class="btn btn--icon btn--ghost"
+            @click="handleRefresh"
+            :disabled="isRefreshing"
+            v-tooltip="$t('common.refresh')"
+          >
+            <svg v-if="!isRefreshing" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
+            </svg>
+            <span v-else class="btn-spinner text-accent" aria-hidden="true"></span>
+          </button>
+        </AccountManagerHeader>
       </template>
 
       <!-- Loading State -->
@@ -261,8 +227,18 @@
           <span class="label">{{ $t('subscriptions.filters.tag') }}</span>
           <div class="flex flex-wrap gap-2">
             <button
-              :class="['btn btn--sm', selectedTagFilter === null ? 'btn--primary' : 'btn--secondary']"
-              @click="selectedTagFilter = null"
+              :class="['btn btn--sm', 'btn--secondary']"
+              @click="toggleTagFilterMode"
+              v-tooltip="tagFilterMode === 'include' ? '切换到排除模式' : '切换到包含模式'"
+              data-toolbar-keep-open
+            >
+              <svg v-if="tagFilterMode === 'include'" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+              <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+              <span class="ml-1">{{ tagFilterMode === 'include' ? '包含' : '排除' }}</span>
+            </button>
+            <button
+              :class="['btn btn--sm', selectedTags.size === 0 ? 'btn--primary' : 'btn--secondary']"
+              @click="clearTagFilter"
             >
               <span>{{ $t('subscriptions.filters.all') }}</span>
               <span class="ml-1 opacity-70">({{ tagStatistics.all }})</span>
@@ -270,11 +246,18 @@
             <button
               v-for="tag in tagOptions"
               :key="tag.name"
-              :class="['btn btn--sm', selectedTagFilter === tag.name ? 'btn--primary' : 'btn--secondary']"
-              @click="selectedTagFilter = tag.name"
+              :class="['btn btn--sm', selectedTags.has(tag.name) ? 'btn--primary' : 'btn--secondary']"
+              @click="toggleTag(tag.name)"
             >
               <span>{{ tag.name }}</span>
               <span class="ml-1 opacity-70">({{ tagStatistics[tag.name] || 0 }})</span>
+            </button>
+            <button
+              :class="['btn btn--sm', selectedTags.has('__no_tag__') ? 'btn--primary' : 'btn--secondary']"
+              @click="toggleTag('__no_tag__')"
+            >
+              <span>无标签</span>
+              <span class="ml-1 opacity-70">({{ tagStatistics.__no_tag__ || 0 }})</span>
             </button>
           </div>
         </div>
@@ -423,6 +406,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { useStorageSync } from '@/composables/useStorageSync'
 import ActionToolbar from '../common/ActionToolbar.vue'
 import FixedPaginationLayout from '../common/FixedPaginationLayout.vue'
+import AccountManagerHeader from '../common/AccountManagerHeader.vue'
 import Pagination from '../common/Pagination.vue'
 import SyncQueueModal from '../common/SyncQueueModal.vue'
 import BatchToolbar from '../common/BatchToolbar.vue'
@@ -456,7 +440,8 @@ const searchQuery = ref('')
 const toolbarMode = ref('hidden')
 const searchInputRef = ref(null)
 const selectedExpiryFilter = ref('all')
-const selectedTagFilter = ref(null)
+const selectedTags = ref(new Set())
+const tagFilterMode = ref('include')
 
 // 排序状态
 const sortType = ref('created')
@@ -545,8 +530,22 @@ const searchFilteredSubscriptions = computed(() => {
 // 应用搜索 + 标签筛选（用于计算到期时间统计）
 const tagFilteredSubscriptions = computed(() => {
   let result = searchFilteredSubscriptions.value
-  if (selectedTagFilter.value) {
-    result = result.filter(sub => sub.tag === selectedTagFilter.value)
+  if (selectedTags.value.size > 0) {
+    const hasNoTagFilter = selectedTags.value.has('__no_tag__')
+    const selectedTagNames = new Set(
+      Array.from(selectedTags.value).filter(t => t !== '__no_tag__')
+    )
+    result = result.filter(sub => {
+      const tag = sub.tag || ''
+      const isNoTag = !tag
+      let matches = false
+      if (isNoTag) {
+        matches = hasNoTagFilter
+      } else {
+        matches = selectedTagNames.has(tag)
+      }
+      return tagFilterMode.value === 'include' ? matches : !matches
+    })
   }
   return result
 })
@@ -577,18 +576,19 @@ const expiryStatistics = computed(() => {
   return stats
 })
 
-// 标签统计 - 基于搜索+到期时间筛选
+// 标签统计
 const tagStatistics = computed(() => {
-  const subs = expiryFilteredSubscriptions.value
-  let taggedCount = 0
+  const subs = subscriptions.value
   const stats = {}
+  let taggedCount = 0
   subs.forEach(sub => {
     if (sub.tag) {
       stats[sub.tag] = (stats[sub.tag] || 0) + 1
       taggedCount++
     }
   })
-  stats.all = taggedCount
+  stats.all = subs.length
+  stats.__no_tag__ = subs.length - taggedCount
   return stats
 })
 
@@ -598,8 +598,22 @@ const filteredSubscriptions = computed(() => {
   let result = applyExpiryFilter(searchFilteredSubscriptions.value, selectedExpiryFilter.value)
 
   // 过滤：标签
-  if (selectedTagFilter.value) {
-    result = result.filter(sub => sub.tag === selectedTagFilter.value)
+  if (selectedTags.value.size > 0) {
+    const hasNoTagFilter = selectedTags.value.has('__no_tag__')
+    const selectedTagNames = new Set(
+      Array.from(selectedTags.value).filter(t => t !== '__no_tag__')
+    )
+    result = result.filter(sub => {
+      const tag = sub.tag || ''
+      const isNoTag = !tag
+      let matches = false
+      if (isNoTag) {
+        matches = hasNoTagFilter
+      } else {
+        matches = selectedTagNames.has(tag)
+      }
+      return tagFilterMode.value === 'include' ? matches : !matches
+    })
   }
 
   // 排序
@@ -646,6 +660,20 @@ const totalPages = computed(() => Math.ceil(filteredSubscriptions.value.length /
 
 const shouldShowPagination = computed(() => !isLoading.value && filteredSubscriptions.value.length > 0)
 
+// 搜索/筛选/排序活跃状态
+const isSearchActive = computed(() => searchQuery.value.trim() !== '')
+const isFilterActive = computed(() => selectedExpiryFilter.value !== 'all' || selectedTags.value.size > 0)
+const isSortNonDefault = computed(() => sortType.value !== 'created' || sortOrder.value !== 'desc')
+
+const clearAllFilters = () => {
+  searchQuery.value = ''
+  selectedExpiryFilter.value = 'all'
+  selectedTags.value = new Set()
+  tagFilterMode.value = 'include'
+  sortType.value = 'created'
+  sortOrder.value = 'desc'
+}
+
 // 空状态判断
 const showEmptyState = computed(() => filteredSubscriptions.value.length === 0)
 
@@ -683,6 +711,25 @@ const setToolbarMode = (mode) => {
   if (toolbarMode.value === 'search') {
     nextTick(() => searchInputRef.value?.focus())
   }
+}
+
+// 标签筛选方法
+const toggleTagFilterMode = () => {
+  tagFilterMode.value = tagFilterMode.value === 'include' ? 'exclude' : 'include'
+}
+
+const toggleTag = (tagName) => {
+  const newSet = new Set(selectedTags.value)
+  if (newSet.has(tagName)) {
+    newSet.delete(tagName)
+  } else {
+    newSet.add(tagName)
+  }
+  selectedTags.value = newSet
+}
+
+const clearTagFilter = () => {
+  selectedTags.value = new Set()
 }
 
 const setExpiryFilter = (value) => {
