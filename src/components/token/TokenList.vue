@@ -10,109 +10,73 @@
       ]"
     >
       <template #header>
-        <!-- Page Header -->
-        <div class="flex items-center justify-between gap-4 px-5 py-4 border-b border-border bg-surface shrink-0">
-          <!-- 左侧：存储状态 + 功能性操作 -->
-          <div class="flex items-center gap-3 shrink-0">
-            <!-- 存储状态徽章 -->
-            <div
-              :class="['badge', storageStatusClass, { clickable: isDatabaseAvailable }]"
-              v-tooltip="isDatabaseAvailable ? $t('tokenList.viewSyncQueueTooltip') : ''"
-              @click="isDatabaseAvailable && openSyncQueue()">
-              <span :class="['status-dot', storageStatusClass]"></span>
-              <span class="text-[11px] font-semibold tracking-[0.3px]">{{ storageStatusText }}</span>
-            </div>
-
-            <!-- 功能性操作按钮 -->
-            <div class="flex items-center gap-2" @click.stop>
-              <button class="btn btn--icon btn--ghost" @click="setToolbarMode('search')" v-tooltip="$t('common.search')">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <path
-                    d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5z" />
-                </svg>
-              </button>
-              <button class="btn btn--icon btn--ghost" @click="setToolbarMode('filter')" v-tooltip="$t('common.filter')">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/>
-                </svg>
-              </button>
-              <button class="btn btn--icon btn--ghost" @click="setToolbarMode('sort')" v-tooltip="$t('common.sort')">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round">
-                  <path d="M7 16V6M4 9l3-3 3 3" />
-                  <path d="M17 8v10M14 15l3 3 3-3" />
-                </svg>
-              </button>
-              <button
-                class="btn btn--icon btn--ghost"
-                @click="toggleViewMode"
-                v-tooltip="viewMode === 'card' ? $t('tokenList.switchToTable') : $t('tokenList.switchToCard')"
-                :class="{ 'active': viewMode === 'table' }"
-              >
-                <svg v-if="viewMode === 'table'" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M4 11h5V5H4v6zm0 7h5v-6H4v6zm6 0h5v-6h-5v6zm6 0h5v-6h-5v6zm-6-7h5V5h-5v6zm6-6v6h5V5h-5z"/>
-                </svg>
-                <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M3 14h4v-4H3v4zm0 5h4v-4H3v4zM3 9h4V5H3v4zm5 5h13v-4H8v4zm0 5h13v-4H8v4zM8 5v4h13V5H8z"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <!-- 右侧：主要操作按钮 -->
-          <div class="flex items-center gap-2 shrink-0" @click.stop>
-            <button
-              v-if="expiringSessionTokens.length > 0"
-              class="btn btn--icon btn-tech-warning relative"
-              @click="openSessionRefreshModal"
-              v-tooltip="$t('tokenList.sessionExpiring', { count: expiringSessionTokens.length })"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
-              </svg>
-              <span class="absolute -top-1 -right-1 min-w-4 h-4 px-1 text-[10px] font-semibold text-white bg-warning rounded-md flex items-center justify-center shadow-sm pointer-events-none">{{ expiringSessionTokens.length }}</span>
-            </button>
-            <button @click="handleAddToken" class="btn btn--icon btn--ghost" v-tooltip="$t('tokenList.addToken')">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-              </svg>
-            </button>
-            <button @click="showImportAccountsDialog = true" class="btn btn--icon btn--ghost" v-tooltip="$t('tokenList.importAccounts')">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
-              </svg>
-            </button>
-            <button
-              v-if="isDatabaseAvailable"
-              class="btn btn--icon btn--ghost"
-              @click="handleBidirectionalSync"
-              :disabled="isSyncing"
-              v-tooltip="$t('tokenList.syncTooltip')"
-            >
-              <svg v-if="!isSyncing" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <path
-                  d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" />
-              </svg>
-              <span v-else class="btn-spinner text-accent" aria-hidden="true"></span>
-            </button>
-            <button
-              class="btn btn--icon btn--ghost"
-              @click="handleRefresh"
-              :disabled="isRefreshing"
-              v-tooltip="$t('tokenList.refresh')"
-            >
-              <svg v-if="!isRefreshing" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
-              </svg>
-              <span v-else class="btn-spinner text-accent" aria-hidden="true"></span>
-            </button>
-            <button class="btn btn--icon btn--ghost" @click="setToolbarMode('more')" v-tooltip="'更多'">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 7a2 2 0 110-4 2 2 0 010 4zm0 7a2 2 0 110-4 2 2 0 010 4zm0 7a2 2 0 110-4 2 2 0 010 4z"/>
-              </svg>
-            </button>
-          </div>
-        </div>
+        <AccountManagerHeader
+          :storage-status-text="storageStatusText"
+          :storage-status-class="storageStatusClass"
+          :is-database-available="isDatabaseAvailable"
+          :sync-queue-tooltip="$t('tokenList.viewSyncQueueTooltip')"
+          :search-active="isSearchActive"
+          :filter-active="isFilterActive"
+          :sort-active="isSortNonDefault"
+          :view-mode="viewMode"
+          @open-sync-queue="openSyncQueue"
+          @search="setToolbarMode('search')"
+          @filter="setToolbarMode('filter')"
+          @sort="setToolbarMode('sort')"
+          @toggle-view="toggleViewMode"
+          @clear-all="clearAllFilters"
+        >
+          <button
+            v-if="expiringSessionTokens.length > 0"
+            class="btn btn--icon btn-tech-warning relative"
+            @click="openSessionRefreshModal"
+            v-tooltip="$t('tokenList.sessionExpiring', { count: expiringSessionTokens.length })"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+            </svg>
+            <span class="absolute -top-1 -right-1 min-w-4 h-4 px-1 text-[10px] font-semibold text-white bg-warning rounded-md flex items-center justify-center shadow-sm pointer-events-none">{{ expiringSessionTokens.length }}</span>
+          </button>
+          <button @click="handleAddToken" class="btn btn--icon btn--ghost" v-tooltip="$t('tokenList.addToken')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+            </svg>
+          </button>
+          <button @click="showImportAccountsDialog = true" class="btn btn--icon btn--ghost" v-tooltip="$t('tokenList.importAccounts')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+            </svg>
+          </button>
+          <button
+            v-if="isDatabaseAvailable"
+            class="btn btn--icon btn--ghost"
+            @click="handleBidirectionalSync"
+            :disabled="isSyncing"
+            v-tooltip="$t('tokenList.syncTooltip')"
+          >
+            <svg v-if="!isSyncing" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path
+                d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" />
+            </svg>
+            <span v-else class="btn-spinner text-accent" aria-hidden="true"></span>
+          </button>
+          <button
+            class="btn btn--icon btn--ghost"
+            @click="handleRefresh"
+            :disabled="isRefreshing"
+            v-tooltip="$t('tokenList.refresh')"
+          >
+            <svg v-if="!isRefreshing" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
+            </svg>
+            <span v-else class="btn-spinner text-accent" aria-hidden="true"></span>
+          </button>
+          <button class="btn btn--icon btn--ghost" @click="setToolbarMode('more')" v-tooltip="'更多'">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 7a2 2 0 110-4 2 2 0 010 4zm0 7a2 2 0 110-4 2 2 0 010 4zm0 7a2 2 0 110-4 2 2 0 010 4z"/>
+            </svg>
+          </button>
+        </AccountManagerHeader>
       </template>
       <!-- Page Body -->
       <!-- Loading State -->
@@ -239,7 +203,24 @@
       :title="$t('common.filter')"
       max-width="700px"
       @close="setToolbarMode('hidden')">
-      <div class="flex flex-col gap-4">
+      <div class="flex flex-col gap-4" :data-toolbar-keep-open="isMultiSelectFilter || undefined">
+        <!-- 多选开关 -->
+        <div class="flex items-center justify-end">
+          <label class="inline-flex items-center gap-2 cursor-pointer select-none" data-toolbar-keep-open>
+            <span class="text-xs text-text-muted">{{ $t('common.multiSelect') }}</span>
+            <div
+              class="relative w-8 h-[18px] rounded-full transition-colors duration-200"
+              :class="isMultiSelectFilter ? 'bg-accent' : 'bg-border'"
+              @click="toggleMultiSelectFilter"
+            >
+              <div
+                class="absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white shadow-sm transition-transform duration-200"
+                :class="isMultiSelectFilter ? 'translate-x-[16px]' : 'translate-x-[2px]'"
+              ></div>
+            </div>
+          </label>
+        </div>
+
         <!-- 状态筛选 -->
         <div class="flex flex-col gap-2">
           <span class="label">{{ $t('tokenList.filterByStatus') }}</span>
@@ -673,6 +654,7 @@ import SessionRefreshModal from './SessionRefreshModal.vue'
 import Pagination from '../common/Pagination.vue'
 import BatchToolbar from '../common/BatchToolbar.vue'
 import ActionToolbar from '../common/ActionToolbar.vue'
+import AccountManagerHeader from '../common/AccountManagerHeader.vue'
 import FixedPaginationLayout from '../common/FixedPaginationLayout.vue'
 import { useStorageSync } from '@/composables/useStorageSync'
 
@@ -757,6 +739,11 @@ const tokenContentScrollRef = ref(null)
 const searchQuery = ref('')
 const toolbarMode = ref('hidden')
 const toolbarSearchInputRef = ref(null)
+
+// 筛选多选模式开关
+const isMultiSelectFilter = ref((() => {
+  try { return localStorage.getItem('tokenFilterMultiSelect') === 'true' } catch { return false }
+})())
 
 // 状态筛选管理 - 多选模式
 const selectedStatusFilters = ref(new Set()) // 选中的状态集合，空集合表示"全部"
@@ -1403,18 +1390,51 @@ const openToolbarFromHeader = () => {
   }
 }
 
-// 选择状态筛选 - 多选模式
+// 切换筛选多选模式
+const toggleMultiSelectFilter = () => {
+  isMultiSelectFilter.value = !isMultiSelectFilter.value
+  try { localStorage.setItem('tokenFilterMultiSelect', isMultiSelectFilter.value.toString()) } catch {}
+}
+
+// 搜索/筛选/排序活跃状态
+const isSearchActive = computed(() => searchQuery.value.trim() !== '')
+const isFilterActive = computed(() =>
+  selectedStatusFilters.value.size > 0 ||
+  selectedEmailSuffixes.value.size > 0 ||
+  selectedTags.value.size > 0
+)
+const isSortNonDefault = computed(() => sortType.value !== 'time' || sortOrder.value !== 'desc')
+
+// 一键清除所有筛选
+const clearAllFilters = () => {
+  searchQuery.value = ''
+  selectedStatusFilters.value = new Set()
+  selectedEmailSuffixes.value = new Set()
+  selectedTags.value = new Set()
+  tagFilterMode.value = 'include'
+  sortType.value = 'time'
+  sortOrder.value = 'desc'
+  currentPage.value = 1
+}
+
+// 选择状态筛选
 const selectStatusFilter = (status) => {
-  const newSet = new Set(selectedStatusFilters.value)
-
-  if (newSet.has(status)) {
-    newSet.delete(status)
+  if (isMultiSelectFilter.value) {
+    const newSet = new Set(selectedStatusFilters.value)
+    if (newSet.has(status)) {
+      newSet.delete(status)
+    } else {
+      newSet.add(status)
+    }
+    selectedStatusFilters.value = newSet
   } else {
-    newSet.add(status)
+    // 单选模式：点击已选中的取消，否则替换
+    if (selectedStatusFilters.value.has(status) && selectedStatusFilters.value.size === 1) {
+      selectedStatusFilters.value = new Set()
+    } else {
+      selectedStatusFilters.value = new Set([status])
+    }
   }
-
-  selectedStatusFilters.value = newSet
-  // 重置到第一页
   currentPage.value = 1
 }
 
@@ -1435,18 +1455,23 @@ const toggleEmailSuffixMenu = () => {
   }
 }
 
-// 选择邮箱后缀筛选 - 多选模式
+// 选择邮箱后缀筛选
 const selectEmailSuffix = (suffix) => {
-  const newSet = new Set(selectedEmailSuffixes.value)
-
-  if (newSet.has(suffix)) {
-    newSet.delete(suffix)
+  if (isMultiSelectFilter.value) {
+    const newSet = new Set(selectedEmailSuffixes.value)
+    if (newSet.has(suffix)) {
+      newSet.delete(suffix)
+    } else {
+      newSet.add(suffix)
+    }
+    selectedEmailSuffixes.value = newSet
   } else {
-    newSet.add(suffix)
+    if (selectedEmailSuffixes.value.has(suffix) && selectedEmailSuffixes.value.size === 1) {
+      selectedEmailSuffixes.value = new Set()
+    } else {
+      selectedEmailSuffixes.value = new Set([suffix])
+    }
   }
-
-  selectedEmailSuffixes.value = newSet
-  // 重置到第一页
   currentPage.value = 1
 }
 
@@ -1502,16 +1527,21 @@ const toggleTagFilterMode = () => {
 
 // 选择/取消选择标签
 const toggleTag = (tagName) => {
-  const newSet = new Set(selectedTags.value)
-
-  if (newSet.has(tagName)) {
-    newSet.delete(tagName)
+  if (isMultiSelectFilter.value) {
+    const newSet = new Set(selectedTags.value)
+    if (newSet.has(tagName)) {
+      newSet.delete(tagName)
+    } else {
+      newSet.add(tagName)
+    }
+    selectedTags.value = newSet
   } else {
-    newSet.add(tagName)
+    if (selectedTags.value.has(tagName) && selectedTags.value.size === 1) {
+      selectedTags.value = new Set()
+    } else {
+      selectedTags.value = new Set([tagName])
+    }
   }
-
-  selectedTags.value = newSet
-  // 重置到第一页
   currentPage.value = 1
 }
 

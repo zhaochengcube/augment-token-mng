@@ -19,6 +19,7 @@ export default {
     descending: 'Descending',
     filter: 'Filter',
     clearFilters: 'Clear search/filter/sort',
+    multiSelect: 'Multi-select',
     today: 'Today',
     yesterday: 'Yesterday',
     daysAgo: '{days} days ago',
