@@ -84,6 +84,15 @@ pub async fn batch_check_tokens_status(
         .map_err(|e| format!("Failed to batch check tokens status: {}", e))
 }
 
+#[tauri::command]
+pub async fn batch_check_tokens_status_simple(
+    tokens: Vec<TokenInfo>,
+) -> Result<Vec<TokenStatusResult>, String> {
+    account::batch_check_account_status_simple(tokens)
+        .await
+        .map_err(|e| format!("Failed to batch check tokens status (simple): {}", e))
+}
+
 /// 批量获取 Credit 消费数据(stats 和 chart),使用缓存的 app_session
 #[tauri::command]
 pub async fn fetch_batch_credit_consumption(

@@ -77,6 +77,11 @@
                 <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
               </svg>
             </button>
+            <button @click="showImportAccountsDialog = true" class="btn btn--icon btn--ghost" v-tooltip="$t('tokenList.importAccounts')">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+              </svg>
+            </button>
             <button
               v-if="isDatabaseAvailable"
               class="btn btn--icon btn--ghost"
@@ -128,7 +133,7 @@
 
       <template v-else>
         <!-- 卡片布局 -->
-        <div v-if="viewMode === 'card'" class="grid grid-cols-[repeat(auto-fill,minmax(330px,1fr))] gap-[18px] p-1.5">
+        <div v-if="viewMode === 'card'" class="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-[18px] p-1.5">
           <TokenCard v-for="token in paginatedTokens" :key="token.id" :ref="el => setTokenCardRef(el, token.id)"
             :token="token" :is-batch-checking="isRefreshing" :is-highlighted="highlightedTokenId === token.id"
             :is-selected="selectedTokenIds.has(token.id)" :selection-mode="isSelectionMode"
@@ -158,11 +163,10 @@
                   </div>
                 </th>
                 <th class="th w-[85px] max-w-[85px]">{{ $t('tokenList.tableHeaderTag') }}</th>
-                <th class="th w-[85px]">{{ $t('tokenList.tableHeaderStatus') }}</th>
                 <th class="th min-w-[150px]">{{ $t('tokenList.tableHeaderEmail') }}</th>
-                <th class="th w-[85px] text-center">{{ $t('tokenList.tableHeaderBalance') }}</th>
+                <th class="th min-w-[200px]">{{ $t('tokenList.tableHeaderBalance') }}</th>
                 <th class="th w-[140px] min-w-[140px]">{{ $t('tokenList.tableHeaderDates') }}</th>
-                <th class="th w-[230px] text-center">{{ $t('tokenList.tableHeaderActions') }}</th>
+                <th class="th w-[140px] min-w-[140px] text-center">{{ $t('tokenList.tableHeaderActions') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -480,7 +484,7 @@
           </svg>
         </button>
 
-        <!-- 批量刷新 Session -->
+        <!-- 批量刷新 Session 已注释
         <button
           @click="batchRefreshSessionsSelected"
           class="btn btn--icon btn--ghost"
@@ -491,6 +495,7 @@
             <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
           </svg>
         </button>
+        -->
 
         <!-- 批量导出 -->
         <button
@@ -503,7 +508,7 @@
           </svg>
         </button>
 
-        <!-- 批量获取绑卡链接 -->
+        <!-- 批量获取绑卡链接 已注释
         <button
           @click="batchFetchPaymentLinks"
           class="btn btn--icon btn--ghost"
@@ -514,6 +519,7 @@
             <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
           </svg>
         </button>
+        -->
 
         <!-- 批量编辑标签 -->
         <button
@@ -550,6 +556,14 @@
       @add-token="handleAddTokenFromForm"
       @auto-import-completed="handleAutoImportCompleted"
       @manual-import-completed="handleManualImportCompleted"
+    />
+
+    <!-- Import Accounts Dialog -->
+    <TokenImportAccountsDialog
+      v-if="showImportAccountsDialog"
+      :add-token-fn="addTokenFnForImport"
+      @close="showImportAccountsDialog = false"
+      @imported="handleImportAccountsImported"
     />
 
     <!-- Sync Queue Modal -->
@@ -604,6 +618,10 @@
           <span class="text-text-muted">{{ $t('tokenList.expiredCount') }}:</span>
           <span class="font-medium text-text">{{ expiredTokensCount }} {{ $t('tokenList.items') }}</span>
         </div>
+        <div class="flex items-center justify-between text-sm">
+          <span class="text-text-muted">{{ $t('tokenList.invalidCount') }}:</span>
+          <span class="font-medium text-text">{{ invalidTokensCount }} {{ $t('tokenList.items') }}</span>
+        </div>
         <div class="flex items-center justify-between text-sm border-t border-border pt-2 mt-1">
           <span class="font-medium text-text">{{ $t('tokenList.totalCount') }}:</span>
           <span class="font-semibold text-danger">{{ deletableTokensCount }} {{ $t('tokenList.items') }}</span>
@@ -646,6 +664,7 @@ import { useI18n } from 'vue-i18n'
 import TokenCard from './TokenCard.vue'
 import TokenTableRow from './TokenTableRow.vue'
 import TokenForm from './TokenForm.vue'
+import TokenImportAccountsDialog from './TokenImportAccountsDialog.vue'
 import TagEditorModal from './TagEditorModal.vue'
 import BatchImportModal from './BatchImportModal.vue'
 import SyncQueueModal from '../common/SyncQueueModal.vue'
@@ -765,6 +784,9 @@ const DEFAULT_TAG_COLOR = '#f97316'
 // 批量删除状态
 const showBatchDeleteDialog = ref(false)
 const isDeleting = ref(false)
+
+// 导入帐号状态
+const showImportAccountsDialog = ref(false)
 
 // 批量选择状态
 const selectedTokenIds = ref(new Set())
@@ -906,7 +928,7 @@ const fillTokenTemplate = (count = 1) => {
 // 计算可删除的 token 数量
 const deletableTokensCount = computed(() => {
   return tokens.value.filter(token =>
-    token.ban_status === 'SUSPENDED' || token.ban_status === 'EXPIRED'
+    token.ban_status === 'SUSPENDED' || token.ban_status === 'EXPIRED' || token.ban_status === 'INVALID_TOKEN'
   ).length
 })
 
@@ -918,6 +940,11 @@ const bannedTokensCount = computed(() => {
 // 计算已过期的 token 数量
 const expiredTokensCount = computed(() => {
   return tokens.value.filter(token => token.ban_status === 'EXPIRED').length
+})
+
+// 计算已失效的 token 数量
+const invalidTokensCount = computed(() => {
+  return tokens.value.filter(token => token.ban_status === 'INVALID_TOKEN').length
 })
 
 // 只应用搜索的tokens - 用于状态筛选统计
@@ -959,9 +986,9 @@ const statusOnlyFilteredTokens = computed(() => {
       // 检查token是否匹配任一选中的状态
       return Array.from(selectedStatusFilters.value).some(filterStatus => {
         if (filterStatus === 'ACTIVE') {
-          return status === 'ACTIVE' && !(creditTotal && creditsBalance === 0)
+          return status === 'ACTIVE' && !(typeof creditTotal === 'number' && creditsBalance === 0)
         } else if (filterStatus === 'DEPLETE') {
-          return status === 'ACTIVE' && creditTotal && creditsBalance === 0
+          return status === 'ACTIVE' && typeof creditTotal === 'number' && creditsBalance === 0
         } else if (filterStatus === 'SUSPENDED') {
           return status === 'SUSPENDED'
         } else if (filterStatus === 'OTHER') {
@@ -993,7 +1020,7 @@ const statusStatistics = computed(() => {
 
     if (status === 'ACTIVE') {
       // 判断是否用尽：credit_total 不为空/不为null 且 credits_balance === 0
-      if (creditTotal && creditsBalance === 0) {
+      if (typeof creditTotal === 'number' && creditsBalance === 0) {
         stats.DEPLETE++
       } else {
         stats.ACTIVE++
@@ -1688,7 +1715,8 @@ const batchRefreshSelected = async () => {
   }
 }
 
-// 批量刷新选中的 Session
+// 批量刷新选中的 Session（已注释）
+/*
 const batchRefreshSessionsSelected = async () => {
   if (selectedTokenIds.value.size === 0 || isBatchRefreshingSessions.value) return
 
@@ -1756,6 +1784,7 @@ const batchRefreshSessionsSelected = async () => {
     clearSelection()
   }
 }
+*/
 
 // 批量导出选中的 token
 const batchExportSelected = async () => {
@@ -1785,7 +1814,8 @@ const batchExportSelected = async () => {
   clearSelection()
 }
 
-// 批量获取绑卡链接
+// 批量获取绑卡链接（已注释）
+/*
 const batchFetchPaymentLinks = async () => {
   if (selectedTokenIds.value.size === 0 || isBatchFetchingPaymentLinks.value) return
   
@@ -1851,6 +1881,7 @@ const batchFetchPaymentLinks = async () => {
     clearSelection()
   }
 }
+*/
 
 // 缓存单个绑卡链接（供 TokenCard 调用）
 const cachePaymentLink = (tokenId, link) => {
@@ -1977,7 +2008,7 @@ const showBatchImportConfirm = () => {
   importErrors.value = []
 
   // 默认显示 Session Tab
-  batchImportTab.value = 'session'
+  batchImportTab.value = 'token'
 
   showBatchImportDialog.value = true
 }
@@ -2446,7 +2477,7 @@ const executeBatchDelete = async () => {
   try {
     // 获取要删除的 tokens
     const tokensToDelete = internalTokens.value.filter(token =>
-      token.ban_status === 'SUSPENDED' || token.ban_status === 'EXPIRED'
+      token.ban_status === 'SUSPENDED' || token.ban_status === 'EXPIRED' || token.ban_status === 'INVALID_TOKEN'
     )
 
     let deletedCount = 0
@@ -2677,8 +2708,8 @@ const checkAllAccountStatus = async () => {
       should_refresh_session: shouldRefreshSession(token)  // 前端判断是否需要刷新 session
     }))
 
-    // 单次批量API调用
-    const results = await invoke('batch_check_tokens_status', {
+    // 单次批量API调用（简化版：仅 get-credit-info，无 session 流程）
+    const results = await invoke('batch_check_tokens_status_simple', {
       tokens: tokenInfos
     })
 
@@ -2917,6 +2948,22 @@ const handleAddTokenFromForm = async (tokenData) => {
   // 如果是重复邮箱，高亮并滚动到重复的 token
   if (!result.success && result.duplicateId) {
     highlightAndScrollTo(result.duplicateId)
+    return
+  }
+
+  // 添加成功后自动检查该账号状态以获取额度（静默执行）
+  if (result.success && result.token) {
+    try {
+      const checkResult = await batchCheckTokensStatus([result.token])
+      if (checkResult.hasChanges) {
+        await handleSave()
+        if (isDatabaseAvailable.value) {
+          isSyncNeeded.value = true
+        }
+      }
+    } catch (err) {
+      console.warn('Auto check account status after add failed:', err)
+    }
   }
 }
 
@@ -2940,6 +2987,35 @@ const handleManualImportCompleted = () => {
   closeTokenForm()
 }
 
+// 导入帐号弹窗：添加 Token 的函数，供 TokenImportAccountsDialog 调用
+const addTokenFnForImport = async (tokenData) => {
+  const result = await addToken(tokenData)
+  if (result.success && result.token) {
+    try {
+      const checkResult = await batchCheckTokensStatus([result.token])
+      if (checkResult.hasChanges) {
+        await handleSave()
+        if (isDatabaseAvailable.value) {
+          isSyncNeeded.value = true
+        }
+      }
+    } catch (err) {
+      console.warn('Auto check after import failed:', err)
+    }
+  }
+  return { success: result.success, token: result.token, duplicateId: result.duplicateId }
+}
+
+// 导入帐号弹窗：导入完成后的 toast
+const handleImportAccountsImported = ({ success_count, failed_count, skip_count }) => {
+  if (success_count > 0 && failed_count === 0 && skip_count === 0) {
+    window.$notify.success(t('tokenList.importAccountsSuccess', { count: success_count }))
+  } else if (success_count > 0) {
+    window.$notify.success(t('messages.batchImportSuccessWithSkipped', { success: success_count, skipped: skip_count }))
+  } else if (failed_count > 0) {
+    window.$notify.error(t('tokenList.importDialog.importFailed'))
+  }
+}
 
 // 添加token
 const addToken = async (tokenData) => {
@@ -3103,8 +3179,8 @@ const batchCheckTokensStatus = async (tokensToCheck) => {
       should_refresh_session: shouldRefreshSession(token)  // 前端判断是否需要刷新 session
     }))
 
-    // 单次批量API调用检测所有tokens
-    const results = await invoke('batch_check_tokens_status', {
+    // 单次批量API调用检测所有tokens（简化版：仅 get-credit-info，无 session 流程）
+    const results = await invoke('batch_check_tokens_status_simple', {
       tokens: tokenInfos
     })
 
@@ -3356,7 +3432,7 @@ watchDebounced(
 
     try {
       await handleSave()
-      window.$notify.success(t('messages.autoSaveSuccess'))
+      // 不再显示自动保存成功提示（Augment 平台）
 
       // 如果是双向存储模式，标记需要同步
       if (isDatabaseAvailable.value) {

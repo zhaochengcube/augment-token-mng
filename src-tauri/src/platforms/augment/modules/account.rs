@@ -175,6 +175,175 @@ pub async fn get_credit_info(token: &str, tenant_url: &str) -> Result<CreditInfo
     Ok(credit_info)
 }
 
+/// 调用 get-credit-info 并返回 HTTP 状态码与可选的解析结果（非 200 不解析 body，不返回 Err）
+async fn get_credit_info_with_status(
+    token: &str,
+    tenant_url: &str,
+) -> Result<(u16, Option<CreditInfoResponse>), String> {
+    let client = create_proxy_client()?;
+
+    let base_url = if tenant_url.ends_with('/') {
+        tenant_url.to_string()
+    } else {
+        format!("{}/", tenant_url)
+    };
+
+    let api_url = format!("{}get-credit-info", base_url);
+
+    let response = client
+        .post(&api_url)
+        .header("Content-Type", "application/json")
+        .header("Authorization", &format!("Bearer {}", token))
+        .json(&serde_json::json!({}))
+        .send()
+        .await
+        .map_err(|e| format!("HTTP request failed: {}", e))?;
+
+    let status_code = response.status().as_u16();
+    let response_body = response
+        .text()
+        .await
+        .map_err(|e| format!("Failed to read response body: {}", e))?;
+
+    if status_code == 200 {
+        let credit_info: CreditInfoResponse = serde_json::from_str(&response_body)
+            .map_err(|e| format!("Failed to parse credit info: {}", e))?;
+        Ok((200, Some(credit_info)))
+    } else {
+        Ok((status_code, None))
+    }
+}
+
+/// 批量检测账号状态（简化版）：仅调用 get-credit-info，不做任何 session 相关流程。
+/// 200=正常+额度，401=token 无效，403=封禁，其他=ERROR。旧方法 batch_check_account_status 保留不变。
+pub async fn batch_check_account_status_simple(
+    tokens: Vec<TokenInfo>,
+) -> Result<Vec<TokenStatusResult>, String> {
+    let mut handles = Vec::new();
+
+    for token_info in tokens {
+        let token = token_info.access_token.clone();
+        let tenant_url = token_info.tenant_url.clone();
+        let token_id = token_info.id.clone();
+        let email_note = token_info.email_note.clone();
+
+        let handle = tokio::spawn(async move {
+            let (status_code, credit_opt) = match get_credit_info_with_status(&token, &tenant_url).await {
+                Ok(res) => res,
+                Err(err) => {
+                    return TokenStatusResult {
+                        token_id: token_id.clone(),
+                        access_token: token.clone(),
+                        tenant_url: tenant_url.clone(),
+                        status_result: AccountStatus {
+                            status: "ERROR".to_string(),
+                            error_message: Some(format!("Request failed: {}", err)),
+                        },
+                        portal_info: None,
+                        portal_error: Some(err),
+                        suspensions: None,
+                        email_note: email_note.clone(),
+                        portal_url: None,
+                        auth_session: None,
+                    };
+                }
+            };
+
+            let (status, portal_info, portal_error) = match status_code {
+                200 => {
+                    let portal_info = credit_opt.map(|c| PortalInfo {
+                        credits_balance: c.usage_units_remaining.floor() as i32,
+                        credit_total: Some(c.usage_units_total.floor() as i32),
+                        expiry_date: Some(c.current_billing_cycle_end_date_iso),
+                    });
+                    (
+                        AccountStatus {
+                            status: "ACTIVE".to_string(),
+                            error_message: None,
+                        },
+                        portal_info,
+                        None,
+                    )
+                }
+                401 => (
+                    AccountStatus {
+                        status: "INVALID_TOKEN".to_string(),
+                        error_message: None,
+                    },
+                    None,
+                    None,
+                ),
+                403 => (
+                    AccountStatus {
+                        status: "SUSPENDED".to_string(),
+                        error_message: None,
+                    },
+                    None,
+                    None,
+                ),
+                _ => (
+                    AccountStatus {
+                        status: "ERROR".to_string(),
+                        error_message: Some(format!("HTTP {}", status_code)),
+                    },
+                    None,
+                    Some(format!("HTTP {}: get-credit-info failed", status_code)),
+                ),
+            };
+
+            let email_note = if status_code == 200 && email_note.is_none() {
+                match get_models(&token, &tenant_url).await {
+                    Ok(models_response) => Some(models_response.user.email),
+                    Err(_) => None,
+                }
+            } else {
+                email_note
+            };
+
+            TokenStatusResult {
+                token_id,
+                access_token: token,
+                tenant_url,
+                status_result: status,
+                portal_info,
+                portal_error,
+                suspensions: None,
+                email_note,
+                portal_url: None,
+                auth_session: None,
+            }
+        });
+
+        handles.push(handle);
+    }
+
+    let mut results = Vec::new();
+    for (index, handle) in handles.into_iter().enumerate() {
+        match handle.await {
+            Ok(result) => results.push(result),
+            Err(err) => {
+                results.push(TokenStatusResult {
+                    token_id: Some(format!("task_{}", index)),
+                    access_token: String::new(),
+                    tenant_url: String::new(),
+                    status_result: AccountStatus {
+                        status: "ERROR".to_string(),
+                        error_message: Some(format!("Task failed: {}", err)),
+                    },
+                    portal_info: None,
+                    portal_error: Some(format!("Task failed: {}", err)),
+                    suspensions: None,
+                    email_note: None,
+                    portal_url: None,
+                    auth_session: None,
+                });
+            }
+        }
+    }
+
+    Ok(results)
+}
+
 // 批量检测账号状态
 pub async fn batch_check_account_status(
     tokens: Vec<TokenInfo>,

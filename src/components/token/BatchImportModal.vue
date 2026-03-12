@@ -15,6 +15,7 @@
 
     <!-- Tab Navigation -->
     <div class="mb-4 flex gap-1 rounded-lg border border-border bg-muted p-1">
+      <!-- Session 导入 tab 已注释
       <button
         :class="[
           'flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-all',
@@ -29,6 +30,7 @@
         </svg>
         {{ $t('tokenList.sessionImportTab') }}
       </button>
+      -->
       <button
         :class="[
           'flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-all',
@@ -45,52 +47,8 @@
       </button>
     </div>
 
-    <!-- Session Tab Content -->
-    <div v-if="activeTab === 'session'">
-      <p class="mb-4 text-sm text-text-secondary">{{ $t('tokenList.sessionImportMessage') }}</p>
-
-      <!-- Session Input List -->
-      <div class="flex max-h-[300px] flex-col gap-2 overflow-y-auto">
-        <div
-          v-for="(input, index) in sessionInputs"
-          :key="input.id"
-          class="flex items-center gap-2"
-        >
-          <span class="w-6 text-right text-sm text-text-muted">{{ index + 1 }}.</span>
-          <input
-            v-model="input.value"
-            type="text"
-            :placeholder="$t('tokenList.sessionInputPlaceholder')"
-            class="input flex-1"
-          />
-          <button
-            @click="removeSessionInput(input.id)"
-            :disabled="sessionInputs.length <= 1"
-            class="btn btn--ghost btn--icon-sm text-text-muted hover:text-danger disabled:opacity-30"
-            v-tooltip="$t('tokenList.deleteInput')"
-          >
-            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      <!-- Add More Button -->
-      <button
-        @click="addSessionInput"
-        @contextmenu="handleContextMenu($event, 'session')"
-        class="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border py-2 text-sm text-text-muted transition-colors hover:border-accent hover:text-accent"
-      >
-        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-        </svg>
-        {{ $t('tokenList.addMore') }}
-      </button>
-    </div>
-
     <!-- Token Tab Content -->
-    <div v-else-if="activeTab === 'token'">
+    <div v-if="activeTab === 'token'">
       <p class="mb-4 text-sm text-text-secondary">{{ $t('tokenList.tokenImportMessage') }}</p>
 
       <!-- Format Info -->
@@ -205,8 +163,8 @@ const props = defineProps({
 
 const emit = defineEmits(['update:visible', 'import'])
 
-// Tab state
-const activeTab = ref('session')
+// Tab state - 默认显示 Token 导入
+const activeTab = ref('token')
 
 // Session inputs
 const sessionInputs = ref([])
@@ -252,7 +210,7 @@ const initializeSessionInputs = (count) => {
 // Watch visibility to reset state
 watch(() => props.visible, (isVisible) => {
   if (isVisible) {
-    activeTab.value = 'session'
+    activeTab.value = 'token'
     initializeSessionInputs(props.defaultInputCount)
     importJsonText.value = '[\n  \n]'
     importErrors.value = []

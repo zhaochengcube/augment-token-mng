@@ -404,8 +404,8 @@ export function useTokenActions(props, emit) {
     let hasChanges = false
 
     try {
-      // 单次API调用同时获取账号状态和Portal信息
-      const batchResults = await invoke('batch_check_tokens_status', {
+      // 单次API调用同时获取账号状态和Portal信息（简化版：仅 get-credit-info，无 session 流程）
+      const batchResults = await invoke('batch_check_tokens_status_simple', {
         tokens: [{
           id: props.token.id,
           access_token: props.token.access_token,

@@ -70,7 +70,8 @@ export function useStorageSync(options) {
     if (isDatabaseAvailable.value && hasPendingChanges.value) {
       return 'badge--warning-tech'
     }
-    return isDatabaseAvailable.value ? 'badge--success-tech' : 'badge--accent-tech'
+    // 本地存储与双向存储已同步使用相同样式
+    return 'badge--success-tech'
   })
 
   // 版本号管理

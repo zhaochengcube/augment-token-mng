@@ -41,6 +41,8 @@
         </svg>
         {{ $t('tokenForm.manualTab') }}
       </button>
+      <!-- Session 导入 tab 已注释 -->
+      <!--
       <button
         :class="[
           'flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-all',
@@ -56,6 +58,7 @@
         </svg>
         {{ $t('tokenForm.sessionTab') }}
       </button>
+      -->
     </div>
 
     <!-- Manual Input Tab -->
@@ -311,7 +314,8 @@
       </div>
     </div>
 
-    <!-- Session Import Tab -->
+    <!-- Session 导入内容已注释 -->
+    <!--
     <div v-else-if="activeTab === 'session'" class="space-y-4">
       <div>
         <h3 class="text-base font-semibold text-text-strong mb-1.5">{{ $t('tokenForm.sessionImportTitle') }}</h3>
@@ -330,7 +334,7 @@
         <button
           type="button"
           @click="importFromSession"
-          class="btn btn--primary"
+          class="btn btn- -primary"
           :disabled="!sessionInput.trim() || isImportingSession"
         >
           {{ isImportingSession ? $t('loading.importing') : $t('tokenForm.importSession') }}
@@ -338,7 +342,7 @@
         <button
           type="button"
           @click="openInternalBrowserForAutoImport"
-          class="btn btn--primary"
+          class="btn btn- -primary"
           :disabled="isImportingSession || isOpeningBrowser"
         >
           {{ $t('tokenGenerator.autoImportSession') }}
@@ -346,19 +350,19 @@
         <button
           type="button"
           @click="handleCancel"
-          class="btn btn--secondary"
+          class="btn btn- -secondary"
           :disabled="isImportingSession"
         >
           {{ $t('tokenForm.cancel') }}
         </button>
       </div>
 
-      <!-- Loading State -->
       <div v-if="isImportingSession" class="flex items-center gap-3 p-4 mt-3 bg-muted rounded-lg border border-border">
         <div class="w-5 h-5 shrink-0 border-2 border-border border-t-accent rounded-full animate-spin"></div>
         <span class="text-sm text-text-muted">{{ sessionImportProgress }}</span>
       </div>
     </div>
+    -->
   </BaseModal>
 
   <ExternalLinkDialog
@@ -432,7 +436,7 @@ const errors = ref({
 const isLoading = ref(false)
 
 // Tab state
-const activeTab = ref(props.token ? 'manual' : 'oauth')
+const activeTab = ref('manual')
 
 // OAuth data
 const oauthData = ref({
@@ -525,7 +529,7 @@ watch(() => props.token, (newToken) => {
       tagColor: newToken.tag_color || defaultTagColor
     }
   } else {
-    activeTab.value = 'session'
+    activeTab.value = 'manual'
     // Reset form for adding new token
     formData.value = {
       tenantUrl: '',

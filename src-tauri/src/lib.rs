@@ -514,6 +514,7 @@ pub fn run() {
             augment::generate_augment_auth_url,
             augment::get_augment_token,
             augment::batch_check_tokens_status,
+            augment::batch_check_tokens_status_simple,
             augment::fetch_batch_credit_consumption,
             augment::fetch_payment_method_link_command,
             augment::add_token_from_session,
