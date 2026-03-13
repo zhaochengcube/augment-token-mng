@@ -41,23 +41,56 @@
       </span>
     </td>
 
-    <!-- 状态 -->
-    <td class="w-[60px] px-2.5 py-3.5 border-b border-border/50 align-top whitespace-nowrap text-[13px] text-text">
-      <span :class="['badge badge--sm', statusBadgeClass]">
-        <span class="status-dot" :class="statusDotClass"></span>
-        {{ statusLabel }}
-      </span>
-    </td>
-
     <!-- 邮箱 -->
     <td class="px-2.5 py-3.5 border-b border-border/50 align-top whitespace-nowrap text-[13px] text-text">
-      <div class="text-copyable" @click.stop="copyEmail" v-tooltip="account.email">
-        <span class="text-copyable__content">{{ showRealEmail ? account.email : maskedEmail }}</span>
+      <div class="flex items-center gap-1.5">
+        <div class="text-copyable" @click.stop="copyEmail" v-tooltip="account.email">
+          <span class="text-copyable__content">{{ showRealEmail ? account.email : maskedEmail }}</span>
+        </div>
+        <span v-if="account.membership_type" :class="getMembershipBadgeClass(account.membership_type)">
+          <svg v-if="account.membership_type?.toLowerCase() === 'ultra'" class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 3H5L2 9l10 12L22 9l-3-6zM9.62 8l1.5-3h1.76l1.5 3H9.62zM11 10v6.68L5.44 10H11zm2 0h5.56L13 16.68V10zm6.26-2h-2.65l-1.5-3h2.65l1.5 3zM6.24 5h2.65l-1.5 3H4.74l1.5-3z"/>
+          </svg>
+          <svg v-else-if="account.membership_type?.toLowerCase() === 'pro'" class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z"/>
+          </svg>
+          <svg v-else-if="account.membership_type?.toLowerCase() === 'pro plus'" class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z"/>
+          </svg>
+          {{ account.membership_type }}
+        </span>
       </div>
     </td>
 
+    <!-- 用量 -->
+    <td class="w-[130px] px-2.5 py-3.5 border-b border-border/50 align-top whitespace-nowrap text-[12px] text-text-muted">
+      <div v-if="autoRemainingPercent !== null || apiRemainingPercent !== null" class="flex flex-col gap-1">
+        <div v-if="autoRemainingPercent !== null" class="flex items-center gap-1">
+          <span class="w-7 shrink-0 text-text-muted/60">Auto</span>
+          <div class="flex-1 h-1.5 bg-muted rounded overflow-hidden">
+            <div class="h-full rounded transition-all"
+                 :class="getQuotaBarClass(autoRemainingPercent)"
+                 :style="{ width: autoRemainingPercent + '%' }">
+            </div>
+          </div>
+          <span class="text-[11px] font-medium tabular-nums w-7 text-right">{{ autoRemainingPercent }}%</span>
+        </div>
+        <div v-if="apiRemainingPercent !== null" class="flex items-center gap-1">
+          <span class="w-7 shrink-0 text-text-muted/60">API</span>
+          <div class="flex-1 h-1.5 bg-muted rounded overflow-hidden">
+            <div class="h-full rounded transition-all"
+                 :class="getQuotaBarClass(apiRemainingPercent)"
+                 :style="{ width: apiRemainingPercent + '%' }">
+            </div>
+          </div>
+          <span class="text-[11px] font-medium tabular-nums w-7 text-right">{{ apiRemainingPercent }}%</span>
+        </div>
+      </div>
+      <span v-else class="text-text-muted/50">-</span>
+    </td>
+
     <!-- 过期时间（合并显示） -->
-    <td class="w-[120px] px-2.5 py-3.5 border-b border-border/50 align-top whitespace-nowrap text-[12px] text-text-muted">
+    <td class="w-[105px] px-2.5 py-3.5 border-b border-border/50 align-top whitespace-nowrap text-[12px] text-text-muted">
       <div class="flex flex-col gap-0.5">
         <div class="flex items-center gap-1" v-tooltip="$t('platform.cursor.accessTokenExpiry')">
           <span class="text-text-muted/60">A:</span>
@@ -71,7 +104,7 @@
     </td>
 
     <!-- 配额 -->
-    <td class="w-[80px] px-2.5 py-3.5 border-b border-border/50 align-top whitespace-nowrap text-[13px] text-text">
+    <td class="w-[100px] px-2.5 py-3.5 border-b border-border/50 align-top whitespace-nowrap text-[13px] text-text">
       <button
         @click.stop="showUsageModal = true"
         class="inline-flex items-center gap-1 px-2 py-0.5 text-xs text-accent bg-accent/10 border border-accent/30 rounded hover:bg-accent/20 transition-colors cursor-pointer"
@@ -84,7 +117,7 @@
     </td>
 
     <!-- 操作 -->
-    <td class="w-[110px] px-2.5 py-3.5 border-b border-border/50 align-top whitespace-nowrap text-[13px] text-text text-center">
+    <td class="w-[80px] px-2.5 py-3.5 border-b border-border/50 align-top whitespace-nowrap text-[13px] text-text text-center">
       <div class="flex items-center justify-center gap-1">
         <button
           v-if="!isCurrent"
@@ -158,6 +191,7 @@
     v-if="showUsageModal"
     :account="account"
     @close="showUsageModal = false"
+    @account-synced="(id) => $emit('account-synced', id)"
   />
 </template>
 
@@ -172,6 +206,43 @@ const { t: $t } = useI18n()
 
 const DEFAULT_TAG_COLOR = '#f97316'
 
+// 订阅计划徽章样式
+const getMembershipBadgeClass = (type) => {
+  const base = 'badge badge--sm uppercase'
+  switch (type?.toLowerCase()) {
+    case 'ultra':
+      return `${base} bg-gradient-to-r from-rose-400 to-pink-500 text-white border-pink-500/50 shadow-sm shadow-pink-500/30`
+    case 'pro':
+      return `${base} bg-gradient-to-r from-amber-400 to-amber-500 text-amber-900 border-amber-500/50`
+    case 'pro plus':
+      return `${base} bg-gradient-to-r from-emerald-400 to-teal-500 text-white border-teal-500/50`
+    default:
+      return base
+  }
+}
+
+// 配额进度条样式
+const getQuotaBarClass = (percent) => {
+  if (percent === null || percent === undefined) return 'bg-text-muted'
+  if (percent < 10) return 'bg-danger'
+  if (percent < 30) return 'bg-warning'
+  return 'bg-success'
+}
+
+// Auto 剩余百分比
+const autoRemainingPercent = computed(() => {
+  const used = props.account.individual_usage?.plan?.autoPercentUsed
+  if (used === null || used === undefined) return null
+  return Math.max(0, Math.round(100 - used))
+})
+
+// API 剩余百分比
+const apiRemainingPercent = computed(() => {
+  const used = props.account.individual_usage?.plan?.apiPercentUsed
+  if (used === null || used === undefined) return null
+  return Math.max(0, Math.round(100 - used))
+})
+
 const props = defineProps({
   account: { type: Object, required: true },
   isCurrent: { type: Boolean, default: false },
@@ -182,7 +253,7 @@ const props = defineProps({
   allAccounts: { type: Array, default: () => [] }
 })
 
-const emit = defineEmits(['switch', 'delete', 'select', 'account-updated', 'machine-id-generated'])
+const emit = defineEmits(['switch', 'delete', 'select', 'account-updated', 'account-synced', 'machine-id-generated'])
 
 const menuRef = ref(null)
 const showTagEditor = ref(false)

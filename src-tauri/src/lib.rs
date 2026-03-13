@@ -614,7 +614,7 @@ pub fn run() {
             cursor::cursor_get_default_path,
             cursor::cursor_select_executable_path,
             cursor::cursor_validate_account,
-            cursor::cursor_get_subscription_info,
+            cursor::cursor_get_usage_summary,
             cursor::cursor_get_aggregated_usage,
             cursor::cursor_get_filtered_usage_events,
 

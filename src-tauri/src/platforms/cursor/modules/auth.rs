@@ -3,8 +3,13 @@
 use crate::http_client::create_proxy_client;
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use rand::RngCore;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use sha2::{Digest, Sha256};
+
+/// 将 null 反序列化为 0.0
+fn null_as_zero<'de, D: Deserializer<'de>>(deserializer: D) -> Result<f64, D::Error> {
+    Option::<f64>::deserialize(deserializer).map(|v| v.unwrap_or(0.0))
+}
 
 /// Cursor 用户信息响应
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -15,35 +20,77 @@ pub struct CursorUserInfo {
     pub name: Option<String>,
 }
 
-/// 订阅信息响应（cursor.com/api/auth/stripe 返回结构）
+/// Usage Summary 响应（cursor.com/api/usage-summary 返回结构）
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SubscriptionInfo {
-    #[serde(rename = "membershipType", default)]
+#[serde(rename_all = "camelCase")]
+pub struct UsageSummary {
+    #[serde(default)]
     pub membership_type: Option<String>,
-    #[serde(rename = "paymentId", default)]
-    pub payment_id: Option<String>,
-    #[serde(rename = "subscriptionStatus", default)]
-    pub subscription_status: Option<String>,
-    #[serde(rename = "verifiedStudent", default)]
-    pub verified_student: bool,
-    #[serde(rename = "trialEligible", default)]
-    pub trial_eligible: bool,
-    #[serde(rename = "trialLengthDays", default)]
-    pub trial_length_days: Option<i64>,
-    #[serde(rename = "isOnStudentPlan", default)]
-    pub is_on_student_plan: bool,
-    #[serde(rename = "isOnBillableAuto", default)]
-    pub is_on_billable_auto: bool,
-    #[serde(rename = "customerBalance", default)]
-    pub customer_balance: i64,
-    #[serde(rename = "trialWasCancelled", default)]
-    pub trial_was_cancelled: bool,
-    #[serde(rename = "isTeamMember", default)]
-    pub is_team_member: bool,
-    #[serde(rename = "teamMembershipType", default)]
-    pub team_membership_type: Option<String>,
-    #[serde(rename = "individualMembershipType", default)]
-    pub individual_membership_type: Option<String>,
+    #[serde(default)]
+    pub individual_usage: Option<IndividualUsage>,
+    #[serde(default)]
+    pub billing_cycle_start: Option<String>,
+    #[serde(default)]
+    pub billing_cycle_end: Option<String>,
+}
+
+/// 个人用量
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IndividualUsage {
+    #[serde(default)]
+    pub plan: Option<PlanUsage>,
+    #[serde(rename = "onDemand", default)]
+    pub on_demand: Option<OnDemandUsage>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub billing_cycle_start: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub billing_cycle_end: Option<String>,
+}
+
+/// Plan 用量
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlanUsage {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default, deserialize_with = "null_as_zero")]
+    pub used: f64,
+    #[serde(default, deserialize_with = "null_as_zero")]
+    pub limit: f64,
+    #[serde(default, deserialize_with = "null_as_zero")]
+    pub remaining: f64,
+    #[serde(default)]
+    pub breakdown: Option<PlanBreakdown>,
+    #[serde(rename = "autoPercentUsed", default, deserialize_with = "null_as_zero")]
+    pub auto_percent_used: f64,
+    #[serde(rename = "apiPercentUsed", default, deserialize_with = "null_as_zero")]
+    pub api_percent_used: f64,
+    #[serde(rename = "totalPercentUsed", default, deserialize_with = "null_as_zero")]
+    pub total_percent_used: f64,
+}
+
+/// Plan 用量明细
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlanBreakdown {
+    #[serde(default, deserialize_with = "null_as_zero")]
+    pub included: f64,
+    #[serde(default, deserialize_with = "null_as_zero")]
+    pub bonus: f64,
+    #[serde(default, deserialize_with = "null_as_zero")]
+    pub total: f64,
+}
+
+/// On-Demand 用量
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OnDemandUsage {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default, deserialize_with = "null_as_zero")]
+    pub used: f64,
+    #[serde(default, deserialize_with = "null_as_zero")]
+    pub limit: f64,
+    #[serde(default, deserialize_with = "null_as_zero")]
+    pub remaining: f64,
 }
 
 /// 聚合用量数据
@@ -174,12 +221,12 @@ pub async fn get_user_info(session_token: &str) -> Result<CursorUserInfo, String
     })
 }
 
-/// 获取订阅信息（使用 session_token + Cookie 认证）
-pub async fn get_subscription_info(session_token: &str) -> Result<SubscriptionInfo, String> {
+/// 获取用量摘要（使用 session_token + Cookie 认证）
+pub async fn get_usage_summary(session_token: &str) -> Result<UsageSummary, String> {
     let client = create_proxy_client()?;
 
     let response = client
-        .get("https://cursor.com/api/auth/stripe")
+        .get("https://cursor.com/api/usage-summary")
         .header(
             "Cookie",
             format!("WorkosCursorSessionToken={}", session_token),
@@ -188,7 +235,7 @@ pub async fn get_subscription_info(session_token: &str) -> Result<SubscriptionIn
         .timeout(std::time::Duration::from_secs(30))
         .send()
         .await
-        .map_err(|e| format!("Subscription info request failed: {}", e))?;
+        .map_err(|e| format!("Usage summary request failed: {}", e))?;
 
     let status = response.status();
 
@@ -198,24 +245,14 @@ pub async fn get_subscription_info(session_token: &str) -> Result<SubscriptionIn
             .await
             .map_err(|e| format!("Failed to read response: {}", e))?;
 
-        serde_json::from_str::<SubscriptionInfo>(&body)
-            .map_err(|e| format!("Failed to parse subscription info: {}", e))
+        serde_json::from_str::<UsageSummary>(&body)
+            .map_err(|e| format!("Failed to parse usage summary: {}", e))
     } else {
-        // 返回默认值而不是错误
-        Ok(SubscriptionInfo {
+        Ok(UsageSummary {
             membership_type: Some("free".to_string()),
-            payment_id: None,
-            subscription_status: None,
-            verified_student: false,
-            trial_eligible: false,
-            trial_length_days: None,
-            is_on_student_plan: false,
-            is_on_billable_auto: false,
-            customer_balance: 0,
-            trial_was_cancelled: false,
-            is_team_member: false,
-            team_membership_type: None,
-            individual_membership_type: None,
+            individual_usage: None,
+            billing_cycle_start: None,
+            billing_cycle_end: None,
         })
     }
 }
@@ -334,20 +371,28 @@ pub async fn get_aggregated_usage_data(
 pub async fn get_filtered_usage_events(
     workos_session_token: &str,
     team_id: i32,
-    start_date: &str,
-    end_date: &str,
-    page: i32,
-    page_size: i32,
+    start_date: Option<&str>,
+    end_date: Option<&str>,
+    page: Option<i32>,
+    page_size: Option<i32>,
 ) -> Result<Option<FilteredUsageEventsData>, String> {
     let client = create_proxy_client()?;
 
-    let request_body = serde_json::json!({
-        "teamId": team_id,
-        "startDate": start_date,
-        "endDate": end_date,
-        "page": page,
-        "pageSize": page_size
+    let mut request_body = serde_json::json!({
+        "teamId": team_id
     });
+    if let Some(sd) = start_date {
+        request_body["startDate"] = serde_json::Value::String(sd.to_string());
+    }
+    if let Some(ed) = end_date {
+        request_body["endDate"] = serde_json::Value::String(ed.to_string());
+    }
+    if let Some(p) = page {
+        request_body["page"] = serde_json::Value::Number(p.into());
+    }
+    if let Some(ps) = page_size {
+        request_body["pageSize"] = serde_json::Value::Number(ps.into());
+    }
 
     let response = client
         .post("https://cursor.com/api/dashboard/get-filtered-usage-events")

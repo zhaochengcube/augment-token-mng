@@ -12,6 +12,11 @@ impl AccountDbMapper<Account> for CursorAccountMapper {
             .get::<_, Option<serde_json::Value>>(18)
             .and_then(|v| serde_json::from_value(v).ok());
 
+        // 解析 individual_usage JSON 字段
+        let individual_usage: Option<crate::platforms::cursor::modules::auth::IndividualUsage> = row
+            .get::<_, Option<serde_json::Value>>(20)
+            .and_then(|v| serde_json::from_value(v).ok());
+
         Ok(Account {
             id: row.get(0),
             email: row.get(1),
@@ -27,6 +32,8 @@ impl AccountDbMapper<Account> for CursorAccountMapper {
             tag: row.get(9),
             tag_color: row.get(10),
             machine_info,
+            membership_type: row.get(19),
+            individual_usage,
             disabled: row.get(11),
             disabled_reason: row.get(12),
             disabled_at: row.get(13),
@@ -42,7 +49,8 @@ impl AccountDbMapper<Account> for CursorAccountMapper {
         "id, email, name, access_token, refresh_token, expiry_timestamp, user_id, \
          workos_cursor_session_token, session_expiry_timestamp, \
          tag, tag_color, disabled, disabled_reason, disabled_at, \
-         created_at, last_used, updated_at, version, machine_info"
+         created_at, last_used, updated_at, version, machine_info, \
+         membership_type, individual_usage"
     }
 
     fn insert_sql() -> &'static str {
@@ -51,8 +59,9 @@ impl AccountDbMapper<Account> for CursorAccountMapper {
             (id, email, name, access_token, refresh_token, expiry_timestamp, user_id,
              workos_cursor_session_token, session_expiry_timestamp,
              tag, tag_color, disabled, disabled_reason, disabled_at, created_at,
-             last_used, updated_at, version, deleted, machine_info)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+             last_used, updated_at, version, deleted, machine_info,
+             membership_type, individual_usage)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
         ON CONFLICT (id) DO UPDATE SET
             email = EXCLUDED.email,
             name = EXCLUDED.name,
@@ -71,7 +80,9 @@ impl AccountDbMapper<Account> for CursorAccountMapper {
             updated_at = EXCLUDED.updated_at,
             version = EXCLUDED.version,
             deleted = EXCLUDED.deleted,
-            machine_info = EXCLUDED.machine_info
+            machine_info = EXCLUDED.machine_info,
+            membership_type = EXCLUDED.membership_type,
+            individual_usage = EXCLUDED.individual_usage
         "#
     }
 
@@ -82,6 +93,12 @@ impl AccountDbMapper<Account> for CursorAccountMapper {
         // 将 machine_info 序列化为 JSON
         let machine_info_json: Option<serde_json::Value> = account
             .machine_info
+            .as_ref()
+            .and_then(|info| serde_json::to_value(info).ok());
+
+        // 将 individual_usage 序列化为 JSON
+        let individual_usage_json: Option<serde_json::Value> = account
+            .individual_usage
             .as_ref()
             .and_then(|info| serde_json::to_value(info).ok());
 
@@ -106,6 +123,8 @@ impl AccountDbMapper<Account> for CursorAccountMapper {
             Box::new(version),
             Box::new(account.deleted),
             Box::new(machine_info_json),
+            Box::new(account.membership_type.clone()),
+            Box::new(individual_usage_json),
         ]
     }
 }

@@ -50,9 +50,9 @@
           </button>
           <button
             class="btn btn--icon btn--ghost"
-            @click="handleRefresh"
+            @click="handleBatchRefreshQuota"
             :disabled="isRefreshing"
-            v-tooltip="$t('platform.cursor.refresh')"
+            v-tooltip="$t('platform.cursor.batchRefreshQuota')"
           >
             <svg v-if="!isRefreshing" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
               <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
@@ -91,6 +91,7 @@
             :account="account"
             :is-current="account.id === currentAccountId"
             :is-switching="switchingAccountId === account.id"
+            :is-refreshing="refreshingAccountId === account.id"
             :is-selected="selectedAccountIds.has(account.id)"
             :selection-mode="isSelectionMode"
             :show-real-email="showRealEmail"
@@ -99,7 +100,9 @@
             @delete="handleDelete"
             @select="toggleAccountSelection"
             @account-updated="handleAccountUpdated"
+            @account-synced="handleAccountSynced"
             @machine-id-generated="handleMachineIdGenerated"
+            @refresh-quota="handleRefreshQuota"
           />
         </div>
 
@@ -121,11 +124,11 @@
                   </div>
                 </th>
                 <th class="th w-[60px]">{{ $t('platform.cursor.table.tag') }}</th>
-                <th class="th w-[60px]">{{ $t('platform.cursor.table.status') }}</th>
                 <th class="th">{{ $t('platform.cursor.table.email') }}</th>
-                <th class="th w-[120px]">{{ $t('platform.cursor.table.expiry') }}</th>
-                <th class="th w-[80px]">{{ $t('platform.cursor.table.quota') }}</th>
-                <th class="th w-[110px] text-center">{{ $t('platform.cursor.table.actions') }}</th>
+                <th class="th w-[130px]">{{ $t('platform.cursor.table.usage') }}</th>
+                <th class="th w-[105px]">{{ $t('platform.cursor.table.expiry') }}</th>
+                <th class="th w-[100px]">{{ $t('platform.cursor.table.quota') }}</th>
+                <th class="th w-[80px] text-center">{{ $t('platform.cursor.table.actions') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -143,6 +146,7 @@
                 @delete="handleDelete"
                 @select="toggleAccountSelection"
                 @account-updated="handleAccountUpdated"
+                @account-synced="handleAccountSynced"
                 @machine-id-generated="handleMachineIdGenerated"
               />
             </tbody>
@@ -469,6 +473,7 @@ const pendingSwitchAccount = ref(null) // 待切换的账号（用于机器码�
 const isLoading = ref(false)
 const isRefreshing = ref(false)
 const switchingAccountId = ref(null)
+const refreshingAccountId = ref(null)
 
 // 使用存储同步 composable
 const {
@@ -743,15 +748,37 @@ const handleMachineIdOptionClose = () => {
   pendingSwitchAccount.value = null
 }
 
-const handleRefresh = async () => {
+const handleBatchRefreshQuota = async () => {
+  const pageAccounts = paginatedAccounts.value.filter(a => a.token?.workos_cursor_session_token)
+  if (pageAccounts.length === 0) {
+    window.$notify?.error($t('platform.cursor.noQuotaData'))
+    return
+  }
   isRefreshing.value = true
-  try {
-    await loadAccounts()
-  } catch (error) {
-    console.error('Failed to refresh accounts:', error)
-    window.$notify?.error(error?.message || error)
-  } finally {
-    isRefreshing.value = false
+  let success = 0
+  let fail = 0
+  for (const account of pageAccounts) {
+    try {
+      const summary = await invoke('cursor_get_usage_summary', { sessionToken: account.token.workos_cursor_session_token })
+      account.membership_type = summary.membershipType || null
+      const usage = summary.individualUsage || {}
+      if (summary.billingCycleStart) usage.billingCycleStart = summary.billingCycleStart
+      if (summary.billingCycleEnd) usage.billingCycleEnd = summary.billingCycleEnd
+      account.individual_usage = Object.keys(usage).length > 0 ? usage : null
+      account.updated_at = Math.floor(Date.now() / 1000)
+      await invoke('cursor_update_account', { account })
+      markItemUpsertById(account.id)
+      success++
+    } catch (e) {
+      console.error(`Failed to refresh quota for ${account.email}:`, e)
+      fail++
+    }
+  }
+  isRefreshing.value = false
+  if (fail === 0) {
+    window.$notify?.success($t('platform.cursor.batchRefreshQuota') + ` (${success}/${pageAccounts.length})`)
+  } else {
+    window.$notify?.warning(`${success} ${$t('common.success')}, ${fail} ${$t('common.failed')}`)
   }
 }
 
@@ -760,6 +787,7 @@ const handleAccountAdded = async (account) => {
   await loadAccounts()
   if (account?.id) {
     markItemUpsertById(account.id)
+    handleRefreshQuota(account.id)
   }
   window.$notify?.success($t('platform.cursor.messages.addSuccess'))
 }
@@ -839,12 +867,45 @@ const handleAccountUpdated = async (updatedAccount) => {
   }
 }
 
+// 处理模态框内已保存的账号同步标记（不再重复保存）
+const handleAccountSynced = (accountId) => {
+  markItemUpsertById(accountId)
+}
+
 const handleMachineIdGenerated = async (accountId) => {
   // 重新加载账号列表以获取更新后的机器码信息
   await loadAccounts()
   // 触发同步队列更新（标记该账号待同步，不自动执行同步）
   if (accountId && isDatabaseAvailable.value) {
     markItemUpsertById(accountId)
+  }
+}
+
+// 刷新单个账号配额
+const handleRefreshQuota = async (accountId) => {
+  const account = accounts.value.find(a => a.id === accountId)
+  if (!account) return
+  const sessionToken = account.token?.workos_cursor_session_token
+  if (!sessionToken) {
+    window.$notify?.error($t('platform.cursor.noQuotaData'))
+    return
+  }
+  refreshingAccountId.value = accountId
+  try {
+    const summary = await invoke('cursor_get_usage_summary', { sessionToken })
+    account.membership_type = summary.membershipType || null
+    const usage = summary.individualUsage || {}
+    if (summary.billingCycleStart) usage.billingCycleStart = summary.billingCycleStart
+    if (summary.billingCycleEnd) usage.billingCycleEnd = summary.billingCycleEnd
+    account.individual_usage = Object.keys(usage).length > 0 ? usage : null
+    account.updated_at = Math.floor(Date.now() / 1000)
+    await invoke('cursor_update_account', { account })
+    markItemUpsertById(accountId)
+  } catch (e) {
+    console.error('Failed to refresh quota:', e)
+    window.$notify?.error(e?.message || e)
+  } finally {
+    refreshingAccountId.value = null
   }
 }
 

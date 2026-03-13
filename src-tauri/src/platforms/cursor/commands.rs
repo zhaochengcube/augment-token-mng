@@ -314,12 +314,12 @@ pub async fn cursor_validate_account(app: AppHandle, account_id: String) -> Resu
 //     // Ok(results)
 // }
 
-/// 获取订阅信息
+/// 获取用量摘要
 #[tauri::command]
-pub async fn cursor_get_subscription_info(
+pub async fn cursor_get_usage_summary(
     session_token: String,
-) -> Result<auth::SubscriptionInfo, String> {
-    auth::get_subscription_info(&session_token).await
+) -> Result<auth::UsageSummary, String> {
+    auth::get_usage_summary(&session_token).await
 }
 
 /// 获取账号聚合用量数据
@@ -337,17 +337,17 @@ pub async fn cursor_get_aggregated_usage(
 #[tauri::command]
 pub async fn cursor_get_filtered_usage_events(
     session_token: String,
-    start_date: String,
-    end_date: String,
-    page: i32,
-    page_size: i32,
+    start_date: Option<String>,
+    end_date: Option<String>,
+    page: Option<i32>,
+    page_size: Option<i32>,
     team_id: i32,
 ) -> Result<Option<auth::FilteredUsageEventsData>, String> {
     auth::get_filtered_usage_events(
         &session_token,
         team_id,
-        &start_date,
-        &end_date,
+        start_date.as_deref(),
+        end_date.as_deref(),
         page,
         page_size,
     )

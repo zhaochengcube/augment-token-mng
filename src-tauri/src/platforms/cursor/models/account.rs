@@ -1,5 +1,6 @@
 use super::TokenData;
 use crate::data::storage::common::SyncableAccount;
+use crate::platforms::cursor::modules::auth::{IndividualUsage};
 use serde::{Deserialize, Serialize};
 
 /// 机器码信息
@@ -74,6 +75,13 @@ pub struct Account {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub machine_info: Option<MachineInfo>,
 
+    /// 会员类型 (from usage-summary API)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub membership_type: Option<String>,
+    /// 个人用量信息 (from usage-summary API)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub individual_usage: Option<IndividualUsage>,
+
     #[serde(default)]
     pub disabled: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -134,6 +142,8 @@ impl Account {
             tag: None,
             tag_color: None,
             machine_info: None,
+            membership_type: None,
+            individual_usage: None,
             disabled: false,
             disabled_reason: None,
             disabled_at: None,
@@ -161,6 +171,8 @@ impl Account {
             tag: None,
             tag_color: None,
             machine_info,
+            membership_type: None,
+            individual_usage: None,
             disabled: false,
             disabled_reason: None,
             disabled_at: None,

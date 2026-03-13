@@ -24,26 +24,26 @@
 
     <!-- 基本信息区域 -->
     <div class="mb-6">
-      <div v-if="loading && !subscriptionInfo" class="flex justify-center py-8">
+      <div v-if="loading && !aggregatedData" class="flex justify-center py-8">
         <span class="btn-spinner btn-spinner--lg"></span>
       </div>
       <div v-else-if="error" class="text-danger text-center py-4">{{ error }}</div>
-      <div v-else class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div class="card hover:translate-y-0 p-4">
-          <div class="text-xs text-text-muted mb-1">{{ $t('cursorUsage.membershipType') }}</div>
-          <div class="text-lg font-semibold text-text-strong">{{ subscriptionInfo?.membershipType || 'Free' }}</div>
-        </div>
+      <div v-else class="grid grid-cols-3 gap-4">
         <div class="card hover:translate-y-0 p-4">
           <div class="text-xs text-text-muted mb-1">{{ $t('cursorUsage.totalInputTokens') }}</div>
-          <div class="text-lg font-semibold text-text-strong">{{ formatNumber(aggregatedData?.totalInputTokens) }}</div>
+          <div class="text-lg font-semibold text-text-strong" v-tooltip="formatNumberFull(aggregatedData?.totalInputTokens)">{{ formatTokenUnit(aggregatedData?.totalInputTokens) }}</div>
+          <div v-if="toNum(aggregatedData?.totalCacheWriteTokens)" class="text-[11px] text-text-muted mt-1">{{ $t('cursorUsage.cacheWrite') }}: <span v-tooltip="formatNumberFull(aggregatedData?.totalCacheWriteTokens)">{{ formatTokenUnit(aggregatedData?.totalCacheWriteTokens) }}</span></div>
         </div>
         <div class="card hover:translate-y-0 p-4">
           <div class="text-xs text-text-muted mb-1">{{ $t('cursorUsage.totalOutputTokens') }}</div>
-          <div class="text-lg font-semibold text-text-strong">{{ formatNumber(aggregatedData?.totalOutputTokens) }}</div>
+          <div class="text-lg font-semibold text-text-strong" v-tooltip="formatNumberFull(aggregatedData?.totalOutputTokens)">{{ formatTokenUnit(aggregatedData?.totalOutputTokens) }}</div>
+          <div v-if="toNum(aggregatedData?.totalCacheReadTokens)" class="text-[11px] text-text-muted mt-1">{{ $t('cursorUsage.cacheRead') }}: <span v-tooltip="formatNumberFull(aggregatedData?.totalCacheReadTokens)">{{ formatTokenUnit(aggregatedData?.totalCacheReadTokens) }}</span></div>
         </div>
         <div class="card hover:translate-y-0 p-4">
           <div class="text-xs text-text-muted mb-1">{{ $t('cursorUsage.totalCost') }}</div>
+          <div v-if="individualUsage?.plan?.breakdown" class="text-[11px] text-text-muted mb-1">{{ $t('cursorUsage.onPlan') }}: {{ $t('cursorUsage.included') }}: ${{ formatCents(individualUsage.plan.breakdown.included) }} {{ $t('cursorUsage.bonus') }}: ${{ formatCents(individualUsage.plan.breakdown.bonus) }}</div>
           <div class="text-lg font-semibold text-text-strong">${{ (aggregatedData?.totalCostCents / 100).toFixed(2) || '0.00' }}</div>
+          <div v-if="individualUsage?.onDemand?.enabled" class="text-[11px] text-text-muted mt-1">{{ $t('cursorUsage.onDemand') }}: ${{ formatCents(individualUsage.onDemand.used) }} / ${{ formatCents(individualUsage.onDemand.limit) }}</div>
         </div>
       </div>
     </div>
@@ -67,8 +67,32 @@
       </div>
     </div>
 
+    <!-- 内容区域 -->
+    <div v-if="isChartView" class="max-h-[calc(65vh-120px)] overflow-y-auto">
+      <div v-if="eventsLoading" class="flex justify-center py-8">
+        <span class="btn-spinner btn-spinner--lg"></span>
+      </div>
+      <div v-else-if="eventsError" class="text-danger text-center py-4">{{ eventsError }}</div>
+      <template v-else>
+        <div class="flex items-center gap-3 text-xs text-text-muted mb-3">
+          <span v-if="billingCycleLabel && !chartAllData">{{ $t('cursorUsage.billingCycle') }}: {{ billingCycleLabel }}</span>
+          <span v-if="chartAllData">{{ $t('cursorUsage.allDataRange') }}</span>
+          <button
+            class="px-2 py-0.5 rounded border transition-colors text-[11px]"
+            :class="chartAllData
+              ? 'bg-accent/15 text-accent border-accent/30'
+              : 'bg-transparent text-text-muted border-border hover:text-text-strong'"
+            @click="toggleChartAllData"
+          >
+            {{ $t('cursorUsage.allData') }}
+          </button>
+        </div>
+        <CursorUsageCharts :usage-events="chartEvents" />
+      </template>
+    </div>
+
     <!-- 使用事件表格 -->
-    <div class="overflow-x-auto max-h-[400px] overflow-y-auto">
+    <div v-else class="overflow-x-auto max-h-[400px] overflow-y-auto">
       <div v-if="eventsLoading" class="flex justify-center py-8">
         <span class="btn-spinner btn-spinner--lg"></span>
       </div>
@@ -90,8 +114,16 @@
           <tr v-for="(event, index) in usageEvents" :key="index" class="hover:bg-hover">
             <td class="py-3 px-4 border-b border-border text-text-strong">{{ formatTimestamp(event.timestamp) }}</td>
             <td class="py-3 px-4 border-b border-border text-text-strong">{{ event.model }}</td>
-            <td class="py-3 px-4 border-b border-border text-text-strong text-right">{{ formatNumber(event.tokenUsage?.inputTokens) }}</td>
-            <td class="py-3 px-4 border-b border-border text-text-strong text-right">{{ formatNumber(event.tokenUsage?.outputTokens) }}</td>
+            <td class="py-3 px-4 border-b border-border text-text-strong text-right">
+              <span v-tooltip="formatNumberFull(event.tokenUsage?.inputTokens) + (toNum(event.tokenUsage?.cacheWriteTokens) ? `\n${$t('cursorUsage.cacheWrite')}: ${formatNumberFull(event.tokenUsage?.cacheWriteTokens)}` : '')">
+                {{ formatTokenUnit(event.tokenUsage?.inputTokens) }}
+              </span>
+            </td>
+            <td class="py-3 px-4 border-b border-border text-text-strong text-right">
+              <span v-tooltip="formatNumberFull(event.tokenUsage?.outputTokens) + (toNum(event.tokenUsage?.cacheReadTokens) ? `\n${$t('cursorUsage.cacheRead')}: ${formatNumberFull(event.tokenUsage?.cacheReadTokens)}` : '')">
+                {{ formatTokenUnit(event.tokenUsage?.outputTokens) }}
+              </span>
+            </td>
             <td class="py-3 px-4 border-b border-border text-text-strong text-right">{{ event.tokenUsage?.totalCents ? `$${(event.tokenUsage.totalCents / 100).toFixed(4)}` : '-' }}</td>
           </tr>
         </tbody>
@@ -105,6 +137,7 @@ import { ref, computed, onMounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from 'vue-i18n'
 import BaseModal from '../common/BaseModal.vue'
+import CursorUsageCharts from './CursorUsageCharts.vue'
 
 const { t: $t } = useI18n()
 
@@ -115,14 +148,13 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'account-synced'])
 
 // 状态
 const loading = ref(false)
 const error = ref(null)
 const eventsLoading = ref(false)
 const eventsError = ref(null)
-const subscriptionInfo = ref(null)
 const aggregatedData = ref(null)
 const usageEvents = ref([])
 const activeTab = ref('1day')
@@ -130,10 +162,26 @@ const activeTab = ref('1day')
 const tabs = [
   { key: '1day', label: $t('cursorUsage.tab1Day'), days: 1 },
   { key: '1week', label: $t('cursorUsage.tab1Week'), days: 7 },
-  { key: '1month', label: $t('cursorUsage.tab1Month'), days: 30 }
+  { key: '1month', label: $t('cursorUsage.tab1Month'), days: 30 },
+  { key: 'charts', label: $t('cursorUsage.tabCharts'), days: 30 }
 ]
 
 const sessionToken = computed(() => props.account.token?.workos_cursor_session_token)
+const individualUsage = computed(() => props.account.individual_usage)
+const isChartView = computed(() => activeTab.value === 'charts')
+const chartEvents = ref([])
+const chartAllData = ref(false)
+const billingCycleLabel = computed(() => {
+  const usage = individualUsage.value
+  if (!usage?.billingCycleStart || !usage?.billingCycleEnd) return null
+  const fmt = (iso) => new Date(iso).toLocaleDateString()
+  return `${fmt(usage.billingCycleStart)} - ${fmt(usage.billingCycleEnd)}`
+})
+
+const formatCents = (value) => {
+  if (!value && value !== 0) return '0.00'
+  return (value / 100).toFixed(2)
+}
 
 // 日期格式化
 const getDateRange = (days) => {
@@ -151,6 +199,25 @@ const getDateRange = (days) => {
 const formatNumber = (value) => {
   if (!value) return '0'
   return parseInt(value).toLocaleString()
+}
+
+const toNum = (value) => {
+  if (!value) return 0
+  return parseInt(value) || 0
+}
+
+const formatTokenUnit = (value) => {
+  const n = toNum(value)
+  if (n === 0) return '0'
+  if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B'
+  if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M'
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K'
+  return n.toString()
+}
+
+const formatNumberFull = (value) => {
+  const n = toNum(value)
+  return n.toLocaleString()
 }
 
 const formatTimestamp = (timestamp) => {
@@ -197,7 +264,7 @@ const calculateAggregatedFromEvents = (events) => {
   }
 }
 
-// 获取订阅和聚合数据
+// 获取聚合数据
 const fetchBasicData = async () => {
   if (!sessionToken.value) {
     error.value = 'No session token'
@@ -210,16 +277,12 @@ const fetchBasicData = async () => {
   try {
     const { startTimestamp, endTimestamp } = getDateRange(30)
 
-    const [subInfo, aggData] = await Promise.all([
-      invoke('cursor_get_subscription_info', { sessionToken: sessionToken.value }),
-      invoke('cursor_get_aggregated_usage', {
-        sessionToken: sessionToken.value,
-        startDate: startTimestamp,
-        endDate: endTimestamp,
-        teamId: 0
-      })
-    ])
-    subscriptionInfo.value = subInfo
+    const aggData = await invoke('cursor_get_aggregated_usage', {
+      sessionToken: sessionToken.value,
+      startDate: startTimestamp,
+      endDate: endTimestamp,
+      teamId: 0
+    })
     aggregatedData.value = aggData
   } catch (e) {
     error.value = e.toString()
@@ -261,12 +324,85 @@ const fetchUsageEvents = async () => {
 
 const switchTab = (tabKey) => {
   activeTab.value = tabKey
-  fetchUsageEvents()
+  if (tabKey === 'charts') {
+    fetchChartEvents()
+  } else {
+    fetchUsageEvents()
+  }
 }
 
-const refresh = () => {
-  if (!loading.value && !eventsLoading.value) {
-    fetchBasicData()
+// 获取图表数据 (优先使用账期范围，否则回退30天)
+const getChartDateRange = () => {
+  const usage = individualUsage.value
+  if (usage?.billingCycleStart && usage?.billingCycleEnd) {
+    return {
+      startTimestamp: new Date(usage.billingCycleStart).getTime(),
+      endTimestamp: new Date(usage.billingCycleEnd).getTime()
+    }
+  }
+  return getDateRange(30)
+}
+
+const fetchChartEvents = async () => {
+  if (!sessionToken.value) return
+
+  eventsLoading.value = true
+  eventsError.value = null
+
+  try {
+    const params = {
+      sessionToken: sessionToken.value,
+      teamId: 0
+    }
+    if (chartAllData.value) {
+      // 查全部数据：只传 teamId，不传日期和分页
+    } else {
+      const { startTimestamp, endTimestamp } = getChartDateRange()
+      params.startDate = String(startTimestamp)
+      params.endDate = String(endTimestamp)
+      params.page = 1
+      params.pageSize = 1000
+    }
+    const result = await invoke('cursor_get_filtered_usage_events', params)
+    chartEvents.value = result?.usageEventsDisplay || []
+  } catch (e) {
+    eventsError.value = e.toString()
+    console.error('Failed to fetch chart events:', e)
+  } finally {
+    eventsLoading.value = false
+  }
+}
+
+const toggleChartAllData = () => {
+  chartAllData.value = !chartAllData.value
+  fetchChartEvents()
+}
+
+// 刷新用量摘要（更新账期和配额）
+const fetchUsageSummary = async () => {
+  if (!sessionToken.value) return
+  try {
+    const summary = await invoke('cursor_get_usage_summary', { sessionToken: sessionToken.value })
+    props.account.membership_type = summary.membershipType || null
+    const usage = summary.individualUsage || {}
+    if (summary.billingCycleStart) usage.billingCycleStart = summary.billingCycleStart
+    if (summary.billingCycleEnd) usage.billingCycleEnd = summary.billingCycleEnd
+    props.account.individual_usage = Object.keys(usage).length > 0 ? usage : null
+    props.account.updated_at = Math.floor(Date.now() / 1000)
+    await invoke('cursor_update_account', { account: props.account })
+    emit('account-synced', props.account.id)
+  } catch (e) {
+    console.error('Failed to fetch usage summary:', e)
+  }
+}
+
+const refresh = async () => {
+  if (loading.value || eventsLoading.value) return
+  await fetchUsageSummary()
+  fetchBasicData()
+  if (isChartView.value) {
+    fetchChartEvents()
+  } else {
     fetchUsageEvents()
   }
 }

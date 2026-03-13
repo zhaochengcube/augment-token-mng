@@ -100,6 +100,22 @@ pub async fn add_new_fields_if_not_exist(
         )
         .await?;
 
+    // 添加 membership_type 字段（如果不存在）
+    client
+        .execute(
+            "ALTER TABLE cursor_accounts ADD COLUMN IF NOT EXISTS membership_type TEXT",
+            &[],
+        )
+        .await?;
+
+    // 添加 individual_usage 字段（如果不存在）- 存储为 JSONB
+    client
+        .execute(
+            "ALTER TABLE cursor_accounts ADD COLUMN IF NOT EXISTS individual_usage JSONB",
+            &[],
+        )
+        .await?;
+
     Ok(())
 }
 
