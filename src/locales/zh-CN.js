@@ -1003,6 +1003,7 @@ export default {
       searchPlaceholder: '搜索标签或邮箱...',
       empty: '暂无数据',
       labelCol: '标签',
+      tagCol: '分组',
       emailCol: '邮箱',
       createdAtCol: '创建时间'
     },

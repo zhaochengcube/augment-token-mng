@@ -48,6 +48,25 @@ impl HmeStorage {
             CREATE INDEX IF NOT EXISTS idx_hme_created ON hme_emails(created_at DESC);",
         )
         .map_err(|e| format!("Failed to create HME table: {}", e))?;
+
+        // Migration: add tag columns if not exist
+        let columns: Vec<String> = conn
+            .prepare("PRAGMA table_info(hme_emails)")
+            .and_then(|mut stmt| {
+                stmt.query_map([], |row| row.get::<_, String>(1))
+                    .map(|rows| rows.filter_map(|r| r.ok()).collect())
+            })
+            .unwrap_or_default();
+
+        if !columns.iter().any(|c| c == "tag") {
+            conn.execute_batch("ALTER TABLE hme_emails ADD COLUMN tag TEXT DEFAULT NULL")
+                .map_err(|e| format!("Failed to add tag column: {}", e))?;
+        }
+        if !columns.iter().any(|c| c == "tag_color") {
+            conn.execute_batch("ALTER TABLE hme_emails ADD COLUMN tag_color TEXT DEFAULT NULL")
+                .map_err(|e| format!("Failed to add tag_color column: {}", e))?;
+        }
+
         Ok(())
     }
 
@@ -56,11 +75,11 @@ impl HmeStorage {
 
         let (sql, active_val) = match is_active {
             Some(active) => (
-                "SELECT anonymous_id, label, hme, is_active, created_at FROM hme_emails WHERE is_active = ?1 ORDER BY created_at DESC",
+                "SELECT anonymous_id, label, hme, is_active, created_at, tag, tag_color FROM hme_emails WHERE is_active = ?1 ORDER BY created_at DESC",
                 Some(active as i32),
             ),
             None => (
-                "SELECT anonymous_id, label, hme, is_active, created_at FROM hme_emails ORDER BY created_at DESC",
+                "SELECT anonymous_id, label, hme, is_active, created_at, tag, tag_color FROM hme_emails ORDER BY created_at DESC",
                 None,
             ),
         };
@@ -97,8 +116,14 @@ impl HmeStorage {
         let now_ms = chrono::Utc::now().timestamp_millis();
         for item in items {
             tx.execute(
-                "INSERT OR REPLACE INTO hme_emails (anonymous_id, label, hme, is_active, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                "INSERT INTO hme_emails (anonymous_id, label, hme, is_active, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+                 ON CONFLICT(anonymous_id) DO UPDATE SET
+                   label = excluded.label,
+                   hme = excluded.hme,
+                   is_active = excluded.is_active,
+                   created_at = excluded.created_at,
+                   updated_at = excluded.updated_at",
                 params![
                     item.anonymous_id,
                     item.label,
@@ -161,6 +186,22 @@ impl HmeStorage {
         Ok(())
     }
 
+    pub fn update_tag(
+        &self,
+        anonymous_id: &str,
+        tag: Option<&str>,
+        tag_color: Option<&str>,
+    ) -> Result<(), String> {
+        let conn = self.get_connection()?;
+        let now_ms = chrono::Utc::now().timestamp_millis();
+        conn.execute(
+            "UPDATE hme_emails SET tag = ?1, tag_color = ?2, updated_at = ?3 WHERE anonymous_id = ?4",
+            params![tag, tag_color, now_ms, anonymous_id],
+        )
+        .map_err(|e| format!("Failed to update tag: {}", e))?;
+        Ok(())
+    }
+
     /// Full sync: upsert all API items, delete local rows not in API response
     pub fn sync_from_api(&self, api_items: &[HmeEmailItem]) -> Result<(), String> {
         let conn = self.get_connection()?;
@@ -198,6 +239,8 @@ fn row_to_item(row: &rusqlite::Row) -> rusqlite::Result<HmeEmailItem> {
     let hme: String = row.get(2)?;
     let is_active: i32 = row.get(3)?;
     let create_timestamp: i64 = row.get(4)?;
+    let tag: Option<String> = row.get(5)?;
+    let tag_color: Option<String> = row.get(6)?;
 
     let created_at = chrono::DateTime::<chrono::Utc>::from_timestamp_millis(
         if create_timestamp.abs() < 1_000_000_000_000 {
@@ -216,5 +259,7 @@ fn row_to_item(row: &rusqlite::Row) -> rusqlite::Result<HmeEmailItem> {
         is_active: is_active != 0,
         create_timestamp,
         created_at,
+        tag,
+        tag_color,
     })
 }

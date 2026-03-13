@@ -1000,6 +1000,7 @@ export default {
       searchPlaceholder: 'Search label or email...',
       empty: 'No data',
       labelCol: 'Label',
+      tagCol: 'Tag',
       emailCol: 'Email',
       createdAtCol: 'Created At'
     },

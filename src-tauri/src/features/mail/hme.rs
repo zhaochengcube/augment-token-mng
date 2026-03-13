@@ -27,6 +27,10 @@ pub struct HmeEmailItem {
     pub is_active: bool,
     pub create_timestamp: i64,
     pub created_at: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tag: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tag_color: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -272,6 +276,8 @@ fn map_hme_item(item: &Value) -> Option<HmeEmailItem> {
         is_active,
         create_timestamp,
         created_at: format_timestamp(create_timestamp),
+        tag: None,
+        tag_color: None,
     })
 }
 
@@ -546,6 +552,17 @@ pub async fn hme_sync(
     }
 
     Ok(items)
+}
+
+#[tauri::command]
+pub async fn hme_update_tag(
+    anonymous_id: String,
+    tag: Option<String>,
+    tag_color: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let storage = get_hme_storage(&state)?;
+    storage.update_tag(&anonymous_id, tag.as_deref(), tag_color.as_deref())
 }
 
 #[tauri::command]

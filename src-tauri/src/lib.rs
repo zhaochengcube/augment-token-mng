@@ -715,6 +715,7 @@ pub fn run() {
             hme::hme_deactivate,
             hme::hme_delete,
             hme::hme_cleanup,
+            hme::hme_update_tag,
 
             // 数据库配置命令
             database::save_database_config,

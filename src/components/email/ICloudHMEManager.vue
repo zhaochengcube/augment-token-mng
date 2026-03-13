@@ -118,6 +118,9 @@
           <!-- Batch Actions -->
           <div v-if="selectedIds.size > 0" class="flex items-center gap-3 mb-4 flex-wrap">
             <span class="text-sm text-text-secondary">{{ $t('hmeManager.batch.selected', { n: selectedIds.size }) }}</span>
+            <button @click="showBatchTagEditor = true" :disabled="batchLoading" class="btn btn--secondary btn--sm">
+              {{ $t('tokenList.batchEditTag') }}
+            </button>
             <button v-if="listTab" @click="batchDeactivate" :disabled="batchLoading" class="btn btn-tech-warning btn--sm">
               {{ $t('hmeManager.batch.deactivate') }}
             </button>
@@ -146,6 +149,7 @@
                   <th class="px-3 py-2 w-10">
                     <input type="checkbox" :checked="allSelected" @change="toggleSelectAll" class="accent-accent" />
                   </th>
+                  <th class="px-3 py-2 font-medium text-text-secondary w-[60px]">{{ $t('hmeManager.list.tagCol') }}</th>
                   <th class="px-3 py-2 font-medium text-text-secondary">{{ $t('hmeManager.list.labelCol') }}</th>
                   <th class="px-3 py-2 font-medium text-text-secondary">{{ $t('hmeManager.list.emailCol') }}</th>
                   <th class="px-3 py-2 font-medium text-text-secondary whitespace-nowrap">{{ $t('hmeManager.list.createdAtCol') }}</th>
@@ -157,6 +161,27 @@
                   <td class="px-3 py-2">
                     <input type="checkbox" :checked="selectedIds.has(item.anonymous_id)"
                       @change="toggleSelect(item.anonymous_id)" class="accent-accent" />
+                  </td>
+                  <td class="px-3 py-2 w-[60px]">
+                    <span
+                      v-if="!item.tag"
+                      class="inline-flex items-center justify-center w-6 h-6 border border-dashed border-border rounded text-text-muted cursor-pointer hover:border-accent hover:text-accent transition-colors"
+                      v-tooltip="$t('tokenList.clickToAddTag')"
+                      @click.stop="openTagEditor(item)"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                      </svg>
+                    </span>
+                    <span
+                      v-else
+                      class="badge editable badge--sm max-w-[50px]"
+                      :style="{ '--tag-color': item.tag_color || DEFAULT_TAG_COLOR }"
+                      v-tooltip="$t('tokenList.clickToEditTag')"
+                      @click.stop="openTagEditor(item)"
+                    >
+                      {{ item.tag }}
+                    </span>
                   </td>
                   <td class="px-3 py-2 text-text truncate max-w-[180px]">{{ item.label || '-' }}</td>
                   <td class="px-3 py-2 font-mono text-text-secondary truncate max-w-[260px] cursor-pointer hover:text-accent transition"
@@ -190,12 +215,31 @@
       </div>
     </div>
   </div>
+
+  <!-- 标签编辑模态框 -->
+  <TagEditorModal
+    v-model:visible="showTagEditor"
+    :token="editingTagToken"
+    :all-tokens="allItemsAsTokens"
+    @save="handleTagSave"
+    @clear="handleTagClear"
+  />
+
+  <!-- 批量标签编辑模态框 -->
+  <TagEditorModal
+    v-model:visible="showBatchTagEditor"
+    :tokens="selectedItemsAsTokens"
+    :all-tokens="allItemsAsTokens"
+    @save="handleBatchTagSave"
+    @clear="handleBatchTagClear"
+  />
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { invoke } from '@tauri-apps/api/core'
+import TagEditorModal from '../token/TagEditorModal.vue'
 
 defineProps({
   isPageMode: { type: Boolean, default: false }
@@ -229,12 +273,41 @@ const selectedIds = ref(new Set())
 const batchLoading = ref(false)
 const currentPage = ref(1)
 
+// Tag
+const DEFAULT_TAG_COLOR = '#f97316'
+const showTagEditor = ref(false)
+const showBatchTagEditor = ref(false)
+const editingItem = ref(null)
+
+const editingTagToken = computed(() => ({
+  tag_name: editingItem.value?.tag || '',
+  tag_color: editingItem.value?.tag_color || ''
+}))
+
+const allItemsAsTokens = computed(() =>
+  emailList.value.map(i => ({
+    tag_name: i.tag || '',
+    tag_color: i.tag_color || ''
+  }))
+)
+
+const selectedItemsAsTokens = computed(() =>
+  emailList.value
+    .filter(i => selectedIds.value.has(i.anonymous_id))
+    .map(i => ({
+      tag_name: i.tag || '',
+      tag_color: i.tag_color || '',
+      _item: i
+    }))
+)
+
 const filteredList = computed(() => {
   const kw = searchKeyword.value.trim().toLowerCase()
   if (!kw) return emailList.value
   return emailList.value.filter(i =>
     (i.hme && i.hme.toLowerCase().includes(kw)) ||
-    (i.label && i.label.toLowerCase().includes(kw))
+    (i.label && i.label.toLowerCase().includes(kw)) ||
+    (i.tag && i.tag.toLowerCase().includes(kw))
   )
 })
 
@@ -563,6 +636,84 @@ const batchCleanup = async () => {
   } finally {
     batchLoading.value = false
   }
+}
+
+// Tag actions
+const openTagEditor = (item) => {
+  editingItem.value = item
+  showTagEditor.value = true
+}
+
+const handleTagSave = async ({ tagName, tagColor }) => {
+  if (!editingItem.value) return
+  try {
+    await invoke('hme_update_tag', {
+      anonymousId: editingItem.value.anonymous_id,
+      tag: tagName || null,
+      tagColor: tagColor || null
+    })
+    editingItem.value.tag = tagName || null
+    editingItem.value.tag_color = tagColor || null
+    notify(t('messages.tagUpdated'), 'success')
+  } catch (e) {
+    notify(`${t('messages.updateFailed')}: ${e}`, 'error')
+  }
+}
+
+const handleTagClear = async () => {
+  if (!editingItem.value) return
+  try {
+    await invoke('hme_update_tag', {
+      anonymousId: editingItem.value.anonymous_id,
+      tag: null,
+      tagColor: null
+    })
+    editingItem.value.tag = null
+    editingItem.value.tag_color = null
+    notify(t('messages.tagCleared'), 'success')
+  } catch (e) {
+    notify(`${t('messages.updateFailed')}: ${e}`, 'error')
+  }
+}
+
+const handleBatchTagSave = async ({ tagName, tagColor }) => {
+  const items = emailList.value.filter(i => selectedIds.value.has(i.anonymous_id))
+  let success = 0
+  for (const item of items) {
+    try {
+      await invoke('hme_update_tag', {
+        anonymousId: item.anonymous_id,
+        tag: tagName || null,
+        tagColor: tagColor || null
+      })
+      item.tag = tagName || null
+      item.tag_color = tagColor || null
+      success++
+    } catch (e) {
+      console.error('Failed to update tag:', e)
+    }
+  }
+  notify(t('tokenList.batchTagUpdated', { count: success }), 'success')
+}
+
+const handleBatchTagClear = async () => {
+  const items = emailList.value.filter(i => selectedIds.value.has(i.anonymous_id))
+  let success = 0
+  for (const item of items) {
+    try {
+      await invoke('hme_update_tag', {
+        anonymousId: item.anonymous_id,
+        tag: null,
+        tagColor: null
+      })
+      item.tag = null
+      item.tag_color = null
+      success++
+    } catch (e) {
+      console.error('Failed to clear tag:', e)
+    }
+  }
+  notify(t('messages.tagCleared'), 'success')
 }
 
 onMounted(() => {
