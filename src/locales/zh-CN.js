@@ -988,13 +988,18 @@ export default {
       count: '数量',
       label: '标签',
       labelPlaceholder: '例如: ATM HME',
-      limitHint: '30 分钟内最多创建 5 个，总上限约 750 个',
+      limitHint: '1 小时内最多创建 5 个，总上限约 750 个',
       btn: '生成并预留',
       generating: '生成中...',
       cooldownSuffix: '后可再次生成',
       successCount: '成功 {n} 个',
       failedCount: '失败 {n} 个',
-      stoppedEarly: '提前停止'
+      stoppedEarly: '提前停止',
+      startAuto: '开启定时生成',
+      stopAuto: '停止定时生成',
+      autoActive: '定时运行中',
+      nextRunIn: '下次生成: {time}',
+      nextRunSoon: '即将生成'
     },
     list: {
       title: 'HME 邮箱列表',
@@ -1031,7 +1036,8 @@ export default {
       cookieClearFailed: 'Cookie 清空失败',
       generateSuccess: '成功生成 {n} 个邮箱',
       generatePartialFail: '{n} 个生成失败',
-      generateRateLimited: '30 分钟内最多创建 5 个，请 {time} 后再试',
+      generatePartialFailReasons: '{n} 个生成失败：{reasons}',
+      generateRateLimited: '1 小时内最多创建 5 个，请 {time} 后再试',
       generateFailed: '生成邮箱失败',
       listFailed: '获取列表失败',
       listFallbackLocal: '网络异常，已显示本地缓存',
@@ -1041,7 +1047,10 @@ export default {
       deleteFailed: '删除失败',
       cleanupSuccess: '成功清理 {n} 个邮箱',
       cleanupFailed: '清理失败',
-      batchPartialFail: '{n} 个操作失败'
+      batchPartialFail: '{n} 个操作失败',
+      autoStarted: '定时生成已开启，每 1 小时自动生成',
+      autoStopped: '定时生成已停止',
+      autoSkipped: '冷却中，跳过本轮自动生成'
     }
   },
   apiServer: {

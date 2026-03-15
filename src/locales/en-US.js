@@ -985,13 +985,18 @@ export default {
       count: 'Count',
       label: 'Label',
       labelPlaceholder: 'e.g. ATM HME',
-      limitHint: 'Max 5 every 30 minutes, about 750 total.',
+      limitHint: 'Max 5 per hour, about 750 total.',
       btn: 'Generate & Reserve',
       generating: 'Generating...',
       cooldownSuffix: 'remaining',
       successCount: '{n} succeeded',
       failedCount: '{n} failed',
-      stoppedEarly: 'Stopped early'
+      stoppedEarly: 'Stopped early',
+      startAuto: 'Start Auto Generate',
+      stopAuto: 'Stop Auto Generate',
+      autoActive: 'Auto Running',
+      nextRunIn: 'Next run: {time}',
+      nextRunSoon: 'Next run soon'
     },
     list: {
       title: 'HME Email List',
@@ -1028,7 +1033,8 @@ export default {
       cookieClearFailed: 'Failed to clear cookie',
       generateSuccess: 'Successfully generated {n} email(s)',
       generatePartialFail: '{n} generation(s) failed',
-      generateRateLimited: 'Max 5 emails every 30 minutes. Please try again in {time}.',
+      generatePartialFailReasons: '{n} failed: {reasons}',
+      generateRateLimited: 'Max 5 emails per hour. Please try again in {time}.',
       generateFailed: 'Failed to generate emails',
       listFailed: 'Failed to load list',
       listFallbackLocal: 'API unavailable, showing local cached data',
@@ -1038,7 +1044,10 @@ export default {
       deleteFailed: 'Failed to delete',
       cleanupSuccess: 'Successfully cleaned up {n} email(s)',
       cleanupFailed: 'Failed to cleanup',
-      batchPartialFail: '{n} operation(s) failed'
+      batchPartialFail: '{n} operation(s) failed',
+      autoStarted: 'Auto generate started, runs every hour',
+      autoStopped: 'Auto generate stopped',
+      autoSkipped: 'Cooldown active, skipping this round'
     }
   },
   apiServer: {
