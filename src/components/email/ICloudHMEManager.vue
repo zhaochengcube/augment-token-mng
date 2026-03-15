@@ -77,6 +77,28 @@
                 {{ generateBtnText }}
               </button>
             </div>
+
+            <div class="flex items-center gap-3 mt-4">
+              <button
+                v-if="!isAutoGenerating"
+                @click="startAutoGenerate"
+                :disabled="generateDisabled"
+                class="btn btn--secondary btn--sm">
+                {{ $t('hmeManager.generate.startAuto') }}
+              </button>
+              <button
+                v-else
+                @click="stopAutoGenerate"
+                class="btn btn-tech-danger btn--sm">
+                {{ $t('hmeManager.generate.stopAuto') }}
+              </button>
+              <span v-if="isAutoGenerating" class="text-xs text-text-secondary">
+                <span class="badge badge--accent-tech badge--sm mr-1">{{ $t('hmeManager.generate.autoActive') }}</span>
+                {{ autoGenCountdownMs > 0
+                  ? $t('hmeManager.generate.nextRunIn', { time: formatCooldownWait(autoGenCountdownMs) })
+                  : $t('hmeManager.generate.nextRunSoon') }}
+              </span>
+            </div>
           </section>
 
         </div>
@@ -235,15 +257,21 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { invoke } from '@tauri-apps/api/core'
+import { useHmeAutoGenStore } from '../../stores/hmeAutoGen'
 import TagEditorModal from '../token/TagEditorModal.vue'
 
 
 defineEmits(['close'])
 
 const { t } = useI18n()
+
+// Auto-generate store (persists across component mount/unmount)
+const autoGenStore = useHmeAutoGenStore()
+const { isAutoGenerating, autoGenCountdownMs, lastGenTimestamp, generating } = storeToRefs(autoGenStore)
 
 // Cookie
 const cookieInput = ref('')
@@ -254,11 +282,6 @@ const showCookieHelp = ref(false)
 // Generate
 const generateCount = ref(5)
 const generateLabel = ref('ATM HME')
-const generating = ref(false)
-
-// Cooldown: iCloud enforces max 5 emails per 30 minutes
-const COOLDOWN_MS = 30 * 60 * 1000
-const lastGenTimestamp = ref(0)
 
 // List
 const PAGE_SIZE = 20
@@ -334,12 +357,7 @@ const updateLastGenTimestamp = (items) => {
   }
 }
 
-const getCooldownRemaining = () => {
-  if (lastGenTimestamp.value === 0) return 0
-  const elapsed = Date.now() - lastGenTimestamp.value
-  const remaining = COOLDOWN_MS - elapsed
-  return remaining > 0 ? remaining : 0
-}
+const getCooldownRemaining = () => autoGenStore.getCooldownRemaining()
 
 const formatCooldownWait = (ms) => {
   const totalSec = Math.ceil(ms / 1000)
@@ -475,9 +493,13 @@ const clearCookie = async () => {
 const generateEmails = async () => {
   const cooldownRemaining = getCooldownRemaining()
   if (cooldownRemaining > 0) {
-    notify(t('hmeManager.messages.generateRateLimited', {
-      time: formatCooldownWait(cooldownRemaining)
-    }), 'warning')
+    if (isAutoGenerating.value) {
+      notify(t('hmeManager.messages.autoSkipped'), 'info')
+    } else {
+      notify(t('hmeManager.messages.generateRateLimited', {
+        time: formatCooldownWait(cooldownRemaining)
+      }), 'warning')
+    }
     return
   }
 
@@ -493,7 +515,16 @@ const generateEmails = async () => {
       await syncFromApi()
     }
     if (result.failed > 0) {
-      notify(t('hmeManager.messages.generatePartialFail', { n: result.failed }), 'warning')
+      const uniqueReasons = result.errors?.length
+        ? [...new Set(result.errors)].join('; ')
+        : ''
+      const reasons = uniqueReasons
+        ? t('hmeManager.messages.generatePartialFailReasons', {
+            n: result.failed,
+            reasons: uniqueReasons
+          })
+        : t('hmeManager.messages.generatePartialFail', { n: result.failed })
+      notify(reasons, 'warning')
     }
   } catch (e) {
     notify(`${t('hmeManager.messages.generateFailed')}: ${e}`, 'error')
@@ -501,6 +532,20 @@ const generateEmails = async () => {
     generating.value = false
   }
 }
+
+const startAutoGenerate = () => {
+  autoGenStore.startAutoGenerate(generateCount.value, generateLabel.value)
+  notify(t('hmeManager.messages.autoStarted'), 'success')
+}
+
+const stopAutoGenerate = () => {
+  autoGenStore.stopAutoGenerate()
+  notify(t('hmeManager.messages.autoStopped'), 'info')
+}
+
+onBeforeUnmount(() => {
+  autoGenStore.unregisterOnGenerated()
+})
 
 // List actions
 const loadListLocal = async (resetPage = false) => {
@@ -715,6 +760,34 @@ const handleBatchTagClear = async () => {
 
 onMounted(() => {
   checkCookieState()
+  autoGenStore.registerOnGenerated(async (result, error) => {
+    if (error) {
+      notify(`${t('hmeManager.messages.generateFailed')}: ${error}`, 'error')
+      return
+    }
+    if (result?.generated?.length > 0) {
+      notify(t('hmeManager.messages.generateSuccess', { n: result.generated.length }), 'success')
+      await syncFromApi()
+    }
+    if (result?.failed > 0) {
+      const uniqueReasons = result.errors?.length
+        ? [...new Set(result.errors)].join('; ')
+        : ''
+      const reasons = uniqueReasons
+        ? t('hmeManager.messages.generatePartialFailReasons', {
+            n: result.failed,
+            reasons: uniqueReasons
+          })
+        : t('hmeManager.messages.generatePartialFail', { n: result.failed })
+      notify(reasons, 'warning')
+    }
+  })
+
+  const restored = autoGenStore.restoreAutoGenerate()
+  if (restored) {
+    generateCount.value = restored.count ?? 5
+    generateLabel.value = restored.label ?? 'ATM HME'
+  }
 })
 </script>
 

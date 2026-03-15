@@ -2,6 +2,7 @@
 let tooltipElement = null
 let showTimer = null
 let hideTimer = null
+let currentTriggerEl = null
 
 function createTooltipElement() {
   const el = document.createElement('div')
@@ -58,13 +59,14 @@ function showTooltip(el, binding) {
     tooltipElement = createTooltipElement()
   }
 
+  currentTriggerEl = el
   tooltipElement.textContent = binding.value
   tooltipElement.style.opacity = '0'
   tooltipElement.style.top = '-9999px'
   tooltipElement.style.left = '-9999px'
 
-  // 等待下一帧以获取正确的尺寸
   requestAnimationFrame(() => {
+    if (currentTriggerEl !== el) return
     updatePosition(el, tooltipElement, binding.arg || 'bottom')
     tooltipElement.style.opacity = '1'
   })
@@ -74,6 +76,7 @@ function hideTooltip() {
   if (tooltipElement) {
     tooltipElement.style.opacity = '0'
   }
+  currentTriggerEl = null
 }
 
 function addTooltipListeners(el, binding) {
@@ -125,34 +128,37 @@ export const tooltip = {
   },
 
   updated(el, binding) {
-    // 保存最新的 binding
     el._tooltipBinding = binding
 
     if (binding.value) {
-      // 有值：确保监听器已添加
       if (!el._tooltipHandlers) {
         addTooltipListeners(el, binding)
       }
-      // 如果 tooltip 正在显示，更新内容
-      if (tooltipElement && tooltipElement.style.opacity === '1') {
+      if (tooltipElement && tooltipElement.style.opacity === '1' && currentTriggerEl === el) {
         tooltipElement.textContent = binding.value
         updatePosition(el, tooltipElement, binding.arg || 'bottom')
       }
     } else {
-      // 无值：移除监听器并隐藏 tooltip
       removeTooltipListeners(el)
-      hideTooltip()
+      if (currentTriggerEl === el) {
+        hideTooltip()
+      }
     }
   },
 
   unmounted(el) {
     removeTooltipListeners(el)
 
-    if (showTimer) {
-      clearTimeout(showTimer)
-    }
-    if (hideTimer) {
-      clearTimeout(hideTimer)
+    if (currentTriggerEl === el) {
+      hideTooltip()
+      if (showTimer) {
+        clearTimeout(showTimer)
+        showTimer = null
+      }
+      if (hideTimer) {
+        clearTimeout(hideTimer)
+        hideTimer = null
+      }
     }
   }
 }
