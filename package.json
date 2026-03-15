@@ -29,6 +29,7 @@
     "@tailwindcss/vite": "^4.1.18",
     "@tauri-apps/cli": "^2.9.2",
     "@vitejs/plugin-vue": "^5.0.0",
+    "tailwindcss": "^4.2.1",
     "vite": "^6.3.5"
   }
 }

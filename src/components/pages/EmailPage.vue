@@ -26,11 +26,7 @@
 
     <!-- Email Manager Detail View -->
     <div v-else class="flex h-full flex-col min-h-0">
-      <component
-        :is="currentServiceComponent"
-        @close="backToList"
-        :is-page-mode="true"
-      />
+      <component :is="currentServiceComponent" @close="backToList" />
     </div>
   </div>
 </template>
@@ -62,7 +58,7 @@ const services = [
     nameKey: 'gptMailManager.title',
     icon: 'M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z',
     component: GPTMailManager,
-    enabled: false
+    enabled: true
   }
 ]
 

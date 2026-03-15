@@ -1,12 +1,11 @@
 <template>
-  <div :class="isPageMode ? 'h-full flex flex-col overflow-hidden' : 'modal-overlay'">
-    <div :class="isPageMode ? 'h-full flex flex-col overflow-hidden bg-page' : ['modal-content', 'modal-content-shell']" @click.stop>
-      <div :class="isPageMode ? 'px-6 py-5 border-b border-border shrink-0 bg-muted/30' : 'modal-header'">
+  <div class="h-full flex flex-col overflow-hidden">
+    <div class="h-full flex flex-col overflow-hidden bg-page">
+      <div class="px-6 py-5 border-b border-border shrink-0 bg-muted/30">
         <h3 class="m-0 text-2xl font-bold text-text">{{ $t('hmeManager.title') }}</h3>
-        <button v-if="!isPageMode" @click="$emit('close')" class="modal-close">&times;</button>
       </div>
 
-      <div :class="isPageMode ? 'flex-1 overflow-y-auto p-6 space-y-6' : ['modal-body', 'modal-body-scroll']">
+      <div class="flex-1 overflow-y-auto p-6 space-y-6">
 
         <!-- Top Row: Cookie + Generate side by side -->
         <div class="grid grid-cols-2 gap-6">
@@ -241,9 +240,7 @@ import { useI18n } from 'vue-i18n'
 import { invoke } from '@tauri-apps/api/core'
 import TagEditorModal from '../token/TagEditorModal.vue'
 
-defineProps({
-  isPageMode: { type: Boolean, default: false }
-})
+
 defineEmits(['close'])
 
 const { t } = useI18n()

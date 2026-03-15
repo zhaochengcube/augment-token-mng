@@ -118,6 +118,7 @@ pub async fn start_api_server_cmd(
             outlook_manager: Mutex::new(OutlookManager::new()),
             hme_cookie: state.hme_cookie.clone(),
             hme_storage: state.hme_storage.clone(),
+            gptmail_storage: state.gptmail_storage.clone(),
             storage_manager: state.storage_manager.clone(),
             antigravity_storage_manager: state.antigravity_storage_manager.clone(),
             windsurf_storage_manager: state.windsurf_storage_manager.clone(),

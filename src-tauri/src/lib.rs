@@ -40,7 +40,7 @@ pub use platforms::{antigravity, augment, claude, cursor, openai, windsurf};
 
 use crate::core::tray::TrayState;
 use crate::data::subscription::SubscriptionDualStorage;
-use crate::features::mail::{gptmail, hme, hme_storage::HmeStorage, outlook};
+use crate::features::mail::{gptmail, gptmail_storage::GptMailStorage, hme, hme_storage::HmeStorage, outlook};
 use crate::platforms::augment::models::AugmentOAuthState;
 use crate::platforms::openai::codex::logger::RequestLogger;
 use crate::platforms::openai::codex::pool::CodexServerConfig;
@@ -74,6 +74,7 @@ pub struct AppState {
     outlook_manager: Mutex<OutlookManager>,
     pub hme_cookie: Arc<Mutex<Option<String>>>,
     pub hme_storage: Arc<Mutex<Option<Arc<HmeStorage>>>>,
+    pub gptmail_storage: Arc<Mutex<Option<Arc<GptMailStorage>>>>,
     pub storage_manager: Arc<Mutex<Option<Arc<DualStorage>>>>,
     pub antigravity_storage_manager: Arc<Mutex<Option<Arc<AntigravityDualStorage>>>>,
     pub windsurf_storage_manager: Arc<Mutex<Option<Arc<WindsurfDualStorage>>>>,
@@ -133,6 +134,11 @@ pub fn run() {
                 hme_cookie: Arc::new(Mutex::new(None)),
                 hme_storage: Arc::new(Mutex::new(
                     HmeStorage::new(app_data_dir.clone())
+                        .map(Arc::new)
+                        .ok(),
+                )),
+                gptmail_storage: Arc::new(Mutex::new(
+                    GptMailStorage::new(app_data_dir.clone())
                         .map(Arc::new)
                         .ok(),
                 )),
@@ -368,6 +374,7 @@ pub fn run() {
                         outlook_manager: Mutex::new(OutlookManager::new()),
                         hme_cookie: state.hme_cookie.clone(),
                         hme_storage: state.hme_storage.clone(),
+                        gptmail_storage: state.gptmail_storage.clone(),
                         storage_manager: state.storage_manager.clone(),
                         antigravity_storage_manager: state.antigravity_storage_manager.clone(),
                         windsurf_storage_manager: state.windsurf_storage_manager.clone(),
@@ -701,6 +708,11 @@ pub fn run() {
             // GPTMail 管理命令
             gptmail::generate_random_email,
             gptmail::get_emails,
+            gptmail::gptmail_list_history,
+            gptmail::gptmail_save_email,
+            gptmail::gptmail_update_email,
+            gptmail::gptmail_delete_emails,
+            gptmail::gptmail_update_tag,
 
             // iCloud HME 管理命令
             hme::hme_set_cookie,
