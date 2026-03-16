@@ -116,6 +116,7 @@ pub async fn start_api_server_cmd(
             openai_oauth_sessions: state.openai_oauth_sessions.clone(),
             api_server: Mutex::new(None),
             outlook_manager: Mutex::new(OutlookManager::new()),
+            outlook_storage: state.outlook_storage.clone(),
             hme_cookie: state.hme_cookie.clone(),
             hme_storage: state.hme_storage.clone(),
             gptmail_storage: state.gptmail_storage.clone(),

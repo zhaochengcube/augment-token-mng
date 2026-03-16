@@ -159,8 +159,10 @@ export default {
     emptyDescription: '请先添加邮箱账户来开始使用',
     status: {
       checking: '检查中...',
+      unchecked: '未检查',
       online: '在线',
       offline: '离线',
+      banned: '已封禁',
       error: '错误'
     },
     messages: {

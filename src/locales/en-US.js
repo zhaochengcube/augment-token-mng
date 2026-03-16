@@ -159,8 +159,10 @@ export default {
     emptyDescription: 'Please add an email account to get started',
     status: {
       checking: 'Checking...',
+      unchecked: 'Unchecked',
       online: 'Online',
       offline: 'Offline',
+      banned: 'Banned',
       error: 'Error'
     },
     messages: {

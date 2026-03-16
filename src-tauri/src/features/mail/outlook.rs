@@ -1,10 +1,13 @@
 use crate::AppState;
 use crate::http_client;
+use super::outlook_storage::OutlookStorage;
+use base64::Engine;
 use imap::Session;
 use native_tls::TlsStream;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::net::TcpStream;
+use std::sync::Arc;
 use tauri::State;
 
 // XOAUTH2 认证器
@@ -53,6 +56,7 @@ pub struct EmailListResponse {
     pub page_size: i32,
     pub total_emails: i32,
     pub emails: Vec<EmailItem>,
+    pub method: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -61,6 +65,7 @@ pub struct EmailDetailsResponse {
     pub subject: String,
     pub from_email: String,
     pub to_email: String,
+    pub cc_email: Option<String>,
     pub date: String,
     pub body_plain: Option<String>,
     pub body_html: Option<String>,
@@ -78,6 +83,21 @@ pub struct AccountInfo {
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RefreshResult {
+    pub email: String,
+    pub success: bool,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchRefreshResponse {
+    pub total: i32,
+    pub success_count: i32,
+    pub failed_count: i32,
+    pub results: Vec<RefreshResult>,
+}
+
 // OAuth2 令牌响应
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
@@ -85,11 +105,185 @@ struct TokenResponse {
     access_token: String,
     token_type: String,
     expires_in: i64,
+    refresh_token: Option<String>,
+}
+
+// Graph API 响应结构
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+struct GraphEmailAddress {
+    address: Option<String>,
+    name: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+struct GraphEmailSender {
+    #[serde(rename = "emailAddress")]
+    email_address: Option<GraphEmailAddress>,
+}
+
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+struct GraphEmailBody {
+    #[serde(rename = "contentType")]
+    content_type: Option<String>,
+    content: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+struct GraphMessage {
+    id: Option<String>,
+    subject: Option<String>,
+    body: Option<GraphEmailBody>,
+    from: Option<GraphEmailSender>,
+    #[serde(rename = "toRecipients")]
+    to_recipients: Option<Vec<GraphEmailSender>>,
+    #[serde(rename = "ccRecipients")]
+    cc_recipients: Option<Vec<GraphEmailSender>>,
+    #[serde(rename = "receivedDateTime")]
+    received_date_time: Option<String>,
+    #[serde(rename = "isRead")]
+    is_read: Option<bool>,
+    #[serde(rename = "hasAttachments")]
+    has_attachments: Option<bool>,
+}
+
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+struct GraphMessagesResponse {
+    value: Option<Vec<GraphMessage>>,
+    #[serde(rename = "@odata.count")]
+    odata_count: Option<i32>,
+    #[serde(rename = "@odata.nextLink")]
+    odata_next_link: Option<String>,
 }
 
 // 简化的邮件管理器
 pub struct OutlookManager {
-    credentials: HashMap<String, OutlookCredentials>,
+    pub(crate) credentials: HashMap<String, OutlookCredentials>,
+}
+
+// 获取 Outlook 存储
+fn get_outlook_storage(state: &State<'_, AppState>) -> Result<Arc<OutlookStorage>, String> {
+    state
+        .outlook_storage
+        .lock()
+        .map_err(|_| "Failed to access Outlook storage state".to_string())?
+        .clone()
+        .ok_or_else(|| "Outlook storage not initialized".to_string())
+}
+
+// 确保内存中已加载凭证（懒加载）
+fn ensure_loaded(state: &State<'_, AppState>) {
+    let mut manager = state.outlook_manager.lock().unwrap();
+    if manager.is_empty() {
+        if let Ok(storage) = get_outlook_storage(state) {
+            let _ = manager.load_from_storage(&storage);
+        }
+    }
+}
+
+// 持久化新的 refresh_token（内存 + SQLite）
+fn persist_new_refresh_token(
+    state: &AppState,
+    email: &str,
+    new_refresh_token: &str,
+) {
+    // 更新内存
+    {
+        let mut manager = state.outlook_manager.lock().unwrap();
+        if let Some(cred) = manager.credentials.get_mut(email) {
+            cred.refresh_token = new_refresh_token.to_string();
+        }
+    }
+    // 更新 SQLite
+    if let Ok(storage) = state
+        .outlook_storage
+        .lock()
+        .ok()
+        .and_then(|g| g.clone())
+        .ok_or(())
+    {
+        if let Err(e) = storage.update_refresh_token(email, new_refresh_token) {
+            eprintln!("[outlook] Failed to persist new refresh_token for {}: {}", email, e);
+        }
+    }
+}
+
+// 后台定时刷新所有 Token（供 lib.rs spawn 调用）
+pub async fn scheduled_refresh_tokens(state: &AppState) {
+    // 确保内存中已加载
+    {
+        let mut manager = state.outlook_manager.lock().unwrap();
+        if manager.is_empty() {
+            if let Ok(storage) = state
+                .outlook_storage
+                .lock()
+                .ok()
+                .and_then(|g| g.clone())
+                .ok_or(())
+            {
+                let _ = manager.load_from_storage(&storage);
+            }
+        }
+    }
+
+    let all_credentials: Vec<OutlookCredentials> = {
+        let manager = state.outlook_manager.lock().unwrap();
+        manager.credentials.values().cloned().collect()
+    };
+
+    if all_credentials.is_empty() {
+        return;
+    }
+
+    eprintln!(
+        "[outlook] Scheduled token refresh starting for {} accounts",
+        all_credentials.len()
+    );
+
+    let temp_manager = OutlookManager::new();
+    let mut success = 0;
+    let mut failed = 0;
+
+    for (i, cred) in all_credentials.iter().enumerate() {
+        match temp_manager.get_graph_access_token(cred).await {
+            Ok((_access_token, new_rt)) => {
+                if let Some(ref rt) = new_rt {
+                    persist_new_refresh_token(state, &cred.email, rt);
+                }
+                success += 1;
+            }
+            Err(_) => match temp_manager.get_access_token(cred).await {
+                Ok((_access_token, _server, new_rt)) => {
+                    if let Some(ref rt) = new_rt {
+                        persist_new_refresh_token(state, &cred.email, rt);
+                    }
+                    success += 1;
+                }
+                Err(e) => {
+                    failed += 1;
+                    eprintln!(
+                        "[outlook] Scheduled refresh failed for {}: {}",
+                        cred.email, e
+                    );
+                }
+            },
+        }
+        // 间隔 3 秒，防止微软限流（最后一个不延迟）
+        if i + 1 < all_credentials.len() {
+            tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+        }
+    }
+
+    eprintln!(
+        "[outlook] Scheduled token refresh complete: {}/{} success, {} failed",
+        success,
+        all_credentials.len(),
+        failed
+    );
 }
 
 // Outlook 邮箱管理命令
@@ -100,6 +294,11 @@ pub async fn outlook_save_credentials(
     client_id: String,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
+    // 持久化到 SQLite
+    let storage = get_outlook_storage(&state)?;
+    storage.save(&email, &refresh_token, &client_id)?;
+
+    // 同步到内存
     let credentials = OutlookCredentials {
         email,
         refresh_token,
@@ -112,17 +311,21 @@ pub async fn outlook_save_credentials(
 }
 
 #[tauri::command]
-pub async fn outlook_get_all_accounts(state: State<'_, AppState>) -> Result<Vec<String>, String> {
-    let manager = state.outlook_manager.lock().unwrap();
-    manager.get_all_accounts()
-}
-
-#[tauri::command]
 pub async fn outlook_get_all_accounts_info(
     state: State<'_, AppState>,
 ) -> Result<Vec<AccountInfo>, String> {
+    ensure_loaded(&state);
     let manager = state.outlook_manager.lock().unwrap();
     manager.get_all_accounts_info()
+}
+
+#[tauri::command]
+pub async fn outlook_get_account_statuses(
+    state: State<'_, AppState>,
+) -> Result<std::collections::HashMap<String, String>, String> {
+    let storage = get_outlook_storage(&state)?;
+    let statuses = storage.load_all_statuses()?;
+    Ok(statuses.into_iter().collect())
 }
 
 #[tauri::command]
@@ -130,6 +333,12 @@ pub async fn outlook_delete_account(
     email: String,
     state: State<'_, AppState>,
 ) -> Result<bool, String> {
+    // 从 SQLite 删除
+    if let Ok(storage) = get_outlook_storage(&state) {
+        let _ = storage.delete(&email);
+    }
+
+    // 从内存删除
     let mut manager = state.outlook_manager.lock().unwrap();
     manager.delete_account(&email)
 }
@@ -139,15 +348,23 @@ pub async fn outlook_check_account_status(
     email: String,
     state: State<'_, AppState>,
 ) -> Result<AccountStatus, String> {
+    ensure_loaded(&state);
     let credentials = {
         let manager = state.outlook_manager.lock().unwrap();
         manager.get_credentials(&email)?
     };
 
     let temp_manager = OutlookManager::new();
-    temp_manager
+    let result = temp_manager
         .check_account_status_with_credentials(&credentials)
-        .await
+        .await?;
+
+    // 持久化状态
+    if let Ok(storage) = get_outlook_storage(&state) {
+        let _ = storage.update_status(&email, &result.status);
+    }
+
+    Ok(result)
 }
 
 #[tauri::command]
@@ -158,32 +375,369 @@ pub async fn outlook_get_emails(
     page_size: i32,
     state: State<'_, AppState>,
 ) -> Result<EmailListResponse, String> {
+    ensure_loaded(&state);
     let credentials = {
         let manager = state.outlook_manager.lock().unwrap();
         manager.get_credentials(&email)?
     };
 
     let temp_manager = OutlookManager::new();
-    temp_manager
-        .get_emails_with_credentials(&credentials, &folder, page, page_size)
+
+    // 自动回退: Graph API → IMAP
+    match temp_manager
+        .graph_get_emails_with_credentials(&credentials, &folder, page, page_size)
         .await
+    {
+        Ok(response) => return Ok(response),
+        Err(graph_err) => {
+            eprintln!("[outlook] Graph API failed for {}: {}, falling back to IMAP", email, graph_err);
+            match temp_manager
+                .get_emails_with_credentials(&credentials, &folder, page, page_size)
+                .await
+            {
+                Ok(response) => Ok(response),
+                Err(imap_err) => Err(format!(
+                    "All methods failed. Graph: {}; IMAP: {}",
+                    graph_err, imap_err
+                )),
+            }
+        }
+    }
 }
 
 #[tauri::command]
 pub async fn outlook_get_email_details(
     email: String,
     message_id: String,
+    method: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<EmailDetailsResponse, String> {
+    ensure_loaded(&state);
     let credentials = {
         let manager = state.outlook_manager.lock().unwrap();
         manager.get_credentials(&email)?
     };
 
     let temp_manager = OutlookManager::new();
-    temp_manager
-        .get_email_details_with_credentials(&credentials, &message_id)
+
+    // 根据 method 提示选择 API，默认 graph
+    let use_method = method.unwrap_or_else(|| {
+        // 自动检测: IMAP message_id 格式为 "folder-number"
+        if let Some(pos) = message_id.find('-') {
+            if message_id[pos + 1..].parse::<u32>().is_ok() {
+                return "imap".to_string();
+            }
+        }
+        "graph".to_string()
+    });
+
+    if use_method == "imap" {
+        temp_manager
+            .get_email_details_with_credentials(&credentials, &message_id)
+            .await
+    } else {
+        temp_manager
+            .graph_get_email_details_with_credentials(&credentials, &message_id)
+            .await
+    }
+}
+
+#[tauri::command]
+pub async fn outlook_refresh_all_tokens(
+    emails: Option<Vec<String>>,
+    state: State<'_, AppState>,
+) -> Result<BatchRefreshResponse, String> {
+    ensure_loaded(&state);
+    let all_credentials: Vec<OutlookCredentials> = {
+        let manager = state.outlook_manager.lock().unwrap();
+        match &emails {
+            Some(list) => manager
+                .credentials
+                .values()
+                .filter(|c| list.contains(&c.email))
+                .cloned()
+                .collect(),
+            None => manager.credentials.values().cloned().collect(),
+        }
+    };
+
+    let total = all_credentials.len() as i32;
+    let mut success_count = 0i32;
+    let mut failed_count = 0i32;
+    let mut results = Vec::new();
+
+    let temp_manager = OutlookManager::new();
+
+    for (i, cred) in all_credentials.iter().enumerate() {
+        // 尝试获取 access token 来验证 refresh token 是否有效
+        let (success, error_msg) = match temp_manager.get_graph_access_token(cred).await {
+            Ok((_access_token, new_rt)) => {
+                if let Some(ref rt) = new_rt {
+                    persist_new_refresh_token(state.inner(), &cred.email, rt);
+                }
+                (true, None)
+            }
+            Err(graph_err) => {
+                // Graph 失败，再尝试 IMAP token
+                match temp_manager.get_access_token(cred).await {
+                    Ok((_access_token, _server, new_rt)) => {
+                        if let Some(ref rt) = new_rt {
+                            persist_new_refresh_token(state.inner(), &cred.email, rt);
+                        }
+                        (true, None)
+                    }
+                    Err(imap_err) => {
+                        (false, Some(format!("Graph: {}; IMAP: {}", graph_err, imap_err)))
+                    }
+                }
+            }
+        };
+
+        // 持久化状态到 SQLite
+        let status_str = if success {
+            "active"
+        } else if error_msg.as_deref().map_or(false, |e| e.contains("[BANNED]")) {
+            "banned"
+        } else {
+            "inactive"
+        };
+        if let Ok(storage) = get_outlook_storage(&state) {
+            let _ = storage.update_status(&cred.email, status_str);
+        }
+
+        if success {
+            success_count += 1;
+        } else {
+            failed_count += 1;
+        }
+        results.push(RefreshResult {
+            email: cred.email.clone(),
+            success,
+            error: error_msg,
+        });
+        // 间隔 3 秒，防止微软限流（最后一个不延迟）
+        if i + 1 < all_credentials.len() {
+            tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+        }
+    }
+
+    Ok(BatchRefreshResponse {
+        total,
+        success_count,
+        failed_count,
+        results,
+    })
+}
+
+// ==================== OAuth2 Authorization Code Flow ====================
+
+const OAUTH_CLIENT_ID: &str = "24d9a0ed-8787-4584-883c-2fd79308940a";
+const OAUTH_REDIRECT_URI: &str = "http://localhost:8080";
+const OAUTH_SCOPES: &str = "offline_access https://graph.microsoft.com/Mail.Read https://graph.microsoft.com/Mail.ReadWrite https://graph.microsoft.com/User.Read";
+
+#[derive(Serialize)]
+pub struct OAuthAuthUrl {
+    pub auth_url: String,
+    pub client_id: String,
+    pub redirect_uri: String,
+}
+
+#[derive(Serialize)]
+pub struct OAuthTokenResult {
+    pub refresh_token: String,
+    pub client_id: String,
+    pub email: Option<String>,
+}
+
+#[tauri::command]
+pub async fn outlook_get_oauth_auth_url() -> Result<OAuthAuthUrl, String> {
+    let auth_url = format!(
+        "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id={}&response_type=code&redirect_uri={}&response_mode=query&scope={}&state=12345",
+        OAUTH_CLIENT_ID,
+        urlencoding::encode(OAUTH_REDIRECT_URI),
+        urlencoding::encode(OAUTH_SCOPES),
+    );
+
+    Ok(OAuthAuthUrl {
+        auth_url,
+        client_id: OAUTH_CLIENT_ID.to_string(),
+        redirect_uri: OAUTH_REDIRECT_URI.to_string(),
+    })
+}
+
+#[tauri::command]
+pub async fn outlook_exchange_oauth_token(
+    redirected_url: String,
+) -> Result<OAuthTokenResult, String> {
+    // 从回调 URL 中提取 code
+    let url = url::Url::parse(&redirected_url)
+        .map_err(|e| format!("无法解析 URL: {}", e))?;
+
+    let code = url
+        .query_pairs()
+        .find(|(k, _)| k == "code")
+        .map(|(_, v)| v.to_string())
+        .ok_or_else(|| "URL 中未找到授权码 (code 参数)".to_string())?;
+
+    // 用 code 换取 token
+    let client = http_client::create_proxy_client()
+        .map_err(|e| format!("创建 HTTP 客户端失败: {}", e))?;
+
+    let token_url = "https://login.microsoftonline.com/common/oauth2/v2.0/token";
+    let params = [
+        ("client_id", OAUTH_CLIENT_ID),
+        ("code", &code),
+        ("redirect_uri", OAUTH_REDIRECT_URI),
+        ("grant_type", "authorization_code"),
+        ("scope", OAUTH_SCOPES),
+    ];
+
+    let response = client
+        .post(token_url)
+        .form(&params)
+        .send()
         .await
+        .map_err(|e| format!("Token 请求失败: {}", e))?;
+
+    if !response.status().is_success() {
+        let body = response.text().await.unwrap_or_default();
+        return Err(format!("获取令牌失败: {}", &body[..body.len().min(300)]));
+    }
+
+    let token_data: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("解析 Token 响应失败: {}", e))?;
+
+    let refresh_token = token_data["refresh_token"]
+        .as_str()
+        .ok_or_else(|| "响应中未包含 refresh_token".to_string())?
+        .to_string();
+
+    // 尝试用 access_token 获取用户邮箱
+    let email = if let Some(access_token) = token_data["access_token"].as_str() {
+        let me_client = http_client::create_proxy_client()
+            .map_err(|e| format!("创建 HTTP 客户端失败: {}", e))?;
+        match me_client
+            .get("https://graph.microsoft.com/v1.0/me")
+            .header("Authorization", format!("Bearer {}", access_token))
+            .send()
+            .await
+        {
+            Ok(resp) if resp.status().is_success() => {
+                let me: serde_json::Value = resp.json().await.unwrap_or_default();
+                me["mail"].as_str()
+                    .or_else(|| me["userPrincipalName"].as_str())
+                    .map(|s| s.to_string())
+            }
+            _ => None,
+        }
+    } else {
+        None
+    };
+
+    Ok(OAuthTokenResult {
+        refresh_token,
+        client_id: OAUTH_CLIENT_ID.to_string(),
+        email,
+    })
+}
+
+// ==================== 邮件删除 ====================
+
+#[derive(Serialize)]
+pub struct DeleteEmailsResponse {
+    pub success_count: i32,
+    pub failed_count: i32,
+    pub errors: Vec<String>,
+}
+
+#[tauri::command]
+pub async fn outlook_delete_emails(
+    email: String,
+    message_ids: Vec<String>,
+    state: State<'_, AppState>,
+) -> Result<DeleteEmailsResponse, String> {
+    ensure_loaded(&state);
+    let credentials = {
+        let manager = state.outlook_manager.lock().unwrap();
+        manager.get_credentials(&email)?
+    };
+
+    let temp_manager = OutlookManager::new();
+    let (access_token, _new_rt) = temp_manager
+        .get_graph_access_token(&credentials)
+        .await
+        .map_err(|e| format!("获取 Graph Token 失败: {}", e))?;
+
+    if let Some(ref rt) = _new_rt {
+        persist_new_refresh_token(state.inner(), &email, rt);
+    }
+
+    let client = http_client::create_proxy_client()
+        .map_err(|e| format!("创建 HTTP 客户端失败: {}", e))?;
+
+    let mut success_count = 0i32;
+    let mut failed_count = 0i32;
+    let mut errors = Vec::new();
+
+    // Graph API $batch 每批最多 20 个请求
+    for chunk in message_ids.chunks(20) {
+        let requests: Vec<serde_json::Value> = chunk
+            .iter()
+            .enumerate()
+            .map(|(idx, msg_id)| {
+                serde_json::json!({
+                    "id": idx.to_string(),
+                    "method": "DELETE",
+                    "url": format!("/me/messages/{}", msg_id)
+                })
+            })
+            .collect();
+
+        let batch_body = serde_json::json!({ "requests": requests });
+
+        match client
+            .post("https://graph.microsoft.com/v1.0/$batch")
+            .header("Authorization", format!("Bearer {}", access_token))
+            .header("Content-Type", "application/json")
+            .body(batch_body.to_string())
+            .send()
+            .await
+        {
+            Ok(response) if response.status().is_success() => {
+                let body: serde_json::Value = response.json().await.unwrap_or_default();
+                if let Some(responses) = body["responses"].as_array() {
+                    for res in responses {
+                        let status = res["status"].as_u64().unwrap_or(0);
+                        if status == 200 || status == 204 {
+                            success_count += 1;
+                        } else {
+                            failed_count += 1;
+                            let id_idx = res["id"].as_str().and_then(|s| s.parse::<usize>().ok()).unwrap_or(0);
+                            let msg_id = chunk.get(id_idx).map(|s| s.as_str()).unwrap_or("?");
+                            errors.push(format!("ID {}: status {}", msg_id, status));
+                        }
+                    }
+                }
+            }
+            Ok(response) => {
+                let status = response.status();
+                failed_count += chunk.len() as i32;
+                errors.push(format!("Batch 请求失败: {}", status));
+            }
+            Err(e) => {
+                failed_count += chunk.len() as i32;
+                errors.push(format!("网络错误: {}", e));
+            }
+        }
+    }
+
+    Ok(DeleteEmailsResponse {
+        success_count,
+        failed_count,
+        errors,
+    })
 }
 
 impl OutlookManager {
@@ -191,6 +745,29 @@ impl OutlookManager {
         Self {
             credentials: HashMap::new(),
         }
+    }
+
+    // 是否为空
+    pub fn is_empty(&self) -> bool {
+        self.credentials.is_empty()
+    }
+
+    // 从 SQLite 存储加载凭证到内存
+    pub fn load_from_storage(&mut self, storage: &OutlookStorage) -> Result<(), String> {
+        let records = storage.load_all()?;
+        for record in records {
+            let created_at = chrono::DateTime::parse_from_rfc3339(&record.created_at)
+                .map(|dt| dt.with_timezone(&chrono::Utc))
+                .unwrap_or_else(|_| chrono::Utc::now());
+            let credentials = OutlookCredentials {
+                email: record.email.clone(),
+                refresh_token: record.refresh_token,
+                client_id: record.client_id,
+                created_at,
+            };
+            self.credentials.insert(record.email, credentials);
+        }
+        Ok(())
     }
 
     // 保存账户凭证（内存中）
@@ -206,17 +783,6 @@ impl OutlookManager {
             .get(email)
             .cloned()
             .ok_or_else(|| format!("Account not found: {}", email))
-    }
-
-    // 获取所有账户（按添加时间排序）
-    pub fn get_all_accounts(&self) -> Result<Vec<String>, String> {
-        let mut accounts: Vec<_> = self.credentials.iter().collect();
-        // 按创建时间排序（最新的在前）
-        accounts.sort_by(|a, b| b.1.created_at.cmp(&a.1.created_at));
-        Ok(accounts
-            .into_iter()
-            .map(|(email, _)| email.clone())
-            .collect())
     }
 
     // 获取所有账户详细信息（按添加时间排序）
@@ -238,42 +804,93 @@ impl OutlookManager {
         Ok(self.credentials.remove(email).is_some())
     }
 
-    // 获取访问令牌（每次重新获取）
+    // 获取访问令牌（多端点降级，每次重新获取）
+    // 返回 (access_token, imap_server, Option<new_refresh_token>)
     pub async fn get_access_token(
         &self,
         credentials: &OutlookCredentials,
-    ) -> Result<String, String> {
-        let token_url = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token";
-        let params = [
-            ("client_id", credentials.client_id.as_str()),
-            ("grant_type", "refresh_token"),
-            ("refresh_token", credentials.refresh_token.as_str()),
-            (
-                "scope",
-                "https://outlook.office.com/IMAP.AccessAsUser.All offline_access",
-            ),
-        ];
-
-        // 使用 ProxyClient，自动处理所有类型的代理（包括 Edge Function）
+    ) -> Result<(String, String, Option<String>), String> {
         let client = http_client::create_proxy_client()
             .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
-        let response = client
-            .post(token_url)
-            .form(&params)
-            .send()
-            .await
-            .map_err(|e| format!("HTTP request failed: {}", e))?;
 
-        if !response.status().is_success() {
-            return Err(format!("Token request failed: {}", response.status()));
+        let mut errors: Vec<String> = Vec::new();
+
+        // 端点 1: login.live.com (无 scope)
+        {
+            let token_url = "https://login.live.com/oauth20_token.srf";
+            let params = [
+                ("client_id", credentials.client_id.as_str()),
+                ("grant_type", "refresh_token"),
+                ("refresh_token", credentials.refresh_token.as_str()),
+            ];
+            match client.post(token_url).form(&params).send().await {
+                Ok(response) if response.status().is_success() => {
+                    match response.json::<TokenResponse>().await {
+                        Ok(tr) => {
+                            return Ok((
+                                tr.access_token,
+                                "outlook.office365.com".to_string(),
+                                tr.refresh_token,
+                            ))
+                        }
+                        Err(e) => {
+                            errors.push(format!("Parse token from {} failed: {}", token_url, e));
+                        }
+                    }
+                }
+                Ok(response) => {
+                    let status = response.status();
+                    let body = response.text().await.unwrap_or_default();
+                    if body.contains("service abuse") || body.contains("account is found to be") {
+                        return Err(format!("[BANNED] 账号被封禁 (service abuse mode)"));
+                    }
+                    errors.push(format!("Token request to {} failed: {} - {}", token_url, status, &body[..body.len().min(150)]));
+                }
+                Err(e) => {
+                    errors.push(format!("HTTP request to {} failed: {}", token_url, e));
+                }
+            }
         }
 
-        let token_response: TokenResponse = response
-            .json()
-            .await
-            .map_err(|e| format!("Failed to parse token response: {}", e))?;
+        // 端点 2: login.microsoftonline.com/consumers (带 IMAP scope)
+        {
+            let token_url =
+                "https://login.microsoftonline.com/consumers/oauth2/v2.0/token";
+            let params = [
+                ("client_id", credentials.client_id.as_str()),
+                ("grant_type", "refresh_token"),
+                ("refresh_token", credentials.refresh_token.as_str()),
+                (
+                    "scope",
+                    "https://outlook.office.com/IMAP.AccessAsUser.All offline_access",
+                ),
+            ];
+            match client.post(token_url).form(&params).send().await {
+                Ok(response) if response.status().is_success() => {
+                    match response.json::<TokenResponse>().await {
+                        Ok(tr) => {
+                            return Ok((tr.access_token, "outlook.live.com".to_string(), tr.refresh_token))
+                        }
+                        Err(e) => {
+                            errors.push(format!("Parse token from {} failed: {}", token_url, e));
+                        }
+                    }
+                }
+                Ok(response) => {
+                    let status = response.status();
+                    let body = response.text().await.unwrap_or_default();
+                    if body.contains("service abuse") || body.contains("account is found to be") {
+                        return Err(format!("[BANNED] 账号被封禁 (service abuse mode)"));
+                    }
+                    errors.push(format!("Token request to {} failed: {} - {}", token_url, status, &body[..body.len().min(150)]));
+                }
+                Err(e) => {
+                    errors.push(format!("HTTP request to {} failed: {}", token_url, e));
+                }
+            }
+        }
 
-        Ok(token_response.access_token)
+        Err(format!("All token endpoints failed: {}", errors.join("; ")))
     }
 
     // 验证账户状态
@@ -289,16 +906,13 @@ impl OutlookManager {
         &self,
         credentials: &OutlookCredentials,
     ) -> Result<AccountStatus, String> {
-        match self.get_access_token(credentials).await {
-            Ok(_) => Ok(AccountStatus {
-                email: credentials.email.clone(),
-                status: "active".to_string(),
-            }),
-            Err(_) => Ok(AccountStatus {
-                email: credentials.email.clone(),
-                status: "inactive".to_string(),
-            }),
-        }
+        // 先尝试 Graph，再尝试 IMAP
+        let is_active = self.get_graph_access_token(credentials).await.is_ok()
+            || self.get_access_token(credentials).await.is_ok();
+        Ok(AccountStatus {
+            email: credentials.email.clone(),
+            status: if is_active { "active" } else { "inactive" }.to_string(),
+        })
     }
 
     // 创建 IMAP 连接（每次新建）
@@ -306,7 +920,7 @@ impl OutlookManager {
         &self,
         credentials: &OutlookCredentials,
     ) -> Result<Session<TlsStream<TcpStream>>, String> {
-        let access_token = self.get_access_token(credentials).await?;
+        let (access_token, imap_server, _new_rt) = self.get_access_token(credentials).await?;
 
         // 在异步上下文中运行同步IMAP代码
         let email = credentials.email.clone();
@@ -316,8 +930,8 @@ impl OutlookManager {
                 .map_err(|e| format!("TLS connector failed: {}", e))?;
 
             let client = imap::connect(
-                ("outlook.office365.com", 993),
-                "outlook.office365.com",
+                (imap_server.as_str(), 993),
+                &imap_server,
                 &tls,
             )
             .map_err(|e| format!("IMAP connect failed: {}", e))?;
@@ -355,7 +969,7 @@ impl OutlookManager {
         credentials: &OutlookCredentials,
         message_id: &str,
     ) -> Result<EmailDetailsResponse, String> {
-        let access_token = self.get_access_token(credentials).await?;
+        let (access_token, imap_server, _new_rt) = self.get_access_token(credentials).await?;
 
         // 解析 message_id (格式: folder-id)
         let parts: Vec<&str> = message_id.split('-').collect();
@@ -374,8 +988,8 @@ impl OutlookManager {
                 .map_err(|e| format!("TLS connector failed: {}", e))?;
 
             let client = imap::connect(
-                ("outlook.office365.com", 993),
-                "outlook.office365.com",
+                (imap_server.as_str(), 993),
+                &imap_server,
                 &tls,
             )
             .map_err(|e| format!("IMAP connect failed: {}", e))?;
@@ -434,6 +1048,7 @@ impl OutlookManager {
                     subject,
                     from_email,
                     to_email,
+                    cc_email: None,
                     date,
                     body_plain,
                     body_html,
@@ -510,17 +1125,27 @@ impl OutlookManager {
                                 let subject = envelope
                                     .subject
                                     .and_then(|s| std::str::from_utf8(s).ok())
-                                    .unwrap_or("(No Subject)")
-                                    .to_string();
+                                    .map(|s| Self::decode_header_value(s))
+                                    .unwrap_or_else(|| "(No Subject)".to_string());
 
                                 let from_email = envelope
                                     .from
                                     .as_ref()
                                     .and_then(|addrs| addrs.first())
-                                    .and_then(|addr| addr.mailbox)
-                                    .and_then(|mb| std::str::from_utf8(mb).ok())
-                                    .unwrap_or("(Unknown)")
-                                    .to_string();
+                                    .map(|addr| {
+                                        let mailbox = addr.mailbox
+                                            .and_then(|mb| std::str::from_utf8(mb).ok())
+                                            .unwrap_or("unknown");
+                                        let host = addr.host
+                                            .and_then(|h| std::str::from_utf8(h).ok())
+                                            .unwrap_or("");
+                                        if host.is_empty() {
+                                            mailbox.to_string()
+                                        } else {
+                                            format!("{}@{}", mailbox, host)
+                                        }
+                                    })
+                                    .unwrap_or_else(|| "(Unknown)".to_string());
 
                                 let date = envelope
                                     .date
@@ -560,6 +1185,7 @@ impl OutlookManager {
                 page_size,
                 total_emails,
                 emails,
+                method: "imap".to_string(),
             })
         })
         .await
@@ -615,15 +1241,68 @@ impl OutlookManager {
         Ok((headers, body))
     }
 
-    // 解码邮件头部值
+    // 解码邮件头部值 (RFC 2047)
     fn decode_header_value(value: &str) -> String {
-        // 简单的 RFC 2047 解码
-        if value.contains("=?") && value.contains("?=") {
-            // 这里可以实现更复杂的编码解码，现在简化处理
-            value.replace("=?UTF-8?B?", "").replace("?=", "")
-        } else {
-            value.to_string()
+        let mut result = String::new();
+        let mut remaining = value;
+
+        while let Some(start) = remaining.find("=?") {
+            // 添加编码部分之前的纯文本
+            result.push_str(&remaining[..start]);
+            remaining = &remaining[start + 2..];
+
+            // 解析 charset?encoding?encoded_text?=
+            let parts: Vec<&str> = remaining.splitn(4, '?').collect();
+            if parts.len() >= 3 {
+                let _charset = parts[0];
+                let encoding = parts[1].to_uppercase();
+                let encoded_text = parts[2];
+
+                // 找到 ?= 结束标记
+                if let Some(end_pos) = remaining.find("?=") {
+                    let decoded = match encoding.as_str() {
+                        "B" => {
+                            base64::engine::general_purpose::STANDARD
+                                .decode(encoded_text)
+                                .ok()
+                                .and_then(|bytes| String::from_utf8(bytes).ok())
+                        }
+                        "Q" => {
+                            // Quoted-Printable 解码
+                            let qp = encoded_text
+                                .replace('_', " ")
+                                .chars()
+                                .collect::<String>();
+                            let mut bytes = Vec::new();
+                            let mut chars = qp.chars().peekable();
+                            while let Some(c) = chars.next() {
+                                if c == '=' {
+                                    let hex: String = chars.by_ref().take(2).collect();
+                                    if let Ok(byte) = u8::from_str_radix(&hex, 16) {
+                                        bytes.push(byte);
+                                    }
+                                } else {
+                                    bytes.push(c as u8);
+                                }
+                            }
+                            String::from_utf8(bytes).ok()
+                        }
+                        _ => None,
+                    };
+
+                    result.push_str(&decoded.unwrap_or_else(|| encoded_text.to_string()));
+                    remaining = &remaining[end_pos + 2..];
+                    // 跳过编码词之间的空格（RFC 2047 规定）
+                    remaining = remaining.trim_start();
+                    continue;
+                }
+            }
+            // 解析失败，原样输出
+            result.push_str("=?");
         }
+
+        result.push_str(remaining);
+        result
     }
 
     // 提取邮件正文
@@ -708,11 +1387,10 @@ impl OutlookManager {
     fn extract_part_content(part: &str) -> Option<String> {
         let lines: Vec<&str> = part.lines().collect();
         let mut content_start = 0;
-        let in_headers = true;
 
         // 找到空行，表示头部结束
         for (i, line) in lines.iter().enumerate() {
-            if in_headers && line.trim().is_empty() {
+            if line.trim().is_empty() {
                 content_start = i + 1;
                 break;
             }
@@ -798,23 +1476,282 @@ impl OutlookManager {
     // 解码内容
     fn decode_content(content: &str) -> String {
         // 处理 Quoted-Printable 编码
-        if content.contains('=') {
-            let decoded = content
+        let decoded = if content.contains("=\n") || content.contains("=20") || content.contains("=3D") {
+            content
                 .replace("=\n", "")
                 .replace("=20", " ")
                 .replace("=3D", "=")
                 .replace("=0A", "\n")
-                .replace("=0D", "\r");
-            return decoded;
-        }
+                .replace("=0D", "\r")
+        } else {
+            content.to_string()
+        };
 
         // 限制长度
-        if content.len() > 5000 {
-            let mut truncated = content.chars().take(5000).collect::<String>();
+        if decoded.len() > 5000 {
+            let mut truncated = decoded.chars().take(5000).collect::<String>();
             truncated.push_str("\n\n[内容已截断...]");
             truncated
         } else {
-            content.to_string()
+            decoded
         }
+    }
+
+    // ==================== Graph API 方法 ====================
+
+    // 获取 Graph API 访问令牌
+    // 返回 (access_token, Option<new_refresh_token>)
+    pub async fn get_graph_access_token(
+        &self,
+        credentials: &OutlookCredentials,
+    ) -> Result<(String, Option<String>), String> {
+        let client = http_client::create_proxy_client()
+            .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+
+        let token_url = "https://login.microsoftonline.com/common/oauth2/v2.0/token";
+        let params = [
+            ("client_id", credentials.client_id.as_str()),
+            ("grant_type", "refresh_token"),
+            ("refresh_token", credentials.refresh_token.as_str()),
+            ("scope", "https://graph.microsoft.com/.default"),
+        ];
+
+        let response = client
+            .post(token_url)
+            .form(&params)
+            .send()
+            .await
+            .map_err(|e| format!("HTTP request failed: {}", e))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            if body.contains("service abuse") || body.contains("account is found to be") {
+                return Err(format!("[BANNED] 账号被封禁 (service abuse mode)"));
+            }
+            return Err(format!(
+                "Graph token request failed: {} - {}",
+                status,
+                &body[..body.len().min(200)]
+            ));
+        }
+
+        let token_response: TokenResponse = response
+            .json()
+            .await
+            .map_err(|e| format!("Failed to parse Graph token response: {}", e))?;
+
+        Ok((token_response.access_token, token_response.refresh_token))
+    }
+
+    // 通过 Graph API 获取邮件列表
+    pub async fn graph_get_emails_with_credentials(
+        &self,
+        credentials: &OutlookCredentials,
+        folder: &str,
+        page: i32,
+        page_size: i32,
+    ) -> Result<EmailListResponse, String> {
+        let (access_token, _new_rt) = self.get_graph_access_token(credentials).await?;
+        let client = http_client::create_proxy_client()
+            .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+
+        let folder_name = match folder {
+            "inbox" => "inbox",
+            "junk" => "junkemail",
+            _ => "inbox",
+        };
+
+        let skip = (page - 1) * page_size;
+        let url = format!(
+            "https://graph.microsoft.com/v1.0/me/mailFolders/{}/messages?$select=id,subject,from,receivedDateTime,isRead,hasAttachments&$orderby=receivedDateTime%20desc&$top={}&$skip={}&$count=true",
+            folder_name, page_size, skip
+        );
+
+        let response = client
+            .get(&url)
+            .header("Authorization", format!("Bearer {}", access_token))
+            .header("Accept", "application/json")
+            .header("ConsistencyLevel", "eventual")
+            .send()
+            .await
+            .map_err(|e| format!("Graph API request failed: {}", e))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(format!(
+                "Graph API failed: {} - {}",
+                status,
+                &body[..body.len().min(200)]
+            ));
+        }
+
+        let graph_response: GraphMessagesResponse = response
+            .json()
+            .await
+            .map_err(|e| format!("Failed to parse Graph response: {}", e))?;
+
+        let messages = graph_response.value.unwrap_or_default();
+        let total_emails = graph_response.odata_count.unwrap_or(messages.len() as i32);
+
+        let emails: Vec<EmailItem> = messages
+            .iter()
+            .map(|msg| {
+                let from_email = msg
+                    .from
+                    .as_ref()
+                    .and_then(|f| f.email_address.as_ref())
+                    .and_then(|ea| ea.address.as_ref())
+                    .cloned()
+                    .unwrap_or_else(|| "(Unknown)".to_string());
+
+                let sender_initial = from_email
+                    .chars()
+                    .next()
+                    .unwrap_or('?')
+                    .to_uppercase()
+                    .to_string();
+
+                EmailItem {
+                    message_id: msg.id.clone().unwrap_or_default(),
+                    folder: folder.to_string(),
+                    subject: msg
+                        .subject
+                        .clone()
+                        .unwrap_or_else(|| "(No Subject)".to_string()),
+                    from_email,
+                    date: msg.received_date_time.clone().unwrap_or_default(),
+                    is_read: msg.is_read.unwrap_or(false),
+                    has_attachments: msg.has_attachments.unwrap_or(false),
+                    sender_initial,
+                }
+            })
+            .collect();
+
+        Ok(EmailListResponse {
+            email_id: credentials.email.clone(),
+            folder_view: folder.to_string(),
+            page,
+            page_size,
+            total_emails,
+            emails,
+            method: "graph".to_string(),
+        })
+    }
+
+    // 通过 Graph API 获取邮件详情
+    pub async fn graph_get_email_details_with_credentials(
+        &self,
+        credentials: &OutlookCredentials,
+        message_id: &str,
+    ) -> Result<EmailDetailsResponse, String> {
+        let (access_token, _new_rt) = self.get_graph_access_token(credentials).await?;
+        let client = http_client::create_proxy_client()
+            .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+
+        let url = format!(
+            "https://graph.microsoft.com/v1.0/me/messages/{}?$select=id,subject,from,toRecipients,ccRecipients,receivedDateTime,body",
+            message_id
+        );
+
+        let response = client
+            .get(&url)
+            .header("Authorization", format!("Bearer {}", access_token))
+            .header("Accept", "application/json")
+            .send()
+            .await
+            .map_err(|e| format!("Graph API request failed: {}", e))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(format!(
+                "Graph API failed: {} - {}",
+                status,
+                &body[..body.len().min(200)]
+            ));
+        }
+
+        let msg: GraphMessage = response
+            .json()
+            .await
+            .map_err(|e| format!("Failed to parse Graph message: {}", e))?;
+
+        let from_email = msg
+            .from
+            .as_ref()
+            .and_then(|f| f.email_address.as_ref())
+            .and_then(|ea| ea.address.as_ref())
+            .cloned()
+            .unwrap_or_else(|| "(Unknown Sender)".to_string());
+
+        let to_email = msg
+            .to_recipients
+            .as_ref()
+            .map(|recipients| {
+                recipients
+                    .iter()
+                    .filter_map(|r| {
+                        r.email_address
+                            .as_ref()
+                            .and_then(|ea| ea.address.as_ref())
+                            .cloned()
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            })
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| "(Unknown Recipient)".to_string());
+
+        let body_content = msg
+            .body
+            .as_ref()
+            .and_then(|b| b.content.as_ref())
+            .cloned();
+
+        let content_type = msg
+            .body
+            .as_ref()
+            .and_then(|b| b.content_type.as_ref())
+            .map(|ct| ct.to_lowercase());
+
+        let (body_plain, body_html) = match content_type.as_deref() {
+            Some("html") => (None, body_content),
+            Some("text") => (body_content, None),
+            _ => (None, body_content),
+        };
+
+        let cc_email = msg
+            .cc_recipients
+            .as_ref()
+            .map(|recipients| {
+                recipients
+                    .iter()
+                    .filter_map(|r| {
+                        r.email_address
+                            .as_ref()
+                            .and_then(|ea| ea.address.as_ref())
+                            .cloned()
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            })
+            .filter(|s| !s.is_empty());
+
+        Ok(EmailDetailsResponse {
+            message_id: msg.id.unwrap_or_else(|| message_id.to_string()),
+            subject: msg
+                .subject
+                .unwrap_or_else(|| "(No Subject)".to_string()),
+            from_email,
+            to_email,
+            cc_email,
+            date: msg
+                .received_date_time
+                .unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
+            body_plain,
+            body_html,
+        })
     }
 }

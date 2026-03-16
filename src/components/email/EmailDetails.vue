@@ -1,69 +1,70 @@
 <template>
-  <div class="modal-overlay">
-    <div class="modal-content modal-content-shell email-details" @click.stop>
-      <div class="modal-header">
-        <h3>邮件详情</h3>
-        <button @click="$emit('close')" class="modal-close">×</button>
-      </div>
-
-      <div class="modal-body modal-body-scroll">
-        <div v-if="isLoading" class="loading-state">
-          <div class="spinner"></div>
+  <BaseModal
+    :visible="true"
+    title="邮件详情"
+    modal-class="max-w-[920px]"
+    @close="$emit('close')"
+  >
+        <div v-if="isLoading" class="text-center py-16 text-text-muted">
+          <span class="btn-spinner btn-spinner--lg inline-block mb-3" aria-hidden="true"></span>
           <p>加载邮件详情中...</p>
         </div>
 
-        <div v-else-if="error" class="error-state">
+        <div v-else-if="error" class="text-center py-16 text-text-muted">
           <p>{{ error }}</p>
-          <button @click="loadEmailDetails" class="btn primary">重新加载</button>
+          <button @click="loadEmailDetails" class="btn btn--primary">重新加载</button>
         </div>
 
-        <div v-else-if="emailDetails" class="email-content">
+        <div v-else-if="emailDetails">
           <!-- 邮件头部信息 -->
-          <div class="email-header">
-            <h2 class="email-subject">{{ emailDetails.subject }}</h2>
+          <div class="mb-6 pb-5 border-b border-border">
+            <h2 class="m-0 mb-4 text-2xl font-bold text-text leading-snug">{{ emailDetails.subject }}</h2>
             
-            <div class="email-meta">
-              <div class="meta-row">
-                <span class="meta-label">发件人:</span>
-                <span class="meta-value">{{ emailDetails.from_email }}</span>
+            <div class="flex flex-col gap-2.5">
+              <div class="flex items-start gap-3.5">
+                <span class="font-semibold text-text-muted min-w-[65px] shrink-0 text-[13px] uppercase tracking-wide">发件人:</span>
+                <span class="text-text break-all">{{ emailDetails.from_email }}</span>
               </div>
-              <div class="meta-row">
-                <span class="meta-label">收件人:</span>
-                <span class="meta-value">{{ emailDetails.to_email }}</span>
+              <div class="flex items-start gap-3.5">
+                <span class="font-semibold text-text-muted min-w-[65px] shrink-0 text-[13px] uppercase tracking-wide">收件人:</span>
+                <span class="text-text break-all">{{ emailDetails.to_email }}</span>
               </div>
-              <div class="meta-row">
-                <span class="meta-label">日期:</span>
-                <span class="meta-value">{{ formatDate(emailDetails.date) }}</span>
+              <div v-if="emailDetails.cc_email" class="flex items-start gap-3.5">
+                <span class="font-semibold text-text-muted min-w-[65px] shrink-0 text-[13px] uppercase tracking-wide">抄送:</span>
+                <span class="text-text break-all">{{ emailDetails.cc_email }}</span>
+              </div>
+              <div class="flex items-start gap-3.5">
+                <span class="font-semibold text-text-muted min-w-[65px] shrink-0 text-[13px] uppercase tracking-wide">日期:</span>
+                <span class="text-text">{{ formatDate(emailDetails.date) }}</span>
               </div>
             </div>
           </div>
 
           <!-- 邮件正文 -->
-          <div class="email-body">
-            <div v-if="emailDetails.body_html" class="body-section">
-              <h4>HTML 内容:</h4>
-              <div class="html-content" v-html="emailDetails.body_html"></div>
+          <div class="leading-relaxed">
+            <div v-if="emailDetails.body_html" class="mb-6">
+              <h4 class="m-0 mb-3.5 text-base font-semibold text-text">HTML 内容:</h4>
+              <div class="bg-muted/50 border border-border rounded-xl p-4 max-h-[400px] overflow-y-auto break-words" v-html="emailDetails.body_html"></div>
             </div>
             
-            <div v-if="emailDetails.body_plain" class="body-section">
-              <h4>纯文本内容:</h4>
-              <pre class="plain-content">{{ emailDetails.body_plain }}</pre>
+            <div v-if="emailDetails.body_plain" class="mb-6">
+              <h4 class="m-0 mb-3.5 text-base font-semibold text-text">纯文本内容:</h4>
+              <pre class="bg-muted/50 border border-border rounded-xl p-4 text-sm whitespace-pre-wrap break-words max-h-[400px] overflow-y-auto m-0">{{ emailDetails.body_plain }}</pre>
             </div>
 
-            <div v-if="!emailDetails.body_html && !emailDetails.body_plain" class="no-content">
+            <div v-if="!emailDetails.body_html && !emailDetails.body_plain" class="text-center py-11 text-text-muted italic">
               <p>此邮件没有可显示的内容</p>
-              <p class="no-content-hint">可能是特殊格式或编码问题</p>
+              <p class="text-xs mt-2.5 opacity-70">可能是特殊格式或编码问题</p>
             </div>
           </div>
         </div>
-      </div>
-    </div>
-  </div>
+  </BaseModal>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
+import BaseModal from '@/components/common/BaseModal.vue'
 
 const props = defineProps({
   email: {
@@ -73,6 +74,10 @@ const props = defineProps({
   messageId: {
     type: String,
     required: true
+  },
+  method: {
+    type: String,
+    default: 'graph'
   }
 })
 
@@ -95,7 +100,8 @@ const loadEmailDetails = async () => {
   try {
     emailDetails.value = await invoke('outlook_get_email_details', {
       email: props.email,
-      messageId: props.messageId
+      messageId: props.messageId,
+      method: props.method
     })
   } catch (err) {
     error.value = `加载邮件详情失败: ${err}`
@@ -126,161 +132,3 @@ onMounted(() => {
   loadEmailDetails()
 })
 </script>
-
-<style scoped>
-/* ============================================
-   EmailDetails - Modern Tech Style
-   ============================================ */
-
-.email-details {
-  width: 90vw;
-  max-width: 920px;
-  max-height: 90vh;
-}
-
-.email-details .modal-body {
-  padding: 26px;
-}
-
-.loading-state,
-.error-state {
-  text-align: center;
-  padding: 65px 22px;
-  color: var(--text-muted);
-}
-
-/* 加载动画 - 科技风 */
-.spinner {
-  width: 42px;
-  height: 42px;
-  border: 3px solid var(--tech-glass-border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  margin: 0 auto 22px;
-  box-shadow: 0 0 15px var(--tech-glow-primary);
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.email-header {
-  margin-bottom: 26px;
-  padding-bottom: 22px;
-  border-bottom: 1px solid var(--tech-glass-border);
-}
-
-.email-subject {
-  margin: 0 0 18px 0;
-  color: var(--text-strong);
-  font-size: 24px;
-  font-weight: 700;
-  line-height: 1.3;
-}
-
-.email-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.meta-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-}
-
-.meta-label {
-  font-weight: 600;
-  color: var(--text-muted);
-  min-width: 65px;
-  flex-shrink: 0;
-  font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.meta-value {
-  color: var(--text);
-  word-break: break-all;
-}
-
-.email-body {
-  line-height: 1.7;
-}
-
-.body-section {
-  margin-bottom: 26px;
-}
-
-.body-section h4 {
-  margin: 0 0 14px 0;
-  color: var(--text-strong);
-  font-size: 16px;
-  font-weight: 600;
-}
-
-/* 内容区域 - 科技风 */
-.html-content {
-  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
-  border: 1px solid var(--tech-glass-border);
-  border-radius: 12px;
-  padding: 18px;
-  max-height: 400px;
-  overflow-y: auto;
-  word-wrap: break-word;
-}
-
-.plain-content {
-  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
-  border: 1px solid var(--tech-glass-border);
-  border-radius: 12px;
-  padding: 18px;
-  font-size: 14px;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  max-height: 400px;
-  overflow-y: auto;
-  margin: 0;
-}
-
-.no-content {
-  text-align: center;
-  padding: 45px;
-  color: var(--text-muted);
-  font-style: italic;
-}
-
-.no-content-hint {
-  font-size: 12px;
-  margin-top: 10px;
-  color: var(--text-muted);
-  opacity: 0.7;
-}
-
-@media (max-width: 768px) {
-  .email-details {
-    width: 95vw;
-    max-width: none;
-  }
-
-  .email-details .modal-body {
-    padding: 18px;
-  }
-
-  .email-subject {
-    font-size: 20px;
-  }
-
-  .meta-row {
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .meta-label {
-    min-width: auto;
-  }
-}
-</style>

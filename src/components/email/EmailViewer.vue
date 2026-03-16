@@ -1,114 +1,128 @@
 <template>
-  <div class="modal-overlay">
-    <div class="modal-content modal-content-shell email-viewer" @click.stop>
-      <div class="modal-header">
-        <h3>{{ $t('emailViewer.title') }} - {{ email }}</h3>
-        <button @click="$emit('close')" class="modal-close">×</button>
-      </div>
-
-      <div class="modal-body modal-body-scroll">
+  <BaseModal
+    :visible="true"
+    :title="$t('emailViewer.title') + ' - ' + email"
+    modal-class="max-w-[1020px]"
+    @close="$emit('close')"
+  >
         <!-- 文件夹选择和控制 -->
-        <div class="controls-section">
-          <div class="folder-selector">
-            <label>{{ $t('emailViewer.folder') }}:</label>
-            <select v-model="selectedFolder" @change="loadEmails" class="folder-select">
+        <div class="flex justify-between items-center mb-5 p-4 bg-muted/30 border border-border rounded-xl flex-wrap gap-3.5">
+          <div class="flex items-center gap-2.5">
+            <label class="font-semibold text-text whitespace-nowrap">{{ $t('emailViewer.folder') }}:</label>
+            <select v-model="selectedFolder" @change="loadEmails" class="input py-1.5 px-3 min-w-[100px]">
               <option value="inbox">{{ $t('emailViewer.inbox') }}</option>
               <option value="junk">{{ $t('emailViewer.junk') }}</option>
             </select>
           </div>
 
-          <div class="page-controls">
+          <div class="flex items-center gap-3.5">
             <button
               @click="previousPage"
               :disabled="currentPage <= 1 || isLoading"
-              class="btn primary small"
+              class="btn btn--secondary btn--sm disabled:opacity-40"
             >
-              {{ $t('emailViewer.previousPage') }}
+              ← {{ $t('emailViewer.previousPage') }}
             </button>
-            <span class="page-info">
+            <span class="text-sm text-text-secondary whitespace-nowrap">
               {{ $t('emailViewer.pageInfo', { current: currentPage, total: totalPages }) }}
             </span>
             <button
               @click="nextPage"
               :disabled="currentPage >= totalPages || isLoading"
-              class="btn primary small"
+              class="btn btn--secondary btn--sm disabled:opacity-40"
             >
-              {{ $t('emailViewer.nextPage') }}
+              {{ $t('emailViewer.nextPage') }} →
             </button>
           </div>
 
-          <button
-            @click="refreshEmails"
-            :disabled="isLoading"
-            class="btn primary small"
-          >
-            {{ isLoading ? $t('emailViewer.loading') : $t('emailViewer.reload') }}
-          </button>
+          <div class="flex items-center gap-2.5">
+            <button
+              v-if="selectedIds.length > 0"
+              @click="deleteSelectedEmails"
+              :disabled="isDeleting"
+              class="btn btn-tech-danger btn--sm"
+            >
+              <span v-if="isDeleting" class="btn-spinner btn-spinner--xs" aria-hidden="true"></span>
+              {{ isDeleting ? '删除中...' : `删除 (${selectedIds.length})` }}
+            </button>
+            <button
+              @click="refreshEmails"
+              :disabled="isLoading"
+              class="btn btn--primary btn--sm"
+            >
+              <span v-if="isLoading" class="btn-spinner btn-spinner--xs" aria-hidden="true"></span>
+              {{ isLoading ? $t('emailViewer.loading') : $t('emailViewer.reload') }}
+            </button>
+          </div>
 
         </div>
 
         <!-- 邮件列表 -->
-        <div class="emails-section">
-          <div v-if="isLoading" class="loading-state">
-            <div class="spinner"></div>
+        <div class="min-h-[400px]">
+          <div v-if="isLoading" class="text-center py-16 text-text-muted">
+            <span class="btn-spinner btn-spinner--lg inline-block mb-3" aria-hidden="true"></span>
             <p>{{ $t('emailViewer.loading') }}</p>
           </div>
 
-          <div v-else-if="emails.length === 0" class="empty-state">
+          <div v-else-if="emails.length === 0" class="text-center py-16 text-text-muted">
             <p>{{ $t('emailViewer.noEmails') }}</p>
-            <p class="empty-hint">{{ $t('emailViewer.noEmails') }}</p>
           </div>
 
-          <div v-else class="emails-list">
+          <div v-else class="flex flex-col gap-2.5">
+            <!-- 全选 -->
+            <div class="flex items-center gap-2 px-1 text-xs text-text-muted">
+              <input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll" class="accent-accent" />
+              <span>{{ isAllSelected ? '取消全选' : '全选当页' }}</span>
+            </div>
             <div
               v-for="emailItem in emails"
               :key="emailItem.message_id"
-              class="email-item"
-              @click="selectEmail(emailItem)"
-              :class="{ selected: selectedEmailId === emailItem.message_id }"
+              class="flex items-center p-4 bg-muted/50 border border-border rounded-xl cursor-pointer select-none transition-all hover:border-accent/50 hover:translate-x-1"
+              :class="selectedIds.includes(emailItem.message_id) ? 'border-accent bg-accent/15 shadow-accent' : ''"
+              @click="viewEmailDetails(emailItem)"
             >
-              <div class="email-sender">
-                <div class="sender-avatar">{{ emailItem.sender_initial }}</div>
-                <div class="sender-info">
-                  <div class="sender-name">{{ emailItem.from_email }}</div>
-                  <div class="email-date">{{ formatDate(emailItem.date) }}</div>
+              <input
+                type="checkbox"
+                :checked="selectedIds.includes(emailItem.message_id)"
+                @click.stop="toggleSelect(emailItem.message_id)"
+                class="mr-3 accent-accent shrink-0"
+              />
+              <div class="flex items-center gap-3.5 min-w-[200px]">
+                <div class="w-10 h-10 rounded-full bg-accent text-white flex items-center justify-center font-bold text-base shadow-accent">
+                  {{ emailItem.sender_initial }}
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="font-semibold text-text text-sm truncate">{{ emailItem.from_email }}</div>
+                  <div class="text-xs text-text-muted">{{ formatDate(emailItem.date) }}</div>
                 </div>
               </div>
-              <div class="email-content">
-                <div class="email-subject">{{ emailItem.subject }}</div>
-                <div class="email-folder">{{ emailItem.folder }}</div>
+              <div class="flex-1 mx-4 min-w-0">
+                <div class="font-semibold text-text mb-1.5 truncate">{{ emailItem.subject }}</div>
+                <span class="text-[11px] text-accent bg-accent/15 border border-accent/30 px-2.5 py-0.5 rounded-full font-semibold inline-block">
+                  {{ emailItem.folder }}
+                </span>
               </div>
-              <div class="email-actions">
-                <button
-                  @click.stop="viewEmailDetails(emailItem)"
-                  class="btn primary small"
-                >
-                  {{ $t('emailViewer.viewDetails') }}
-                </button>
-              </div>
-              <div class="email-status">
-                <span v-if="!emailItem.is_read" class="unread-indicator">●</span>
-                <span v-if="emailItem.has_attachments" class="attachment-indicator">📎</span>
+              <div class="flex items-center gap-2.5">
+                <span v-if="emailItem.has_attachments" class="text-sm text-text-muted">📎</span>
               </div>
             </div>
           </div>
 
           <!-- 分页信息 -->
-          <div v-if="emails.length > 0" class="pagination-info">
-            <p>
+          <div v-if="emails.length > 0" class="text-center mt-5 p-4 bg-muted/50 border border-border rounded-xl">
+            <p class="m-0 text-sm text-text-muted">
               {{ $t('emailViewer.totalEmails', { count: totalEmails }) }}
             </p>
           </div>
         </div>
-      </div>
-    </div>
-  </div>
+  </BaseModal>
 
   <!-- 邮件详情查看器 -->
   <EmailDetails
     v-if="showEmailDetails"
     :email="email"
     :message-id="selectedEmailForDetails"
+    :method="fetchMethod"
     @close="showEmailDetails = false"
   />
 </template>
@@ -117,6 +131,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from 'vue-i18n'
+import BaseModal from '@/components/common/BaseModal.vue'
 import EmailDetails from './EmailDetails.vue'
 
 const props = defineProps({
@@ -139,8 +154,11 @@ const pageSize = ref(20)
 const totalEmails = ref(0)
 const isLoading = ref(false)
 const selectedEmailId = ref('')
+const selectedIds = ref([])
+const isDeleting = ref(false)
 const showEmailDetails = ref(false)
 const selectedEmailForDetails = ref('')
+const fetchMethod = ref('graph')
 
 // 计算属性
 const totalPages = computed(() => {
@@ -164,6 +182,7 @@ const loadEmails = async () => {
     
     emails.value = response.emails
     totalEmails.value = response.total_emails
+    fetchMethod.value = response.method || 'graph'
     
     if (emails.value.length === 0 && currentPage.value > 1) {
       // 如果当前页没有邮件且不是第一页，回到第一页
@@ -201,14 +220,53 @@ const nextPage = async () => {
   }
 }
 
-const selectEmail = (emailItem) => {
-  selectedEmailId.value = emailItem.message_id
-  showStatus(`选中邮件: ${emailItem.subject}`, 'info')
-}
-
 const viewEmailDetails = (emailItem) => {
+  selectedEmailId.value = emailItem.message_id
   selectedEmailForDetails.value = emailItem.message_id
   showEmailDetails.value = true
+}
+
+const isAllSelected = computed(() => {
+  return emails.value.length > 0 && emails.value.every(e => selectedIds.value.includes(e.message_id))
+})
+
+const toggleSelect = (id) => {
+  const idx = selectedIds.value.indexOf(id)
+  if (idx === -1) {
+    selectedIds.value.push(id)
+  } else {
+    selectedIds.value.splice(idx, 1)
+  }
+}
+
+const toggleSelectAll = () => {
+  if (isAllSelected.value) {
+    selectedIds.value = []
+  } else {
+    selectedIds.value = emails.value.map(e => e.message_id)
+  }
+}
+
+const deleteSelectedEmails = async () => {
+  if (selectedIds.value.length === 0) return
+  isDeleting.value = true
+  try {
+    const result = await invoke('outlook_delete_emails', {
+      email: props.email,
+      messageIds: selectedIds.value
+    })
+    if (result.failed_count === 0) {
+      showStatus(`成功删除 ${result.success_count} 封邮件`, 'success')
+    } else {
+      showStatus(`删除 ${result.success_count} 成功，${result.failed_count} 失败`, 'warning')
+    }
+    selectedIds.value = []
+    await loadEmails()
+  } catch (error) {
+    showStatus(`删除失败: ${error}`, 'error')
+  } finally {
+    isDeleting.value = false
+  }
 }
 
 const formatDate = (dateString) => {
@@ -231,261 +289,3 @@ onMounted(() => {
   loadEmails()
 })
 </script>
-
-<style scoped>
-/* ============================================
-   EmailViewer - Modern Tech Style
-   ============================================ */
-
-.email-viewer {
-  width: 95vw;
-  max-width: 1020px;
-  max-height: 90vh;
-}
-
-/* 控制区域 - 科技风 */
-.controls-section {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 22px;
-  padding: 18px;
-  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
-  border: 1px solid var(--tech-glass-border);
-  border-radius: 14px;
-  flex-wrap: wrap;
-  gap: 14px;
-}
-
-.folder-selector {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.folder-selector label {
-  font-weight: 600;
-  color: var(--text);
-}
-
-/* 下拉选择 - 科技风 */
-.folder-select {
-  padding: 8px 14px;
-  border: 1px solid var(--tech-glass-border);
-  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
-  color: var(--text);
-  border-radius: 10px;
-  font-size: 14px;
-  transition: all 0.2s ease;
-}
-
-.folder-select:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent),
-              0 0 12px var(--tech-glow-primary);
-}
-
-.page-controls {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.page-info {
-  font-size: 14px;
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-
-.emails-section {
-  min-height: 400px;
-}
-
-.emails-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-/* 邮件项 - 科技风 */
-.email-item {
-  display: flex;
-  align-items: center;
-  padding: 18px;
-  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
-  border: 1px solid var(--tech-glass-border);
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.email-item:hover {
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
-  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
-  transform: translateX(4px);
-}
-
-.email-item.selected {
-  background: color-mix(in srgb, var(--accent) 15%, transparent);
-  border-color: var(--accent);
-  box-shadow: 0 0 15px var(--tech-glow-primary);
-}
-
-.email-sender {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  min-width: 200px;
-}
-
-/* 头像 - 科技风渐变 */
-.sender-avatar {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  background: var(--accent);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 16px;
-  box-shadow: 0 0 12px var(--tech-glow-primary);
-}
-
-.sender-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.sender-name {
-  font-weight: 600;
-  color: var(--text-strong);
-  font-size: 14px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.email-date {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.email-content {
-  flex: 1;
-  margin: 0 18px;
-  min-width: 0;
-}
-
-.email-actions {
-  margin-right: 14px;
-}
-
-.email-subject {
-  font-weight: 600;
-  color: var(--text-strong);
-  margin-bottom: 6px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* 文件夹标签 - 科技风 */
-.email-folder {
-  font-size: 11px;
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 15%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
-  padding: 3px 10px;
-  border-radius: 20px;
-  display: inline-block;
-  font-weight: 600;
-}
-
-.email-status {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.unread-indicator {
-  color: var(--accent);
-  font-size: 12px;
-  filter: drop-shadow(0 0 4px var(--tech-glow-primary));
-}
-
-.attachment-indicator {
-  font-size: 14px;
-  color: var(--text-muted);
-}
-
-/* 分页信息 - 科技风 */
-.pagination-info {
-  text-align: center;
-  margin-top: 22px;
-  padding: 18px;
-  background: color-mix(in srgb, var(--bg-muted) 50%, transparent);
-  border: 1px solid var(--tech-glass-border);
-  border-radius: 12px;
-}
-
-.pagination-info p {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 14px;
-}
-
-.loading-state,
-.empty-state {
-  text-align: center;
-  padding: 65px 22px;
-  color: var(--text-muted);
-}
-
-.empty-hint {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-top: 10px;
-  opacity: 0.7;
-}
-
-/* 加载动画 - 科技风 */
-.spinner {
-  width: 42px;
-  height: 42px;
-  border: 3px solid var(--tech-glass-border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  margin: 0 auto 22px;
-  box-shadow: 0 0 15px var(--tech-glow-primary);
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-@media (max-width: 768px) {
-  .controls-section {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .email-item {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 14px;
-  }
-
-  .email-sender {
-    min-width: auto;
-  }
-
-  .email-content {
-    margin: 0;
-  }
-}
-</style>

@@ -40,7 +40,7 @@ pub use platforms::{antigravity, augment, claude, cursor, openai, windsurf};
 
 use crate::core::tray::TrayState;
 use crate::data::subscription::SubscriptionDualStorage;
-use crate::features::mail::{gptmail, gptmail_storage::GptMailStorage, hme, hme_storage::HmeStorage, outlook};
+use crate::features::mail::{gptmail, gptmail_storage::GptMailStorage, hme, hme_storage::HmeStorage, outlook, outlook_storage::OutlookStorage};
 use crate::platforms::augment::models::AugmentOAuthState;
 use crate::platforms::openai::codex::logger::RequestLogger;
 use crate::platforms::openai::codex::pool::CodexServerConfig;
@@ -72,6 +72,7 @@ pub struct AppState {
     pub openai_oauth_sessions: Arc<Mutex<HashMap<String, OpenAIOAuthSession>>>,
     api_server: Mutex<Option<api_server::ApiServer>>,
     outlook_manager: Mutex<OutlookManager>,
+    pub outlook_storage: Arc<Mutex<Option<Arc<OutlookStorage>>>>,
     pub hme_cookie: Arc<Mutex<Option<String>>>,
     pub hme_storage: Arc<Mutex<Option<Arc<HmeStorage>>>>,
     pub gptmail_storage: Arc<Mutex<Option<Arc<GptMailStorage>>>>,
@@ -131,6 +132,11 @@ pub fn run() {
                 openai_oauth_sessions: Arc::new(Mutex::new(HashMap::new())),
                 api_server: Mutex::new(None),
                 outlook_manager: Mutex::new(OutlookManager::new()),
+                outlook_storage: Arc::new(Mutex::new(
+                    OutlookStorage::new(app_data_dir.clone())
+                        .map(Arc::new)
+                        .ok(),
+                )),
                 hme_cookie: Arc::new(Mutex::new(None)),
                 hme_storage: Arc::new(Mutex::new(
                     HmeStorage::new(app_data_dir.clone())
@@ -168,6 +174,21 @@ pub fn run() {
 
             // 初始化托盘状态管理器
             app.manage(TrayState::new());
+
+            // Outlook Token 定时刷新（每 24 小时）
+            {
+                let app_handle_refresh = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    // 首次延迟 60 秒，等待应用完成初始化
+                    tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+                    loop {
+                        let state = app_handle_refresh.state::<AppState>();
+                        outlook::scheduled_refresh_tokens(state.inner()).await;
+                        // 每 24 小时刷新一次
+                        tokio::time::sleep(std::time::Duration::from_secs(24 * 60 * 60)).await;
+                    }
+                });
+            }
 
             // 异步初始化存储管理器
             let app_handle = app.handle().clone();
@@ -372,6 +393,7 @@ pub fn run() {
                         openai_oauth_sessions: state.openai_oauth_sessions.clone(),
                         api_server: Mutex::new(None),
                         outlook_manager: Mutex::new(OutlookManager::new()),
+                        outlook_storage: state.outlook_storage.clone(),
                         hme_cookie: state.hme_cookie.clone(),
                         hme_storage: state.hme_storage.clone(),
                         gptmail_storage: state.gptmail_storage.clone(),
@@ -700,10 +722,15 @@ pub fn run() {
             // Outlook 邮箱管理命令
             outlook::outlook_save_credentials,
             outlook::outlook_get_all_accounts_info,
+            outlook::outlook_get_account_statuses,
             outlook::outlook_delete_account,
             outlook::outlook_check_account_status,
             outlook::outlook_get_emails,
             outlook::outlook_get_email_details,
+            outlook::outlook_refresh_all_tokens,
+            outlook::outlook_get_oauth_auth_url,
+            outlook::outlook_exchange_oauth_token,
+            outlook::outlook_delete_emails,
 
             // GPTMail 管理命令
             gptmail::generate_random_email,
