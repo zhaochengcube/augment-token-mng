@@ -66,7 +66,6 @@
               <span v-if="!isSidebarCollapsed" class="flex-1 min-w-0 truncate">{{ $t('subscriptions.title') }}</span>
             </button>
 
-            <!-- 
             <button
               :class="[
                 'btn btn--ghost btn--lg min-w-0 w-full',
@@ -76,14 +75,13 @@
                   : '',
               ]"
               @click="navigateToView('bookmarks')"
-              v-tooltip="$t('app.bookmarkManager')"
+              v-tooltip="$t('bookmarks.title')"
             >
               <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M17 3H7c-1.1 0-1.99.9-1.99 2L5 21l7-3 7 3V5c0-1.1-.9-2-2-2z" />
               </svg>
-              <span v-if="!isSidebarCollapsed" class="flex-1 min-w-0 truncate">{{ $t('app.bookmarkManager') }}</span>
+              <span v-if="!isSidebarCollapsed" class="flex-1 min-w-0 truncate">{{ $t('bookmarks.title') }}</span>
             </button>
-            -->
 
             <button
               :class="[
@@ -197,7 +195,11 @@
         />
 
         <!-- Bookmarks View -->
-        <BookmarkPage v-if="activeView === 'bookmarks'" :key="'bookmarks-' + viewRefreshKey" />
+        <BookmarkPage
+          v-if="activeView === 'bookmarks'"
+          :key="'bookmarks-' + viewRefreshKey"
+          :is-sidebar-collapsed="isSidebarCollapsed"
+        />
 
         <!-- Emails View (v-show to preserve sub-view state when switching sidebar) -->
         <EmailPage v-show="activeView === 'emails'" ref="emailPageRef" />
@@ -213,9 +215,6 @@
         <SettingsPage v-if="activeView === 'settings'" :key="'settings-' + viewRefreshKey" />
       </main>
     </div><!-- End of app-body -->
-
-    <!-- Bookmark Manager Modal -->
-    <BookmarkManager v-if="showBookmarkManager" @close="showBookmarkManager = false" />
 
     <!-- Outlook Manager Modal -->
     <OutlookManager v-if="showOutlookManager" @close="showOutlookManager = false" />
@@ -246,7 +245,6 @@ import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { useI18n } from 'vue-i18n'
 import { useSettingsStore } from './stores/settings'
-import BookmarkManager from './components/common/BookmarkManager.vue'
 import OutlookManager from './components/email/OutlookManager.vue'
 import GPTMailManager from './components/email/GPTMailManager.vue'
 import ProxyConfig from './components/settings/ProxyConfig.vue'
@@ -320,7 +318,7 @@ const openDataFolder = async () => {
     await invoke('open_data_folder')
   } catch (error) {
     console.error('Failed to open data folder:', error)
-    window.$notify?.error(`${t('bookmarkManager.messages.openFolderFailed')}: ${error}`)
+    window.$notify?.error(`Failed to open data folder: ${error}`)
   }
 }
 
@@ -352,7 +350,6 @@ const toggleLanguage = () => {
 
 const languageToggleLabel = computed(() => (currentLocale.value === 'zh-CN' ? t('app.switchToEnglish') : t('app.switchToChinese')))
 
-const showBookmarkManager = ref(false)
 const showOutlookManager = ref(false)
 const showGPTMailManager = ref(false)
 const showProxyConfig = ref(false)

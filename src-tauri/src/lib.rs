@@ -8,7 +8,6 @@ pub mod platforms {
 }
 
 pub mod features {
-    pub mod bookmarks;
     pub mod mail;
 }
 
@@ -25,6 +24,7 @@ pub mod core {
 }
 
 pub mod data {
+    pub mod bookmark;
     pub mod database;
     pub mod storage;
     pub mod subscription;
@@ -35,10 +35,11 @@ pub use core::{
     api_server, http_client, proxy_config, proxy_helper, subscription_monitor, telegram, tray,
 };
 pub use data::{database, storage};
-pub use features::{bookmarks, mail};
+pub use features::mail;
 pub use platforms::{antigravity, augment, claude, cursor, openai, windsurf};
 
 use crate::core::tray::TrayState;
+use crate::data::bookmark::BookmarkDualStorage;
 use crate::data::subscription::SubscriptionDualStorage;
 use crate::features::mail::{gptmail, gptmail_storage::GptMailStorage, hme, hme_storage::HmeStorage, outlook, outlook_storage::OutlookStorage};
 use crate::platforms::augment::models::AugmentOAuthState;
@@ -82,6 +83,7 @@ pub struct AppState {
     pub cursor_storage_manager: Arc<Mutex<Option<Arc<CursorDualStorage>>>>,
     pub openai_storage_manager: Arc<Mutex<Option<Arc<OpenAIDualStorage>>>>,
     pub subscription_storage_manager: Arc<Mutex<Option<Arc<SubscriptionDualStorage>>>>,
+    pub bookmark_storage_manager: Arc<Mutex<Option<Arc<BookmarkDualStorage>>>>,
     pub claude_storage_manager: Arc<Mutex<Option<Arc<ClaudeDualStorage>>>>,
     pub database_manager: Arc<Mutex<Option<Arc<DatabaseManager>>>>,
     // App session 缓存: key 为 auth_session, value 为缓存的 app_session
@@ -154,6 +156,7 @@ pub fn run() {
                 cursor_storage_manager: Arc::new(Mutex::new(None)),
                 openai_storage_manager: Arc::new(Mutex::new(None)),
                 subscription_storage_manager: Arc::new(Mutex::new(None)),
+                bookmark_storage_manager: Arc::new(Mutex::new(None)),
                 claude_storage_manager: Arc::new(Mutex::new(None)),
                 database_manager: Arc::new(Mutex::new(None)),
                 app_session_cache: Arc::new(Mutex::new(HashMap::new())),
@@ -309,6 +312,20 @@ pub fn run() {
                                                                 eprintln!("Failed to check Subscription tables on startup: {}", e);
                                                             }
                                                         }
+                                                        match crate::data::bookmark::migrations::check_tables_exist(&client).await {
+                                                            Ok(exists) => {
+                                                                if !exists {
+                                                                    if let Err(e) = crate::data::bookmark::migrations::create_tables(&client).await {
+                                                                        eprintln!("Failed to create Bookmark tables on startup: {}", e);
+                                                                    }
+                                                                } else if let Err(e) = crate::data::bookmark::migrations::add_new_fields_if_not_exist(&client).await {
+                                                                    eprintln!("Failed to update Bookmark tables on startup: {}", e);
+                                                                }
+                                                            }
+                                                            Err(e) => {
+                                                                eprintln!("Failed to check Bookmark tables on startup: {}", e);
+                                                            }
+                                                        }
                                                 }
                                                 Err(e) => {
                                                     eprintln!("Failed to get database client on startup: {}", e);
@@ -347,6 +364,9 @@ pub fn run() {
                 }
                 if let Err(e) = crate::data::subscription::initialize_subscription_storage_manager(&app_handle, &state).await {
                     eprintln!("Failed to initialize Subscription storage manager: {}", e);
+                }
+                if let Err(e) = crate::data::bookmark::initialize_bookmark_storage_manager(&app_handle, &state).await {
+                    eprintln!("Failed to initialize Bookmark storage manager: {}", e);
                 }
 
                 // 初始化 Codex 日志存储
@@ -404,6 +424,7 @@ pub fn run() {
                         openai_storage_manager: state.openai_storage_manager.clone(),
                         claude_storage_manager: state.claude_storage_manager.clone(),
                         subscription_storage_manager: state.subscription_storage_manager.clone(),
+                        bookmark_storage_manager: state.bookmark_storage_manager.clone(),
                         database_manager: state.database_manager.clone(),
                         app_session_cache: state.app_session_cache.clone(),
                         app_handle: app_handle_for_api.clone(),
@@ -647,11 +668,17 @@ pub fn run() {
             cursor::cursor_get_aggregated_usage,
             cursor::cursor_get_filtered_usage_events,
 
-            // 书签管理命令
-            bookmarks::add_bookmark,
-            bookmarks::update_bookmark,
-            bookmarks::delete_bookmark,
-            bookmarks::get_all_bookmarks,
+            // 书签同步命令
+            data::bookmark::bookmark_sync_accounts,
+            data::bookmark::bookmark_sync_to_database,
+            data::bookmark::bookmark_sync_from_database,
+            data::bookmark::bookmark_bidirectional_sync,
+            // 书签 CRUD 命令
+            data::bookmark::bookmark_load_local,
+            data::bookmark::bookmark_list,
+            data::bookmark::bookmark_add,
+            data::bookmark::bookmark_update,
+            data::bookmark::bookmark_delete,
 
             // 核心应用命令
             core::app_commands::open_url,

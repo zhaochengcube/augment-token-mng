@@ -41,6 +41,7 @@ export default {
     copy: '点击复制',
     copySuccess: '复制成功',
     copyFailed: '复制失败',
+    copyLink: '复制链接',
     actions: '操作'
   },
   app: {
@@ -49,7 +50,7 @@ export default {
     pluginHome: '插件仓库',
     telegramGroup: 'ATM群聊',
     viewTokens: '查看Token',
-    bookmarkManager: '书签管理',
+    bookmarkManager: '书签管理', // legacy, use bookmarks.title
     outlookManager: '邮箱管理',
     gptMailManager: 'GPTMail管理',
     proxySettings: '代理设置',
@@ -111,30 +112,53 @@ export default {
     checkFailed: '检查更新失败',
     close: '关闭'
   },
-  bookmarkManager: {
+  bookmarks: {
     title: '书签管理',
-    description: '管理你的常用网站和链接',
-    openDataFolder: '打开数据存储文件夹',
-    addBookmark: '添加书签',
-    editBookmark: '编辑书签',
-    deleteBookmark: '删除书签',
-    openBookmark: '打开书签',
-    emptyState: '还没有添加书签',
-    emptyDescription: '点击"添加书签"来添加你常用的网站',
-    form: {
+    items: '项',
+    add: '添加书签',
+    addFirst: '添加第一个书签',
+    addTitle: '添加书签',
+    editTitle: '编辑书签',
+    emptyState: '暂无书签记录',
+    searchPlaceholder: '搜索名称、网址或标签...',
+    syncQueueTitle: '书签同步队列',
+    syncQueueUpsertsTitle: '待同步',
+    syncQueueDeletionsTitle: '待删除',
+    syncQueueEmpty: '没有待同步的书签',
+    fullSync: '全量同步',
+    sync: '同步',
+    viewSyncQueueTooltip: '查看同步队列',
+    fields: {
       name: '书签名称',
-      url: '网址',
-      description: '描述（可选）',
-      save: '保存',
-      update: '更新',
-      cancel: '取消'
+      url: '网站地址',
+      description: '描述',
+      tag: '标签',
+      tagColor: '标签颜色'
+    },
+    filters: {
+      all: '全部',
+      tag: '标签'
+    },
+    placeholders: {
+      name: '例如: GitHub, Google',
+      url: '例如: https://github.com',
+      description: '添加一些描述信息...',
+      tag: '例如: 工具, 社交'
+    },
+    deleteConfirm: {
+      title: '删除书签',
+      message: '确定要删除 "{name}" 吗？此操作无法撤销。'
     },
     messages: {
       addSuccess: '书签添加成功',
       updateSuccess: '书签更新成功',
       deleteSuccess: '书签删除成功',
-      openFolderFailed: '打开文件夹失败'
+      saveFailed: '保存书签失败',
+      deleteFailed: '删除书签失败',
+      noUrl: '该书签没有网址'
     },
+    sortByCreated: '按创建时间',
+    sortByName: '按名称排序',
     dialog: {
       selectOpenMethod: '选择打开方式',
       copyToClipboard: '复制到剪贴板',

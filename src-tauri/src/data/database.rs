@@ -147,6 +147,20 @@ pub async fn save_database_config(
                         .await
                         .map_err(|e| format!("Failed to update Claude tables: {}", e))?;
                 }
+
+                let bookmark_tables_exist = crate::data::bookmark::migrations::check_tables_exist(&client)
+                    .await
+                    .map_err(|e| format!("Failed to check Bookmark tables: {}", e))?;
+
+                if !bookmark_tables_exist {
+                    crate::data::bookmark::migrations::create_tables(&client)
+                        .await
+                        .map_err(|e| format!("Failed to create Bookmark tables: {}", e))?;
+                } else {
+                    crate::data::bookmark::migrations::add_new_fields_if_not_exist(&client)
+                        .await
+                        .map_err(|e| format!("Failed to update Bookmark tables: {}", e))?;
+                }
             }
 
             *state.database_manager.lock().unwrap() = Some(Arc::new(db_manager));
@@ -166,6 +180,9 @@ pub async fn save_database_config(
             initialize_claude_storage_manager(&app, &state)
                 .await
                 .map_err(|e| format!("Failed to initialize Claude storage: {}", e))?;
+            crate::data::bookmark::initialize_bookmark_storage_manager(&app, &state)
+                .await
+                .map_err(|e| format!("Failed to initialize Bookmark storage: {}", e))?;
 
             Ok(())
         }

@@ -83,6 +83,22 @@ pub trait AccountStorage<T: SyncableAccount>: Send + Sync {
     async fn is_available(&self) -> bool;
 }
 
+/// 本地可同步存储 trait（扩展 AccountStorage，支持版本管理和批量替换）
+#[async_trait::async_trait]
+pub trait SyncableLocalStorage<T: SyncableAccount>: AccountStorage<T> {
+    async fn get_current_account_id(&self) -> Result<Option<String>, StorageError>;
+    async fn set_current_account_id(&self, id: Option<String>) -> Result<(), StorageError>;
+    async fn replace_all(
+        &self,
+        accounts: Vec<T>,
+        deletions: Vec<String>,
+        version: i64,
+        current_account_id: Option<String>,
+    ) -> Result<(), StorageError>;
+    fn get_local_version(&self) -> Result<i64, StorageError>;
+    fn get_deletions(&self) -> Result<Vec<String>, StorageError>;
+}
+
 /// 通用同步管理器 trait
 #[async_trait::async_trait]
 pub trait AccountSyncManager<T: SyncableAccount>: Send + Sync {

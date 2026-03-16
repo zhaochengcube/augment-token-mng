@@ -3186,7 +3186,7 @@ const openDataFolder = async () => {
     await invoke('open_data_folder')
     // 静默执行，不显示状态提示
   } catch (error) {
-    window.$notify.error(`${t('bookmarkManager.messages.openFolderFailed')}: ${error}`)
+    window.$notify.error(`Failed to open data folder: ${error}`)
   }
 }
 

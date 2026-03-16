@@ -41,6 +41,7 @@ export default {
     copy: 'Click to copy',
     copySuccess: 'Copied successfully',
     copyFailed: 'Failed to copy',
+    copyLink: 'Copy Link',
     actions: 'Actions'
   },
   app: {
@@ -111,30 +112,53 @@ export default {
     checkFailed: 'Failed to check for updates',
     close: 'Close'
   },
-  bookmarkManager: {
+  bookmarks: {
     title: 'Bookmark Manager',
-    description: 'Manage your favorite websites and links',
-    openDataFolder: 'Open Data Storage Folder',
-    addBookmark: 'Add Bookmark',
-    editBookmark: 'Edit Bookmark',
-    deleteBookmark: 'Delete Bookmark',
-    openBookmark: 'Open Bookmark',
-    emptyState: 'No bookmarks added yet',
-    emptyDescription: 'Click "Add Bookmark" to add your frequently used websites',
-    form: {
+    items: 'items',
+    add: 'Add Bookmark',
+    addFirst: 'Add your first bookmark',
+    addTitle: 'Add Bookmark',
+    editTitle: 'Edit Bookmark',
+    emptyState: 'No bookmarks yet',
+    searchPlaceholder: 'Search name, URL or tag...',
+    syncQueueTitle: 'Bookmark Sync Queue',
+    syncQueueUpsertsTitle: 'Pending Sync',
+    syncQueueDeletionsTitle: 'Pending Delete',
+    syncQueueEmpty: 'No bookmarks pending sync',
+    fullSync: 'Full Sync',
+    sync: 'Sync',
+    viewSyncQueueTooltip: 'View sync queue',
+    fields: {
       name: 'Bookmark Name',
-      url: 'URL',
-      description: 'Description (Optional)',
-      save: 'Save',
-      update: 'Update',
-      cancel: 'Cancel'
+      url: 'Website URL',
+      description: 'Description',
+      tag: 'Tag',
+      tagColor: 'Tag Color'
+    },
+    filters: {
+      all: 'All',
+      tag: 'Tag'
+    },
+    placeholders: {
+      name: 'e.g. GitHub, Google',
+      url: 'e.g. https://github.com',
+      description: 'Add some description...',
+      tag: 'e.g. Tools, Social'
+    },
+    deleteConfirm: {
+      title: 'Delete Bookmark',
+      message: 'Are you sure you want to delete "{name}"? This action cannot be undone.'
     },
     messages: {
       addSuccess: 'Bookmark added successfully',
       updateSuccess: 'Bookmark updated successfully',
       deleteSuccess: 'Bookmark deleted successfully',
-      openFolderFailed: 'Failed to open folder'
+      saveFailed: 'Failed to save bookmark',
+      deleteFailed: 'Failed to delete bookmark',
+      noUrl: 'This bookmark has no URL'
     },
+    sortByCreated: 'By Created',
+    sortByName: 'By Name',
     dialog: {
       selectOpenMethod: 'Select Open Method',
       copyToClipboard: 'Copy to Clipboard',

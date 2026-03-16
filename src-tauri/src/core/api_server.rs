@@ -127,6 +127,7 @@ pub async fn start_api_server_cmd(
             openai_storage_manager: state.openai_storage_manager.clone(),
             claude_storage_manager: state.claude_storage_manager.clone(),
             subscription_storage_manager: state.subscription_storage_manager.clone(),
+            bookmark_storage_manager: state.bookmark_storage_manager.clone(),
             database_manager: state.database_manager.clone(),
             app_session_cache: state.app_session_cache.clone(),
             app_handle: state.app_handle.clone(),
