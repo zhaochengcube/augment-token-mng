@@ -312,6 +312,23 @@
           </svg>
           <span>{{ showRealEmail ? $t('tokenList.hideRealEmail') : $t('tokenList.showRealEmail') }}</span>
         </button>
+        <!-- 禁用/启用自动更新按钮 -->
+        <button
+          class="btn btn--ghost btn--sm inline-flex items-center gap-2"
+          :class="{ 'active': isAutoUpdateDisabled }"
+          :disabled="isTogglingAutoUpdate"
+          @click="toggleAutoUpdate"
+          v-tooltip="isAutoUpdateDisabled ? '点击启用自动更新' : '点击禁用自动更新'"
+        >
+          <span v-if="isTogglingAutoUpdate" class="btn-spinner btn-spinner--sm text-accent"></span>
+          <svg v-else-if="isAutoUpdateDisabled" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8 0-1.85.63-3.55 1.69-4.9L16.9 18.31C15.55 19.37 13.85 20 12 20zm6.31-3.1L7.1 5.69C8.45 4.63 10.15 4 12 4c4.42 0 8 3.58 8 8 0 1.85-.63 3.55-1.69 4.9z"/>
+          </svg>
+          <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M21 10.12h-6.78l2.74-2.82c-2.73-2.7-7.15-2.8-9.88-.1-2.73 2.71-2.73 7.08 0 9.79s7.15 2.71 9.88 0C18.32 15.65 19 14.08 19 12.1h2c0 1.98-.88 4.55-2.64 6.29-3.51 3.48-9.21 3.48-12.72 0-3.5-3.47-3.5-9.11 0-12.58 3.51-3.47 9.14-3.49 12.65 0L21 3v7.12z"/>
+          </svg>
+          <span>{{ isAutoUpdateDisabled ? '自动更新已禁用' : '禁用自动更新' }}</span>
+        </button>
         <!-- 自定义 Cursor 路径按钮 -->
         <button
           class="btn btn--ghost btn--sm inline-flex items-center gap-2"
@@ -506,6 +523,10 @@ const {
 const showCustomPathDialog = ref(false)
 const customCursorPath = ref(null)
 const defaultCursorPath = ref('')
+
+// 自动更新状态
+const isAutoUpdateDisabled = ref(false)
+const isTogglingAutoUpdate = ref(false)
 
 // 搜索和筛选
 const searchQuery = ref('')
@@ -1090,6 +1111,37 @@ const loadCustomPath = async () => {
   }
 }
 
+// 自动更新相关函数
+const loadAutoUpdateStatus = async () => {
+  try {
+    isAutoUpdateDisabled.value = await invoke('cursor_check_auto_update_disabled')
+  } catch (error) {
+    console.error('Failed to check auto-update status:', error)
+    isAutoUpdateDisabled.value = false
+  }
+}
+
+const toggleAutoUpdate = async () => {
+  if (isTogglingAutoUpdate.value) return
+  isTogglingAutoUpdate.value = true
+  try {
+    if (isAutoUpdateDisabled.value) {
+      await invoke('cursor_enable_auto_update')
+      isAutoUpdateDisabled.value = false
+      window.$notify?.success('自动更新已启用')
+    } else {
+      await invoke('cursor_disable_auto_update')
+      isAutoUpdateDisabled.value = true
+      window.$notify?.success('自动更新已禁用')
+    }
+  } catch (error) {
+    console.error('Failed to toggle auto-update:', error)
+    window.$notify?.error(error?.message || error)
+  } finally {
+    isTogglingAutoUpdate.value = false
+  }
+}
+
 const handleCustomPathSaved = (newPath) => {
   customCursorPath.value = newPath
 }
@@ -1098,5 +1150,6 @@ onMounted(async () => {
   await initSync()
   await loadAccounts()
   await loadCustomPath()
+  await loadAutoUpdateStatus()
 })
 </script>

@@ -706,6 +706,30 @@ async fn import_account_with_session_token(
 
     Ok(account)
 }
+/// 检查 Cursor 自动更新是否已禁用
+#[tauri::command]
+pub async fn cursor_check_auto_update_disabled(app: AppHandle) -> Result<bool, String> {
+    use crate::core::path_manager::{CURSOR_CONFIG, read_custom_path_from_config};
+    let custom_path = read_custom_path_from_config(&app, &CURSOR_CONFIG);
+    machine::check_auto_update_disabled(custom_path.as_deref())
+}
+
+/// 禁用 Cursor 自动更新
+#[tauri::command]
+pub async fn cursor_disable_auto_update(app: AppHandle) -> Result<(), String> {
+    use crate::core::path_manager::{CURSOR_CONFIG, read_custom_path_from_config};
+    let custom_path = read_custom_path_from_config(&app, &CURSOR_CONFIG);
+    machine::disable_auto_update(custom_path.as_deref())
+}
+
+/// 启用 Cursor 自动更新（从备份恢复）
+#[tauri::command]
+pub async fn cursor_enable_auto_update(app: AppHandle) -> Result<(), String> {
+    use crate::core::path_manager::{CURSOR_CONFIG, read_custom_path_from_config};
+    let custom_path = read_custom_path_from_config(&app, &CURSOR_CONFIG);
+    machine::enable_auto_update(custom_path.as_deref())
+}
+
 /// 导出账号数据（单个或批量）
 /// 返回 JSON 字符串，格式与导入格式兼容
 #[tauri::command]

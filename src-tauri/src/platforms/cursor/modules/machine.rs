@@ -437,6 +437,100 @@ fn write_windows_registry_machine_guid(guid: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// 自动更新相关的常量
+const AUTO_UPDATE_ORIGINAL_STR: &str = r#"!!this.args["disable-updates"]"#;
+const AUTO_UPDATE_REPLACED_STR: &str = "true";
+
+/// 检查 Cursor 自动更新是否已被禁用
+/// 通过检测 main.js 中是否包含 `!!this.args["disable-updates"]` 来判断
+/// 如果不包含该字符串，说明已被替换为 `true`，即已禁用
+pub fn check_auto_update_disabled(custom_exe_path: Option<&str>) -> Result<bool, String> {
+    let main_js_path = get_main_js_path(custom_exe_path)?;
+
+    if !main_js_path.exists() {
+        return Err(format!("main.js file not found: {}", main_js_path.display()));
+    }
+
+    let content =
+        fs::read_to_string(&main_js_path).map_err(|e| format!("Failed to read main.js: {}", e))?;
+
+    // 如果文件中不包含该字符串，说明已被替换，即已禁用自动更新
+    Ok(!content.contains(AUTO_UPDATE_ORIGINAL_STR))
+}
+
+/// 禁用 Cursor 自动更新
+/// 将 `!!this.args["disable-updates"]` 替换为 `true`
+pub fn disable_auto_update(custom_exe_path: Option<&str>) -> Result<(), String> {
+    // 检查 Cursor 是否正在运行
+    if super::process::is_cursor_running() {
+        return Err("请先关闭 Cursor 再执行此操作".to_string());
+    }
+
+    let main_js_path = get_main_js_path(custom_exe_path)?;
+
+    if !main_js_path.exists() {
+        return Err(format!("main.js file not found: {}", main_js_path.display()));
+    }
+
+    let content =
+        fs::read_to_string(&main_js_path).map_err(|e| format!("Failed to read main.js: {}", e))?;
+
+    // 检查是否已经禁用
+    if !content.contains(AUTO_UPDATE_ORIGINAL_STR) {
+        return Ok(()); // 已经禁用，无需操作
+    }
+
+    // 执行替换
+    let modified_content = content.replace(AUTO_UPDATE_ORIGINAL_STR, AUTO_UPDATE_REPLACED_STR);
+
+    // 写回文件
+    fs::write(&main_js_path, modified_content)
+        .map_err(|e| format!("Failed to write main.js: {}", e))?;
+
+    Ok(())
+}
+
+/// 启用 Cursor 自动更新（恢复）
+/// 由于原文件中该位置上下文为 `return!!this.args["disable-updates"]`，
+/// 禁用后变为 `returntrue`，恢复时做反向替换即可
+pub fn enable_auto_update(custom_exe_path: Option<&str>) -> Result<(), String> {
+    // 检查 Cursor 是否正在运行
+    if super::process::is_cursor_running() {
+        return Err("请先关闭 Cursor 再执行此操作".to_string());
+    }
+
+    let main_js_path = get_main_js_path(custom_exe_path)?;
+
+    if !main_js_path.exists() {
+        return Err(format!("main.js file not found: {}", main_js_path.display()));
+    }
+
+    let content =
+        fs::read_to_string(&main_js_path).map_err(|e| format!("Failed to read main.js: {}", e))?;
+
+    // 检查是否已经禁用（如果原始字符串存在，说明未禁用，无需恢复）
+    if content.contains(AUTO_UPDATE_ORIGINAL_STR) {
+        return Ok(());
+    }
+
+    // 反向替换：用 `return` 前缀定位，将 `returntrue` 还原为 `return!!this.args["disable-updates"]`
+    // 由于 minified JS 中 `return` 后面直接跟 `!!this.args[...]`，禁用后变为 `returntrue`
+    let disabled_pattern = format!("return{}", AUTO_UPDATE_REPLACED_STR);
+    let original_pattern = format!("return{}", AUTO_UPDATE_ORIGINAL_STR);
+
+    if !content.contains(&disabled_pattern) {
+        return Err("Cannot find the disabled auto-update pattern to restore".to_string());
+    }
+
+    let restored_content = content.replacen(&disabled_pattern, &original_pattern, 1);
+
+    // 写回文件
+    fs::write(&main_js_path, restored_content)
+        .map_err(|e| format!("Failed to write main.js: {}", e))?;
+
+    Ok(())
+}
+
 /// 使用绑定的机器码完成重置流程
 /// 返回 ResetResult，包含操作结果消息和是否需要管理员权限
 pub fn complete_reset_with_machine_info(

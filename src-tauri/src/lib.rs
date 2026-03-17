@@ -667,6 +667,9 @@ pub fn run() {
             cursor::cursor_get_usage_summary,
             cursor::cursor_get_aggregated_usage,
             cursor::cursor_get_filtered_usage_events,
+            cursor::cursor_check_auto_update_disabled,
+            cursor::cursor_disable_auto_update,
+            cursor::cursor_enable_auto_update,
 
             // 书签同步命令
             data::bookmark::bookmark_sync_accounts,
