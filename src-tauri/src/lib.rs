@@ -20,6 +20,7 @@ pub mod core {
     pub mod proxy_helper;
     pub mod subscription_monitor;
     pub mod telegram;
+    pub mod spotlight;
     pub mod tray;
 }
 
@@ -126,6 +127,7 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
             let app_data_dir = app.handle().path().app_data_dir()
                 .unwrap_or_else(|_| std::path::PathBuf::from("."));
@@ -799,6 +801,12 @@ pub fn run() {
             proxy_config::test_proxy_config,
             proxy_config::delete_proxy_config,
             proxy_config::proxy_config_exists,
+
+            // Spotlight 快捷搜索命令
+            crate::core::spotlight::toggle_spotlight,
+            crate::core::spotlight::register_spotlight_shortcut,
+            crate::core::spotlight::unregister_spotlight_shortcut,
+            crate::core::spotlight::is_spotlight_shortcut_registered,
 
             // 系统托盘命令
             tray::create_tray,

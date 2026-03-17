@@ -7,7 +7,7 @@
     </div>
 
     <!-- Page Body -->
-    <div class="flex flex-1 flex-col gap-[26px] overflow-visiable">
+    <div class="flex flex-1 flex-col gap-[26px] overflow-y-auto pb-6">
       <!-- Configuration Cards Grid -->
       <div class="grid auto-rows-auto grid-cols-[repeat(auto-fit,minmax(290px,1fr))] gap-[18px] pt-1">
         <div
@@ -74,6 +74,49 @@
                 <span
                   class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-text-inverse shadow-lg ring-0 transition duration-200 ease-in-out"
                   :class="dockVisible ? 'translate-x-6' : 'translate-x-1'"
+                />
+              </button>
+            </div>
+          </div>
+
+          <!-- Spotlight Quick Search Shortcut -->
+          <div class="flex items-center justify-between gap-3 pt-1 border-t border-border">
+            <div class="flex flex-col gap-1">
+              <span class="text-sm font-semibold text-text">{{ $t('spotlight.shortcutLabel') }}</span>
+              <span class="text-xs text-text-muted">{{ $t('spotlight.shortcutDescription') }}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <div
+                tabindex="0"
+                class="flex min-w-[140px] cursor-pointer items-center gap-1 rounded-md border px-2.5 py-1 text-sm outline-none transition-colors"
+                :class="isRecordingShortcut ? 'border-accent bg-accent/5 text-accent' : 'border-border bg-surface text-text'"
+                @click="startRecordingShortcut"
+                @keydown="handleShortcutKeydown"
+                @blur="stopRecordingShortcut"
+                ref="shortcutRecorderRef"
+              >
+                <template v-if="isRecordingShortcut">
+                  <span class="animate-pulse text-xs">{{ $t('spotlight.recording') }}</span>
+                </template>
+                <template v-else-if="spotlightShortcut">
+                  <kbd
+                    v-for="(key, i) in displayShortcutKeys"
+                    :key="i"
+                    class="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-xs font-medium"
+                  >{{ key }}</kbd>
+                </template>
+                <span v-else class="text-xs text-text-muted">{{ $t('spotlight.shortcutPlaceholder') }}</span>
+              </div>
+              <button
+                @click="spotlightEnabled ? handleUnregisterSpotlightShortcut() : handleRegisterSpotlightShortcut()"
+                class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+                :class="spotlightEnabled ? 'bg-accent' : 'bg-border'"
+                role="switch"
+                :aria-checked="spotlightEnabled"
+              >
+                <span
+                  class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-text-inverse shadow-lg ring-0 transition duration-200 ease-in-out"
+                  :class="spotlightEnabled ? 'translate-x-6' : 'translate-x-1'"
                 />
               </button>
             </div>
@@ -153,7 +196,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from 'vue-i18n'
 import { useSettingsStore } from '../../stores/settings'
@@ -193,6 +236,95 @@ const telegramEnabled = computed(() => settingsStore.telegramConfig.enabled)
 // Toggle states
 const isTogglingTray = ref(false)
 const isTogglingDock = ref(false)
+
+// Spotlight shortcut
+const SPOTLIGHT_SHORTCUT_KEY = 'atm-spotlight-shortcut'
+const spotlightShortcut = ref(localStorage.getItem(SPOTLIGHT_SHORTCUT_KEY) || 'Alt+Space')
+const spotlightEnabled = ref(false)
+const isRecordingShortcut = ref(false)
+const shortcutRecorderRef = ref(null)
+
+// OS detection for display
+const isMacPlatform = navigator.platform?.toLowerCase().includes('mac') || navigator.userAgent?.toLowerCase().includes('mac')
+
+// Map Tauri shortcut string to OS-aware display keys
+const displayShortcutKeys = computed(() => {
+  if (!spotlightShortcut.value) return []
+  return spotlightShortcut.value.split('+').map(k => {
+    const key = k.trim()
+    if (isMacPlatform) {
+      switch (key.toLowerCase()) {
+        case 'ctrl': case 'control': return '⌃'
+        case 'alt': case 'option': return '⌥'
+        case 'shift': return '⇧'
+        case 'super': case 'meta': case 'command': case 'cmd': return '⌘'
+        case 'space': return '␣'
+        default: return key.charAt(0).toUpperCase() + key.slice(1)
+      }
+    } else {
+      switch (key.toLowerCase()) {
+        case 'control': return 'Ctrl'
+        case 'meta': case 'super': return 'Win'
+        case 'space': return 'Space'
+        default: return key.charAt(0).toUpperCase() + key.slice(1)
+      }
+    }
+  })
+})
+
+const startRecordingShortcut = () => {
+  isRecordingShortcut.value = true
+  nextTick(() => shortcutRecorderRef.value?.focus())
+}
+
+const stopRecordingShortcut = () => {
+  isRecordingShortcut.value = false
+}
+
+const handleShortcutKeydown = (e) => {
+  if (!isRecordingShortcut.value) return
+  e.preventDefault()
+  e.stopPropagation()
+
+  // Ignore bare modifier keys
+  const ignoredKeys = ['Control', 'Shift', 'Alt', 'Meta']
+  if (ignoredKeys.includes(e.key)) return
+
+  const parts = []
+  if (e.ctrlKey) parts.push('Ctrl')
+  if (e.altKey) parts.push('Alt')
+  if (e.shiftKey) parts.push('Shift')
+  if (e.metaKey) parts.push(isMacPlatform ? 'Super' : 'Super')
+
+  // Map special keys to Tauri accelerator format
+  let key = e.key
+  switch (key) {
+    case ' ': key = 'Space'; break
+    case 'ArrowUp': key = 'Up'; break
+    case 'ArrowDown': key = 'Down'; break
+    case 'ArrowLeft': key = 'Left'; break
+    case 'ArrowRight': key = 'Right'; break
+    case 'Escape': key = 'Escape'; break
+    case 'Enter': key = 'Enter'; break
+    case 'Backspace': key = 'Backspace'; break
+    case 'Delete': key = 'Delete'; break
+    case 'Tab': key = 'Tab'; break
+    default:
+      if (key.length === 1) key = key.toUpperCase()
+      break
+  }
+  parts.push(key)
+
+  // Need at least one modifier
+  if (parts.length < 2) return
+
+  spotlightShortcut.value = parts.join('+')
+  isRecordingShortcut.value = false
+  shortcutRecorderRef.value?.blur()
+
+  // Auto-register after recording
+  handleRegisterSpotlightShortcut()
+}
 
 // Configuration cards data
 const configCards = computed(() => [
@@ -284,6 +416,47 @@ const handleDockToggle = async () => {
   }
 }
 
+const handleRegisterSpotlightShortcut = async () => {
+  const shortcut = spotlightShortcut.value.trim()
+  if (!shortcut) return
+  try {
+    await invoke('register_spotlight_shortcut', { shortcut })
+    localStorage.setItem(SPOTLIGHT_SHORTCUT_KEY, shortcut)
+    spotlightEnabled.value = true
+    window.$notify?.success(t('spotlight.registerSuccess'))
+  } catch (error) {
+    console.error('Failed to register spotlight shortcut:', error)
+    window.$notify?.error(t('spotlight.registerFailed') + ': ' + error)
+    spotlightEnabled.value = false
+  }
+}
+
+const handleUnregisterSpotlightShortcut = async () => {
+  try {
+    await invoke('unregister_spotlight_shortcut')
+    spotlightEnabled.value = false
+    window.$notify?.success(t('spotlight.unregisterSuccess'))
+  } catch (error) {
+    console.error('Failed to unregister spotlight shortcut:', error)
+  }
+}
+
+const initSpotlightShortcut = async () => {
+  const saved = localStorage.getItem(SPOTLIGHT_SHORTCUT_KEY)
+  if (saved) {
+    try {
+      const registered = await invoke('is_spotlight_shortcut_registered', { shortcut: saved })
+      spotlightEnabled.value = registered
+      if (!registered) {
+        await invoke('register_spotlight_shortcut', { shortcut: saved })
+        spotlightEnabled.value = true
+      }
+    } catch {
+      spotlightEnabled.value = false
+    }
+  }
+}
+
 const handleTelegramSaved = () => {
   // Reload telegram config after saving
   settingsStore.loadTelegramConfig(true)
@@ -311,5 +484,6 @@ const checkForUpdates = async () => {
 onMounted(async () => {
   await settingsStore.loadAllSettings()
   await settingsStore.loadServerStatus(true)
+  await initSpotlightShortcut()
 })
 </script>

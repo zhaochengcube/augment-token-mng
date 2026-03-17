@@ -1,5 +1,9 @@
 <template>
-  <div class="flex h-screen flex-col overflow-hidden bg-page text-text">
+  <!-- Spotlight 搜索窗口 -->
+  <SpotlightSearch v-if="isSpotlightWindow" />
+
+  <!-- 主应用窗口 -->
+  <div v-else class="flex h-screen flex-col overflow-hidden bg-page text-text">
     <!-- App Body: Sidebar + Main Content -->
     <div class="flex flex-1 overflow-hidden">
       <!-- Sidebar -->
@@ -258,8 +262,12 @@ import BookmarkPage from './components/pages/BookmarkPage.vue'
 import EmailPage from './components/pages/EmailPage.vue'
 import SettingsPage from './components/pages/SettingsPage.vue'
 import SubscriptionPage from './components/pages/SubscriptionPage.vue'
+import SpotlightSearch from './components/spotlight/SpotlightSearch.vue'
 
 const { t, locale } = useI18n()
+
+// 检测是否为 Spotlight 搜索窗口
+const isSpotlightWindow = new URLSearchParams(window.location.search).get('window') === 'spotlight'
 
 // Settings store for tray management
 const settingsStore = useSettingsStore()
@@ -513,12 +521,15 @@ const importFromSession = async () => {
 }
 
 onMounted(async () => {
-  // 读取保存的语言偏好
+  // 读取保存的语言偏好（所有窗口共用）
   const savedLanguage = localStorage.getItem('preferred-language')
   if (savedLanguage && (savedLanguage === 'zh-CN' || savedLanguage === 'en-US')) {
     currentLocale.value = savedLanguage
     locale.value = savedLanguage
   }
+
+  // Spotlight 窗口不需要初始化主窗口逻辑
+  if (isSpotlightWindow) return
 
   // 读取侧边栏折叠状态
   const sidebarCollapsed = localStorage.getItem('sidebar-collapsed')
@@ -541,6 +552,16 @@ onMounted(async () => {
 
   // 初始化 Dock 图标状态（macOS，根据用户设置）
   settingsStore.initializeDock()
+
+  // 自动注册 Spotlight 快捷键（如果之前配置过）
+  const savedSpotlightShortcut = localStorage.getItem('atm-spotlight-shortcut')
+  if (savedSpotlightShortcut) {
+    try {
+      await invoke('register_spotlight_shortcut', { shortcut: savedSpotlightShortcut })
+    } catch (e) {
+      console.warn('Failed to auto-register spotlight shortcut:', e)
+    }
+  }
 
   // 监听托盘菜单点击事件
   await listen('tray-menu-clicked', (event) => {

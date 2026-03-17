@@ -1951,5 +1951,24 @@ export default {
     },
     sortByCreated: '按创建时间',
     sortByExpiry: '按到期时间'
+  },
+  spotlight: {
+    placeholder: '搜索书签...',
+    noResults: '没有找到匹配的书签',
+    navigate: '导航',
+    open: '打开',
+    shortcutLabel: '快捷搜索快捷键',
+    shortcutDescription: '全局快捷键呼出书签快捷搜索',
+    enabled: '已启用',
+    disabled: '未启用',
+    registerSuccess: '快捷键注册成功',
+    registerFailed: '快捷键注册失败',
+    unregisterSuccess: '快捷键已取消',
+    shortcutPlaceholder: '例如: Alt+Space',
+    recording: '请按下快捷键...',
+    recentTitle: '最近使用',
+    typeToSearch: '输入关键词搜索书签',
+    openInternal: '内部打开',
+    clearInput: '清空'
   }
 }

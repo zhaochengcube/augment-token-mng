@@ -12,7 +12,11 @@
     "fs:allow-write-text-file",
     "fs:allow-write-file",
     "fs:write-all",
-    "core:app:allow-set-dock-visibility"
+    "core:app:allow-set-dock-visibility",
+    "core:window:allow-set-size",
+    "global-shortcut:allow-register",
+    "global-shortcut:allow-unregister",
+    "global-shortcut:allow-is-registered"
   ]
 }
 

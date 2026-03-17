@@ -37,12 +37,14 @@ fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, String> {
         .map_err(|e| e.to_string())?;
     let bookmarks_i = MenuItem::with_id(app, "bookmarks", "书签管理", true, None::<&str>)
         .map_err(|e| e.to_string())?;
+    let spotlight_i = MenuItem::with_id(app, "spotlight", "快捷搜索", true, None::<&str>)
+        .map_err(|e| e.to_string())?;
     let emails_i = MenuItem::with_id(app, "emails", "邮箱管理", true, None::<&str>)
         .map_err(|e| e.to_string())?;
     let quit_i =
         MenuItem::with_id(app, "quit", "退出", true, None::<&str>).map_err(|e| e.to_string())?;
 
-    Menu::with_items(app, &[&show_i, &platforms_i, &subscriptions_i, &bookmarks_i, &emails_i, &quit_i])
+    Menu::with_items(app, &[&show_i, &platforms_i, &subscriptions_i, &bookmarks_i, &spotlight_i, &emails_i, &quit_i])
         .map_err(|e| e.to_string())
 }
 
@@ -146,6 +148,9 @@ pub fn create_tray(app: AppHandle) -> Result<bool, String> {
                             "action": "bookmarks"
                         }),
                     );
+                }
+                "spotlight" => {
+                    let _ = crate::core::spotlight::toggle_spotlight(app.clone());
                 }
                 "emails" => {
                     if let Some(window) = app.get_webview_window("main") {

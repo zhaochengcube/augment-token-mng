@@ -1949,6 +1949,25 @@ export default {
     },
     sortByCreated: 'By Created',
     sortByExpiry: 'By Expiry'
+  },
+  spotlight: {
+    placeholder: 'Search bookmarks...',
+    noResults: 'No matching bookmarks found',
+    navigate: 'Navigate',
+    open: 'Open',
+    shortcutLabel: 'Quick Search Shortcut',
+    shortcutDescription: 'Global shortcut to open bookmark quick search',
+    enabled: 'Enabled',
+    disabled: 'Disabled',
+    registerSuccess: 'Shortcut registered successfully',
+    registerFailed: 'Failed to register shortcut',
+    unregisterSuccess: 'Shortcut unregistered',
+    shortcutPlaceholder: 'e.g. Alt+Space',
+    recording: 'Press shortcut...',
+    recentTitle: 'Recent',
+    typeToSearch: 'Type to search bookmarks',
+    openInternal: 'Internal',
+    clearInput: 'Clear'
   }
 }
 
