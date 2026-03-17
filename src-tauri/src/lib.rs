@@ -9,6 +9,7 @@ pub mod platforms {
 
 pub mod features {
     pub mod mail;
+    pub mod raindrop;
 }
 
 pub mod core {
@@ -801,6 +802,14 @@ pub fn run() {
             proxy_config::test_proxy_config,
             proxy_config::delete_proxy_config,
             proxy_config::proxy_config_exists,
+
+            // Raindrop 书签同步命令
+            features::raindrop::raindrop_save_config,
+            features::raindrop::raindrop_load_config,
+            features::raindrop::raindrop_delete_config,
+            features::raindrop::raindrop_sync,
+            features::raindrop::raindrop_full_sync,
+            features::raindrop::raindrop_validate_token,
 
             // Spotlight 快捷搜索命令
             crate::core::spotlight::toggle_spotlight,

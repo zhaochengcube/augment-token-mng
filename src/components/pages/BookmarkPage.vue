@@ -36,6 +36,11 @@
               <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
             </svg>
           </button>
+          <button @click="showRaindropDialog = true" class="btn btn--icon btn--ghost" v-tooltip="$t('raindrop.title')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2c-5.33 4.55-8 8.48-8 11.8 0 4.98 3.8 8.2 8 8.2s8-3.22 8-8.2C20 10.48 17.33 6.55 12 2z"/>
+            </svg>
+          </button>
           <button
             v-if="isDatabaseAvailable"
             class="btn btn--icon btn--ghost"
@@ -297,6 +302,13 @@
       @imported="handleBookmarksImported"
     />
 
+    <!-- Raindrop.io Sync Dialog -->
+    <RaindropSyncDialog
+      v-if="showRaindropDialog"
+      @close="showRaindropDialog = false"
+      @synced="handleRaindropSynced"
+    />
+
     <!-- Add/Edit Dialog -->
     <BookmarkDialog
       v-if="showAddDialog || editingBookmark"
@@ -384,6 +396,7 @@ import BookmarkCard from '../bookmark/BookmarkCard.vue'
 import BookmarkTableRow from '../bookmark/BookmarkTableRow.vue'
 import BookmarkDialog from '../bookmark/BookmarkDialog.vue'
 import ImportBookmarksDialog from '../bookmark/ImportBookmarksDialog.vue'
+import RaindropSyncDialog from '../bookmark/RaindropSyncDialog.vue'
 
 const { t: $t } = useI18n()
 
@@ -404,6 +417,7 @@ const bookmarks = ref([])
 const isLoading = ref(false)
 const isRefreshing = ref(false)
 const showImportDialog = ref(false)
+const showRaindropDialog = ref(false)
 const showAddDialog = ref(false)
 const editingBookmark = ref(null)
 const viewMode = ref('card')
@@ -691,6 +705,15 @@ const handleBookmarksImported = async (result) => {
   if (result.skipped_count > 0) msg += $t('bookmarks.import.importSkipped', { skipped: result.skipped_count })
   if (result.failed_count > 0) msg += $t('bookmarks.import.importFailedCount', { failed: result.failed_count })
   window.$notify?.success(msg)
+}
+
+// Raindrop 同步完成处理
+const handleRaindropSynced = async (result) => {
+  await loadBookmarks()
+  // 标记新增/更新的书签到同步队列
+  if (result?.affected_ids?.length) {
+    result.affected_ids.forEach(id => markItemUpsertById(id))
+  }
 }
 
 // 生成唯一ID

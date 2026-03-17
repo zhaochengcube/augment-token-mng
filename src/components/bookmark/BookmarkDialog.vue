@@ -161,11 +161,11 @@ const existingTags = computed(() => {
   const tagMap = new Map()
 
   props.allBookmarks.forEach(b => {
-    if (b.tag && b.tag_color) {
+    if (b.tag) {
       if (!tagMap.has(b.tag)) {
         tagMap.set(b.tag, {
           name: b.tag,
-          color: b.tag_color
+          color: b.tag_color || '#f97316'
         })
       }
     }

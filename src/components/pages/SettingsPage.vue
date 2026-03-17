@@ -480,7 +480,7 @@ const checkForUpdates = async () => {
   }
 }
 
-// Initialize - 从store加载所有设置；进入设置页时强制刷新 API 服务器状态，避免显示过期的“已停止”
+// Initialize - 从store加载所有设置；进入设置页时强制刷新 API 服务器状态，避免显示过期的"已停止"
 onMounted(async () => {
   await settingsStore.loadAllSettings()
   await settingsStore.loadServerStatus(true)

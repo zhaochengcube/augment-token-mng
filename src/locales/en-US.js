@@ -1968,6 +1968,24 @@ export default {
     typeToSearch: 'Type to search bookmarks',
     openInternal: 'Internal',
     clearInput: 'Clear'
+  },
+  raindrop: {
+    title: 'Raindrop.io Bookmark Sync',
+    description: 'Sync bookmarks from Raindrop.io to local storage. Create an app in Raindrop Settings > Integrations and generate a Test Token.',
+    configured: 'Configured',
+    notConfigured: 'Not Configured',
+    tokenPlaceholder: 'Paste Raindrop.io Test Token',
+    saveToken: 'Save',
+    tokenSaved: 'Token saved successfully',
+    tokenFailed: 'Token validation failed',
+    configDeleted: 'Configuration deleted',
+    lastSync: 'Last sync',
+    neverSynced: 'Never synced',
+    sync: 'Incremental Sync',
+    fullSync: 'Full Sync',
+    syncSuccess: 'Sync completed',
+    syncFailed: 'Sync failed',
+    syncResult: 'Fetched {total}, created {created}, updated {updated}, skipped {skipped}'
   }
 }
 

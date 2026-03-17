@@ -161,11 +161,11 @@ const existingTags = computed(() => {
   const tagMap = new Map()
 
   props.allTokens.forEach(token => {
-    if (token.tag_name && token.tag_color) {
+    if (token.tag_name) {
       if (!tagMap.has(token.tag_name)) {
         tagMap.set(token.tag_name, {
           name: token.tag_name,
-          color: token.tag_color
+          color: token.tag_color || defaultTagColor
         })
       }
     }

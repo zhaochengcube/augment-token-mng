@@ -1970,5 +1970,23 @@ export default {
     typeToSearch: '输入关键词搜索书签',
     openInternal: '内部打开',
     clearInput: '清空'
+  },
+  raindrop: {
+    title: 'Raindrop.io 书签同步',
+    description: '从 Raindrop.io 同步书签到本地。需要在 Raindrop 设置 > 集成 中创建应用并生成 Test Token。',
+    configured: '已配置',
+    notConfigured: '未配置',
+    tokenPlaceholder: '粘贴 Raindrop.io Test Token',
+    saveToken: '保存',
+    tokenSaved: 'Token 保存成功',
+    tokenFailed: 'Token 验证失败',
+    configDeleted: '配置已删除',
+    lastSync: '上次同步',
+    neverSynced: '尚未同步',
+    sync: '增量同步',
+    fullSync: '全量同步',
+    syncSuccess: '同步完成',
+    syncFailed: '同步失败',
+    syncResult: '共获取 {total} 条，新增 {created}，更新 {updated}，跳过 {skipped}'
   }
 }
