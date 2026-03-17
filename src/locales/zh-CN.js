@@ -165,6 +165,28 @@ export default {
       openInBrowser: '在浏览器中打开',
       openInBuiltIn: '内置浏览器打开',
       cancel: '取消'
+    },
+    import: {
+      title: '导入浏览器书签',
+      tooltip: '导入浏览器书签',
+      info: '支持导入 Chrome、Edge、Firefox、Safari 等浏览器导出的书签 HTML 文件（Netscape Bookmark File 格式）。',
+      infoDetail: '文件夹路径将自动转为标签，例如 {example}。已存在的 URL 会自动跳过。',
+      selectFile: '选择书签文件',
+      clickToSelect: '点击选择书签 HTML 文件',
+      supportFormat: '支持 .html / .htm 格式',
+      reselect: '重新选择',
+      parsedCount: '共解析到 {count} 条书签',
+      tagCount: '涉及 {count} 个标签',
+      moreHidden: '... 还有 {count} 条未显示',
+      resultTitle: '导入结果',
+      resultSummary: '成功 {success} / 跳过 {skipped} / 失败 {failed}',
+      importBtn: '导入 {count} 条书签',
+      emptyFile: '未在文件中找到书签数据，请确认是浏览器导出的书签 HTML 文件',
+      readError: '读取文件失败',
+      importFailed: '导入失败',
+      importSuccess: '导入完成：成功 {success} 条',
+      importSkipped: '，跳过重复 {skipped} 条',
+      importFailedCount: '，失败 {failed} 条'
     }
   },
   outlookManager: {

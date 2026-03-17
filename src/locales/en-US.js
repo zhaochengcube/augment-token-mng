@@ -165,6 +165,28 @@ export default {
       openInBrowser: 'Open in Browser',
       openInBuiltIn: 'Open in Built-in Browser',
       cancel: 'Cancel'
+    },
+    import: {
+      title: 'Import Browser Bookmarks',
+      tooltip: 'Import browser bookmarks',
+      info: 'Supports importing bookmark HTML files exported from Chrome, Edge, Firefox, Safari and other browsers (Netscape Bookmark File format).',
+      infoDetail: 'Folder paths will be automatically converted to tags, e.g. {example}. Existing URLs will be skipped.',
+      selectFile: 'Select bookmark file',
+      clickToSelect: 'Click to select bookmark HTML file',
+      supportFormat: 'Supports .html / .htm format',
+      reselect: 'Reselect',
+      parsedCount: '{count} bookmarks found',
+      tagCount: '{count} tags involved',
+      moreHidden: '... {count} more not shown',
+      resultTitle: 'Import Result',
+      resultSummary: 'Success {success} / Skipped {skipped} / Failed {failed}',
+      importBtn: 'Import {count} bookmarks',
+      emptyFile: 'No bookmarks found in the file. Please confirm it is a browser-exported bookmark HTML file.',
+      readError: 'Failed to read file',
+      importFailed: 'Import failed',
+      importSuccess: 'Import complete: {success} succeeded',
+      importSkipped: ', {skipped} duplicates skipped',
+      importFailedCount: ', {failed} failed'
     }
   },
   outlookManager: {

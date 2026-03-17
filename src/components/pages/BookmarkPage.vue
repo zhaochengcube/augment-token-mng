@@ -31,6 +31,11 @@
               <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
             </svg>
           </button>
+          <button @click="showImportDialog = true" class="btn btn--icon btn--ghost" v-tooltip="$t('bookmarks.import.tooltip')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+            </svg>
+          </button>
           <button
             v-if="isDatabaseAvailable"
             class="btn btn--icon btn--ghost"
@@ -285,6 +290,13 @@
       </div>
     </ActionToolbar>
 
+    <!-- Import Bookmarks Dialog -->
+    <ImportBookmarksDialog
+      v-if="showImportDialog"
+      @close="showImportDialog = false"
+      @imported="handleBookmarksImported"
+    />
+
     <!-- Add/Edit Dialog -->
     <BookmarkDialog
       v-if="showAddDialog || editingBookmark"
@@ -371,6 +383,7 @@ import TagEditorModal from '../token/TagEditorModal.vue'
 import BookmarkCard from '../bookmark/BookmarkCard.vue'
 import BookmarkTableRow from '../bookmark/BookmarkTableRow.vue'
 import BookmarkDialog from '../bookmark/BookmarkDialog.vue'
+import ImportBookmarksDialog from '../bookmark/ImportBookmarksDialog.vue'
 
 const { t: $t } = useI18n()
 
@@ -390,6 +403,7 @@ const VIEW_MODE_KEY = 'atm-bookmarks-view-mode'
 const bookmarks = ref([])
 const isLoading = ref(false)
 const isRefreshing = ref(false)
+const showImportDialog = ref(false)
 const showAddDialog = ref(false)
 const editingBookmark = ref(null)
 const viewMode = ref('card')
@@ -422,6 +436,7 @@ const {
   showSyncQueueModal,
   initSync,
   markItemUpsert,
+  markItemUpsertById,
   markItemDeletion,
   markAllForSync,
   openSyncQueue,
@@ -662,6 +677,20 @@ const loadViewMode = () => {
   if (saved === 'card' || saved === 'table') {
     viewMode.value = saved
   }
+}
+
+// 导入书签成功处理
+const handleBookmarksImported = async (result) => {
+  showImportDialog.value = false
+  await loadBookmarks()
+  // 标记导入的书签到同步队列
+  if (result.imported_ids?.length) {
+    result.imported_ids.forEach(id => markItemUpsertById(id))
+  }
+  let msg = $t('bookmarks.import.importSuccess', { success: result.success_count })
+  if (result.skipped_count > 0) msg += $t('bookmarks.import.importSkipped', { skipped: result.skipped_count })
+  if (result.failed_count > 0) msg += $t('bookmarks.import.importFailedCount', { failed: result.failed_count })
+  window.$notify?.success(msg)
 }
 
 // 生成唯一ID

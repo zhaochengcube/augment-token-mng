@@ -51,7 +51,7 @@
                 :aria-checked="trayEnabled"
               >
                 <span
-                  class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out"
+                  class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-text-inverse shadow-lg ring-0 transition duration-200 ease-in-out"
                   :class="trayEnabled ? 'translate-x-6' : 'translate-x-1'"
                 />
               </button>
@@ -72,7 +72,7 @@
                 :aria-checked="dockVisible"
               >
                 <span
-                  class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out"
+                  class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-text-inverse shadow-lg ring-0 transition duration-200 ease-in-out"
                   :class="dockVisible ? 'translate-x-6' : 'translate-x-1'"
                 />
               </button>

@@ -545,7 +545,7 @@ onMounted(async () => {
   // 监听托盘菜单点击事件
   await listen('tray-menu-clicked', (event) => {
     const action = event.payload?.action
-    if (action === 'platforms' || action === 'subscriptions') {
+    if (action === 'platforms' || action === 'subscriptions' || action === 'bookmarks' || action === 'emails') {
       navigateToView(action)
     }
   })

@@ -147,7 +147,7 @@ const formData = ref({
   name: '',
   url: '',
   tag: '',
-  tag_color: '#3b82f6',
+  tag_color: '#f97316',
   description: ''
 })
 
@@ -228,7 +228,7 @@ onMounted(() => {
       name: props.bookmark.name || '',
       url: props.bookmark.url || '',
       tag: props.bookmark.tag || '',
-      tag_color: props.bookmark.tag_color || '#3b82f6',
+      tag_color: props.bookmark.tag_color || '#f97316',
       description: props.bookmark.description || ''
     }
   }

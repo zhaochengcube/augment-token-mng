@@ -92,7 +92,7 @@
           <span
             v-else
             class="badge editable badge--sm"
-            :style="{ '--tag-color': bookmark.tag_color }"
+            :style="{ '--tag-color': bookmark.tag_color || DEFAULT_TAG_COLOR }"
             @click.stop="openTagEditor"
           >{{ bookmark.tag }}</span>
         </div>
@@ -132,6 +132,8 @@ import { useI18n } from 'vue-i18n'
 import TagEditorModal from '../token/TagEditorModal.vue'
 
 const { t: $t } = useI18n()
+
+const DEFAULT_TAG_COLOR = '#f97316'
 
 const props = defineProps({
   bookmark: {

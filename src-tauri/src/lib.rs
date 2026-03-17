@@ -682,6 +682,7 @@ pub fn run() {
             data::bookmark::bookmark_add,
             data::bookmark::bookmark_update,
             data::bookmark::bookmark_delete,
+            data::bookmark::bookmark_import_from_browser,
 
             // 核心应用命令
             core::app_commands::open_url,
