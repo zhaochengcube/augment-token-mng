@@ -359,8 +359,16 @@ impl CodexPool {
                         Some("unauthorized") | Some("payment_required") | Some("quota")
                     );
                     if keep_cooldown {
-                        next.cooldown_until = prev.cooldown_until;
-                        next.unavailable_reason = prev.unavailable_reason.clone();
+                        // 如果 token 已被刷新（expires_at 变化），说明凭证已更新，清除 "unauthorized" 冷却
+                        let token_refreshed = prev.unavailable_reason.as_deref() == Some("unauthorized")
+                            && next.expires_at > prev.expires_at;
+                        if token_refreshed {
+                            next.cooldown_until = None;
+                            next.unavailable_reason = None;
+                        } else {
+                            next.cooldown_until = prev.cooldown_until;
+                            next.unavailable_reason = prev.unavailable_reason.clone();
+                        }
                     } else {
                         next.cooldown_until = None;
                         next.unavailable_reason = None;

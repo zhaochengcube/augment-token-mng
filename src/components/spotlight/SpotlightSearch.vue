@@ -70,7 +70,7 @@
           {{ $t('spotlight.open') }}
         </span>
         <span class="flex items-center gap-1">
-          <kbd class="rounded border border-border bg-muted px-1 py-px font-sans text-[10px]">Ctrl↵</kbd>
+          <kbd class="rounded border border-border bg-muted px-1 py-px font-sans text-[10px]">{{ isMac ? '⌘↵' : 'Ctrl↵' }}</kbd>
           {{ $t('spotlight.openInternal') }}
         </span>
         <span class="flex items-center gap-1">
@@ -96,6 +96,7 @@ import { match as pinyinMatch } from 'pinyin-pro'
 
 const { t: $t, locale } = useI18n()
 
+const isMac = navigator.platform?.toLowerCase().includes('mac') || navigator.userAgent?.toLowerCase().includes('mac')
 const DEFAULT_TAG_COLOR = '#f97316'
 const WINDOW_WIDTH = 680
 const SEARCH_BAR_HEIGHT = 56

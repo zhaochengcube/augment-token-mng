@@ -225,39 +225,6 @@ pub fn build_token_info(
     })
 }
 
-/// 检查并在需要时刷新 Token
-/// 返回最新的 TokenData
-pub async fn ensure_fresh_token(
-    current_token: &crate::platforms::openai::models::TokenData,
-) -> Result<crate::platforms::openai::models::TokenData, String> {
-    let now = chrono::Utc::now().timestamp();
-
-    // 如果还有超过 5 分钟有效期，直接返回
-    if current_token.expires_at > now + 300 {
-        return Ok(current_token.clone());
-    }
-
-    // 需要刷新
-    let refresh_token_value = current_token
-        .refresh_token
-        .as_ref()
-        .ok_or_else(|| "No refresh token available".to_string())?;
-
-    let response = refresh_token(refresh_token_value).await?;
-
-    // 构造新 TokenData
-    Ok(crate::platforms::openai::models::TokenData::new(
-        response.access_token,
-        response
-            .refresh_token
-            .or_else(|| current_token.refresh_token.clone()),
-        response.id_token.or_else(|| current_token.id_token.clone()),
-        response.expires_in,
-        now + response.expires_in,
-        response.token_type,
-    ))
-}
-
 pub fn token_needs_refresh(
     current_token: &crate::platforms::openai::models::TokenData,
     refresh_window_secs: i64,

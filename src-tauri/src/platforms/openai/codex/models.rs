@@ -152,13 +152,6 @@ impl CodexPoolAccount {
         })
     }
 
-    /// 检查是否需要刷新 token
-    pub fn needs_refresh(&self) -> bool {
-        let now = chrono::Utc::now().timestamp();
-        // 提前 5 分钟刷新
-        self.expires_at - now < 300
-    }
-
     /// 检查 token 是否已过期
     pub fn is_expired(&self) -> bool {
         let now = chrono::Utc::now().timestamp();

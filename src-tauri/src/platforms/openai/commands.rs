@@ -681,45 +681,27 @@ pub async fn openai_refresh_account(app: AppHandle, account_id: String) -> Resul
     println!("Email: {}", acc.email);
     println!("ChatGPT Account ID: {:?}", acc.chatgpt_account_id);
 
-    // 刷新 token
-    if let Some(ref token) = acc.token {
-        if let Some(refresh_token) = &token.refresh_token {
-            match oauth::refresh_token(refresh_token).await {
-                Ok(token_res) => {
-                    let now = chrono::Utc::now().timestamp();
-                    acc.token = Some(TokenData::new(
-                        token_res.access_token,
-                        token_res.refresh_token,
-                        token_res.id_token,
-                        token_res.expires_in,
-                        now + token_res.expires_in,
-                        token_res.token_type,
-                    ));
-                    acc.updated_at = now;
-                    acc.rt_invalid = false;
-
-                    if let Some(id_token) = &acc.token.as_ref().and_then(|t| t.id_token.as_ref()) {
-                        if let Some(user_info) = oauth::parse_id_token(id_token) {
-                            println!(
-                                "New ChatGPT Account ID from refresh: {:?}",
-                                user_info.chatgpt_account_id
-                            );
-                            if let Some(new_chatgpt_id) = user_info.chatgpt_account_id {
-                                acc.chatgpt_account_id = Some(new_chatgpt_id);
-                            }
-                        }
+    // 刷新 token（强制刷新，窗口 0）
+    match account_module::refresh_token_if_needed(&mut acc, 0, true).await {
+        Ok(true) => {
+            if let Some(id_token) = &acc.token.as_ref().and_then(|t| t.id_token.as_ref()) {
+                if let Some(user_info) = oauth::parse_id_token(id_token) {
+                    println!(
+                        "New ChatGPT Account ID from refresh: {:?}",
+                        user_info.chatgpt_account_id
+                    );
+                    if let Some(new_chatgpt_id) = user_info.chatgpt_account_id {
+                        acc.chatgpt_account_id = Some(new_chatgpt_id);
                     }
-
-                    storage::save_account(&app, &acc).await?;
-                }
-                Err(e) => {
-                    if e.contains("refresh_token_reused") || e.contains("invalid_grant") {
-                        acc.rt_invalid = true;
-                        let _ = storage::save_account(&app, &acc).await;
-                    }
-                    return Err(e);
                 }
             }
+            account_module::backfill_openai_auth_json_if_missing(&mut acc);
+            storage::save_account(&app, &acc).await?;
+        }
+        Ok(false) => {}
+        Err(e) => {
+            let _ = storage::save_account(&app, &acc).await;
+            return Err(e);
         }
     }
 
