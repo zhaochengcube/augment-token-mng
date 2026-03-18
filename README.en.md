@@ -4,7 +4,7 @@ A cross-platform desktop app built with Tauri for managing AI Tools, accounts, s
 
 ![](./img/atm-en.png)
 
-![](./img/spotlight-en.png)
+![](./img/spotlight.png)
 
 ## Overview
 
