@@ -4,12 +4,18 @@ A cross-platform desktop app built with Tauri for managing AI Tools, accounts, s
 
 ![](./img/atm-en.png)
 
+![](./img/spotlight-en.png)
+
 ## Overview
 
 - **Accounts & platforms**: Augment, Antigravity, Windsurf, Cursor, OpenAI (Codex, API), Claude Code and API — account management and one-click account switching.
 - **Proxy**: Codex local proxy for use with Codex Cli/Droid only.
 - **Subscriptions**: Subscription management with expiry dates and Telegram notifications; view remaining time and get expiry reminders.
-- **Email**: iCloud Hide My Email (HME) — requires iCloud+; create addresses and deactivate or delete them.
+- **Bookmarks**: Bookmark management — add manually, import from browsers (Chrome/Firefox/Edge/Safari) or Raindrop.io; tag-based categorization, search & filter, cloud sync, quick search like Raycast.
+- **Email**:
+  - **iCloud HME**: Generate, deactivate and delete iCloud Hide My Email addresses (requires iCloud+).
+  - **Outlook**: Outlook mailbox account management — manual import or OAuth authorization, automatic token refresh, email viewing and batch status checks.
+  - **GPTMail**: Generate random email addresses via the GPTMail API, receive emails and verification codes, with auto-polling and history management.
 
 ## Tech stack
 
@@ -56,7 +62,7 @@ scoop uninstall atm
 
 ### Release builds
 
-Download installers from [Releases](https://github.com/cubezhao/augment-token-mng/releases).
+Download installers from [Releases](https://github.com/cubezhao/ai-tools-mng/releases).
 
 ### Install issues
 
@@ -91,14 +97,14 @@ Download installers from [Releases](https://github.com/cubezhao/augment-token-mn
 **Windows:**
 
 ```powershell
-cd augment-token-mng
+cd ai-tools-mng
 .\build.ps1
 ```
 
 **macOS/Linux:**
 
 ```bash
-cd augment-token-mng
+cd ai-tools-mng
 chmod +x build.sh
 ./build.sh
 ```
@@ -117,7 +123,7 @@ chmod +x docker/build.sh
 **Dev:**
 
 ```bash
-cd augment-token-mng
+cd ai-tools-mng
 pnpm install
 pnpm tauri dev
 ```
@@ -125,7 +131,7 @@ pnpm tauri dev
 **Release:**
 
 ```bash
-cd augment-token-mng
+cd ai-tools-mng
 pnpm install
 pnpm tauri build
 ```
@@ -153,4 +159,4 @@ If this project helps you, you can buy me a coffee.
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=cubezhao/augment-token-mng&type=Date)](https://star-history.com/#cubezhao/augment-token-mng&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=cubezhao/ai-tools-mng&type=Date)](https://star-history.com/#cubezhao/ai-tools-mng&Date)

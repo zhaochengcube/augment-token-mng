@@ -1,5 +1,5 @@
 export default {
-  base: '/augment-token-mng/',
+  base: '/ai-tools-mng/',
   title: 'AI Tools Manager',
   description: 'ATM 文档',
   head: [['meta', { name: 'theme-color', content: '#646cff' }]],
@@ -70,6 +70,6 @@ export default {
   },
   themeConfig: {
     i18nRouting: true,
-    socialLinks: [{ icon: 'github', link: 'https://github.com/zhaochengcube/augment-token-mng' }]
+    socialLinks: [{ icon: 'github', link: 'https://github.com/cubezhao/ai-tools-mng' }]
   }
 }

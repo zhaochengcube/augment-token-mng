@@ -162,7 +162,7 @@
           <div class="flex items-center gap-[18px]">
             <span class="min-w-[85px] shrink-0 text-sm font-semibold text-text-muted">{{ $t('settings.links') }}</span>
             <div class="flex flex-1 flex-wrap items-center gap-2.5">
-              <a href="https://github.com/cubezhao/augment-token-mng" target="_blank" class="btn btn--sm btn-tech-accent">
+              <a href="https://github.com/cubezhao/ai-tools-mng" target="_blank" class="btn btn--sm btn-tech-accent">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
                 </svg>

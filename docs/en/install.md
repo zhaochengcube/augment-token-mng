@@ -5,7 +5,7 @@
 ### macOS - Homebrew
 
 ```bash
-brew tap zhaochengcube/atm
+brew tap cubezhao/atm
 brew install --cask atm
 brew update && brew upgrade --cask atm
 ```
@@ -13,14 +13,14 @@ brew update && brew upgrade --cask atm
 ### Windows - Scoop
 
 ```powershell
-scoop bucket add atm https://github.com/zhaochengcube/scoop-atm
+scoop bucket add atm https://github.com/cubezhao/scoop-atm
 scoop install atm
 scoop update atm
 ```
 
 ## Release builds
 
-Download installers from [Releases](https://github.com/zhaochengcube/augment-token-mng/releases).
+Download installers from [Releases](https://github.com/cubezhao/ai-tools-mng/releases).
 
 ## Build from source
 
