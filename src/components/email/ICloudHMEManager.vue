@@ -214,22 +214,17 @@
           </div>
 
           <!-- Pagination -->
-          <div v-if="totalPages > 1" class="flex items-center justify-center gap-3 mt-4">
-            <button
-              @click="currentPage--"
-              :disabled="currentPage === 1"
-              class="btn btn--secondary btn--sm disabled:opacity-40">
-              ← {{ $t('pagination.prev') }}
-            </button>
-            <span class="text-sm text-text-secondary">
-              {{ currentPage }} / {{ totalPages }}
-            </span>
-            <button
-              @click="currentPage++"
-              :disabled="currentPage === totalPages"
-              class="btn btn--secondary btn--sm disabled:opacity-40">
-              {{ $t('pagination.next') }} →            </button>
-          </div>
+          <Pagination
+            v-if="!listLoading && filteredList.length > 0"
+            :current-page="currentPage"
+            :total-pages="totalPages"
+            :total-items="filteredList.length"
+            :page-size="pageSize"
+            :page-size-options="pageSizeOptions"
+            @update:current-page="page => currentPage = page"
+            @update:page-size="changePageSize"
+            class="mt-4"
+          />
 
         </section>
 
@@ -263,6 +258,7 @@ import { useI18n } from 'vue-i18n'
 import { invoke } from '@tauri-apps/api/core'
 import { useHmeAutoGenStore } from '../../stores/hmeAutoGen'
 import TagEditorModal from '../token/TagEditorModal.vue'
+import Pagination from '../common/Pagination.vue'
 
 
 defineEmits(['close'])
@@ -284,7 +280,8 @@ const generateCount = ref(5)
 const generateLabel = ref('ATM HME')
 
 // List
-const PAGE_SIZE = 20
+const pageSize = ref(20)
+const pageSizeOptions = [10, 20, 50, 100, 200]
 const listTab = ref(true)
 const searchKeyword = ref('')
 const emailList = ref([])
@@ -331,13 +328,18 @@ const filteredList = computed(() => {
   )
 })
 
-const totalPages = computed(() => Math.max(1, Math.ceil(filteredList.value.length / PAGE_SIZE)))
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredList.value.length / pageSize.value)))
 const pagedList = computed(() => {
-  const start = (currentPage.value - 1) * PAGE_SIZE
-  return filteredList.value.slice(start, start + PAGE_SIZE)
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredList.value.slice(start, start + pageSize.value)
 })
 
 watch(searchKeyword, () => { currentPage.value = 1 })
+watch(pageSize, () => { currentPage.value = 1 })
+
+const changePageSize = (newSize) => {
+  pageSize.value = newSize
+}
 
 const allSelected = computed(() =>
   pagedList.value.length > 0 && pagedList.value.every(i => selectedIds.value.has(i.anonymous_id))
@@ -423,6 +425,7 @@ const setEmailList = (items) => {
   emailList.value = Array.isArray(items) ? items : []
   if (listTab.value) updateLastGenTimestamp(emailList.value)
 }
+
 
 // Cookie actions
 const checkCookieState = async () => {
