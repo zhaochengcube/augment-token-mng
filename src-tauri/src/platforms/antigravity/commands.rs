@@ -172,8 +172,9 @@ pub async fn antigravity_switch_account(
     // 5. 注入 Token（先备份数据库）
     let db_path = db::get_db_path()?;
     if db_path.exists() {
-        if let Some(backup_path) = db_path.with_extension("vscdb.backup").to_str() {
-            let _ = std::fs::copy(&db_path, backup_path);
+        let backup_path = db_path.with_extension("vscdb.backup");
+        if let Err(e) = tokio::fs::copy(&db_path, &backup_path).await {
+            eprintln!("Failed to backup database: {}", e);
         }
     }
     db::inject_token(
@@ -191,7 +192,7 @@ pub async fn antigravity_switch_account(
     storage::save_account(&app, &acc).await?;
 
     // 8. 获取自定义路径并启动 Antigravity
-    std::thread::sleep(std::time::Duration::from_secs(1));
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     use crate::core::path_manager::{ANTIGRAVITY_CONFIG, read_custom_path_from_config};
     let custom_path = read_custom_path_from_config(&app, &ANTIGRAVITY_CONFIG);
 

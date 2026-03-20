@@ -182,11 +182,11 @@ pub async fn windsurf_switch_account(
         process::close_windsurf(20)?;
 
         // 4.0.1 二次验证：等待后再次检查
-        std::thread::sleep(std::time::Duration::from_secs(2));
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
         if process::is_windsurf_running() {
             // 重试一次
             process::close_windsurf(10)?;
-            std::thread::sleep(std::time::Duration::from_secs(1));
+            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
             if process::is_windsurf_running() {
                 return Err(
                     "Windsurf process still running after multiple close attempts".to_string(),
@@ -196,13 +196,17 @@ pub async fn windsurf_switch_account(
     }
 
     // 4.1 重置遥测数据（失败不阻断切号）
-    let needs_admin = match machine::reset_machine_id() {
-        Ok(result) => {
+    let needs_admin = match tokio::task::spawn_blocking(|| machine::reset_machine_id()).await {
+        Ok(Ok(result)) => {
             println!("Machine ID reset: {}", result.machine_id);
             result.needs_admin
         }
-        Err(e) => {
+        Ok(Err(e)) => {
             eprintln!("Failed to reset machine/telemetry IDs: {}", e);
+            false
+        }
+        Err(e) => {
+            eprintln!("Failed to spawn blocking task: {}", e);
             false
         }
     };
@@ -210,9 +214,9 @@ pub async fn windsurf_switch_account(
     // 5. 注入 Token
     let db_path = db::get_db_path()?;
     if db_path.exists() {
-        // 备份数据库
-        if let Some(backup_path) = db_path.with_extension("vscdb.backup").to_str() {
-            let _ = std::fs::copy(&db_path, backup_path);
+        let backup_path = db_path.with_extension("vscdb.backup");
+        if let Err(e) = tokio::fs::copy(&db_path, &backup_path).await {
+            eprintln!("Failed to backup database: {}", e);
         }
     }
 
@@ -236,7 +240,7 @@ pub async fn windsurf_switch_account(
     storage::save_account(&app, &acc).await?;
 
     // 8. 获取自定义路径并启动 Windsurf
-    std::thread::sleep(std::time::Duration::from_secs(1));
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     use crate::core::path_manager::{WINDSURF_CONFIG, read_custom_path_from_config};
     let custom_path = read_custom_path_from_config(&app, &WINDSURF_CONFIG);
 

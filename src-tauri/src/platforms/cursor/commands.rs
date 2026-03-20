@@ -97,26 +97,32 @@ pub async fn cursor_switch_account(
 
     // 4. 机器码处理：根据选项决定使用绑定机器码还是随机生成
     let needs_admin = if use_bound_machine_id.unwrap_or(false) && acc.has_machine_info() {
-        // 使用账号绑定的机器码
-        let machine_info = acc.machine_info.as_ref().unwrap();
-        match machine::complete_reset_with_machine_info(custom_path.as_deref(), machine_info) {
-            Ok(result) => result.needs_admin,
-            Err(_) => false,
+        let machine_info = acc.machine_info.as_ref().unwrap().clone();
+        let cp = custom_path.clone();
+        match tokio::task::spawn_blocking(move || {
+            machine::complete_reset_with_machine_info(cp.as_deref(), &machine_info)
+        })
+        .await
+        {
+            Ok(Ok(result)) => result.needs_admin,
+            _ => false,
         }
     } else {
-        // 随机生成新的机器码
-        match machine::complete_reset(custom_path.as_deref()) {
-            Ok(result) => result.needs_admin,
-            Err(_) => false,
+        let cp = custom_path.clone();
+        match tokio::task::spawn_blocking(move || machine::complete_reset(cp.as_deref()))
+            .await
+        {
+            Ok(Ok(result)) => result.needs_admin,
+            _ => false,
         }
     };
 
     // 5. 注入 Token
     let db_path = db::get_db_path()?;
     if db_path.exists() {
-        // 备份数据库
-        if let Some(backup_path) = db_path.with_extension("vscdb.backup").to_str() {
-            let _ = std::fs::copy(&db_path, backup_path);
+        let backup_path = db_path.with_extension("vscdb.backup");
+        if let Err(e) = tokio::fs::copy(&db_path, &backup_path).await {
+            eprintln!("Failed to backup database: {}", e);
         }
     }
 
@@ -138,7 +144,7 @@ pub async fn cursor_switch_account(
     storage::save_account(&app, &acc).await?;
 
     // 8. 启动 Cursor（短暂等待确保文件写入完成）
-    std::thread::sleep(std::time::Duration::from_millis(100));
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
     process::launch_cursor_with_path(custom_path.as_deref())?;
 
     // 9. 后台刷新 access token（不阻塞主流程）
@@ -208,9 +214,9 @@ pub async fn cursor_generate_and_bind_machine_id(
     // 6. 写入 token 到数据库
     let db_path = db::get_db_path()?;
     if db_path.exists() {
-        // 备份数据库
-        if let Some(backup_path) = db_path.with_extension("vscdb.backup").to_str() {
-            let _ = std::fs::copy(&db_path, backup_path);
+        let backup_path = db_path.with_extension("vscdb.backup");
+        if let Err(e) = tokio::fs::copy(&db_path, &backup_path).await {
+            eprintln!("Failed to backup database: {}", e);
         }
     }
 
@@ -224,8 +230,11 @@ pub async fn cursor_generate_and_bind_machine_id(
     )?;
 
     // 7. 使用新机器码重置
-    let reset_result =
-        machine::complete_reset_with_machine_info(custom_path.as_deref(), &machine_info)?;
+    let reset_result = tokio::task::spawn_blocking(move || {
+        machine::complete_reset_with_machine_info(custom_path.as_deref(), &machine_info)
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))??;
 
     // 8. 更新为当前账号
     storage::set_current_account_id(&app, Some(account_id.clone())).await?;
