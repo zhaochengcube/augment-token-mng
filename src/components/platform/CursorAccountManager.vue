@@ -220,6 +220,30 @@
             </button>
           </div>
         </div>
+        <!-- 会员类型筛选 -->
+        <div v-if="Object.keys(membershipStatistics).length > 2" class="flex flex-col gap-2">
+          <span class="label">会员类型</span>
+          <div class="flex flex-wrap gap-2">
+            <button
+              :class="['btn btn--sm', selectedMembershipFilter === null ? 'btn--primary' : 'btn--secondary']"
+              @click="selectedMembershipFilter = null"
+            >
+              <span>{{ $t('platform.cursor.filter.all') }}</span>
+              <span class="ml-1 opacity-70">({{ membershipStatistics.total }})</span>
+            </button>
+            <button
+              v-for="(count, type) in membershipStatistics"
+              :key="type"
+              v-show="type !== 'total'"
+              :class="['btn btn--sm', selectedMembershipFilter === type ? 'btn--primary' : 'btn--secondary']"
+              @click="selectedMembershipFilter = type"
+            >
+              <span>{{ type }}</span>
+              <span class="ml-1 opacity-70">({{ count }})</span>
+            </button>
+          </div>
+        </div>
+
         <div v-if="allTags.length > 0" class="flex flex-col gap-2">
           <span class="label">{{ $t('platform.cursor.table.tag') }}</span>
           <div class="flex flex-wrap gap-2">
@@ -285,6 +309,9 @@
           <div class="flex items-center gap-2 flex-wrap">
             <button :class="['btn btn--sm', sortType === 'time' ? 'btn--primary' : 'btn--secondary']" @click="sortType = 'time'">
               {{ $t('common.sortByTime') }}
+            </button>
+            <button :class="['btn btn--sm', sortType === 'apiUsage' ? 'btn--primary' : 'btn--secondary']" @click="sortType = 'apiUsage'">
+              按额度
             </button>
           </div>
         </div>
@@ -536,6 +563,9 @@ const tagFilterMode = ref('include')
 const toolbarMode = ref('hidden')
 const toolbarSearchInputRef = ref(null)
 
+// 会员类型筛选
+const selectedMembershipFilter = ref(null)
+
 // 排序
 const sortType = ref('time')
 const sortOrder = ref('desc')
@@ -601,6 +631,16 @@ const noTagCount = computed(() => {
   return accounts.value.filter(a => !a.tag?.trim()).length
 })
 
+const membershipStatistics = computed(() => {
+  const stats = { total: accounts.value.length }
+  const counts = {}
+  accounts.value.forEach(a => {
+    const type = (a.membership_type || 'free').toLowerCase()
+    counts[type] = (counts[type] || 0) + 1
+  })
+  return { ...stats, ...counts }
+})
+
 const filteredAccounts = computed(() => {
   let result = accounts.value
 
@@ -618,6 +658,14 @@ const filteredAccounts = computed(() => {
         return !account.disabled
       }
       return true
+    })
+  }
+
+  // 会员类型筛选
+  if (selectedMembershipFilter.value) {
+    result = result.filter(account => {
+      const type = (account.membership_type || 'free').toLowerCase()
+      return type === selectedMembershipFilter.value
     })
   }
 
@@ -653,6 +701,12 @@ const filteredAccounts = computed(() => {
       const timeA = a.last_used || a.created_at || 0
       const timeB = b.last_used || b.created_at || 0
       return sortOrder.value === 'desc' ? timeB - timeA : timeA - timeB
+    } else if (sortType.value === 'apiUsage') {
+      const usageA = a.individual_usage?.plan?.apiPercentUsed
+      const usageB = b.individual_usage?.plan?.apiPercentUsed
+      const valA = usageA != null ? usageA : (sortOrder.value === 'desc' ? -1 : Infinity)
+      const valB = usageB != null ? usageB : (sortOrder.value === 'desc' ? -1 : Infinity)
+      return sortOrder.value === 'desc' ? valB - valA : valA - valB
     }
     return 0
   })
@@ -680,12 +734,13 @@ const shouldShowPagination = computed(() => !isLoading.value && accounts.value.l
 
 // 搜索/筛选/排序活跃状态
 const isSearchActive = computed(() => searchQuery.value.trim() !== '')
-const isFilterActive = computed(() => selectedStatusFilter.value !== null || selectedTags.value.size > 0)
+const isFilterActive = computed(() => selectedStatusFilter.value !== null || selectedMembershipFilter.value !== null || selectedTags.value.size > 0)
 const isSortNonDefault = computed(() => sortType.value !== 'time' || sortOrder.value !== 'desc')
 
 const clearAllFilters = () => {
   searchQuery.value = ''
   selectedStatusFilter.value = null
+  selectedMembershipFilter.value = null
   selectedTags.value = new Set()
   tagFilterMode.value = 'include'
   sortType.value = 'time'
@@ -1080,7 +1135,7 @@ const handleBatchExport = async () => {
   }
 }
 
-watch([searchQuery, selectedStatusFilter, selectedTags, tagFilterMode], () => {
+watch([searchQuery, selectedStatusFilter, selectedMembershipFilter, selectedTags, tagFilterMode], () => {
   currentPage.value = 1
 })
 

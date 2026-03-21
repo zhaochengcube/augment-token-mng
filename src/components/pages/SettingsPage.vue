@@ -9,7 +9,7 @@
     <!-- Page Body -->
     <div class="flex flex-1 flex-col gap-[26px] overflow-y-auto pb-6">
       <!-- Configuration Cards Grid -->
-      <div class="grid auto-rows-auto grid-cols-[repeat(auto-fit,minmax(290px,1fr))] gap-[18px] pt-1">
+      <div class="grid auto-rows-auto grid-cols-[repeat(auto-fit,minmax(290px,1fr))] gap-[18px] px-1 pt-2 pb-1">
         <div
           v-for="card in configCards"
           :key="card.id"

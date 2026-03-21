@@ -329,6 +329,14 @@ const syncPreferences = () => {
       locale.value = lang
     }
   } catch {}
+  try {
+    const savedFont = localStorage.getItem('user-font-sans')
+    if (savedFont) {
+      document.documentElement.style.setProperty('--font-sans', `"${savedFont}", system-ui, sans-serif`)
+    } else {
+      document.documentElement.style.removeProperty('--font-sans')
+    }
+  } catch {}
 }
 
 onMounted(async () => {

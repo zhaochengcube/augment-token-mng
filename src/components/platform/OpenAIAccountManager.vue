@@ -256,6 +256,30 @@
           </div>
         </div>
 
+        <!-- 套餐类型筛选 -->
+        <div v-if="Object.keys(planStatistics).length > 2" class="flex flex-col gap-2">
+          <span class="label">套餐类型</span>
+          <div class="flex flex-wrap gap-2">
+            <button
+              :class="['btn btn--sm', selectedPlanFilter === null ? 'btn--primary' : 'btn--secondary']"
+              @click="selectPlanFilter(null)"
+            >
+              <span>全部</span>
+              <span class="ml-1 opacity-70">({{ planStatistics.total }})</span>
+            </button>
+            <button
+              v-for="(count, type) in planStatistics"
+              :key="type"
+              v-show="type !== 'total'"
+              :class="['btn btn--sm', selectedPlanFilter === type ? 'btn--primary' : 'btn--secondary']"
+              @click="selectPlanFilter(type)"
+            >
+              <span>{{ type }}</span>
+              <span class="ml-1 opacity-70">({{ count }})</span>
+            </button>
+          </div>
+        </div>
+
         <!-- 状态筛选 -->
         <div class="flex flex-col gap-2">
           <span class="label">{{ $t('tokenList.filterByStatus') }}</span>
@@ -403,6 +427,15 @@
               @click="setSortType('email', sortOrder)"
             >
               按邮箱
+            </button>
+            <button
+              :class="[
+                'btn btn--sm',
+                sortType === 'quota' ? 'btn--primary' : 'btn--secondary'
+              ]"
+              @click="setSortType('quota', sortOrder)"
+            >
+              按配额
             </button>
           </div>
         </div>
@@ -636,6 +669,9 @@ const tagFilterMode = ref('include')
 const toolbarMode = ref('hidden')
 const toolbarSearchInputRef = ref(null)
 
+// 套餐类型筛选
+const selectedPlanFilter = ref(null)
+
 // 排序
 const sortType = ref('time')
 const sortOrder = ref('desc')
@@ -746,6 +782,27 @@ const statusStatistics = computed(() => {
   return stats
 })
 
+const getAccountPlanType = (account) => {
+  if (account.account_type === 'api') return 'api'
+  if (!account.openai_auth_json) return 'free'
+  try {
+    const authInfo = JSON.parse(account.openai_auth_json)
+    return (authInfo.chatgpt_plan_type || 'free').toLowerCase()
+  } catch {
+    return 'free'
+  }
+}
+
+const planStatistics = computed(() => {
+  const stats = { total: accounts.value.length }
+  const counts = {}
+  accounts.value.forEach(a => {
+    const plan = getAccountPlanType(a)
+    counts[plan] = (counts[plan] || 0) + 1
+  })
+  return { ...stats, ...counts }
+})
+
 // 类型统计
 const typeStatistics = computed(() => {
   const stats = {
@@ -783,6 +840,13 @@ const filteredAccounts = computed(() => {
         return account.account_type !== 'api'
       }
       return true
+    })
+  }
+
+  // 套餐类型筛选
+  if (selectedPlanFilter.value) {
+    result = result.filter(account => {
+      return getAccountPlanType(account) === selectedPlanFilter.value
     })
   }
 
@@ -840,6 +904,12 @@ const filteredAccounts = computed(() => {
       return sortOrder.value === 'desc'
         ? b.email.localeCompare(a.email)
         : a.email.localeCompare(b.email)
+    } else if (sortType.value === 'quota') {
+      const usedA = a.quota?.codex_5h_used_percent
+      const usedB = b.quota?.codex_5h_used_percent
+      const valA = usedA != null ? usedA : (sortOrder.value === 'desc' ? -1 : Infinity)
+      const valB = usedB != null ? usedB : (sortOrder.value === 'desc' ? -1 : Infinity)
+      return sortOrder.value === 'desc' ? valB - valA : valA - valB
     }
     return 0
   })
@@ -867,13 +937,14 @@ const shouldShowPagination = computed(() => !isLoading.value && accounts.value.l
 
 // 搜索/筛选/排序活跃状态
 const isSearchActive = computed(() => searchQuery.value.trim() !== '')
-const isFilterActive = computed(() => selectedStatusFilter.value !== null || selectedTypeFilter.value !== null || selectedTags.value.size > 0)
+const isFilterActive = computed(() => selectedStatusFilter.value !== null || selectedTypeFilter.value !== null || selectedPlanFilter.value !== null || selectedTags.value.size > 0)
 const isSortNonDefault = computed(() => sortType.value !== 'time' || sortOrder.value !== 'desc')
 
 const clearAllFilters = () => {
   searchQuery.value = ''
   selectedStatusFilter.value = null
   selectedTypeFilter.value = null
+  selectedPlanFilter.value = null
   selectedTags.value = new Set()
   tagFilterMode.value = 'include'
   sortType.value = 'time'
@@ -1103,6 +1174,11 @@ const selectTypeFilter = (filter) => {
   currentPage.value = 1
 }
 
+const selectPlanFilter = (filter) => {
+  selectedPlanFilter.value = filter
+  currentPage.value = 1
+}
+
 const setSortType = (type, order) => {
   sortType.value = type
   sortOrder.value = order
@@ -1321,7 +1397,7 @@ const handleAccountUpdated = async (updatedAccount) => {
 }
 
 // 监听搜索和筛选变化，重置分页
-watch([searchQuery, selectedStatusFilter, selectedTypeFilter, selectedTags, tagFilterMode], () => {
+watch([searchQuery, selectedStatusFilter, selectedTypeFilter, selectedPlanFilter, selectedTags, tagFilterMode], () => {
   currentPage.value = 1
 })
 
