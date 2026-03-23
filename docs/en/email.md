@@ -13,6 +13,7 @@ Generate, list, deactivate and clean up iCloud Hide My Email addresses (requires
 Outlook mailbox account management:
 
 - **Add accounts**: Manual import (email----Refresh Token----Client ID) or OAuth authorization; supports batch import.
+- **Azure app registration (OAuth)**: Add `http://localhost:8080` under **Mobile and desktop applications**.
 - **Token management**: Background automatic token refresh with manual bulk refresh and failed-retry support.
 - **Status checks**: Batch check account status (active / error / banned).
 - **Email viewing**: Click an account to view inbox messages (via Microsoft Graph API).

@@ -1,7 +1,9 @@
 use crate::AppState;
 use crate::http_client;
 use super::outlook_storage::OutlookStorage;
-use base64::Engine;
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+use rand::RngCore;
+use sha2::{Digest, Sha256};
 use imap::Session;
 use native_tls::TlsStream;
 use serde::{Deserialize, Serialize};
@@ -531,9 +533,33 @@ pub async fn outlook_refresh_all_tokens(
 
 // ==================== OAuth2 Authorization Code Flow ====================
 
-const OAUTH_CLIENT_ID: &str = "24d9a0ed-8787-4584-883c-2fd79308940a";
+const OAUTH_CLIENT_ID: Option<&str> = option_env!("ATM_OUTLOOK_CLIENT_ID");
 const OAUTH_REDIRECT_URI: &str = "http://localhost:8080";
 const OAUTH_SCOPES: &str = "offline_access https://graph.microsoft.com/Mail.Read https://graph.microsoft.com/Mail.ReadWrite https://graph.microsoft.com/User.Read";
+
+/// Single in-flight Outlook OAuth: CSRF `state` + PKCE `code_verifier` (RFC 7636).
+#[derive(Clone)]
+pub struct OutlookOAuthPending {
+    pub state: String,
+    pub code_verifier: String,
+}
+
+fn generate_pkce_verifier() -> String {
+    let mut rng = rand::thread_rng();
+    let mut bytes = [0u8; 32];
+    rng.fill_bytes(&mut bytes);
+    URL_SAFE_NO_PAD.encode(bytes)
+}
+
+fn pkce_challenge_s256(verifier: &str) -> String {
+    let digest = Sha256::digest(verifier.as_bytes());
+    URL_SAFE_NO_PAD.encode(digest)
+}
+
+#[tauri::command]
+pub fn outlook_oauth_available() -> bool {
+    OAUTH_CLIENT_ID.is_some()
+}
 
 #[derive(Serialize)]
 pub struct OAuthAuthUrl {
@@ -549,18 +575,44 @@ pub struct OAuthTokenResult {
     pub email: Option<String>,
 }
 
+fn resolve_oauth_client_id(custom_client_id: Option<String>) -> Result<String, String> {
+    custom_client_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .or(OAUTH_CLIENT_ID)
+        .map(String::from)
+        .ok_or_else(|| "OAUTH_CLIENT_ID_NOT_CONFIGURED".to_string())
+}
+
 #[tauri::command]
-pub async fn outlook_get_oauth_auth_url() -> Result<OAuthAuthUrl, String> {
+pub async fn outlook_get_oauth_auth_url(
+    custom_client_id: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<OAuthAuthUrl, String> {
+    let client_id = resolve_oauth_client_id(custom_client_id)?;
+
+    let oauth_state = uuid::Uuid::new_v4().simple().to_string();
+    let code_verifier = generate_pkce_verifier();
+    let code_challenge = pkce_challenge_s256(&code_verifier);
+
+    *state.outlook_oauth_pending.lock().unwrap() = Some(OutlookOAuthPending {
+        state: oauth_state.clone(),
+        code_verifier,
+    });
+
     let auth_url = format!(
-        "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id={}&response_type=code&redirect_uri={}&response_mode=query&scope={}&state=12345",
-        OAUTH_CLIENT_ID,
+        "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id={}&response_type=code&redirect_uri={}&response_mode=query&scope={}&state={}&code_challenge_method=S256&code_challenge={}",
+        client_id,
         urlencoding::encode(OAUTH_REDIRECT_URI),
         urlencoding::encode(OAUTH_SCOPES),
+        urlencoding::encode(&oauth_state),
+        urlencoding::encode(&code_challenge),
     );
 
     Ok(OAuthAuthUrl {
         auth_url,
-        client_id: OAUTH_CLIENT_ID.to_string(),
+        client_id,
         redirect_uri: OAUTH_REDIRECT_URI.to_string(),
     })
 }
@@ -568,28 +620,49 @@ pub async fn outlook_get_oauth_auth_url() -> Result<OAuthAuthUrl, String> {
 #[tauri::command]
 pub async fn outlook_exchange_oauth_token(
     redirected_url: String,
+    custom_client_id: Option<String>,
+    state: State<'_, AppState>,
 ) -> Result<OAuthTokenResult, String> {
-    // 从回调 URL 中提取 code
+    let client_id = resolve_oauth_client_id(custom_client_id)?;
+
     let url = url::Url::parse(&redirected_url)
-        .map_err(|e| format!("无法解析 URL: {}", e))?;
+        .map_err(|e| format!("Failed to parse URL: {}", e))?;
+
+    let returned_state = url
+        .query_pairs()
+        .find(|(k, _)| k == "state")
+        .map(|(_, v)| v.to_string());
+
+    let code_verifier = {
+        let mut pending_lock = state.outlook_oauth_pending.lock().unwrap();
+        let pending = pending_lock.take();
+        match (returned_state, pending) {
+            (None, _) => return Err("OAUTH_STATE_MISSING".to_string()),
+            (Some(_), None) => return Err("OAUTH_STATE_MISMATCH".to_string()),
+            (Some(got), Some(p)) if got != p.state => {
+                return Err("OAUTH_STATE_MISMATCH".to_string());
+            }
+            (Some(_), Some(p)) => p.code_verifier,
+        }
+    };
 
     let code = url
         .query_pairs()
         .find(|(k, _)| k == "code")
         .map(|(_, v)| v.to_string())
-        .ok_or_else(|| "URL 中未找到授权码 (code 参数)".to_string())?;
+        .ok_or_else(|| "Authorization code not found in URL".to_string())?;
 
-    // 用 code 换取 token
     let client = http_client::create_proxy_client()
-        .map_err(|e| format!("创建 HTTP 客户端失败: {}", e))?;
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
 
     let token_url = "https://login.microsoftonline.com/common/oauth2/v2.0/token";
     let params = [
-        ("client_id", OAUTH_CLIENT_ID),
-        ("code", &code),
+        ("client_id", client_id.as_str()),
+        ("code", code.as_str()),
         ("redirect_uri", OAUTH_REDIRECT_URI),
         ("grant_type", "authorization_code"),
         ("scope", OAUTH_SCOPES),
+        ("code_verifier", code_verifier.as_str()),
     ];
 
     let response = client
@@ -597,27 +670,26 @@ pub async fn outlook_exchange_oauth_token(
         .form(&params)
         .send()
         .await
-        .map_err(|e| format!("Token 请求失败: {}", e))?;
+        .map_err(|e| format!("Token request failed: {}", e))?;
 
     if !response.status().is_success() {
         let body = response.text().await.unwrap_or_default();
-        return Err(format!("获取令牌失败: {}", &body[..body.len().min(300)]));
+        return Err(format!("Token exchange failed: {}", &body[..body.len().min(300)]));
     }
 
     let token_data: serde_json::Value = response
         .json()
         .await
-        .map_err(|e| format!("解析 Token 响应失败: {}", e))?;
+        .map_err(|e| format!("Failed to parse token response: {}", e))?;
 
     let refresh_token = token_data["refresh_token"]
         .as_str()
-        .ok_or_else(|| "响应中未包含 refresh_token".to_string())?
+        .ok_or_else(|| "Response does not contain refresh_token".to_string())?
         .to_string();
 
-    // 尝试用 access_token 获取用户邮箱
     let email = if let Some(access_token) = token_data["access_token"].as_str() {
         let me_client = http_client::create_proxy_client()
-            .map_err(|e| format!("创建 HTTP 客户端失败: {}", e))?;
+            .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
         match me_client
             .get("https://graph.microsoft.com/v1.0/me")
             .header("Authorization", format!("Bearer {}", access_token))
@@ -638,7 +710,7 @@ pub async fn outlook_exchange_oauth_token(
 
     Ok(OAuthTokenResult {
         refresh_token,
-        client_id: OAUTH_CLIENT_ID.to_string(),
+        client_id,
         email,
     })
 }

@@ -102,6 +102,8 @@ pub struct AppState {
     pub codex_server_config: Arc<Mutex<Option<CodexServerConfig>>>,
     pub codex_log_storage: Arc<Mutex<Option<Arc<CodexLogStorage>>>>,
     pub proxy_config: Arc<Mutex<Option<crate::core::proxy_config::ProxyConfig>>>,
+    /// Outlook OAuth: CSRF state + PKCE code_verifier (see RFC 7636)
+    pub outlook_oauth_pending: Mutex<Option<outlook::OutlookOAuthPending>>,
 }
 
 pub fn run() {
@@ -174,6 +176,7 @@ pub fn run() {
                 codex_server_config: Arc::new(Mutex::new(None)),
                 codex_log_storage: Arc::new(Mutex::new(None)),
                 proxy_config: Arc::new(Mutex::new(None)),
+                outlook_oauth_pending: Mutex::new(None),
             };
 
             app.manage(app_state);
@@ -439,6 +442,7 @@ pub fn run() {
                         codex_server_config: state.codex_server_config.clone(),
                         codex_log_storage: state.codex_log_storage.clone(),
                         proxy_config: state.proxy_config.clone(),
+                        outlook_oauth_pending: Mutex::new(None),
                     }),
                     8766,
                 ).await {
@@ -762,6 +766,7 @@ pub fn run() {
             outlook::outlook_get_emails,
             outlook::outlook_get_email_details,
             outlook::outlook_refresh_all_tokens,
+            outlook::outlook_oauth_available,
             outlook::outlook_get_oauth_auth_url,
             outlook::outlook_exchange_oauth_token,
             outlook::outlook_delete_emails,

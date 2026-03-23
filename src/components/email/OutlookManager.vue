@@ -166,14 +166,14 @@
         class="px-4 py-2 text-sm font-semibold transition-colors"
         :class="addTab === 'manual' ? 'text-accent border-b-2 border-accent' : 'text-text-muted hover:text-text'"
       >
-        手动导入
+        {{ $t('outlookManager.oauth.tabManual') }}
       </button>
       <button
         @click="addTab = 'oauth'"
         class="px-4 py-2 text-sm font-semibold transition-colors"
         :class="addTab === 'oauth' ? 'text-accent border-b-2 border-accent' : 'text-text-muted hover:text-text'"
       >
-        OAuth 授权
+        {{ $t('outlookManager.oauth.tabOAuth') }}
       </button>
     </div>
 
@@ -203,22 +203,70 @@
 
     <!-- OAuth 授权 Tab -->
     <div v-if="addTab === 'oauth'">
+      <!-- Client ID 配置 -->
+      <div v-if="!isOAuthReady" class="space-y-4 mb-4">
+        <div class="flex items-start gap-3 rounded-lg border border-warning/30 bg-warning/10 p-4">
+          <svg class="mt-0.5 h-5 w-5 shrink-0 text-warning" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+          </svg>
+          <p class="text-[13px] leading-relaxed text-text-secondary flex-1">{{ $t('outlookManager.oauth.clientIdRequired') }}</p>
+          <button
+            @click="showClientIdHelp = true"
+            class="shrink-0 rounded p-1 text-text-muted hover:bg-accent/20 hover:text-accent transition-colors"
+            v-tooltip="$t('outlookManager.oauth.clientIdHelp')"
+          >
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>
+            </svg>
+          </button>
+        </div>
+        <div class="form-group">
+          <label class="label">Client ID:</label>
+          <div class="flex gap-2">
+            <input
+              v-model="customClientIdInput"
+              type="text"
+              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+              class="input font-mono text-sm flex-1"
+            />
+            <button
+              @click="saveCustomClientId"
+              :disabled="!customClientIdInput.trim()"
+              class="btn btn--primary btn--sm whitespace-nowrap"
+            >
+              {{ $t('outlookManager.oauth.save') }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 已配置自定义 Client ID 时的提示 -->
+      <div v-else-if="customClientId && !oauthAvailable" class="flex items-center justify-between rounded-lg bg-surface-alt p-3 mb-4">
+        <div class="flex items-center gap-2 text-sm text-text-secondary">
+          <svg class="h-4 w-4 text-accent" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
+          </svg>
+          <span>{{ $t('outlookManager.oauth.customClientId') }}: <code class="font-mono text-xs">{{ customClientId.slice(0, 8) }}...</code></span>
+        </div>
+        <button @click="clearCustomClientId" class="text-xs text-text-muted hover:text-danger transition-colors">{{ $t('outlookManager.oauth.clear') }}</button>
+      </div>
+
       <!-- Step 1: 生成授权链接 -->
-      <div v-if="oauthStep === 1" class="space-y-4">
-        <p class="text-sm text-text-muted">点击下方按钮生成微软授权链接，在浏览器中登录微软账号完成授权。</p>
+      <div v-if="isOAuthReady && oauthStep === 1" class="space-y-4">
+        <p class="text-sm text-text-muted">{{ $t('outlookManager.oauth.step1Desc') }}</p>
         <button
           @click="startOAuth"
           :disabled="isOAuthLoading"
           class="btn btn--primary w-full"
         >
           <span v-if="isOAuthLoading" class="btn-spinner" aria-hidden="true"></span>
-          {{ isOAuthLoading ? '生成中...' : '生成授权链接' }}
+          {{ isOAuthLoading ? $t('outlookManager.oauth.generating') : $t('outlookManager.oauth.generateAuthLink') }}
         </button>
       </div>
 
       <!-- Step 2: 用户去授权，粘贴回调 URL -->
       <div v-if="oauthStep === 2" class="space-y-4">
-        <p class="text-sm text-text-muted">请在浏览器中打开以下链接，登录微软账号并授权。授权完成后，将浏览器地址栏中的完整 URL 粘贴到下方。</p>
+        <p class="text-sm text-text-muted">{{ $t('outlookManager.oauth.step2Desc') }}</p>
         <div class="flex gap-2">
           <input
             :value="oauthAuthUrl"
@@ -226,27 +274,27 @@
             class="input text-xs font-mono flex-1"
           />
           <button @click="copyToClipboard(oauthAuthUrl)" class="btn btn--secondary btn--sm whitespace-nowrap">
-            复制链接
+            {{ $t('outlookManager.oauth.copyLink') }}
           </button>
         </div>
         <div class="form-group">
-          <label class="label">授权后的回调 URL:</label>
+          <label class="label">{{ $t('outlookManager.oauth.callbackUrlLabel') }}:</label>
           <input
             v-model="oauthRedirectedUrl"
             type="text"
-            placeholder="粘贴授权完成后浏览器地址栏中的完整 URL..."
+            :placeholder="$t('outlookManager.oauth.callbackUrlPlaceholder')"
             class="input font-mono text-sm"
           />
         </div>
         <div class="flex justify-between">
-          <button @click="oauthStep = 1" class="btn btn--secondary btn--sm">返回</button>
+          <button @click="oauthStep = 1" class="btn btn--secondary btn--sm">{{ $t('outlookManager.oauth.back') }}</button>
           <button
             @click="exchangeOAuthToken"
             :disabled="!oauthRedirectedUrl.trim() || isOAuthLoading"
             class="btn btn--primary"
           >
             <span v-if="isOAuthLoading" class="btn-spinner" aria-hidden="true"></span>
-            {{ isOAuthLoading ? '获取中...' : '获取 Token' }}
+            {{ isOAuthLoading ? $t('outlookManager.oauth.fetching') : $t('outlookManager.oauth.getToken') }}
           </button>
         </div>
       </div>
@@ -254,24 +302,24 @@
       <!-- Step 3: 成功获取 token，确认保存 -->
       <div v-if="oauthStep === 3" class="space-y-4">
         <div class="p-4 rounded-xl bg-green-500/10 border border-green-500/30">
-          <p class="text-sm text-green-400 font-semibold mb-2">✔ Token 获取成功</p>
+          <p class="text-sm text-green-400 font-semibold mb-2">✔ {{ $t('outlookManager.oauth.tokenSuccess') }}</p>
           <div v-if="oauthResult?.email" class="text-sm text-text">
-            邮箱: <span class="font-mono font-semibold">{{ oauthResult.email }}</span>
+            {{ $t('outlookManager.oauth.emailLabel') }}: <span class="font-mono font-semibold">{{ oauthResult.email }}</span>
           </div>
           <div v-else class="text-xs text-text-muted">
-            <label class="label">请输入邮箱地址:</label>
+            <label class="label">{{ $t('outlookManager.oauth.enterEmail') }}:</label>
             <input v-model="oauthManualEmail" type="text" placeholder="example@outlook.com" class="input text-sm mt-1" />
           </div>
         </div>
         <div class="flex justify-between">
-          <button @click="oauthStep = 1; oauthRedirectedUrl = ''" class="btn btn--secondary btn--sm">重新授权</button>
+          <button @click="oauthStep = 1; oauthRedirectedUrl = ''" class="btn btn--secondary btn--sm">{{ $t('outlookManager.oauth.reauth') }}</button>
           <button
             @click="saveOAuthAccount"
             :disabled="isOAuthLoading || (!oauthResult?.email && !oauthManualEmail.trim())"
             class="btn btn--primary"
           >
             <span v-if="isOAuthLoading" class="btn-spinner" aria-hidden="true"></span>
-            保存账户
+            {{ $t('outlookManager.oauth.saveAccount') }}
           </button>
         </div>
       </div>
@@ -284,6 +332,60 @@
     :email="selectedEmail"
     @close="showEmailViewer = false"
   />
+
+  <!-- Client ID 获取帮助弹窗 -->
+  <BaseModal
+    :visible="showClientIdHelp"
+    :title="$t('outlookManager.oauth.helpTitle')"
+    :show-close="true"
+    close-on-overlay
+    close-on-esc
+    modal-class="max-w-[560px]"
+    @close="showClientIdHelp = false"
+  >
+    <div class="space-y-4 text-sm text-text-secondary leading-relaxed">
+      <div class="space-y-3">
+        <div class="flex gap-3">
+          <span class="shrink-0 flex h-6 w-6 items-center justify-center rounded-full bg-accent/15 text-xs font-bold text-accent">1</span>
+          <p>{{ $t('outlookManager.oauth.helpStep1Before') }}<a href="#" @click.prevent="openExternalUrl('https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps/ApplicationsListBlade')" class="text-accent hover:underline font-medium cursor-pointer">Azure Portal</a>{{ $t('outlookManager.oauth.helpStep1After') }}</p>
+        </div>
+        <div class="flex gap-3">
+          <span class="shrink-0 flex h-6 w-6 items-center justify-center rounded-full bg-accent/15 text-xs font-bold text-accent">2</span>
+          <div>
+            <p>{{ $t('outlookManager.oauth.helpStep2Title') }}</p>
+            <ul class="mt-1 ml-4 list-disc text-text-muted space-y-0.5">
+              <li>{{ $t('outlookManager.oauth.helpStep2Name') }} <code class="text-xs bg-surface-alt px-1 rounded">ATM-Outlook</code></li>
+              <li>{{ $t('outlookManager.oauth.helpStep2AccountType') }}</li>
+              <li>{{ $t('outlookManager.oauth.helpStep2RedirectUri') }} <code class="text-xs bg-surface-alt px-1 rounded">http://localhost:8080</code></li>
+            </ul>
+          </div>
+        </div>
+        <div class="flex gap-3">
+          <span class="shrink-0 flex h-6 w-6 items-center justify-center rounded-full bg-accent/15 text-xs font-bold text-accent">3</span>
+          <p>{{ $t('outlookManager.oauth.helpStep3') }}</p>
+        </div>
+        <div class="flex gap-3">
+          <span class="shrink-0 flex h-6 w-6 items-center justify-center rounded-full bg-accent/15 text-xs font-bold text-accent">4</span>
+          <div>
+            <p>{{ $t('outlookManager.oauth.helpStep4') }}</p>
+            <div class="mt-1 flex flex-wrap gap-1.5">
+              <code class="text-xs bg-surface-alt px-1.5 py-0.5 rounded">Mail.Read</code>
+              <code class="text-xs bg-surface-alt px-1.5 py-0.5 rounded">Mail.ReadWrite</code>
+              <code class="text-xs bg-surface-alt px-1.5 py-0.5 rounded">User.Read</code>
+              <code class="text-xs bg-surface-alt px-1.5 py-0.5 rounded">offline_access</code>
+            </div>
+          </div>
+        </div>
+        <div class="flex gap-3">
+          <span class="shrink-0 flex h-6 w-6 items-center justify-center rounded-full bg-accent/15 text-xs font-bold text-accent">5</span>
+          <p>{{ $t('outlookManager.oauth.helpStep5') }}</p>
+        </div>
+      </div>
+    </div>
+    <template #footer>
+      <button @click="showClientIdHelp = false" class="btn btn--primary">{{ $t('outlookManager.oauth.gotIt') }}</button>
+    </template>
+  </BaseModal>
 </template>
 
 <script setup>
@@ -325,6 +427,11 @@ const accountPage = ref(1)
 const accountPageSize = 20
 
 // OAuth 状态
+const oauthAvailable = ref(false)
+const customClientId = ref(localStorage.getItem('outlook_oauth_client_id') || '')
+const customClientIdInput = ref(customClientId.value)
+const showClientIdHelp = ref(false)
+const isOAuthReady = computed(() => oauthAvailable.value || !!customClientId.value)
 const oauthStep = ref(1)
 const oauthAuthUrl = ref('')
 const oauthRedirectedUrl = ref('')
@@ -509,15 +616,50 @@ const viewEmails = (email) => {
   showEmailViewer.value = true
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 // OAuth 方法
+const saveCustomClientId = () => {
+  const id = customClientIdInput.value.trim()
+  if (!id) return
+  if (!UUID_RE.test(id)) {
+    showStatus(t('outlookManager.oauth.invalidClientId'), 'error')
+    return
+  }
+  customClientId.value = id
+  localStorage.setItem('outlook_oauth_client_id', id)
+}
+
+const clearCustomClientId = () => {
+  customClientId.value = ''
+  customClientIdInput.value = ''
+  localStorage.removeItem('outlook_oauth_client_id')
+  oauthStep.value = 1
+}
+
+const handleOAuthError = (error, fallbackKey) => {
+  const msg = String(error)
+  if (msg.includes('OAUTH_CLIENT_ID_NOT_CONFIGURED')) {
+    showStatus(t('outlookManager.oauth.clientIdNotConfigured'), 'error')
+  } else if (msg.includes('OAUTH_STATE_MISMATCH')) {
+    showStatus(t('outlookManager.oauth.oauthStateMismatch'), 'error')
+  } else if (msg.includes('OAUTH_STATE_MISSING')) {
+    showStatus(t('outlookManager.oauth.oauthStateMissing'), 'error')
+  } else {
+    showStatus(t(fallbackKey, { error: msg }), 'error')
+  }
+}
+
 const startOAuth = async () => {
   isOAuthLoading.value = true
   try {
-    const result = await invoke('outlook_get_oauth_auth_url')
+    const result = await invoke('outlook_get_oauth_auth_url', {
+      customClientId: customClientId.value || null
+    })
     oauthAuthUrl.value = result.auth_url
     oauthStep.value = 2
   } catch (error) {
-    showStatus(`生成授权链接失败: ${error}`, 'error')
+    handleOAuthError(error, 'outlookManager.oauth.generateFailed')
   } finally {
     isOAuthLoading.value = false
   }
@@ -527,13 +669,14 @@ const exchangeOAuthToken = async () => {
   isOAuthLoading.value = true
   try {
     const result = await invoke('outlook_exchange_oauth_token', {
-      redirectedUrl: oauthRedirectedUrl.value.trim()
+      redirectedUrl: oauthRedirectedUrl.value.trim(),
+      customClientId: customClientId.value || null
     })
     oauthResult.value = result
     oauthManualEmail.value = ''
     oauthStep.value = 3
   } catch (error) {
-    showStatus(`获取 Token 失败: ${error}`, 'error')
+    handleOAuthError(error, 'outlookManager.oauth.fetchTokenFailed')
   } finally {
     isOAuthLoading.value = false
   }
@@ -543,7 +686,7 @@ const saveOAuthAccount = async () => {
   isOAuthLoading.value = true
   try {
     const email = oauthResult.value?.email || oauthManualEmail.value.trim()
-    if (!email) throw new Error('请输入邮箱地址')
+    if (!email) throw new Error(t('outlookManager.oauth.enterEmail'))
 
     await invoke('outlook_save_credentials', {
       email,
@@ -556,11 +699,19 @@ const saveOAuthAccount = async () => {
     oauthStep.value = 1
     oauthRedirectedUrl.value = ''
     oauthResult.value = null
-    showStatus(`账号 ${email} 添加成功`, 'success')
+    showStatus(t('outlookManager.oauth.addSuccess', { email }), 'success')
   } catch (error) {
-    showStatus(`保存失败: ${error}`, 'error')
+    showStatus(t('outlookManager.oauth.saveFailed', { error }), 'error')
   } finally {
     isOAuthLoading.value = false
+  }
+}
+
+const openExternalUrl = async (url) => {
+  try {
+    await invoke('open_url', { url })
+  } catch (error) {
+    console.error('Failed to open URL:', error)
   }
 }
 
@@ -690,5 +841,10 @@ const loadPersistedStatuses = async () => {
 onMounted(async () => {
   await refreshAccounts()
   await loadPersistedStatuses()
+  try {
+    oauthAvailable.value = await invoke('outlook_oauth_available')
+  } catch {
+    oauthAvailable.value = false
+  }
 })
 </script>

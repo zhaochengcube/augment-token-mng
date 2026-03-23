@@ -44,6 +44,7 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ATM_OUTLOOK_CLIENT_ID: ${{ secrets.ATM_OUTLOOK_CLIENT_ID }}
         with:
           args: --verbose
 
@@ -88,6 +89,7 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ATM_OUTLOOK_CLIENT_ID: ${{ secrets.ATM_OUTLOOK_CLIENT_ID }}
         with:
           args: --verbose --target x86_64-apple-darwin
 
@@ -132,6 +134,7 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ATM_OUTLOOK_CLIENT_ID: ${{ secrets.ATM_OUTLOOK_CLIENT_ID }}
         with:
           args: --verbose --target aarch64-apple-darwin
 
@@ -192,6 +195,7 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ATM_OUTLOOK_CLIENT_ID: ${{ secrets.ATM_OUTLOOK_CLIENT_ID }}
         with:
           args: --verbose --target x86_64-unknown-linux-gnu
 
