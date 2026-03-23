@@ -510,6 +510,17 @@
           </svg>
         </button>
 
+        <!-- 批量导出 -->
+        <button
+          @click="handleBatchExport"
+          class="btn btn--icon btn--ghost"
+          v-tooltip="$t('accountCard.batchExport')"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+          </svg>
+        </button>
+
         <!-- 批量编辑标签 -->
         <button
           @click="showBatchTagEditor = true"
@@ -587,7 +598,7 @@
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
-import { downloadDir } from '@tauri-apps/api/path'
+
 import { useI18n } from 'vue-i18n'
 import AccountCard from '../openai/AccountCard.vue'
 import AccountTableRow from '../openai/AccountTableRow.vue'
@@ -1189,6 +1200,14 @@ const toggleViewMode = () => {
   currentPage.value = 1
 }
 
+const sanitizeFileName = (name) => {
+  const sanitized = name
+    .replace(/[<>:"/\\|?*]/g, '_')
+    .replace(/[\x00-\x1f\x7f]/g, '')
+    .trim()
+  return sanitized || null
+}
+
 // 导出账号
 const exportAccounts = async () => {
   try {
@@ -1203,11 +1222,41 @@ const exportAccounts = async () => {
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
 
-    // 获取下载文件夹路径
-    const downloadsPath = await downloadDir()
-    window.$notify.success($t('platform.openai.exportSuccess') + '\n' + $t('platform.openai.fileSavedIn', { path: downloadsPath }))
+    window.$notify.success($t('platform.openai.exportSuccess') + '\n' + $t('platform.openai.exportSavedHint'))
   } catch (error) {
     console.error('Export failed:', error)
+    window.$notify.error($t('platform.openai.exportFailed'))
+  }
+}
+
+// 批量导出选中账号
+const handleBatchExport = async () => {
+  if (selectedAccountIds.value.size === 0) return
+
+  try {
+    const selected = accounts.value.filter(a => selectedAccountIds.value.has(a.id))
+    const dataStr = JSON.stringify(selected, null, 2)
+    const dataBlob = new Blob([dataStr], { type: 'application/json' })
+    const url = URL.createObjectURL(dataBlob)
+    const link = document.createElement('a')
+    link.href = url
+    const dateSuffix = new Date().toISOString().split('T')[0]
+    let fileName
+    if (selected.length === 1 && selected[0].email) {
+      const safeName = sanitizeFileName(selected[0].email)
+      fileName = safeName ? `openai_${safeName}.json` : `openai-accounts-${dateSuffix}.json`
+    } else {
+      fileName = `openai-accounts-${selected.length}-${dateSuffix}.json`
+    }
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+    window.$notify.success($t('platform.openai.exportSuccess') + '\n' + $t('platform.openai.exportSavedHint'))
+  } catch (error) {
+    console.error('Batch export failed:', error)
     window.$notify.error($t('platform.openai.exportFailed'))
   }
 }

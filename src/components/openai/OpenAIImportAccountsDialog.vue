@@ -216,6 +216,19 @@ const formatExampleJson = `// 格式 1：Refresh Token 数组
     "refresh_token": "rt_...",
     ...
   }
+]
+
+// 格式 4：ATM 导出格式
+[
+  {
+    "email": "user@example.com",
+    "token": {
+      "access_token": "eyJ...",
+      "refresh_token": "rt_...",
+      "id_token": "eyJ..."
+    },
+    ...
+  }
 ]`
 
 const fileName = ref('')
@@ -227,6 +240,25 @@ const fileInputRef = ref(null)
 
 const isCpaObject = (item) => {
   return item && typeof item === 'object' && typeof item.access_token === 'string'
+}
+
+const isAtmInternalObject = (item) => {
+  return item && typeof item === 'object' && item.token && typeof item.token.access_token === 'string'
+}
+
+const normalizeToCpa = (item) => {
+  if (isCpaObject(item)) return item
+  if (isAtmInternalObject(item)) {
+    if (item.account_type === 'api') return null
+    return {
+      email: item.email || '',
+      account_id: item.chatgpt_account_id || item.account_id || null,
+      access_token: item.token.access_token,
+      refresh_token: item.token.refresh_token || null,
+      id_token: item.token.id_token || null
+    }
+  }
+  return null
 }
 
 const handleClose = () => {
@@ -257,22 +289,28 @@ const handleFileChange = async (event) => {
       for (const entry of data) {
         if (typeof entry === 'string' && entry.trim().length > 0) {
           items.push({ type: 'rt', value: entry.trim() })
-        } else if (isCpaObject(entry)) {
-          items.push({
-            type: 'cpa',
-            email: entry.email || '',
-            data: entry
-          })
+        } else {
+          const normalized = normalizeToCpa(entry)
+          if (normalized) {
+            items.push({
+              type: 'cpa',
+              email: normalized.email || '',
+              data: normalized
+            })
+          }
         }
       }
-    } else if (isCpaObject(data)) {
-      items.push({
-        type: 'cpa',
-        email: data.email || '',
-        data: data
-      })
-    } else if (typeof data === 'string' && data.trim().length > 0) {
-      items.push({ type: 'rt', value: data.trim() })
+    } else {
+      const normalized = normalizeToCpa(data)
+      if (normalized) {
+        items.push({
+          type: 'cpa',
+          email: normalized.email || '',
+          data: normalized
+        })
+      } else if (typeof data === 'string' && data.trim().length > 0) {
+        items.push({ type: 'rt', value: data.trim() })
+      }
     }
 
     if (items.length === 0) {
