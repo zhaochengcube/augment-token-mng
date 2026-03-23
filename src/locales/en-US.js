@@ -1257,8 +1257,7 @@ export default {
         addFailed: 'Failed to add account',
         deleteSuccess: 'Account deleted',
         loginFailed: 'Login failed',
-        noSelection: 'Please select account first',
-        adminRequired: 'Some machine ID reset requires admin privileges. Please run as administrator for complete reset.'
+        noSelection: 'Please select account first'
       },
       sortByQuota: 'Sort by Quota',
       syncQueueTitle: 'Windsurf Sync Queue',
@@ -1539,7 +1538,6 @@ export default {
         deleteFailed: 'Delete failed: {error}',
         batchDeleteConfirm: 'Are you sure you want to delete {count} selected accounts?',
         noSelection: 'Please select accounts to operate',
-        adminRequired: 'Some machine ID reset requires admin privileges. Please run as administrator for complete reset.',
         importSuccess: 'Successfully imported {count} accounts'
       },
       batchRefresh: 'Batch refresh quota',

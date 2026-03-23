@@ -16,7 +16,6 @@ pub struct AccountListResponse {
 #[derive(Serialize)]
 pub struct SwitchAccountResponse {
     pub message: String,
-    pub needs_admin: bool,
 }
 
 /// 使用邮箱密码登录
@@ -196,20 +195,17 @@ pub async fn windsurf_switch_account(
     }
 
     // 4.1 重置遥测数据（失败不阻断切号）
-    let needs_admin = match tokio::task::spawn_blocking(|| machine::reset_machine_id()).await {
+    match tokio::task::spawn_blocking(|| machine::reset_machine_id()).await {
         Ok(Ok(result)) => {
             println!("Machine ID reset: {}", result.machine_id);
-            result.needs_admin
         }
         Ok(Err(e)) => {
             eprintln!("Failed to reset machine/telemetry IDs: {}", e);
-            false
         }
         Err(e) => {
             eprintln!("Failed to spawn blocking task: {}", e);
-            false
         }
-    };
+    }
 
     // 5. 注入 Token
     let db_path = db::get_db_path()?;
@@ -248,7 +244,6 @@ pub async fn windsurf_switch_account(
 
     Ok(SwitchAccountResponse {
         message: format!("Account switched and Windsurf started: {}", acc.email),
-        needs_admin,
     })
 }
 

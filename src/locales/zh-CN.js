@@ -1260,8 +1260,7 @@ export default {
         addFailed: '添加账号失败',
         deleteSuccess: '账号删除成功',
         loginFailed: '登录失败',
-        noSelection: '请先选择账号',
-        adminRequired: '部分机器码重置需要管理员权限，请以管理员身份运行程序以完整重置'
+        noSelection: '请先选择账号'
       },
       sortByQuota: '按配额排序',
       syncQueueTitle: 'Windsurf 同步队列',
@@ -1532,7 +1531,6 @@ export default {
         deleteFailed: '删除失败: {error}',
         batchDeleteConfirm: '确定要删除选中的 {count} 个账号吗？',
         noSelection: '请先选择要操作的账号',
-        adminRequired: '部分机器码重置需要管理员权限，请以管理员身份运行程序以完整重置',
         importSuccess: '成功导入 {count} 个账号'
       },
       batchRefresh: '批量刷新配额',

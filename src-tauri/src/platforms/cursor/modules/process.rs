@@ -22,8 +22,19 @@ fn is_helper_process(name: &str, args: &str) -> bool {
 
 fn is_cursor_process(process: &sysinfo::Process) -> bool {
     let name = process.name().to_string_lossy().to_lowercase();
-    if name.contains("cursor") && !name.contains("cursorfx") {
-        return true;
+
+    #[cfg(not(target_os = "linux"))]
+    {
+        if name.contains("cursor") && !name.contains("cursorfx") {
+            return true;
+        }
+    }
+    #[cfg(target_os = "linux")]
+    {
+        // 避免匹配 xcursor-* 等无关进程；Electron 主/子进程名通常为 cursor
+        if name == "cursor" {
+            return true;
+        }
     }
 
     let exe_path = process
@@ -34,7 +45,7 @@ fn is_cursor_process(process: &sysinfo::Process) -> bool {
 
     #[cfg(target_os = "macos")]
     {
-        return exe_path.contains("cursor.app");
+        return exe_path.contains("/cursor.app/");
     }
 
     #[cfg(target_os = "windows")]
@@ -44,14 +55,29 @@ fn is_cursor_process(process: &sysinfo::Process) -> bool {
 
     #[cfg(target_os = "linux")]
     {
-        return exe_path.contains("/cursor");
+        std::path::Path::new(&exe_path)
+            .file_name()
+            .and_then(|s| s.to_str())
+            .map(|f| f.eq_ignore_ascii_case("cursor"))
+            .unwrap_or(false)
     }
 }
 
-fn get_cursor_pids() -> Vec<u32> {
-    let mut sys = System::new();
+fn refresh_processes_all(sys: &mut System) {
     sys.refresh_processes_specifics(ProcessesToUpdate::All, true, ProcessRefreshKind::new());
+}
 
+fn any_cursor_process(sys: &System) -> bool {
+    sys.processes().values().any(is_cursor_process)
+}
+
+/// 刷新进程表后判断 Cursor 是否仍在运行（复用 `System`，避免反复 `System::new()`）
+fn cursor_still_running(sys: &mut System) -> bool {
+    refresh_processes_all(sys);
+    any_cursor_process(sys)
+}
+
+fn collect_cursor_pids(sys: &System) -> Vec<u32> {
     let mut pids = Vec::new();
     for (pid, process) in sys.processes() {
         if is_cursor_process(process) {
@@ -61,13 +87,16 @@ fn get_cursor_pids() -> Vec<u32> {
     pids
 }
 
+fn get_cursor_pids_with_sys(sys: &mut System) -> Vec<u32> {
+    refresh_processes_all(sys);
+    collect_cursor_pids(sys)
+}
+
 /// 检查 Cursor 是否正在运行
 /// 包括主进程和所有 helper 进程，只要有任何一个在运行就返回 true
 pub fn is_cursor_running() -> bool {
     let mut sys = System::new();
-    sys.refresh_processes_specifics(ProcessesToUpdate::All, true, ProcessRefreshKind::new());
-
-    sys.processes().values().any(is_cursor_process)
+    cursor_still_running(&mut sys)
 }
 
 /// 进程关闭结果
@@ -91,7 +120,8 @@ pub fn close_cursor(timeout_secs: u64) -> Result<(), String> {
 pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
     #[cfg(target_os = "macos")]
     {
-        let pids = get_cursor_pids();
+        let mut sys = System::new();
+        let pids = get_cursor_pids_with_sys(&mut sys);
         if pids.is_empty() {
             return CloseResult {
                 success: true,
@@ -108,7 +138,7 @@ pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
         let quit_wait = std::cmp::min(timeout_secs * 3 / 10, 5);
         let start_quit = std::time::Instant::now();
         while start_quit.elapsed() < std::time::Duration::from_secs(quit_wait) {
-            if !is_cursor_running() {
+            if !cursor_still_running(&mut sys) {
                 return CloseResult {
                     success: true,
                     warning: None,
@@ -117,12 +147,12 @@ pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
             std::thread::sleep(std::time::Duration::from_millis(100));
         }
 
-        // 如果还在运行，发送 SIGTERM
-        let mut sys = System::new();
-        sys.refresh_processes_specifics(ProcessesToUpdate::All, true, ProcessRefreshKind::new());
+        // 如果还在运行，发送 SIGTERM（复用同一 System，用刷新后的 PID）
+        refresh_processes_all(&mut sys);
+        let current_pids = collect_cursor_pids(&sys);
 
         let mut main_pid: Option<u32> = None;
-        for pid_u32 in &pids {
+        for pid_u32 in &current_pids {
             let pid = sysinfo::Pid::from_u32(*pid_u32);
             if let Some(process) = sys.process(pid) {
                 let name = process.name().to_string_lossy();
@@ -145,7 +175,7 @@ pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
                 .args(["-15", &pid.to_string()])
                 .output();
         } else {
-            for pid in &pids {
+            for pid in &current_pids {
                 let _ = Command::new("kill")
                     .args(["-15", &pid.to_string()])
                     .output();
@@ -156,7 +186,7 @@ pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
         let sigterm_wait = std::cmp::min((timeout_secs * 4) / 10, 5);
         let start = std::time::Instant::now();
         while start.elapsed() < std::time::Duration::from_secs(sigterm_wait) {
-            if !is_cursor_running() {
+            if !cursor_still_running(&mut sys) {
                 return CloseResult {
                     success: true,
                     warning: None,
@@ -169,24 +199,22 @@ pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
         let mut attempts = 0;
         let max_attempts = 3;
 
-        while is_cursor_running() && attempts < max_attempts {
-            let remaining = get_cursor_pids();
-            if remaining.is_empty() {
+        while attempts < max_attempts {
+            refresh_processes_all(&mut sys);
+            if !any_cursor_process(&sys) {
                 break;
             }
-
+            let remaining = collect_cursor_pids(&sys);
             for pid in remaining {
                 let _ = Command::new("kill").args(["-9", &pid.to_string()]).output();
             }
 
             attempts += 1;
-
-            // 每次尝试后等待并重新检查
             std::thread::sleep(std::time::Duration::from_millis(300));
         }
 
         // 最终验证
-        if is_cursor_running() {
+        if cursor_still_running(&mut sys) {
             return CloseResult {
                 success: false,
                 warning: Some("Cursor process still running after forced kill".to_string()),
@@ -201,7 +229,8 @@ pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
 
     #[cfg(target_os = "windows")]
     {
-        let pids = get_cursor_pids();
+        let mut sys = System::new();
+        let pids = get_cursor_pids_with_sys(&mut sys);
         if pids.is_empty() {
             return CloseResult {
                 success: true,
@@ -218,7 +247,7 @@ pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
         let graceful_wait = std::cmp::min((timeout_secs * 7) / 10, 5);
         let start = std::time::Instant::now();
         while start.elapsed() < std::time::Duration::from_secs(graceful_wait) {
-            if !is_cursor_running() {
+            if !cursor_still_running(&mut sys) {
                 return CloseResult {
                     success: true,
                     warning: None,
@@ -231,7 +260,11 @@ pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
         let mut attempts = 0;
         let max_attempts = 3;
 
-        while is_cursor_running() && attempts < max_attempts {
+        while attempts < max_attempts {
+            refresh_processes_all(&mut sys);
+            if !any_cursor_process(&sys) {
+                break;
+            }
             let _ = Command::new("taskkill")
                 .args(["/F", "/T", "/IM", "Cursor.exe"])
                 .output();
@@ -241,7 +274,7 @@ pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
         }
 
         // 最终验证
-        if is_cursor_running() {
+        if cursor_still_running(&mut sys) {
             return CloseResult {
                 success: false,
                 warning: Some("Cursor process still running after forced kill".to_string()),
@@ -256,7 +289,8 @@ pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
 
     #[cfg(target_os = "linux")]
     {
-        let pids = get_cursor_pids();
+        let mut sys = System::new();
+        let pids = get_cursor_pids_with_sys(&mut sys);
         if pids.is_empty() {
             return CloseResult {
                 success: true,
@@ -275,7 +309,7 @@ pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
         let graceful_timeout = std::cmp::min((timeout_secs * 7) / 10, 5);
         let start = std::time::Instant::now();
         while start.elapsed() < std::time::Duration::from_secs(graceful_timeout) {
-            if !is_cursor_running() {
+            if !cursor_still_running(&mut sys) {
                 return CloseResult {
                     success: true,
                     warning: None,
@@ -288,24 +322,22 @@ pub fn close_cursor_with_result(timeout_secs: u64) -> CloseResult {
         let mut attempts = 0;
         let max_attempts = 3;
 
-        while is_cursor_running() && attempts < max_attempts {
-            let remaining = get_cursor_pids();
-            if remaining.is_empty() {
+        while attempts < max_attempts {
+            refresh_processes_all(&mut sys);
+            if !any_cursor_process(&sys) {
                 break;
             }
-
+            let remaining = collect_cursor_pids(&sys);
             for pid in remaining {
                 let _ = Command::new("kill").args(["-9", &pid.to_string()]).output();
             }
 
             attempts += 1;
-
-            // 每次尝试后等待并重新检查
             std::thread::sleep(std::time::Duration::from_millis(300));
         }
 
         // 最终验证
-        if is_cursor_running() {
+        if cursor_still_running(&mut sys) {
             return CloseResult {
                 success: false,
                 warning: Some("Cursor process still running after forced kill".to_string()),
@@ -502,8 +534,7 @@ pub fn validate_cursor_path(path: &str) -> Result<bool, String> {
         let file_name = path_buf
             .file_name()
             .and_then(|n| n.to_str())
-            .unwrap_or("")
-            .to_lowercase();
-        return Ok(file_name.contains("cursor"));
+            .unwrap_or("");
+        return Ok(file_name.eq_ignore_ascii_case("cursor"));
     }
 }

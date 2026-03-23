@@ -71,7 +71,6 @@ pub fn write_cursor_auth_state(
     access_token: &str,
     refresh_token: &str,
     email: &str,
-    _user_id: &str,
 ) -> Result<(), String> {
     println!("Writing auth state to database: {}", db_path.display());
 

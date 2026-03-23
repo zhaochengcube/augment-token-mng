@@ -49,7 +49,6 @@ pub struct AccountListResponse {
 #[derive(Serialize)]
 pub struct SwitchAccountResponse {
     pub message: String,
-    pub needs_admin: bool,
 }
 
 /// 列出所有账号
@@ -85,37 +84,30 @@ pub async fn cursor_switch_account(
     // 1. 加载账号
     let mut acc = storage::load_account(&app, &account_id).await?;
 
-    // 2. 检查 Cursor 是否运行并关闭
-    // close_cursor 内部已经有完整的等待和验证逻辑，无需额外轮询
-    if process::is_cursor_running() {
-        process::close_cursor(5)?; // 减少超时时间，5秒足够
-    }
+    // 2. 关闭 Cursor（若未运行则 close_cursor 立即成功，避免多余的进程全表扫描）
+    tokio::task::spawn_blocking(|| process::close_cursor(5))
+        .await
+        .map_err(|e| format!("Close Cursor task failed: {}", e))??;
 
     // 3. 获取自定义路径用于 JS 修改
     use crate::core::path_manager::{CURSOR_CONFIG, read_custom_path_from_config};
     let custom_path = read_custom_path_from_config(&app, &CURSOR_CONFIG);
 
     // 4. 机器码处理：根据选项决定使用绑定机器码还是随机生成
-    let needs_admin = if use_bound_machine_id.unwrap_or(false) && acc.has_machine_info() {
+    if use_bound_machine_id.unwrap_or(false) && acc.has_machine_info() {
         let machine_info = acc.machine_info.as_ref().unwrap().clone();
         let cp = custom_path.clone();
-        match tokio::task::spawn_blocking(move || {
+        tokio::task::spawn_blocking(move || {
             machine::complete_reset_with_machine_info(cp.as_deref(), &machine_info)
         })
         .await
-        {
-            Ok(Ok(result)) => result.needs_admin,
-            _ => false,
-        }
+        .map_err(|e| format!("Machine ID reset task failed: {}", e))??;
     } else {
         let cp = custom_path.clone();
-        match tokio::task::spawn_blocking(move || machine::complete_reset(cp.as_deref()))
+        tokio::task::spawn_blocking(move || machine::complete_reset(cp.as_deref()))
             .await
-        {
-            Ok(Ok(result)) => result.needs_admin,
-            _ => false,
-        }
-    };
+            .map_err(|e| format!("Machine ID reset task failed: {}", e))??;
+    }
 
     // 5. 注入 Token
     let db_path = db::get_db_path()?;
@@ -127,13 +119,11 @@ pub async fn cursor_switch_account(
     }
 
     // 写入 Cursor 认证状态
-    let user_id = acc.token.user_id.clone().unwrap_or_else(|| acc.id.clone());
     db::write_cursor_auth_state(
         &db_path,
         &acc.token.access_token,
         &acc.token.refresh_token,
         &acc.email,
-        &user_id,
     )?;
 
     // 6. 更新当前账号
@@ -170,7 +160,6 @@ pub async fn cursor_switch_account(
 
     Ok(SwitchAccountResponse {
         message: format!("Account switched and Cursor started: {}", acc.email),
-        needs_admin,
     })
 }
 
@@ -202,10 +191,10 @@ pub async fn cursor_generate_and_bind_machine_id(
     acc.machine_info = Some(machine_info.clone());
     storage::save_account(&app, &acc).await?;
 
-    // 4. 关闭 Cursor
-    if process::is_cursor_running() {
-        process::close_cursor(5)?;
-    }
+    // 4. 关闭 Cursor（未运行时立即返回成功）
+    tokio::task::spawn_blocking(|| process::close_cursor(5))
+        .await
+        .map_err(|e| format!("Close Cursor task failed: {}", e))??;
 
     // 5. 获取自定义路径
     use crate::core::path_manager::{CURSOR_CONFIG, read_custom_path_from_config};
@@ -220,17 +209,15 @@ pub async fn cursor_generate_and_bind_machine_id(
         }
     }
 
-    let user_id = acc.token.user_id.clone().unwrap_or_else(|| acc.id.clone());
     db::write_cursor_auth_state(
         &db_path,
         &acc.token.access_token,
         &acc.token.refresh_token,
         &acc.email,
-        &user_id,
     )?;
 
     // 7. 使用新机器码重置
-    let reset_result = tokio::task::spawn_blocking(move || {
+    tokio::task::spawn_blocking(move || {
         machine::complete_reset_with_machine_info(custom_path.as_deref(), &machine_info)
     })
     .await
@@ -247,7 +234,6 @@ pub async fn cursor_generate_and_bind_machine_id(
 
     Ok(SwitchAccountResponse {
         message: format!("Machine ID generated and bound to account: {}", acc.email),
-        needs_admin: reset_result.needs_admin,
     })
 }
 

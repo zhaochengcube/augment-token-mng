@@ -772,7 +772,8 @@ const hasMachineInfo = (account) => {
     info['telemetry.macMachineId'] ||
     info['telemetry.devDeviceId'] ||
     info['telemetry.sqmId'] ||
-    info['system.machineGuid']
+    info['system.machineGuid'] ||
+    info['storage.serviceMachineId']
 }
 
 const handleSwitch = async (accountId) => {
@@ -794,13 +795,9 @@ const handleSwitch = async (accountId) => {
 const performSwitch = async (accountId, useBoundMachineId) => {
   switchingAccountId.value = accountId
   try {
-    const result = await invoke('cursor_switch_account', { accountId, useBoundMachineId })
+    await invoke('cursor_switch_account', { accountId, useBoundMachineId })
     await loadAccounts()
     markItemUpsertById(accountId)
-    // Windows 平台：如果需要管理员权限，显示提示
-    if (result?.needs_admin) {
-      window.$notify?.warning($t('platform.cursor.messages.adminRequired'))
-    }
   } catch (error) {
     console.error('Failed to switch account:', error)
     window.$notify?.error(error?.message || error)

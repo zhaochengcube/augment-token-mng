@@ -240,7 +240,8 @@ const hasMachineInfo = (machineInfo) => {
     machineInfo['telemetry.macMachineId'] ||
     machineInfo['telemetry.devDeviceId'] ||
     machineInfo['telemetry.sqmId'] ||
-    machineInfo['system.machineGuid']
+    machineInfo['system.machineGuid'] ||
+    machineInfo['storage.serviceMachineId']
 }
 
 const machineInfoCount = computed(() => {

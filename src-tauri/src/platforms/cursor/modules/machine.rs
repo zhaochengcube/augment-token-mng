@@ -37,19 +37,15 @@ impl TelemetryIds {
     }
 }
 
-/// 重置结果，包含是否需要管理员权限的信息
+/// 重置结果消息
 #[derive(Debug, Clone)]
 pub struct ResetResult {
     pub messages: Vec<String>,
-    pub needs_admin: bool,
 }
 
 /// 重置机器 ID（写入 storage.json）
-/// 返回 (TelemetryIds, needs_admin) - needs_admin 表示 Windows 平台是否需要管理员权限
-pub fn reset_machine_id() -> Result<(TelemetryIds, bool), String> {
+pub fn reset_machine_id() -> Result<TelemetryIds, String> {
     let storage_json_path = db::get_storage_json_path()?;
-    #[allow(unused_mut)]
-    let mut needs_admin = false;
 
     // 确保目录存在
     if let Some(parent) = storage_json_path.parent() {
@@ -109,25 +105,14 @@ pub fn reset_machine_id() -> Result<(TelemetryIds, bool), String> {
         .map_err(|e| format!("Failed to write storage.json: {}", e))?;
 
     // 重置 state.vscdb 中的机器标识符 (serviceMachineId 和 stableID)
-    // stableID 使用与 machineId 相同的值，serviceMachineId 使用生成的 UUID
-    if let Err(e) = db::reset_machine_ids_in_db(&ids.machine_id, Some(&ids.service_machine_id)) {
-        println!("Warning: Failed to reset machine IDs in database: {}", e);
-        // 不中断流程，继续执行
-    }
+    db::reset_machine_ids_in_db(&ids.machine_id, Some(&ids.service_machine_id))
+        .map_err(|e| format!("Failed to reset machine IDs in state.vscdb: {}", e))?;
 
-    // Windows 平台：尝试重置注册表 MachineGuid（需要管理员权限）
-    #[cfg(windows)]
-    {
-        if let Err(_) = reset_windows_registry_machine_guid() {
-            needs_admin = true;
-        }
-    }
-
-    Ok((ids, needs_admin))
+    Ok(ids)
 }
 
-/// Windows: 重置注册表 MachineGuid
-/// 需要管理员权限才能修改 HKEY_LOCAL_MACHINE
+/*
+/// Windows: 重置注册表 MachineGuid（已停用，不执行）
 #[cfg(windows)]
 fn reset_windows_registry_machine_guid() -> Result<(), String> {
     use winreg::RegKey;
@@ -145,6 +130,7 @@ fn reset_windows_registry_machine_guid() -> Result<(), String> {
 
     Ok(())
 }
+*/
 
 /// 获取当前机器 ID（从 storage.json 读取）
 pub fn get_machine_id() -> Result<Option<String>, String> {
@@ -281,43 +267,19 @@ pub fn modify_main_js(custom_exe_path: Option<&str>) -> Result<(), String> {
 }
 
 /// 完整重置流程：重置机器ID + 修改 main.js
-/// 返回 ResetResult，包含操作结果消息和是否需要管理员权限
+/// 任一步骤失败立即返回 Err，不继续后续操作
 pub fn complete_reset(custom_exe_path: Option<&str>) -> Result<ResetResult, String> {
-    let mut messages = Vec::new();
-    let mut needs_admin = false;
-
-    // 1. 重置机器ID
-    match reset_machine_id() {
-        Ok((_ids, admin_needed)) => {
-            messages.push("✓ Machine IDs reset successfully".to_string());
-            if admin_needed {
-                needs_admin = true;
-                #[cfg(windows)]
-                messages
-                    .push("⚠ Windows registry MachineGuid requires admin privileges".to_string());
-            }
-        }
-        Err(e) => messages.push(format!("✗ Failed to reset machine IDs: {}", e)),
-    }
-
-    // 2. 修改 main.js
-    match modify_main_js(custom_exe_path) {
-        Ok(()) => messages.push("✓ main.js modified successfully".to_string()),
-        Err(e) => messages.push(format!("⚠ Failed to modify main.js: {}", e)),
-    }
+    reset_machine_id()?;
+    modify_main_js(custom_exe_path)?;
 
     Ok(ResetResult {
-        messages,
-        needs_admin,
+        messages: vec!["Machine IDs reset and main.js modified successfully".to_string()],
     })
 }
 
 /// 写入指定的机器码到 storage.json
-/// 返回 (success, needs_admin) - needs_admin 表示 Windows 平台是否需要管理员权限
-pub fn write_machine_ids(machine_info: &MachineInfo) -> Result<bool, String> {
+pub fn write_machine_ids(machine_info: &MachineInfo) -> Result<(), String> {
     let storage_json_path = db::get_storage_json_path()?;
-    #[allow(unused_mut)]
-    let mut needs_admin = false;
 
     // 确保目录存在
     if let Some(parent) = storage_json_path.parent() {
@@ -388,38 +350,21 @@ pub fn write_machine_ids(machine_info: &MachineInfo) -> Result<bool, String> {
     drop(file); // 显式关闭文件
 
     // 重置 state.vscdb 中的机器标识符 (serviceMachineId 和 stableID)
-    // stableID 和 serviceMachineId 都使用绑定的值（如果有）
     let machine_id_for_db = if let Some(ref machine_id) = machine_info.machine_id {
         machine_id.clone()
     } else {
-        // 如果没有绑定的 machine_id，生成一个新的
         let mut bytes = [0u8; 32];
         rand::thread_rng().fill_bytes(&mut bytes);
         format!("{:x}", Sha256::digest(&bytes))
     };
     let service_machine_id_for_db = machine_info.storage_service_machine_id.as_deref();
-    if let Err(e) = db::reset_machine_ids_in_db(&machine_id_for_db, service_machine_id_for_db) {
-        println!("Warning: Failed to reset machine IDs in database: {}", e);
-        // 不中断流程，继续执行
-    }
+    db::reset_machine_ids_in_db(&machine_id_for_db, service_machine_id_for_db)
+        .map_err(|e| format!("Failed to reset machine IDs in state.vscdb: {}", e))?;
 
-    // Windows 平台：如果提供了 system.machineGuid，尝试写入注册表
-    #[cfg(windows)]
-    {
-        if machine_info.system_machine_guid.is_some() {
-            if let Err(_) = write_windows_registry_machine_guid(
-                machine_info.system_machine_guid.as_ref().unwrap(),
-            ) {
-                needs_admin = true;
-            }
-        }
-    }
-
-    Ok(needs_admin)
+    Ok(())
 }
 
-/// Windows: 写入指定的 MachineGuid 到注册表
-/// 需要管理员权限才能修改 HKEY_LOCAL_MACHINE
+/*
 #[cfg(windows)]
 fn write_windows_registry_machine_guid(guid: &str) -> Result<(), String> {
     use winreg::RegKey;
@@ -436,6 +381,7 @@ fn write_windows_registry_machine_guid(guid: &str) -> Result<(), String> {
 
     Ok(())
 }
+*/
 
 /// 自动更新相关的常量
 const AUTO_UPDATE_ORIGINAL_STR: &str = r#"!!this.args["disable-updates"]"#;
@@ -532,36 +478,15 @@ pub fn enable_auto_update(custom_exe_path: Option<&str>) -> Result<(), String> {
 }
 
 /// 使用绑定的机器码完成重置流程
-/// 返回 ResetResult，包含操作结果消息和是否需要管理员权限
+/// 任一步骤失败立即返回 Err，不继续后续操作
 pub fn complete_reset_with_machine_info(
     custom_exe_path: Option<&str>,
     machine_info: &MachineInfo,
 ) -> Result<ResetResult, String> {
-    let mut messages = Vec::new();
-    let mut needs_admin = false;
-
-    // 1. 写入绑定的机器码
-    match write_machine_ids(machine_info) {
-        Ok(admin_needed) => {
-            messages.push("✓ Bound machine IDs written successfully".to_string());
-            if admin_needed {
-                needs_admin = true;
-                #[cfg(windows)]
-                messages
-                    .push("⚠ Windows registry MachineGuid requires admin privileges".to_string());
-            }
-        }
-        Err(e) => messages.push(format!("✗ Failed to write bound machine IDs: {}", e)),
-    }
-
-    // 2. 修改 main.js
-    match modify_main_js(custom_exe_path) {
-        Ok(()) => messages.push("✓ main.js modified successfully".to_string()),
-        Err(e) => messages.push(format!("⚠ Failed to modify main.js: {}", e)),
-    }
+    write_machine_ids(machine_info)?;
+    modify_main_js(custom_exe_path)?;
 
     Ok(ResetResult {
-        messages,
-        needs_admin,
+        messages: vec!["Bound machine IDs written and main.js modified successfully".to_string()],
     })
 }

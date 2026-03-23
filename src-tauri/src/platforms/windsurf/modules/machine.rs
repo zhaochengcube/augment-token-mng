@@ -8,11 +8,10 @@ use std::fs;
 use std::path::PathBuf;
 use uuid::Uuid;
 
-/// 重置结果，包含是否需要管理员权限的信息
+/// 重置结果
 #[derive(Debug, Clone)]
 pub struct ResetResult {
     pub machine_id: String,
-    pub needs_admin: bool,
 }
 
 /// 获取 Windsurf 机器 ID 文件路径
@@ -84,10 +83,8 @@ pub fn generate_machine_id() -> String {
 }
 
 /// 重置机器 ID
-/// 返回 ResetResult，包含新的机器 ID 和是否需要管理员权限
 pub fn reset_machine_id() -> Result<ResetResult, String> {
     let path = get_machine_id_path()?;
-    let mut needs_admin = false;
 
     // 备份旧的机器 ID
     if path.exists() {
@@ -108,20 +105,12 @@ pub fn reset_machine_id() -> Result<ResetResult, String> {
     fs::write(&path, &new_id).map_err(|e| format!("Failed to write machine ID: {}", e))?;
 
     // 同步更新 storage.json 遥测字段
-    match reset_telemetry_ids() {
-        Ok(admin_needed) => {
-            if admin_needed {
-                needs_admin = true;
-            }
-        }
-        Err(e) => {
-            eprintln!("Failed to reset telemetry IDs: {}", e);
-        }
+    if let Err(e) = reset_telemetry_ids() {
+        eprintln!("Failed to reset telemetry IDs: {}", e);
     }
 
     Ok(ResetResult {
         machine_id: new_id,
-        needs_admin,
     })
 }
 
@@ -151,11 +140,9 @@ impl TelemetryIds {
     }
 }
 
-/// 重置遥测 ID，返回是否需要管理员权限
-fn reset_telemetry_ids() -> Result<bool, String> {
+/// 重置遥测 ID
+fn reset_telemetry_ids() -> Result<(), String> {
     let storage_json_path = get_storage_json_path()?;
-    #[allow(unused_mut)]
-    let mut needs_admin = false;
 
     if let Some(parent) = storage_json_path.parent() {
         if !parent.exists() {
@@ -218,22 +205,13 @@ fn reset_telemetry_ids() -> Result<bool, String> {
     fs::write(&storage_json_path, json)
         .map_err(|e| format!("Failed to write storage.json: {}", e))?;
 
-    // Windows: 尝试重置注册表 MachineGuid（需要管理员权限，失败不阻断）
-    #[cfg(windows)]
-    {
-        if let Err(e) = reset_windows_machine_guid() {
-            eprintln!(
-                "Warning: Failed to reset Windows MachineGuid (admin required): {}",
-                e
-            );
-            needs_admin = true;
-        }
-    }
+    // 已停用：HKLM MachineGuid 写入（原 needs_admin 链路已移除）
+    // #[cfg(windows)] reset_windows_machine_guid()
 
-    Ok(needs_admin)
+    Ok(())
 }
 
-/// Windows: 尝试重置注册表 MachineGuid
+/*
 #[cfg(windows)]
 fn reset_windows_machine_guid() -> Result<(), String> {
     use winreg::RegKey;
@@ -251,6 +229,7 @@ fn reset_windows_machine_guid() -> Result<(), String> {
 
     Ok(())
 }
+*/
 
 /// 设置指定的机器 ID
 pub fn set_machine_id(machine_id: &str) -> Result<(), String> {
