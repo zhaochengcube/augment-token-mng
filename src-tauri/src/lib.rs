@@ -77,6 +77,7 @@ pub struct AppState {
     outlook_manager: Mutex<OutlookManager>,
     pub outlook_storage: Arc<Mutex<Option<Arc<OutlookStorage>>>>,
     pub hme_cookie: Arc<Mutex<Option<String>>>,
+    pub current_dsid: Arc<Mutex<Option<String>>>,
     pub hme_storage: Arc<Mutex<Option<Arc<HmeStorage>>>>,
     pub gptmail_storage: Arc<Mutex<Option<Arc<GptMailStorage>>>>,
     pub storage_manager: Arc<Mutex<Option<Arc<DualStorage>>>>,
@@ -145,6 +146,7 @@ pub fn run() {
                         .ok(),
                 )),
                 hme_cookie: Arc::new(Mutex::new(None)),
+                current_dsid: Arc::new(Mutex::new(None)),
                 hme_storage: Arc::new(Mutex::new(
                     HmeStorage::new(app_data_dir.clone())
                         .map(Arc::new)
@@ -421,6 +423,7 @@ pub fn run() {
                         outlook_manager: Mutex::new(OutlookManager::new()),
                         outlook_storage: state.outlook_storage.clone(),
                         hme_cookie: state.hme_cookie.clone(),
+                        current_dsid: state.current_dsid.clone(),
                         hme_storage: state.hme_storage.clone(),
                         gptmail_storage: state.gptmail_storage.clone(),
                         storage_manager: state.storage_manager.clone(),
@@ -786,6 +789,7 @@ pub fn run() {
             hme::hme_clear_cookie,
             hme::hme_has_cookie,
             hme::hme_validate_cookie,
+            hme::hme_get_current_dsid,
             hme::hme_generate,
             hme::hme_list,
             hme::hme_list_local,

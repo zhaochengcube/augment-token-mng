@@ -37,6 +37,10 @@
               ]">
                 {{ $t(`hmeManager.cookie.status.${cookieStatus}`) }}
               </span>
+              <div v-if="currentDisplayName || currentDsid" class="flex flex-col leading-tight">
+                <span v-if="currentDisplayName" class="text-xs text-text truncate max-w-[200px]">{{ currentDisplayName }}</span>
+                <span v-if="currentDsid" class="text-[10px] text-text-muted font-mono truncate max-w-[200px]">DSID: {{ currentDsid }}</span>
+              </div>
               <div class="flex gap-2 ml-auto flex-wrap">
                 <button @click="saveCookie" :disabled="!cookieInput.trim() || cookieSaving" class="btn btn--primary btn--sm">
                   <span v-if="cookieSaving" class="btn-spinner btn-spinner--xs" aria-hidden="true"></span>
@@ -142,13 +146,13 @@
             <button @click="showBatchTagEditor = true" :disabled="batchLoading" class="btn btn--secondary btn--sm">
               {{ $t('tokenList.batchEditTag') }}
             </button>
-            <button v-if="listTab" @click="batchDeactivate" :disabled="batchLoading" class="btn btn-tech-warning btn--sm">
+            <button v-if="listTab" @click="batchDeactivate" :disabled="batchLoading || !canUseRemoteCookie" class="btn btn-tech-warning btn--sm">
               {{ $t('hmeManager.batch.deactivate') }}
             </button>
-            <button v-if="!listTab" @click="batchDelete" :disabled="batchLoading" class="btn btn-tech-danger btn--sm">
+            <button v-if="!listTab" @click="batchDelete" :disabled="batchLoading || !canUseRemoteCookie" class="btn btn-tech-danger btn--sm">
               {{ $t('hmeManager.batch.delete') }}
             </button>
-            <button v-if="listTab" @click="batchCleanup" :disabled="batchLoading" class="btn btn-tech-danger btn--sm">
+            <button v-if="listTab" @click="batchCleanup" :disabled="batchLoading || !canUseRemoteCookie" class="btn btn-tech-danger btn--sm">
               {{ $t('hmeManager.batch.cleanup') }}
             </button>
           </div>
@@ -174,6 +178,7 @@
                   <th class="px-3 py-2 font-medium text-text-secondary">{{ $t('hmeManager.list.labelCol') }}</th>
                   <th class="px-3 py-2 font-medium text-text-secondary">{{ $t('hmeManager.list.emailCol') }}</th>
                   <th class="px-3 py-2 font-medium text-text-secondary whitespace-nowrap">{{ $t('hmeManager.list.createdAtCol') }}</th>
+                  <th class="px-3 py-2 font-medium text-text-secondary">ID</th>
                 </tr>
               </thead>
               <tbody>
@@ -208,6 +213,12 @@
                   <td class="px-3 py-2 font-mono text-text-secondary truncate max-w-[260px] cursor-pointer hover:text-accent transition"
                     @click="copyText(item.hme)">{{ item.hme }}</td>
                   <td class="px-3 py-2 text-text-muted whitespace-nowrap">{{ formatDate(item.created_at) }}</td>
+                  <td class="px-3 py-2">
+                    <div class="flex flex-col leading-tight">
+                      <span class="text-[11px] font-mono text-text-muted truncate max-w-[160px] cursor-pointer hover:text-accent transition" @click="copyText(item.anonymous_id)" :title="item.anonymous_id">{{ item.anonymous_id }}</span>
+                      <span v-if="item.account_id" class="text-[10px] font-mono text-text-muted/60 truncate max-w-[160px] cursor-pointer hover:text-accent transition" @click="copyText(item.account_id)" :title="`DSID: ${item.account_id}`">{{ item.account_id }}</span>
+                    </div>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -274,6 +285,8 @@ const cookieInput = ref('')
 const cookieStatus = ref('unset')
 const cookieSaving = ref(false)
 const showCookieHelp = ref(false)
+const currentDsid = ref(null)
+const currentDisplayName = ref(null)
 
 // Generate
 const generateCount = ref(5)
@@ -436,7 +449,19 @@ const checkCookieState = async () => {
     if (cookie) {
       cookieInput.value = cookie
       cookieStatus.value = 'loaded'
-      await syncFromApi()
+
+      try {
+        const result = await invoke('hme_validate_cookie')
+        cookieStatus.value = result.valid ? 'valid' : 'invalid'
+        currentDsid.value = result.dsid || null
+        currentDisplayName.value = result.display_name || null
+      } catch {
+        cookieStatus.value = 'loaded'
+      }
+
+      if (cookieStatus.value !== 'invalid') {
+        await syncFromApi()
+      }
     } else {
       cookieStatus.value = 'unset'
     }
@@ -454,10 +479,12 @@ const saveCookie = async () => {
     notify(t('hmeManager.messages.cookieSaved'), 'success')
 
     try {
-      const valid = await invoke('hme_validate_cookie')
-      cookieStatus.value = valid ? 'valid' : 'invalid'
-      notify(valid ? t('hmeManager.messages.cookieValid') : t('hmeManager.messages.cookieInvalid'),
-        valid ? 'success' : 'warning')
+      const result = await invoke('hme_validate_cookie')
+      cookieStatus.value = result.valid ? 'valid' : 'invalid'
+      currentDsid.value = result.dsid || null
+      currentDisplayName.value = result.display_name || null
+      notify(result.valid ? t('hmeManager.messages.cookieValid') : t('hmeManager.messages.cookieInvalid'),
+        result.valid ? 'success' : 'warning')
     } catch (e) {
       const errorMessage = getErrorMessage(e)
       if (isCookieInvalidError(errorMessage)) {
@@ -486,7 +513,10 @@ const clearCookie = async () => {
     await invoke('hme_clear_cookie')
     cookieInput.value = ''
     cookieStatus.value = 'unset'
+    currentDsid.value = null
+    currentDisplayName.value = null
     notify(t('hmeManager.messages.cookieCleared'), 'success')
+    await loadListLocal(true)
   } catch (e) {
     notify(`${t('hmeManager.messages.cookieClearFailed')}: ${e}`, 'error')
   }
@@ -537,7 +567,7 @@ const generateEmails = async () => {
 }
 
 const startAutoGenerate = () => {
-  autoGenStore.startAutoGenerate(generateCount.value, generateLabel.value)
+  autoGenStore.startAutoGenerate(generateCount.value, generateLabel.value, currentDsid.value)
   notify(t('hmeManager.messages.autoStarted'), 'success')
 }
 

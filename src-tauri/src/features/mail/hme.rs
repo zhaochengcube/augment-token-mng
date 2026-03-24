@@ -31,6 +31,8 @@ pub struct HmeEmailItem {
     pub tag: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tag_color: Option<String>,
+    #[serde(default)]
+    pub account_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -248,7 +250,7 @@ fn get_cookie_from_state(state: &State<'_, AppState>) -> Result<String, String> 
     }
 }
 
-fn map_hme_item(item: &Value) -> Option<HmeEmailItem> {
+fn map_hme_item(item: &Value, account_id: &str) -> Option<HmeEmailItem> {
     let anonymous_id = item.get("anonymousId")?.as_str()?.to_string();
     let label = item
         .get("label")
@@ -278,6 +280,7 @@ fn map_hme_item(item: &Value) -> Option<HmeEmailItem> {
         created_at: format_timestamp(create_timestamp),
         tag: None,
         tag_color: None,
+        account_id: account_id.to_string(),
     })
 }
 
@@ -293,6 +296,14 @@ pub async fn hme_set_cookie(cookie: String, state: State<'_, AppState>) -> Resul
         .lock()
         .map_err(|_| "Failed to update iCloud HME cookie state".to_string())?;
     *guard = Some(normalized.to_string());
+    drop(guard);
+
+    let mut dsid_guard = state
+        .current_dsid
+        .lock()
+        .map_err(|_| "Failed to clear current_dsid".to_string())?;
+    *dsid_guard = None;
+
     Ok(())
 }
 
@@ -303,6 +314,14 @@ pub async fn hme_clear_cookie(state: State<'_, AppState>) -> Result<(), String> 
         .lock()
         .map_err(|_| "Failed to clear iCloud HME cookie state".to_string())?;
     *guard = None;
+    drop(guard);
+
+    let mut dsid_guard = state
+        .current_dsid
+        .lock()
+        .map_err(|_| "Failed to clear current_dsid".to_string())?;
+    *dsid_guard = None;
+
     Ok(())
 }
 
@@ -328,12 +347,58 @@ pub async fn hme_has_cookie(state: State<'_, AppState>) -> Result<bool, String> 
     Ok(has_cookie)
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HmeValidateResult {
+    pub valid: bool,
+    pub dsid: Option<String>,
+    pub display_name: Option<String>,
+}
+
 #[tauri::command]
-pub async fn hme_validate_cookie(state: State<'_, AppState>) -> Result<bool, String> {
+pub async fn hme_validate_cookie(state: State<'_, AppState>) -> Result<HmeValidateResult, String> {
     let cookie = get_cookie_from_state(&state)?;
     let client = HmeApiClient::new(cookie);
     let response = client.validate_cookie().await?;
-    Ok(response.get("dsInfo").is_some() || response.get("webservices").is_some())
+
+    let ds_info = response.get("dsInfo");
+    let valid = ds_info.is_some() || response.get("webservices").is_some();
+
+    let dsid = ds_info.and_then(|info| {
+        info.get("dsid")
+            .and_then(|v| v.as_str().map(|s| s.to_string()).or_else(|| v.as_i64().map(|n| n.to_string())))
+    });
+
+    let display_name = ds_info.and_then(|info| {
+        info.get("fullName")
+            .and_then(|v| v.as_str())
+            .or_else(|| info.get("appleId").and_then(|v| v.as_str()))
+            .map(|s| s.to_string())
+    });
+
+    if valid {
+        if let Some(ref id) = dsid {
+            let mut guard = state
+                .current_dsid
+                .lock()
+                .map_err(|_| "Failed to update current_dsid".to_string())?;
+            *guard = Some(id.clone());
+        }
+    }
+
+    Ok(HmeValidateResult {
+        valid,
+        dsid,
+        display_name,
+    })
+}
+
+#[tauri::command]
+pub async fn hme_get_current_dsid(state: State<'_, AppState>) -> Result<Option<String>, String> {
+    let guard = state
+        .current_dsid
+        .lock()
+        .map_err(|_| "Failed to read current_dsid".to_string())?;
+    Ok(guard.clone())
 }
 
 #[tauri::command]
@@ -479,9 +544,16 @@ pub async fn hme_list(
         .cloned()
         .unwrap_or_default();
 
+    let current_dsid = state
+        .current_dsid
+        .lock()
+        .map_err(|_| "Failed to read current_dsid".to_string())?
+        .clone()
+        .unwrap_or_default();
+
     let mut items = list
         .iter()
-        .filter_map(map_hme_item)
+        .filter_map(|item| map_hme_item(item, &current_dsid))
         .filter(|item| item.is_active == active)
         .filter(|item| {
             if keyword.is_empty() {
@@ -504,7 +576,13 @@ pub async fn hme_list_local(
     state: State<'_, AppState>,
 ) -> Result<Vec<HmeEmailItem>, String> {
     let storage = get_hme_storage(&state)?;
-    let mut items = storage.load_all(Some(active))?;
+    let current_dsid = state
+        .current_dsid
+        .lock()
+        .map_err(|_| "Failed to read current_dsid".to_string())?
+        .clone();
+
+    let mut items = storage.load_all(Some(active), current_dsid.as_deref())?;
 
     let keyword = search.unwrap_or_default().trim().to_lowercase();
     if !keyword.is_empty() {
@@ -527,6 +605,12 @@ pub async fn hme_sync(
     let storage = get_hme_storage(&state)?;
     let client = HmeApiClient::new(cookie);
 
+    let current_dsid = state
+        .current_dsid
+        .lock()
+        .map_err(|_| "Failed to read current_dsid".to_string())?
+        .clone();
+
     let response = client
         .request_hme(Method::GET, &format!("{}/list", BASE_URL_V2), None)
         .await?;
@@ -538,10 +622,16 @@ pub async fn hme_sync(
         .cloned()
         .unwrap_or_default();
 
-    let all_items: Vec<HmeEmailItem> = list.iter().filter_map(map_hme_item).collect();
-    storage.sync_from_api(&all_items)?;
+    let dsid_str = current_dsid.as_deref().unwrap_or("");
+    let all_items: Vec<HmeEmailItem> = list.iter().filter_map(|item| map_hme_item(item, dsid_str)).collect();
 
-    let mut items = storage.load_all(Some(active))?;
+    if let Some(ref dsid) = current_dsid {
+        storage.sync_from_api(&all_items, dsid)?;
+    } else {
+        storage.upsert_batch(&all_items)?;
+    }
+
+    let mut items = storage.load_all(Some(active), current_dsid.as_deref())?;
 
     let keyword = search.unwrap_or_default().trim().to_lowercase();
     if !keyword.is_empty() {

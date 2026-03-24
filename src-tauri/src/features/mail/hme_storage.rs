@@ -67,33 +67,49 @@ impl HmeStorage {
                 .map_err(|e| format!("Failed to add tag_color column: {}", e))?;
         }
 
+        if !columns.iter().any(|c| c == "account_id") {
+            conn.execute_batch("ALTER TABLE hme_emails ADD COLUMN account_id TEXT NOT NULL DEFAULT ''")
+                .map_err(|e| format!("Failed to add account_id column: {}", e))?;
+        }
+
+        conn.execute_batch(
+            "CREATE INDEX IF NOT EXISTS idx_hme_account_active ON hme_emails(account_id, is_active)",
+        )
+        .map_err(|e| format!("Failed to create account_id index: {}", e))?;
+
         Ok(())
     }
 
-    pub fn load_all(&self, is_active: Option<bool>) -> Result<Vec<HmeEmailItem>, String> {
+    pub fn load_all(&self, is_active: Option<bool>, account_id: Option<&str>) -> Result<Vec<HmeEmailItem>, String> {
         let conn = self.get_connection()?;
 
-        let (sql, active_val) = match is_active {
-            Some(active) => (
-                "SELECT anonymous_id, label, hme, is_active, created_at, tag, tag_color FROM hme_emails WHERE is_active = ?1 ORDER BY created_at DESC",
-                Some(active as i32),
-            ),
-            None => (
-                "SELECT anonymous_id, label, hme, is_active, created_at, tag, tag_color FROM hme_emails ORDER BY created_at DESC",
-                None,
-            ),
-        };
+        let mut sql = String::from("SELECT anonymous_id, label, hme, is_active, created_at, tag, tag_color, account_id FROM hme_emails");
+        let mut conditions = Vec::new();
+        let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
+
+        if let Some(active) = is_active {
+            conditions.push(format!("is_active = ?{}", param_values.len() + 1));
+            param_values.push(Box::new(active as i32));
+        }
+        if let Some(aid) = account_id {
+            conditions.push(format!("account_id = ?{}", param_values.len() + 1));
+            param_values.push(Box::new(aid.to_string()));
+        }
+
+        if !conditions.is_empty() {
+            sql.push_str(" WHERE ");
+            sql.push_str(&conditions.join(" AND "));
+        }
+        sql.push_str(" ORDER BY created_at DESC");
 
         let mut stmt = conn
-            .prepare(sql)
+            .prepare(&sql)
             .map_err(|e| format!("Failed to prepare query: {}", e))?;
 
-        let rows = if let Some(val) = active_val {
-            stmt.query_map(params![val], row_to_item)
-        } else {
-            stmt.query_map([], row_to_item)
-        }
-        .map_err(|e| format!("Failed to query HME emails: {}", e))?;
+        let params_ref: Vec<&dyn rusqlite::types::ToSql> = param_values.iter().map(|p| p.as_ref()).collect();
+        let rows = stmt
+            .query_map(params_ref.as_slice(), row_to_item)
+            .map_err(|e| format!("Failed to query HME emails: {}", e))?;
 
         let mut items = Vec::new();
         for row in rows {
@@ -116,14 +132,15 @@ impl HmeStorage {
         let now_ms = chrono::Utc::now().timestamp_millis();
         for item in items {
             tx.execute(
-                "INSERT INTO hme_emails (anonymous_id, label, hme, is_active, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+                "INSERT INTO hme_emails (anonymous_id, label, hme, is_active, created_at, updated_at, account_id)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
                  ON CONFLICT(anonymous_id) DO UPDATE SET
                    label = excluded.label,
                    hme = excluded.hme,
                    is_active = excluded.is_active,
                    created_at = excluded.created_at,
-                   updated_at = excluded.updated_at",
+                   updated_at = excluded.updated_at,
+                   account_id = excluded.account_id",
                 params![
                     item.anonymous_id,
                     item.label,
@@ -131,6 +148,7 @@ impl HmeStorage {
                     item.is_active as i32,
                     item.create_timestamp,
                     now_ms,
+                    item.account_id,
                 ],
             )
             .map_err(|e| format!("Failed to upsert HME email: {}", e))?;
@@ -202,17 +220,17 @@ impl HmeStorage {
         Ok(())
     }
 
-    /// Full sync: upsert all API items, delete local rows not in API response
-    pub fn sync_from_api(&self, api_items: &[HmeEmailItem]) -> Result<(), String> {
+    /// Full sync: upsert all API items, delete local rows not in API response (scoped by account_id)
+    pub fn sync_from_api(&self, api_items: &[HmeEmailItem], account_id: &str) -> Result<(), String> {
         let conn = self.get_connection()?;
 
         let mut existing_ids: HashSet<String> = HashSet::new();
         {
             let mut stmt = conn
-                .prepare("SELECT anonymous_id FROM hme_emails")
+                .prepare("SELECT anonymous_id FROM hme_emails WHERE account_id = ?1")
                 .map_err(|e| format!("Failed to prepare: {}", e))?;
             let rows = stmt
-                .query_map([], |row| row.get::<_, String>(0))
+                .query_map(params![account_id], |row| row.get::<_, String>(0))
                 .map_err(|e| format!("Failed to query existing IDs: {}", e))?;
             for row in rows {
                 if let Ok(id) = row {
@@ -241,6 +259,7 @@ fn row_to_item(row: &rusqlite::Row) -> rusqlite::Result<HmeEmailItem> {
     let create_timestamp: i64 = row.get(4)?;
     let tag: Option<String> = row.get(5)?;
     let tag_color: Option<String> = row.get(6)?;
+    let account_id: String = row.get(7)?;
 
     let created_at = chrono::DateTime::<chrono::Utc>::from_timestamp_millis(
         if create_timestamp.abs() < 1_000_000_000_000 {
@@ -261,5 +280,6 @@ fn row_to_item(row: &rusqlite::Row) -> rusqlite::Result<HmeEmailItem> {
         created_at,
         tag,
         tag_color,
+        account_id,
     })
 }

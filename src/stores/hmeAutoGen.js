@@ -11,6 +11,7 @@ export const useHmeAutoGenStore = defineStore('hmeAutoGen', () => {
   let _intervalId = null
   let _genCount = 5
   let _genLabel = 'ATM HME'
+  let _genDsid = null
   let _onGenerated = null
 
   const COOLDOWN_MS = 60 * 60 * 1000
@@ -55,13 +56,14 @@ export const useHmeAutoGenStore = defineStore('hmeAutoGen', () => {
     }, 1000)
   }
 
-  const startAutoGenerate = (count, label) => {
+  const startAutoGenerate = (count, label, dsid = null) => {
     _genCount = count
     _genLabel = label
+    _genDsid = dsid
     isAutoGenerating.value = true
 
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ count, label }))
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ count, label, dsid }))
     } catch { /* quota exceeded etc. */ }
 
     doGenerate()
@@ -87,6 +89,7 @@ export const useHmeAutoGenStore = defineStore('hmeAutoGen', () => {
       const saved = JSON.parse(raw)
       _genCount = saved.count ?? 5
       _genLabel = saved.label ?? 'ATM HME'
+      _genDsid = saved.dsid ?? null
       isAutoGenerating.value = true
       _startInterval()
       return saved
