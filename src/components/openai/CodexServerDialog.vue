@@ -806,10 +806,11 @@ watch(apiKeyInput, (newVal, oldVal) => {
 })
 
 onMounted(async () => {
-  await Promise.all([loadServerStatus(), loadAccessConfig()])
-  await Promise.all([loadPoolStatus(), loadPeriodStats(), loadAllTimeStats(), loadLogs(), loadAccounts(), loadDailyStats()])
+  // 打开面板时从账号存储重建号池，避免仅读内存快照导致与 OpenAI 列表不一致
+  await refreshAllData({ refreshPool: true })
   pollTimer = window.setInterval(() => {
-    refreshAllData()
+    // 轮询时同步重建号池，否则主界面增删账号后此处仍显示旧池状态
+    refreshAllData({ refreshPool: true, silent: true })
   }, 1000)
 })
 
@@ -854,19 +855,27 @@ const toggleServer = async () => {
   }
 }
 
-const refreshAllData = async ({ refreshPool = false } = {}) => {
-  isLoading.value = true
+const refreshAllData = async ({ refreshPool = false, silent = false } = {}) => {
+  if (!silent) {
+    isLoading.value = true
+  }
   try {
     await Promise.all([loadServerStatus(), loadAccessConfig()])
     if (refreshPool) {
-      const refreshed = await invoke('refresh_codex_pool')
-      applyPoolStatus(refreshed)
+      try {
+        const refreshed = await invoke('refresh_codex_pool')
+        applyPoolStatus(refreshed)
+      } catch (e) {
+        console.warn('refresh_codex_pool failed:', e)
+      }
     }
     await Promise.all([loadPoolStatus(), loadPeriodStats(), loadAllTimeStats(), loadLogs(), loadDailyStats()])
   } catch (error) {
     console.error('Failed to load codex dialog data:', error)
   } finally {
-    isLoading.value = false
+    if (!silent) {
+      isLoading.value = false
+    }
   }
 }
 

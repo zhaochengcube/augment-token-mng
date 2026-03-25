@@ -90,6 +90,11 @@ impl CodexPoolAccount {
             return None;
         }
 
+        // refresh_token 已失效（如 refresh_token_reused），不参与 Codex 号池
+        if account.rt_invalid {
+            return None;
+        }
+
         // 解析 openai_auth_json 中的订阅信息
         let (plan_type, subscription_expires_at) = account
             .openai_auth_json

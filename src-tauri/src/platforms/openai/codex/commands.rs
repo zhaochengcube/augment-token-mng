@@ -836,6 +836,9 @@ async fn start_periodic_quota_refresh(
                 {
                     continue;
                 }
+                if account.rt_invalid {
+                    continue;
+                }
 
                 match crate::platforms::openai::modules::account::refresh_quota_and_backfill(
                     &mut account,
@@ -854,6 +857,28 @@ async fn start_periodic_quota_refresh(
                     }
                     Err(e) => {
                         eprintln!("[Codex] Failed to refresh quota for {}: {}", account.email, e);
+                        // 与 openai_fetch_quota 一致：失败时仍保存（如 refresh_token_reused 已置 rt_invalid）
+                        match crate::platforms::openai::modules::storage::save_account(
+                            &app, &account,
+                        )
+                        .await
+                        {
+                            Ok(()) if account.rt_invalid => {
+                                if let Ok(accs) =
+                                    crate::platforms::openai::modules::storage::list_accounts(&app)
+                                        .await
+                                {
+                                    pool_ref.refresh_from_accounts(&accs).await;
+                                }
+                            }
+                            Err(save_e) => {
+                                eprintln!(
+                                    "[Codex] Failed to save account after refresh error {}: {}",
+                                    account.email, save_e
+                                );
+                            }
+                            _ => {}
+                        }
                     }
                 }
             }

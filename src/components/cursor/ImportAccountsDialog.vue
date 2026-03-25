@@ -95,7 +95,7 @@
                 </span>
               </div>
               <span
-                v-if="!item.auth_info?.WorkosCursorSessionToken"
+                v-if="!isRowImportable(item)"
                 class="shrink-0 text-xs text-warning"
               >
                 {{ $t('platform.cursor.importDialog.noSessionToken') }}
@@ -207,7 +207,7 @@ const formatExampleJson = `[
   {
     "email": "user@example.com",
     "auth_info": {
-      "WorkosCursorSessionToken": "user_id::eyJ...",
+      "WorkosCursorSessionToken": "user_id::eyJ...",  //可选
       "cursorAuth/accessToken": "eyJ...",
       "cursorAuth/refreshToken": "rT..."
     },
@@ -244,6 +244,22 @@ const hasMachineInfo = (machineInfo) => {
     machineInfo['storage.serviceMachineId']
 }
 
+const nonEmpty = (v) => typeof v === 'string' && v.trim().length > 0
+
+/** 有非空的 WorkosCursorSessionToken */
+const hasSessionToken = (authInfo) => nonEmpty(authInfo?.WorkosCursorSessionToken)
+
+/** 仅有 access + refresh（Session 可空），与后端 has_direct_tokens 一致 */
+const hasDirectAccessRefresh = (authInfo) => {
+  if (!authInfo) return false
+  return nonEmpty(authInfo['cursorAuth/accessToken']) && nonEmpty(authInfo['cursorAuth/refreshToken'])
+}
+
+const isRowImportable = (item) => {
+  if (!item?.email?.trim() || !item.auth_info) return false
+  return hasSessionToken(item.auth_info) || hasDirectAccessRefresh(item.auth_info)
+}
+
 const machineInfoCount = computed(() => {
   if (!previewData.value) return 0
   return previewData.value.filter(item => item.machine_info && hasMachineInfo(item.machine_info)).length
@@ -251,7 +267,7 @@ const machineInfoCount = computed(() => {
 
 const validAccountsCount = computed(() => {
   if (!previewData.value) return 0
-  return previewData.value.filter(item => item.auth_info?.WorkosCursorSessionToken).length
+  return previewData.value.filter(isRowImportable).length
 })
 
 const canImport = computed(() => {
@@ -312,8 +328,7 @@ const handleImport = async () => {
   isImporting.value = true
 
   try {
-    // 只导入有效的账号（有 session token 的）
-    const accountsToImport = previewData.value.filter(item => item.auth_info?.WorkosCursorSessionToken)
+    const accountsToImport = previewData.value.filter(isRowImportable)
 
     const result = await invoke('cursor_import_accounts', {
       accountsData: accountsToImport

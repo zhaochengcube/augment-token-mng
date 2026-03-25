@@ -14,6 +14,7 @@ import { useI18n } from 'vue-i18n'
  * @param {string} [options.itemKey='account'] - 同步请求中的数据键名 ('account' | 'token')
  * @param {string} [options.labelField='email'] - 用于显示的标签字段名 ('email' | 'email_note')
  * @param {Function} [options.onSyncComplete] - 同步完成后的回调函数（可选，用于保存本地文件等）
+ * @param {Function} [options.transformSyncedItem] - (serverItem, previousItem) => item；服务端 upserts 可能缺少本地独有字段（如 OpenAI quota）时合并
  */
 export function useStorageSync(options) {
   const {
@@ -23,7 +24,8 @@ export function useStorageSync(options) {
     currentItemId = ref(null),
     itemKey = 'account',
     labelField = 'email',
-    onSyncComplete
+    onSyncComplete,
+    transformSyncedItem
   } = options
   const { t: $t } = useI18n()
 
@@ -263,13 +265,18 @@ export function useStorageSync(options) {
 
       isLoadingFromSync.value = true
 
-      // 处理服务端返回的 upserts
+      // 处理服务端返回的 upserts（可能与本地合并，避免无 quota 等字段覆盖掉刚拉取的展示）
       for (const serverItem of res.upserts) {
         const idx = items.value.findIndex(a => a.id === serverItem.id)
         if (idx !== -1) {
-          items.value[idx] = serverItem
+          const prev = items.value[idx]
+          items.value[idx] = transformSyncedItem
+            ? transformSyncedItem(serverItem, prev)
+            : serverItem
         } else {
-          items.value.push(serverItem)
+          items.value.push(
+            transformSyncedItem ? transformSyncedItem(serverItem, null) : serverItem
+          )
         }
       }
 

@@ -222,6 +222,7 @@ pub async fn openai_refresh_all_quotas(app: AppHandle) -> Result<RefreshStats, S
             Err(e) => {
                 failed += 1;
                 details.push(format!("Account {}: {}", account.email, e));
+                let _ = storage::save_account(&app, &account).await;
             }
         }
     }

@@ -898,7 +898,9 @@ const handleAccountAdded = async (account) => {
   await loadAccounts()
   if (account?.id) {
     markItemUpsertById(account.id)
-    handleRefreshQuota(account.id)
+    if (account.token?.workos_cursor_session_token) {
+      handleRefreshQuota(account.id)
+    }
   }
   window.$notify?.success($t('platform.cursor.messages.addSuccess'))
 }

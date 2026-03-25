@@ -23,6 +23,7 @@ fn parse_jwt_exp(token: &str) -> Option<i64> {
     json.get("exp")?.as_i64()
 }
 
+
 /// 从 session token 中解析 exp 字段
 /// session token 格式: user_id%3A%3A<JWT> 或 user_id::<JWT>
 fn parse_session_token_exp(session_token: &str) -> Option<i64> {
@@ -163,9 +164,7 @@ pub async fn cursor_switch_account(
     })
 }
 
-/// 生成机器码并绑定到账号
-/// 流程：生成新机器码 → 保存到账号 → 关闭 Cursor → 写入 token → 重置机器码 → 更新当前账号
-/// 注意：不启动 Cursor，不刷新 token
+/// 生成机器码并保存到账号（仅更新账号的机器码信息，不修改当前使用账号）
 #[tauri::command]
 pub async fn cursor_generate_and_bind_machine_id(
     app: AppHandle,
@@ -188,49 +187,8 @@ pub async fn cursor_generate_and_bind_machine_id(
         storage_service_machine_id: Some(ids.service_machine_id.clone()),
         ..Default::default()
     };
-    acc.machine_info = Some(machine_info.clone());
+    acc.machine_info = Some(machine_info);
     storage::save_account(&app, &acc).await?;
-
-    // 4. 关闭 Cursor（未运行时立即返回成功）
-    tokio::task::spawn_blocking(|| process::close_cursor(5))
-        .await
-        .map_err(|e| format!("Close Cursor task failed: {}", e))??;
-
-    // 5. 获取自定义路径
-    use crate::core::path_manager::{CURSOR_CONFIG, read_custom_path_from_config};
-    let custom_path = read_custom_path_from_config(&app, &CURSOR_CONFIG);
-
-    // 6. 写入 token 到数据库
-    let db_path = db::get_db_path()?;
-    if db_path.exists() {
-        let backup_path = db_path.with_extension("vscdb.backup");
-        if let Err(e) = tokio::fs::copy(&db_path, &backup_path).await {
-            eprintln!("Failed to backup database: {}", e);
-        }
-    }
-
-    db::write_cursor_auth_state(
-        &db_path,
-        &acc.token.access_token,
-        &acc.token.refresh_token,
-        &acc.email,
-    )?;
-
-    // 7. 使用新机器码重置
-    tokio::task::spawn_blocking(move || {
-        machine::complete_reset_with_machine_info(custom_path.as_deref(), &machine_info)
-    })
-    .await
-    .map_err(|e| format!("Task join error: {}", e))??;
-
-    // 8. 更新为当前账号
-    storage::set_current_account_id(&app, Some(account_id.clone())).await?;
-
-    // 9. 更新最后使用时间
-    acc.update_last_used();
-    storage::save_account(&app, &acc).await?;
-
-    // 不启动 Cursor，不刷新 token（类似使用绑定机器码切换的逻辑）
 
     Ok(SwitchAccountResponse {
         message: format!("Machine ID generated and bound to account: {}", acc.email),
@@ -439,6 +397,53 @@ pub async fn cursor_add_account_with_session(
     Ok(account)
 }
 
+/// 使用 access token 添加账号（邮箱由前端传入，订阅类型通过 full_stripe_profile 获取）
+#[tauri::command]
+pub async fn cursor_add_account_with_access_token(
+    app: AppHandle,
+    email: String,
+    access_token: String,
+) -> Result<Account, String> {
+    let email = email.trim().to_string();
+    let access_token = access_token.trim().to_string();
+
+    if email.is_empty() {
+        return Err("Email is required".to_string());
+    }
+
+    // 1. 调用 full_stripe_profile 获取订阅信息
+    let profile = auth::get_stripe_profile(&access_token).await?;
+
+    // 优先使用 individualMembershipType，fallback 到 membershipType
+    let membership = profile
+        .individual_membership_type
+        .or(profile.membership_type);
+
+    // 2. 解析 JWT 过期时间
+    let expiry_timestamp = parse_jwt_exp(&access_token)
+        .unwrap_or_else(|| chrono::Utc::now().timestamp() + 86400 * 60);
+
+    // 3. 创建 Token（refresh_token = access_token，无 session）
+    let token = TokenData::new(
+        access_token.clone(),
+        access_token,
+        expiry_timestamp,
+        None,
+        None,
+        None,
+    );
+
+    // 4. 创建账号并设置 membership_type
+    let account_id = uuid::Uuid::new_v4().to_string();
+    let mut account = Account::new(account_id, email, token);
+    account.membership_type = membership;
+
+    // 5. 保存账号
+    storage::save_account(&app, &account).await?;
+
+    Ok(account)
+}
+
 /// 更新账号信息
 #[tauri::command]
 pub async fn cursor_update_account(app: AppHandle, account: Account) -> Result<(), String> {
@@ -546,13 +551,17 @@ pub async fn cursor_import_accounts(
                 .map_or(false, |t| !t.is_empty());
 
         let import_result = if has_direct_tokens {
-            // 直接使用提供的 accessToken 和 refreshToken
+            // 直接使用提供的 accessToken 和 refreshToken（Session 可选；空字符串视为无）
+            let session_opt = auth_info
+                .workos_cursor_session_token
+                .clone()
+                .filter(|s| !s.trim().is_empty());
             import_account_with_tokens(
                 &app,
                 &email,
                 auth_info.access_token.as_ref().unwrap(),
                 auth_info.refresh_token.as_ref().unwrap(),
-                auth_info.workos_cursor_session_token.clone(),
+                session_opt,
                 data.machine_info.clone(),
             )
             .await
@@ -637,6 +646,11 @@ async fn import_account_with_tokens(
         None
     };
 
+    let no_session = session_token
+        .as_ref()
+        .map(|s| s.trim().is_empty())
+        .unwrap_or(true);
+
     // 4. 创建 Token 数据
     let token = TokenData::new(
         access_token.to_string(),
@@ -649,8 +663,17 @@ async fn import_account_with_tokens(
 
     // 5. 创建账号（带机器码信息）
     let account_id = uuid::Uuid::new_v4().to_string();
-    let account =
+    let mut account =
         Account::new_with_machine_info(account_id, email.to_string(), token, machine_info);
+
+    // 无 Workos Session 时拉取 Stripe 订阅（与 accessToken 添加路径一致）
+    if no_session {
+        if let Ok(profile) = auth::get_stripe_profile(access_token).await {
+            account.membership_type = profile
+                .individual_membership_type
+                .or(profile.membership_type);
+        }
+    }
 
     // 6. 保存账号
     storage::save_account(app, &account).await?;

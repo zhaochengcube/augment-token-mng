@@ -16,6 +16,11 @@ pub trait SyncableAccount: Clone + Send + Sync + Serialize + DeserializeOwned + 
     /// 平台标识符（用于表名、文件名等）
     fn platform_name() -> &'static str;
 
+    /// Merge ephemeral/local-only fields from `source` into `self` when `self`
+    /// is missing them. Called during sync to prevent remote overwrites of
+    /// locally-computed data (e.g. quota, auth metadata).
+    fn merge_missing_fields(&mut self, _source: &Self) {}
+
     /// 存储文件名
     fn storage_file_name() -> String {
         format!("{}_accounts.json", Self::platform_name())

@@ -661,6 +661,7 @@ pub fn run() {
             cursor::cursor_get_user_info_from_session,
             cursor::cursor_refresh_account_tokens,
             cursor::cursor_add_account_with_session,
+            cursor::cursor_add_account_with_access_token,
             cursor::cursor_import_accounts,
             cursor::cursor_update_account,
             cursor::cursor_list_accounts,

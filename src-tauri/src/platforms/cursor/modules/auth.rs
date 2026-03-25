@@ -257,6 +257,52 @@ pub async fn get_usage_summary(session_token: &str) -> Result<UsageSummary, Stri
     }
 }
 
+/// Stripe Profile 响应结构（api2.cursor.sh/auth/full_stripe_profile）
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StripeProfileResponse {
+    #[serde(default)]
+    pub membership_type: Option<String>,
+    #[serde(default)]
+    pub individual_membership_type: Option<String>,
+    #[serde(default)]
+    pub subscription_status: Option<String>,
+    #[serde(default)]
+    pub days_remaining_on_trial: Option<i32>,
+    #[serde(default)]
+    pub payment_id: Option<String>,
+}
+
+/// 使用 access_token 获取 Stripe 订阅信息（Bearer 认证，不需要 session）
+pub async fn get_stripe_profile(access_token: &str) -> Result<StripeProfileResponse, String> {
+    let client = create_proxy_client()?;
+
+    let response = client
+        .get("https://api2.cursor.sh/auth/full_stripe_profile")
+        .header("Authorization", format!("Bearer {}", access_token))
+        .header("Accept", "*/*")
+        .timeout(std::time::Duration::from_secs(30))
+        .send()
+        .await
+        .map_err(|e| format!("Stripe profile request failed: {}", e))?;
+
+    let status_code = response.status().as_u16();
+    let body = response
+        .text()
+        .await
+        .map_err(|e| format!("Failed to read response body: {}", e))?;
+
+    if status_code != 200 {
+        return Err(format!(
+            "Get stripe profile failed (HTTP {}): {}",
+            status_code, body
+        ));
+    }
+
+    serde_json::from_str::<StripeProfileResponse>(&body)
+        .map_err(|e| format!("Failed to parse stripe profile: {}", e))
+}
+
 /// 获取聚合用量数据
 pub async fn get_aggregated_usage_data(
     workos_session_token: &str,

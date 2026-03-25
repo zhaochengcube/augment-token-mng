@@ -114,6 +114,15 @@ impl SyncableAccount for Account {
     fn platform_name() -> &'static str {
         "openai"
     }
+
+    fn merge_missing_fields(&mut self, source: &Self) {
+        if self.quota.is_none() && source.quota.is_some() {
+            self.quota = source.quota.clone();
+        }
+        if self.openai_auth_json.is_none() && source.openai_auth_json.is_some() {
+            self.openai_auth_json = source.openai_auth_json.clone();
+        }
+    }
 }
 
 impl Account {

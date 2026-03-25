@@ -7,8 +7,8 @@
     }"
     @click="handleCardClick"
   >
-    <!-- 头部：选择框 + 邮箱标题（预留右侧给状态 badge/按钮） -->
-    <div class="flex items-center gap-2 mb-3 pr-16 min-w-0">
+    <!-- 头部：选择框 + 邮箱（单行省略；右上角按钮为绝对定位，不为邮箱预留右侧空白） -->
+    <div class="flex items-center gap-2 mb-3 min-w-0">
       <!-- 选择框（悬浮或选择模式时显示） -->
       <div
         class="selection-checkbox shrink-0"
@@ -22,7 +22,7 @@
         </div>
       </div>
 
-      <!-- 邮箱（可点击复制，长文本省略） -->
+      <!-- 邮箱（可点击复制，完整内容见 tooltip） -->
       <div
         class="min-w-0 flex-1 cursor text-[15px] font-semibold text-text truncate"
         v-tooltip="account.email"

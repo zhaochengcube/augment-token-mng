@@ -62,6 +62,7 @@
 
       <!-- 刷新配额按钮 -->
       <button
+        v-if="hasSessionToken"
         @click="$emit('refresh-quota', account.id)"
         class="w-7 h-7 rounded border-none bg-surface text-text-secondary cursor-pointer flex items-center justify-center shadow-sm hover:bg-hover hover:text-accent transition-colors"
         :disabled="isRefreshing"
@@ -98,7 +99,11 @@
             </svg>
             <span>{{ $t('accountCard.copyAccessToken') }}</span>
           </button>
-          <button @click="handleMenuClick('copySessionToken', close)" class="dropdown-item">
+          <button
+            v-if="hasSessionToken"
+            @click="handleMenuClick('copySessionToken', close)"
+            class="dropdown-item"
+          >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
               <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
             </svg>
@@ -153,7 +158,7 @@
       </div>
 
       <!-- Auto 用量 -->
-      <div v-if="autoRemainingPercent !== null" class="flex items-center gap-1 min-h-6">
+      <div v-if="autoRemainingPercent !== null && hasSessionToken" class="flex items-center gap-1 min-h-6">
         <div class="flex items-center gap-1.5 w-[90px] shrink-0 text-text-muted text-xs">
           <svg class="w-3.5 h-3.5 shrink-0 opacity-70" viewBox="0 0 24 24" fill="currentColor">
             <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 12h2v5H7zm4-3h2v8h-2zm4-3h2v11h-2z"/>
@@ -174,7 +179,7 @@
       </div>
 
       <!-- API 用量 -->
-      <div v-if="apiRemainingPercent !== null" class="flex items-center gap-1 min-h-6">
+      <div v-if="apiRemainingPercent !== null && hasSessionToken" class="flex items-center gap-1 min-h-6">
         <div class="flex items-center gap-1.5 w-[90px] shrink-0 text-text-muted text-xs">
           <svg class="w-3.5 h-3.5 shrink-0 opacity-70" viewBox="0 0 24 24" fill="currentColor">
             <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 12h2v5H7zm4-3h2v8h-2zm4-3h2v11h-2z"/>
@@ -195,7 +200,7 @@
       </div>
 
       <!-- 配额（按钮） -->
-      <div class="flex items-center gap-1 min-h-6">
+      <div v-if="hasSessionToken" class="flex items-center gap-1 min-h-6">
         <div class="flex items-center gap-1.5 w-[90px] shrink-0 text-text-muted text-xs">
           <svg class="w-3.5 h-3.5 shrink-0 opacity-70" viewBox="0 0 24 24" fill="currentColor">
             <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 12h2v5H7zm4-3h2v8h-2zm4-3h2v11h-2z"/>
@@ -316,6 +321,8 @@ const getQuotaBarClass = (percent) => {
   if (percent < 30) return 'bg-warning'
   return 'bg-success'
 }
+
+const hasSessionToken = computed(() => !!props.account.token?.workos_cursor_session_token)
 
 // Auto 剩余百分比
 const autoRemainingPercent = computed(() => {

@@ -55,15 +55,21 @@ where
     }
 
     fn resolve_conflicts_impl(local: Vec<T>, remote: Vec<T>) -> Vec<T> {
+        let local_map: HashMap<String, &T> =
+            local.iter().map(|a| (a.id().to_string(), a)).collect();
         let mut resolved: HashMap<String, T> = HashMap::new();
 
-        for r in remote {
+        for mut r in remote {
+            if let Some(l) = local_map.get(r.id()) {
+                r.merge_missing_fields(l);
+            }
             resolved.insert(r.id().to_string(), r);
         }
 
-        for l in local {
+        for mut l in local {
             if let Some(r) = resolved.get(l.id()) {
                 if l.updated_at() > r.updated_at() {
+                    l.merge_missing_fields(r);
                     resolved.insert(l.id().to_string(), l);
                 }
             } else {
@@ -191,7 +197,7 @@ where
             return Err("Database not available".into());
         }
 
-        let remote_accounts = postgres.load_accounts().await?;
+        let mut remote_accounts = postgres.load_accounts().await?;
         let remote_accounts_len = remote_accounts.len();
         let current_account_id = self
             .local_storage
@@ -204,6 +210,18 @@ where
             .await
             .unwrap_or_default();
         let new_version = postgres.get_max_version().await.unwrap_or(0);
+
+        // Preserve local-only fields (e.g. quota) that remote may not have
+        let local_accounts = self.local_storage.load_accounts().await.unwrap_or_default();
+        let local_map: HashMap<String, T> = local_accounts
+            .into_iter()
+            .map(|a| (a.id().to_string(), a))
+            .collect();
+        for account in &mut remote_accounts {
+            if let Some(local) = local_map.get(account.id()) {
+                account.merge_missing_fields(local);
+            }
+        }
 
         let selected_current = if let Some(id) = current_account_id {
             if remote_accounts.iter().any(|a| a.id() == id) {
@@ -346,7 +364,9 @@ where
             let account = &change.account;
             if let Ok(Some(existing)) = postgres.get_account(account.id()).await {
                 if account.updated_at() > existing.updated_at() {
-                    if let Err(e) = postgres.save_account_with_version(account).await {
+                    let mut merged = account.clone();
+                    merged.merge_missing_fields(&existing);
+                    if let Err(e) = postgres.save_account_with_version(&merged).await {
                         eprintln!(
                             "Failed to save account {} to postgres: {:?}",
                             account.id(),
@@ -408,7 +428,7 @@ where
         };
 
         // 更新本地存储
-        let all_accounts = match postgres.load_accounts().await {
+        let mut all_accounts = match postgres.load_accounts().await {
             Ok(accounts) => accounts,
             Err(e) => {
                 eprintln!("Failed to load all accounts: {:?}", e);
@@ -425,6 +445,19 @@ where
             .await
             .ok()
             .flatten();
+
+        // Preserve local-only fields (e.g. quota) that remote may not have
+        let current_local = self.local_storage.load_accounts().await.unwrap_or_default();
+        let local_map: HashMap<String, T> = current_local
+            .into_iter()
+            .map(|a| (a.id().to_string(), a))
+            .collect();
+        for account in &mut all_accounts {
+            if let Some(local) = local_map.get(account.id()) {
+                account.merge_missing_fields(local);
+            }
+        }
+
         let selected_current = if let Some(id) = current_account_id {
             if all_accounts.iter().any(|a| a.id() == id) {
                 Some(id)

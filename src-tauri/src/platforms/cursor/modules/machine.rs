@@ -108,6 +108,14 @@ pub fn reset_machine_id() -> Result<TelemetryIds, String> {
     db::reset_machine_ids_in_db(&ids.machine_id, Some(&ids.service_machine_id))
         .map_err(|e| format!("Failed to reset machine IDs in state.vscdb: {}", e))?;
 
+    // Linux 平台：写入 machineid 文件并设为只读
+    #[cfg(target_os = "linux")]
+    {
+        if let Err(e) = write_linux_machineid_file(&ids.dev_device_id) {
+            eprintln!("Warning: Failed to write Linux machineid file: {}", e);
+        }
+    }
+
     Ok(ids)
 }
 
@@ -360,6 +368,50 @@ pub fn write_machine_ids(machine_info: &MachineInfo) -> Result<(), String> {
     let service_machine_id_for_db = machine_info.storage_service_machine_id.as_deref();
     db::reset_machine_ids_in_db(&machine_id_for_db, service_machine_id_for_db)
         .map_err(|e| format!("Failed to reset machine IDs in state.vscdb: {}", e))?;
+
+    // Linux 平台：写入 machineid 文件并设为只读
+    #[cfg(target_os = "linux")]
+    {
+        let dev_device_id = machine_info
+            .dev_device_id
+            .as_deref()
+            .unwrap_or(&machine_id_for_db);
+        if let Err(e) = write_linux_machineid_file(dev_device_id) {
+            eprintln!("Warning: Failed to write Linux machineid file: {}", e);
+        }
+    }
+
+    Ok(())
+}
+
+/// Linux 平台：写入 ~/.config/Cursor/machineid 文件并设为只读 (444)
+#[cfg(target_os = "linux")]
+fn write_linux_machineid_file(dev_device_id: &str) -> Result<(), String> {
+    let home = dirs::home_dir().ok_or("Cannot get home directory")?;
+    let cursor_config_dir = home.join(".config/Cursor");
+
+    if !cursor_config_dir.exists() {
+        return Ok(());
+    }
+
+    let machineid_path = cursor_config_dir.join("machineid");
+
+    // 如果文件存在且只读，先恢复写权限
+    if machineid_path.exists() {
+        use std::os::unix::fs::PermissionsExt;
+        let perms = fs::Permissions::from_mode(0o644);
+        fs::set_permissions(&machineid_path, perms)
+            .map_err(|e| format!("Failed to set machineid writable: {}", e))?;
+    }
+
+    fs::write(&machineid_path, dev_device_id)
+        .map_err(|e| format!("Failed to write machineid: {}", e))?;
+
+    // 设为只读 (444)，防止 Cursor 启动时覆盖
+    use std::os::unix::fs::PermissionsExt;
+    let perms = fs::Permissions::from_mode(0o444);
+    fs::set_permissions(&machineid_path, perms)
+        .map_err(|e| format!("Failed to set machineid read-only: {}", e))?;
 
     Ok(())
 }

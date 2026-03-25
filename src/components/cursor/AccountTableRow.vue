@@ -64,7 +64,7 @@
 
     <!-- 用量 -->
     <td class="w-[130px] px-2.5 py-3.5 border-b border-border/50 align-top whitespace-nowrap text-[12px] text-text-muted">
-      <div v-if="autoRemainingPercent !== null || apiRemainingPercent !== null" class="flex flex-col gap-1">
+      <div v-if="hasSessionToken && (autoRemainingPercent !== null || apiRemainingPercent !== null)" class="flex flex-col gap-1">
         <div v-if="autoRemainingPercent !== null" class="flex items-center gap-1">
           <span class="w-7 shrink-0 text-text-muted/60">Auto</span>
           <div class="flex-1 h-1.5 bg-muted rounded overflow-hidden">
@@ -106,6 +106,7 @@
     <!-- 配额 -->
     <td class="w-[100px] px-2.5 py-3.5 border-b border-border/50 align-top whitespace-nowrap text-[13px] text-text">
       <button
+        v-if="hasSessionToken"
         @click.stop="showUsageModal = true"
         class="inline-flex items-center gap-1 px-2 py-0.5 text-xs text-accent bg-accent/10 border border-accent/30 rounded hover:bg-accent/20 transition-colors cursor-pointer"
       >
@@ -114,6 +115,7 @@
         </svg>
         {{ $t('cursorUsage.viewUsage') }}
       </button>
+      <span v-else class="text-text-muted/50">-</span>
     </td>
 
     <!-- 操作 -->
@@ -147,7 +149,11 @@
               </svg>
               <span>{{ $t('accountCard.copyAccessToken') }}</span>
             </button>
-            <button @click="handleMenuClick('copySessionToken', close)" class="dropdown-item">
+            <button
+              v-if="hasSessionToken"
+              @click="handleMenuClick('copySessionToken', close)"
+              class="dropdown-item"
+            >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
               </svg>
@@ -228,6 +234,8 @@ const getQuotaBarClass = (percent) => {
   if (percent < 30) return 'bg-warning'
   return 'bg-success'
 }
+
+const hasSessionToken = computed(() => !!props.account.token?.workos_cursor_session_token)
 
 // Auto 剩余百分比
 const autoRemainingPercent = computed(() => {

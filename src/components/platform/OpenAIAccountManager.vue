@@ -666,6 +666,24 @@ const {
   items: accounts,
   itemKey: 'account',
   labelField: 'email',
+  /** 双向同步返回的 upserts 来自 PG 增量，常不含 quota；合并本地已有展示数据 */
+  transformSyncedItem: (serverItem, prev) => {
+    if (!prev) return serverItem
+    const merged = { ...serverItem }
+    const q = merged.quota
+    const quotaEmpty =
+      !q ||
+      (q.codex_5h_used_percent == null &&
+        q.codex_7d_used_percent == null &&
+        !q.is_forbidden)
+    if (quotaEmpty && prev.quota) {
+      merged.quota = prev.quota
+    }
+    if (!merged.openai_auth_json && prev.openai_auth_json) {
+      merged.openai_auth_json = prev.openai_auth_json
+    }
+    return merged
+  },
   onSyncComplete: async () => {
     await loadAccounts()
   }
@@ -1079,30 +1097,41 @@ const handleSwitch = async (accountId) => {
   }
 }
 
+const refreshCodexPoolQuietly = () => {
+  invoke('refresh_codex_pool').catch(e => console.warn('refresh_codex_pool failed:', e))
+}
+
 const handleAccountAdded = async (account) => {
   showAddDialog.value = false
   await loadAccounts()
-  if (account?.id) {
-    markItemUpsertById(account.id)
-  }
+  refreshCodexPoolQuietly()
   window.$notify?.success($t('platform.openai.messages.addSuccess'))
-  if (account?.id && account.account_type !== 'api') {
-    refreshingIds.value.add(account.id)
-    invoke('openai_fetch_quota', { accountId: account.id })
-      .then(updatedAccount => {
-        const index = accounts.value.findIndex(a => a.id === account.id)
-        if (index !== -1) {
-          accounts.value[index] = updatedAccount
-        }
-      })
-      .catch(e => console.warn('Fetch quota after add failed:', e))
-      .finally(() => refreshingIds.value.delete(account.id))
+  if (!account?.id) return
+  if (account.account_type === 'api') {
+    markItemUpsertById(account.id)
+    return
   }
+  refreshingIds.value.add(account.id)
+  invoke('openai_fetch_quota', { accountId: account.id })
+    .then(updatedAccount => {
+      const index = accounts.value.findIndex(a => a.id === account.id)
+      if (index !== -1) {
+        accounts.value[index] = updatedAccount
+      }
+      markItemUpsertById(account.id)
+      refreshCodexPoolQuietly()
+    })
+    .catch(e => {
+      console.warn('Fetch quota after add failed:', e)
+      markItemUpsertById(account.id)
+    })
+    .finally(() => refreshingIds.value.delete(account.id))
 }
 
 const handleAccountsImported = async (result) => {
   showImportDialog.value = false
   await loadAccounts()
+  refreshCodexPoolQuietly()
   if (result?.success_count > 0) {
     window.$notify?.success($t('platform.openai.messages.importSuccess', { count: result.success_count }))
     if (result.accountIds?.length) {
@@ -1112,7 +1141,9 @@ const handleAccountsImported = async (result) => {
         return acc && acc.account_type !== 'api'
       })
       if (oauthIds.length) {
-        Promise.allSettled(oauthIds.map(id => handleRefreshQuota(id)))
+        Promise.allSettled(oauthIds.map(id => handleRefreshQuota(id))).then(() => {
+          refreshCodexPoolQuietly()
+        })
       }
     }
   }
@@ -1143,6 +1174,7 @@ const handleDelete = async (accountId) => {
       markItemDeletion(account)
     }
     await loadAccounts()
+    refreshCodexPoolQuietly()
     window.$notify?.success($t('platform.openai.messages.deleteSuccess'))
   } catch (error) {
     console.error('Failed to delete account:', error)
@@ -1364,6 +1396,7 @@ const handleBatchDeleteSelected = async () => {
     }
     selectedAccountIds.value = new Set()
     await loadAccounts()
+    refreshCodexPoolQuietly()
     window.$notify?.success($t('platform.openai.messages.deleteSuccess'))
   } catch (error) {
     console.error('Failed to batch delete accounts:', error)
