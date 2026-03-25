@@ -1081,18 +1081,23 @@ const handleSwitch = async (accountId) => {
 
 const handleAccountAdded = async (account) => {
   showAddDialog.value = false
-  if (account?.id) {
-    try {
-      await invoke('openai_fetch_quota', { accountId: account.id })
-    } catch (e) {
-      console.warn('Fetch quota after add failed:', e)
-    }
-  }
   await loadAccounts()
   if (account?.id) {
     markItemUpsertById(account.id)
   }
   window.$notify?.success($t('platform.openai.messages.addSuccess'))
+  if (account?.id && account.account_type !== 'api') {
+    refreshingIds.value.add(account.id)
+    invoke('openai_fetch_quota', { accountId: account.id })
+      .then(updatedAccount => {
+        const index = accounts.value.findIndex(a => a.id === account.id)
+        if (index !== -1) {
+          accounts.value[index] = updatedAccount
+        }
+      })
+      .catch(e => console.warn('Fetch quota after add failed:', e))
+      .finally(() => refreshingIds.value.delete(account.id))
+  }
 }
 
 const handleAccountsImported = async (result) => {
