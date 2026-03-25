@@ -79,6 +79,11 @@ function hideTooltip() {
   currentTriggerEl = null
 }
 
+function clearTimers() {
+  if (showTimer) { clearTimeout(showTimer); showTimer = null }
+  if (hideTimer) { clearTimeout(hideTimer); hideTimer = null }
+}
+
 function addTooltipListeners(el, binding) {
   // 如果已经添加过，先移除
   removeTooltipListeners(el)
@@ -104,17 +109,23 @@ function addTooltipListeners(el, binding) {
       hideTimer = setTimeout(() => {
         hideTooltip()
       }, 0)
+    },
+    mousedown: () => {
+      clearTimers()
+      hideTooltip()
     }
   }
 
   el.addEventListener('mouseenter', el._tooltipHandlers.mouseenter)
   el.addEventListener('mouseleave', el._tooltipHandlers.mouseleave)
+  el.addEventListener('mousedown', el._tooltipHandlers.mousedown)
 }
 
 function removeTooltipListeners(el) {
   if (el._tooltipHandlers) {
     el.removeEventListener('mouseenter', el._tooltipHandlers.mouseenter)
     el.removeEventListener('mouseleave', el._tooltipHandlers.mouseleave)
+    el.removeEventListener('mousedown', el._tooltipHandlers.mousedown)
     el._tooltipHandlers = null
   }
 }
@@ -148,17 +159,9 @@ export const tooltip = {
 
   unmounted(el) {
     removeTooltipListeners(el)
-
+    clearTimers()
     if (currentTriggerEl === el) {
       hideTooltip()
-      if (showTimer) {
-        clearTimeout(showTimer)
-        showTimer = null
-      }
-      if (hideTimer) {
-        clearTimeout(hideTimer)
-        hideTimer = null
-      }
     }
   }
 }

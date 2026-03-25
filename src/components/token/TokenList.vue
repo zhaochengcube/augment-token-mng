@@ -26,17 +26,6 @@
           @toggle-view="toggleViewMode"
           @clear-all="clearAllFilters"
         >
-          <button
-            v-if="expiringSessionTokens.length > 0"
-            class="btn btn--icon btn-tech-warning relative"
-            @click="openSessionRefreshModal"
-            v-tooltip="$t('tokenList.sessionExpiring', { count: expiringSessionTokens.length })"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
-            </svg>
-            <span class="absolute -top-1 -right-1 min-w-4 h-4 px-1 text-[10px] font-semibold text-white bg-warning rounded-md flex items-center justify-center shadow-sm pointer-events-none">{{ expiringSessionTokens.length }}</span>
-          </button>
           <button @click="handleAddToken" class="btn btn--icon btn--ghost" v-tooltip="$t('tokenList.addToken')">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
               <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
@@ -443,6 +432,17 @@
           </svg>
           <span>{{ $t('tokenList.batchDelete') }}</span>
         </button>
+
+        <button
+          class="btn btn--ghost btn--sm inline-flex items-center gap-2"
+          @click="openTutorialModal"
+          v-tooltip="$t('tokenList.tutorial.tooltip')"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+          </svg>
+          <span>{{ $t('tokenList.tutorial.tooltip') }}</span>
+        </button>
       </div>
     </ActionToolbar>
 
@@ -567,14 +567,51 @@
       @mark-all-for-sync="handleMarkAllForSync"
     />
 
-    <!-- Session Refresh Modal -->
-    <SessionRefreshModal
-      v-model:visible="showSessionRefreshModal"
-      :expiring-tokens="expiringSessionTokens"
-      :refreshing="isRefreshingSessions"
-      @refresh="handleBatchRefreshSessions"
-      @refresh-single="handleSingleRefreshSession"
-    />
+    <!-- Token Tutorial Modal -->
+    <BaseModal
+      :visible="showTutorialModal"
+      :title="$t('tokenList.tutorial.title')"
+      modal-class="modal--sm"
+      @close="closeTutorialModal"
+    >
+      <div class="space-y-4">
+        <p class="text-sm text-text-secondary">{{ $t('tokenList.tutorial.description') }}</p>
+        <ol class="space-y-3 text-sm">
+          <li class="flex gap-2">
+            <span class="shrink-0 w-5 h-5 rounded-full bg-accent/10 text-accent text-xs font-semibold flex items-center justify-center">1</span>
+            <span class="text-text">{{ $t('tokenList.tutorial.step1') }}</span>
+          </li>
+          <li class="flex gap-2">
+            <span class="shrink-0 w-5 h-5 rounded-full bg-accent/10 text-accent text-xs font-semibold flex items-center justify-center">2</span>
+            <div class="text-text">
+              <span>{{ $t('tokenList.tutorial.step2') }}</span>
+              <button class="ml-1 text-accent hover:underline text-xs" @click="openTutorialLink('https://app.augmentcode.com/settings/personal-api-tokens')">
+                {{ $t('tokenList.tutorial.openLink') }}
+              </button>
+              <p class="text-xs text-text-muted mt-1">
+                {{ $t('tokenList.tutorial.step2Tip') }}
+                <button class="text-accent hover:underline" @click="openTutorialLink('https://app.augmentcode.com/settings/code-review')">
+                  {{ $t('tokenList.tutorial.step2TipLink') }}
+                </button>
+              </p>
+            </div>
+          </li>
+          <li class="flex gap-2">
+            <span class="shrink-0 w-5 h-5 rounded-full bg-accent/10 text-accent text-xs font-semibold flex items-center justify-center">3</span>
+            <span class="text-text">{{ $t('tokenList.tutorial.step3') }}</span>
+          </li>
+          <li class="flex gap-2">
+            <span class="shrink-0 w-5 h-5 rounded-full bg-accent/10 text-accent text-xs font-semibold flex items-center justify-center">4</span>
+            <span class="text-text">{{ $t('tokenList.tutorial.step4') }}</span>
+          </li>
+        </ol>
+      </div>
+      <template #footer>
+        <button class="btn btn--primary btn--sm" @click="closeTutorialModal">
+          {{ $t('tokenList.tutorial.understood') }}
+        </button>
+      </template>
+    </BaseModal>
 
     <!-- Batch Import Dialog -->
     <BatchImportModal
@@ -650,7 +687,7 @@ import TagEditorModal from './TagEditorModal.vue'
 import BatchImportModal from './BatchImportModal.vue'
 import SyncQueueModal from '../common/SyncQueueModal.vue'
 import DeleteConfirmModal from '../common/DeleteConfirmModal.vue'
-import SessionRefreshModal from './SessionRefreshModal.vue'
+import BaseModal from '../common/BaseModal.vue'
 import Pagination from '../common/Pagination.vue'
 import BatchToolbar from '../common/BatchToolbar.vue'
 import ActionToolbar from '../common/ActionToolbar.vue'
@@ -680,10 +717,6 @@ const isLoading = ref(false)
 
 // 初始化就绪标记
 const isReady = ref(false)
-
-// Session 刷新相关状态
-const showSessionRefreshModal = ref(false)
-const isRefreshingSessions = ref(false)
 
 // 使用存储同步 composable
 const {
@@ -780,12 +813,14 @@ const selectedTokenIds = ref(new Set())
 const isSelectionMode = computed(() => selectedTokenIds.value.size > 0)
 const showSelectedDeleteDialog = ref(false)
 const isBatchRefreshing = ref(false)
-const isBatchRefreshingSessions = ref(false)
 const isBatchFetchingPaymentLinks = ref(false)
 const showBatchTagEditor = ref(false)
 
 // 绑卡链接缓存（Session 级别，不持久化）
 const paymentLinksCache = ref(new Map())
+
+// Token 教程通知
+const showTutorialModal = ref(false)
 
 // 批量导入状态
 const showBatchImportDialog = ref(false)
@@ -1088,37 +1123,6 @@ const emailSuffixes = computed(() => {
   // 转换为数组并按数量排序(从大到小)
   return Object.keys(stats).sort((a, b) => {
     return stats[b] - stats[a]
-  })
-})
-
-// 辅助函数：判断 session 是否需要刷新（25-30天）
-const shouldRefreshSession = (token) => {
-  if (!token.auth_session || !token.created_at) return false
-
-  // 使用 session_updated_at（如果存在）或 created_at 来判断
-  const referenceTime = token.session_updated_at || token.created_at
-  const referenceDate = new Date(referenceTime)
-  const now = new Date()
-  const daysSinceReference = Math.floor((now - referenceDate) / (1000 * 60 * 60 * 24))
-
-  return daysSinceReference >= 25 && daysSinceReference < 30
-}
-
-// 计算即将过期的 session tokens（25-30天，且状态为正常）
-// 按剩余天数从少到多排序（最紧急的排在前面）
-const expiringSessionTokens = computed(() => {
-  const filtered = tokens.value.filter(token => {
-    // 必须有 auth_session 和 created_at
-    if (!token.auth_session || !token.created_at) return false
-
-    return shouldRefreshSession(token)
-  })
-
-  // 按剩余天数排序（从少到多，最紧急的在前）
-  return filtered.sort((a, b) => {
-    const daysA = Math.floor((new Date() - new Date(a.created_at)) / (1000 * 60 * 60 * 24))
-    const daysB = Math.floor((new Date() - new Date(b.created_at)) / (1000 * 60 * 60 * 24))
-    return daysB - daysA // 天数大的在前（剩余天数少的在前）
   })
 })
 
@@ -1744,77 +1748,6 @@ const batchRefreshSelected = async () => {
     clearSelection()
   }
 }
-
-// 批量刷新选中的 Session（已注释）
-/*
-const batchRefreshSessionsSelected = async () => {
-  if (selectedTokenIds.value.size === 0 || isBatchRefreshingSessions.value) return
-
-  // 构建请求列表：{ id, session }
-  const requests = selectedTokens.value
-    .filter(token => token.auth_session)
-    .map(token => ({
-      id: token.id,
-      session: token.auth_session
-    }))
-
-  if (requests.length === 0) {
-    window.$notify.warning(t('tokenList.noTokensWithSession'))
-    return
-  }
-
-  isBatchRefreshingSessions.value = true
-
-  try {
-    window.$notify.info(t('tokenList.batchRefreshingSessions', { count: requests.length }))
-
-    // 调用后端刷新接口
-    const results = await invoke('batch_refresh_sessions', { requests })
-
-    let successCount = 0
-    let failCount = 0
-
-    // 更新 tokens（使用 token_id 匹配）
-    const now = new Date().toISOString()
-    results.forEach(result => {
-      if (result.success && result.new_session) {
-        successCount++
-        // 在 tokens 数组中查找对应的 token
-        const token = tokens.value.find(t => t.id === result.token_id)
-        if (token) {
-          token.auth_session = result.new_session
-          token.session_updated_at = now  // 设置 session 更新时间
-          token.updated_at = now
-
-          // 添加到待同步队列
-          markItemUpsert(token)
-        }
-      } else {
-        failCount++
-        console.error(`Failed to refresh session for token ${result.token_id}:`, result.error)
-      }
-    })
-
-    // 保存更新后的 tokens（由前端统一处理双向存储）
-    await saveTokens()
-
-    // 显示结果
-    if (successCount > 0) {
-      window.$notify.success(t('messages.sessionRefreshSuccess', { count: successCount }))
-    }
-    if (failCount > 0) {
-      window.$notify.warning(t('messages.sessionRefreshPartialFail', { success: successCount, fail: failCount }))
-    }
-  } catch (error) {
-    console.error('Failed to refresh sessions:', error)
-    window.$notify.error(t('messages.sessionRefreshFailed'))
-  } finally {
-    isBatchRefreshingSessions.value = false
-    // 操作完成后清除选择
-    clearSelection()
-  }
-}
-*/
 
 // 批量导出选中的 token
 const batchExportSelected = async () => {
@@ -2554,105 +2487,6 @@ const editingToken = ref(null)
 // Token card refs for accessing child methods
 const tokenCardRefs = ref({})
 
-// 打开 Session 刷新 Modal
-const openSessionRefreshModal = () => {
-  showSessionRefreshModal.value = true
-}
-
-// 单个刷新 session
-const handleSingleRefreshSession = async ({ tokenId, newSession, updatedAt }) => {
-  try {
-    // 在 tokens 数组中查找对应的 token
-    const token = tokens.value.find(t => t.id === tokenId)
-    if (token) {
-      token.auth_session = newSession
-      token.session_updated_at = updatedAt
-      token.updated_at = updatedAt
-
-      // 添加到待同步队列
-      markItemUpsert(token)
-
-      // 保存更新后的 tokens
-      await saveTokens()
-    }
-  } catch (error) {
-    console.error('Failed to save token after session refresh:', error)
-    window.$notify?.error(t('messages.saveTokenFailed'))
-  }
-}
-
-// 批量刷新 sessions
-const handleBatchRefreshSessions = async () => {
-  if (expiringSessionTokens.value.length === 0) {
-    window.$notify.warning(t('messages.noExpiringSession'))
-    return
-  }
-
-  // 构建请求列表：{ id, session }
-  const requests = expiringSessionTokens.value
-    .filter(token => token.auth_session)
-    .map(token => ({
-      id: token.id,
-      session: token.auth_session
-    }))
-
-  if (requests.length === 0) {
-    window.$notify.warning(t('messages.noExpiringSession'))
-    return
-  }
-
-  isRefreshingSessions.value = true
-
-  try {
-
-    // 调用后端刷新接口
-    const results = await invoke('batch_refresh_sessions', { requests })
-
-    let successCount = 0
-    let failCount = 0
-
-    // 更新 tokens（使用 token_id 匹配）
-    const now = new Date().toISOString()
-    results.forEach(result => {
-      if (result.success && result.new_session) {
-        successCount++
-        // 在 tokens 数组中查找对应的 token
-        const token = tokens.value.find(t => t.id === result.token_id)
-        if (token) {
-          token.auth_session = result.new_session
-          token.session_updated_at = now  // 设置 session 更新时间
-          token.updated_at = now
-
-          // 添加到待同步队列
-          markItemUpsert(token)
-        }
-      } else {
-        failCount++
-        console.error(`Failed to refresh session for token ${result.token_id}:`, result.error)
-      }
-    })
-
-    // 保存更新后的 tokens（由前端统一处理双向存储）
-    await saveTokens()
-
-    // 显示结果
-    if (successCount > 0) {
-      window.$notify.success(t('messages.sessionRefreshSuccess', { count: successCount }))
-    }
-    if (failCount > 0) {
-      window.$notify.warning(t('messages.sessionRefreshPartialFail', { success: successCount, fail: failCount }))
-    }
-
-    // 关闭 Modal
-    showSessionRefreshModal.value = false
-  } catch (error) {
-    console.error('Failed to refresh sessions:', error)
-    window.$notify.error(t('messages.sessionRefreshFailed'))
-  } finally {
-    isRefreshingSessions.value = false
-  }
-}
-
 // 标记所有 token 为待同步（使用 composable 的 markAllForSync）
 const handleMarkAllForSync = () => {
   if (tokens.value.length === 0) {
@@ -3388,6 +3222,35 @@ const handleSync = composableHandleSync
 // 保留旧的双向同步方法作为兼容，内部调用新的 handleSync
 const handleBidirectionalSync = handleSync
 
+const TUTORIAL_SHOWN_KEY = 'atm-token-tutorial-shown'
+
+const openTutorialModal = () => {
+  showTutorialModal.value = true
+}
+
+const closeTutorialModal = () => {
+  showTutorialModal.value = false
+  try {
+    localStorage.setItem(TUTORIAL_SHOWN_KEY, '1')
+  } catch {}
+}
+
+const openTutorialLink = async (url) => {
+  try {
+    await invoke('open_url', { url })
+  } catch (e) {
+    console.warn('Failed to open URL:', e)
+  }
+}
+
+const checkAndShowTutorial = () => {
+  try {
+    if (!localStorage.getItem(TUTORIAL_SHOWN_KEY)) {
+      showTutorialModal.value = true
+    }
+  } catch {}
+}
+
 // 组件挂载时自动加载tokens和存储状态
 onMounted(async () => {
   // 加载分页配置
@@ -3408,6 +3271,9 @@ onMounted(async () => {
   // 使用 isLoadingFromSync 标记初始加载，避免触发自动保存
   isLoadingFromSync.value = true
   await loadTokens(false) // 显示成功消息
+
+  // 首次使用教程通知（数据加载完成后立即检查）
+  checkAndShowTutorial()
 
   // 延迟重置标记，确保 watchDebounced 的 debounce timer 已经被清除
   await new Promise(resolve => setTimeout(resolve, 2100))
