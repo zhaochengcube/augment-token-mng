@@ -725,6 +725,14 @@ pub async fn cursor_enable_auto_update(app: AppHandle) -> Result<(), String> {
     machine::enable_auto_update(custom_path.as_deref())
 }
 
+/// 检查 main.js 文件是否有写入权限（macOS App Management 权限）
+#[tauri::command]
+pub async fn cursor_check_main_js_permission(app: AppHandle) -> Result<bool, String> {
+    use crate::core::path_manager::{CURSOR_CONFIG, read_custom_path_from_config};
+    let custom_path = read_custom_path_from_config(&app, &CURSOR_CONFIG);
+    machine::check_main_js_writable(custom_path.as_deref())
+}
+
 /// 导出账号数据（单个或批量）
 /// 返回 JSON 字符串，格式与导入格式兼容
 #[tauri::command]

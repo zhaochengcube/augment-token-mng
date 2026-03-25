@@ -477,6 +477,29 @@ pub fn enable_auto_update(custom_exe_path: Option<&str>) -> Result<(), String> {
     Ok(())
 }
 
+/// 检查 main.js 文件是否可写（macOS 需要 App Management 权限）
+pub fn check_main_js_writable(custom_exe_path: Option<&str>) -> Result<bool, String> {
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = custom_exe_path;
+        return Ok(true);
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let main_js_path = get_main_js_path(custom_exe_path)?;
+        if !main_js_path.exists() {
+            return Err(format!("main.js not found: {}", main_js_path.display()));
+        }
+
+        match fs::OpenOptions::new().append(true).open(&main_js_path) {
+            Ok(_) => Ok(true),
+            Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => Ok(false),
+            Err(e) => Err(format!("Failed to check main.js permission: {}", e)),
+        }
+    }
+}
+
 /// 使用绑定的机器码完成重置流程
 /// 任一步骤失败立即返回 Err，不继续后续操作
 pub fn complete_reset_with_machine_info(

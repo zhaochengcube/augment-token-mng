@@ -1522,6 +1522,14 @@ export default {
         confirm: 'Confirm Switch'
       },
       importAccounts: 'Import Accounts',
+      permission: {
+        title: 'App Management Permission Required',
+        description: 'Switching accounts and managing updates requires modifying Cursor files. Please find this app in macOS "System Settings > Privacy & Security > App Management" and enable the permission.',
+        openSettings: 'Open System Settings',
+        recheck: 'Recheck',
+        granted: 'Permission granted',
+        operationFailed: 'Operation failed: missing App Management permission. Please grant it in "System Settings > Privacy & Security > App Management" and try again'
+      },
       messages: {
         machineIdGenerated: 'Machine ID generated and bound to account',
         machineIdGenerateFailed: 'Failed to generate machine ID',

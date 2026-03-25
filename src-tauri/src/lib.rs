@@ -680,6 +680,7 @@ pub fn run() {
             cursor::cursor_check_auto_update_disabled,
             cursor::cursor_disable_auto_update,
             cursor::cursor_enable_auto_update,
+            cursor::cursor_check_main_js_permission,
 
             // 书签同步命令
             data::bookmark::bookmark_sync_accounts,

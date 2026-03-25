@@ -67,6 +67,35 @@
         </AccountManagerHeader>
       </template>
 
+      <!-- macOS App Management 权限引导 -->
+      <div v-if="needsAppManagementPermission" class="mx-3 mt-2 mb-1 p-3.5 rounded-lg border border-amber-500/30 bg-amber-500/5">
+        <div class="flex items-start gap-3">
+          <svg class="shrink-0 mt-0.5 text-amber-500" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+          </svg>
+          <div class="flex-1 min-w-0">
+            <h4 class="text-sm font-medium text-text mb-1">{{ $t('platform.cursor.permission.title') }}</h4>
+            <p class="text-xs text-text-secondary mb-2">{{ $t('platform.cursor.permission.description') }}</p>
+            <div class="flex items-center gap-2 mt-2">
+              <button
+                @click="openAppManagementSettings"
+                class="btn btn--sm btn--primary"
+              >
+                {{ $t('platform.cursor.permission.openSettings') }}
+              </button>
+              <button
+                @click="checkMainJsPermission(true)"
+                :disabled="isCheckingPermission"
+                class="btn btn--sm btn--secondary"
+              >
+                <span v-if="isCheckingPermission" class="btn-spinner btn-spinner--sm"></span>
+                <span v-else>{{ $t('platform.cursor.permission.recheck') }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Loading State -->
       <div v-if="isLoading" class="flex flex-col items-center justify-center h-full gap-5 text-text-muted py-12 px-6">
         <div class="spinner"></div>
@@ -555,6 +584,10 @@ const defaultCursorPath = ref('')
 const isAutoUpdateDisabled = ref(false)
 const isTogglingAutoUpdate = ref(false)
 
+// macOS 权限状态
+const needsAppManagementPermission = ref(false)
+const isCheckingPermission = ref(false)
+
 // 搜索和筛选
 const searchQuery = ref('')
 const selectedStatusFilter = ref(null)
@@ -800,7 +833,12 @@ const performSwitch = async (accountId, useBoundMachineId) => {
     markItemUpsertById(accountId)
   } catch (error) {
     console.error('Failed to switch account:', error)
-    window.$notify?.error(error?.message || error)
+    if (isPermissionError(error)) {
+      window.$notify?.error($t('platform.cursor.permission.operationFailed'))
+      needsAppManagementPermission.value = true
+    } else {
+      window.$notify?.error(error?.message || error)
+    }
   } finally {
     switchingAccountId.value = null
   }
@@ -1173,6 +1211,39 @@ const loadAutoUpdateStatus = async () => {
   }
 }
 
+const isPermissionError = (error) => {
+  const msg = (error?.message || error || '').toString().toLowerCase()
+  return msg.includes('permission denied') || msg.includes('operation not permitted') || msg.includes('access is denied')
+}
+
+const openAppManagementSettings = async () => {
+  try {
+    await invoke('open_url', { url: 'x-apple.systempreferences:com.apple.preference.security?Privacy_AppBundles' })
+  } catch {
+    try {
+      await invoke('open_url', { url: 'x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension' })
+    } catch (e) {
+      console.warn('Failed to open system settings:', e)
+    }
+  }
+}
+
+const checkMainJsPermission = async (showNotify = false) => {
+  isCheckingPermission.value = true
+  try {
+    const hasPermission = await invoke('cursor_check_main_js_permission')
+    const wasMissing = needsAppManagementPermission.value
+    needsAppManagementPermission.value = !hasPermission
+    if (showNotify && hasPermission && wasMissing) {
+      window.$notify?.success($t('platform.cursor.permission.granted'))
+    }
+  } catch (error) {
+    console.warn('Permission check failed:', error)
+  } finally {
+    isCheckingPermission.value = false
+  }
+}
+
 const toggleAutoUpdate = async () => {
   if (isTogglingAutoUpdate.value) return
   isTogglingAutoUpdate.value = true
@@ -1188,7 +1259,12 @@ const toggleAutoUpdate = async () => {
     }
   } catch (error) {
     console.error('Failed to toggle auto-update:', error)
-    window.$notify?.error(error?.message || error)
+    if (isPermissionError(error)) {
+      window.$notify?.error($t('platform.cursor.permission.operationFailed'))
+      needsAppManagementPermission.value = true
+    } else {
+      window.$notify?.error(error?.message || error)
+    }
   } finally {
     isTogglingAutoUpdate.value = false
   }
@@ -1203,5 +1279,6 @@ onMounted(async () => {
   await loadAccounts()
   await loadCustomPath()
   await loadAutoUpdateStatus()
+  checkMainJsPermission()
 })
 </script>

@@ -1515,6 +1515,14 @@ export default {
         confirm: '确认切换'
       },
       importAccounts: '导入账号',
+      permission: {
+        title: '需要授予应用管理权限',
+        description: '切换账号和管理更新需要修改 Cursor 的文件，请在 macOS「系统设置 > 隐私与安全性 > 应用管理」中找到本应用并开启权限。',
+        openSettings: '打开系统设置',
+        recheck: '重新检测',
+        granted: '权限已获取',
+        operationFailed: '操作失败：缺少应用管理权限，请在「系统设置 > 隐私与安全性 > 应用管理」中授予权限后重试'
+      },
       messages: {
         machineIdGenerated: '机器码已生成并绑定到账号',
         machineIdGenerateFailed: '生成机器码失败',

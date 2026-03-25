@@ -23,15 +23,22 @@ fn is_helper_process(name: &str, args: &str) -> bool {
 fn is_cursor_process(process: &sysinfo::Process) -> bool {
     let name = process.name().to_string_lossy().to_lowercase();
 
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(target_os = "windows")]
     {
-        if name.contains("cursor") && !name.contains("cursorfx") {
+        if name == "cursor.exe" {
             return true;
         }
     }
+
+    #[cfg(target_os = "macos")]
+    {
+        if name == "cursor" || name.starts_with("cursor helper") {
+            return true;
+        }
+    }
+
     #[cfg(target_os = "linux")]
     {
-        // 避免匹配 xcursor-* 等无关进程；Electron 主/子进程名通常为 cursor
         if name == "cursor" {
             return true;
         }
