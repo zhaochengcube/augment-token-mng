@@ -128,6 +128,19 @@
 
     <!-- 属性列表 -->
     <div class="flex flex-col gap-1.5">
+      <!-- 创建时间 -->
+      <div v-if="account.created_at" class="flex items-center gap-1 min-h-6">
+        <div class="flex items-center gap-1.5 w-[90px] shrink-0 text-text-muted text-xs">
+          <svg class="w-3.5 h-3.5 shrink-0 opacity-70" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
+          </svg>
+          <span>{{ $t('tokenCard.createdAt') }}</span>
+        </div>
+        <div class="flex-1 text-[13px] text-text-muted truncate">
+          {{ formatDate(account.created_at) }}
+        </div>
+      </div>
+
       <!-- 订阅计划类型 -->
       <div v-if="authInfo?.chatgpt_plan_type || isApiAccount" class="flex items-center gap-1 min-h-6">
         <div class="flex items-center gap-1.5 w-[90px] shrink-0 text-text-muted text-xs">
@@ -188,7 +201,7 @@
       </div>
 
       <!-- 5h 配额 (仅 OAuth 账号) -->
-      <div v-if="!isApiAccount && !account.quota?.is_forbidden && account.quota?.codex_5h_used_percent !== null && account.quota?.codex_5h_used_percent !== undefined"
+      <div v-if="!isApiAccount && !account.quota?.is_forbidden && !account.rt_invalid && account.quota?.codex_5h_used_percent !== null && account.quota?.codex_5h_used_percent !== undefined"
            class="flex items-center gap-1 min-h-6">
         <div class="flex flex-col gap-0.5 w-[90px] shrink-0 text-text-muted text-xs">
           <div class="flex items-center gap-1.5">
@@ -215,7 +228,7 @@
       </div>
 
       <!-- 7d 配额 (仅 OAuth 账号) -->
-      <div v-if="!isApiAccount && !account.quota?.is_forbidden && account.quota?.codex_7d_used_percent !== null && account.quota?.codex_7d_used_percent !== undefined"
+      <div v-if="!isApiAccount && !account.quota?.is_forbidden && !account.rt_invalid && account.quota?.codex_7d_used_percent !== null && account.quota?.codex_7d_used_percent !== undefined"
            class="flex items-center gap-1 min-h-6">
         <div class="flex flex-col gap-0.5 w-[90px] shrink-0 text-text-muted text-xs">
           <div class="flex items-center gap-1.5">

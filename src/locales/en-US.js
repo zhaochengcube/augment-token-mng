@@ -1307,7 +1307,7 @@ export default {
       syncQueueEmpty: 'No pending changes',
       fullSync: 'Full Sync',
       sync: 'Sync',
-      quotaForbidden: 'No permission to access quota',
+      quotaForbidden: 'No permission to access quota (Team restricted)',
       noQuotaData: 'No quota data available',
       searchPlaceholder: 'Search email...',
       sortByQuota: 'Sort by Quota',
@@ -1625,7 +1625,7 @@ export default {
       },
       quota5h: '5h Quota',
       quota7d: '7d Quota',
-      rtInvalid: 'Refresh Token is invalid',
+      rtInvalid: 'Token invalid (account restricted)',
       actions: {
         switch: 'Switch account',
         refresh: 'Refresh account',

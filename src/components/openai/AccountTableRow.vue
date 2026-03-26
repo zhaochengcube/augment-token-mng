@@ -111,6 +111,13 @@
         </svg>
         <span>{{ $t('platform.antigravity.quotaForbidden') }}</span>
       </div>
+      <!-- RT 失效：不显示配额 -->
+      <div v-else-if="account.rt_invalid" class="flex items-center gap-1.5 text-xs text-warning">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+        </svg>
+        <span>{{ $t('platform.openai.rtInvalid') }}</span>
+      </div>
       <!-- OAuth 账号显示配额信息 -->
       <div v-else-if="account.quota && hasQuotaData" class="flex flex-col gap-1">
         <!-- 5h 配额 -->

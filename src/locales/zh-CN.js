@@ -1310,7 +1310,7 @@ export default {
       syncQueueEmpty: '暂无待同步内容',
       fullSync: '全部同步',
       sync: '同步',
-      quotaForbidden: '无权限访问配额',
+      quotaForbidden: '无权限访问配额(Team封控)',
       noQuotaData: '暂无配额数据',
       subscriptionTier: '订阅等级',
       searchPlaceholder: '搜索邮箱...',
@@ -1618,7 +1618,7 @@ export default {
       },
       quota5h: '5h配额',
       quota7d: '7d配额',
-      rtInvalid: 'Refresh Token 已失效',
+      rtInvalid: 'Token已失效(帐号封控)',
       actions: {
         switch: '切换账号',
         refresh: '刷新账号',

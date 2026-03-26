@@ -210,6 +210,9 @@ pub async fn openai_refresh_all_quotas(app: AppHandle) -> Result<RefreshStats, S
     let mut details = Vec::new();
 
     for mut account in accounts {
+        if account.rt_invalid {
+            continue;
+        }
         match account_module::refresh_quota_and_backfill(&mut account).await {
             Ok(_) => {
                 if let Err(e) = storage::save_account(&app, &account).await {
@@ -320,6 +323,7 @@ pub async fn openai_refresh_all_tokens(
             Err(e) => {
                 failed += 1;
                 details.push(format!("Account {}: {}", account.email, e));
+                let _ = storage::save_account(&app, &account).await;
             }
         }
     }

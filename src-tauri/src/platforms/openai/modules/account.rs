@@ -47,13 +47,21 @@ pub async fn fetch_quota_with_retry(account: &mut Account) -> Result<QuotaData, 
                         .ok_or_else(|| "OAuth account missing token".to_string())?;
 
                     println!("Retrying quota fetch with new token...");
-                    return quota::fetch_quota(
+                    let retry = quota::fetch_quota(
                         &new_access_token,
                         account.chatgpt_account_id.as_deref(),
                     )
                     .await;
+                    if let Err(ref e) = retry {
+                        if e.contains("401") || e.contains("unauthorized") {
+                            account.rt_invalid = true;
+                        }
+                    }
+                    return retry;
                 }
-                Ok(false) => {}
+                Ok(false) => {
+                    account.rt_invalid = true;
+                }
                 Err(e) => {
                     return Err(format!("Token refresh failed: {}", e));
                 }
