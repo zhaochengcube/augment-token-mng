@@ -251,13 +251,6 @@ pub enum PoolStrategy {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PoolStatus {
     pub total_accounts: usize,
-    pub active_accounts: usize,
-    pub expired_accounts: usize,
-    pub cooling_accounts: usize,
-    pub unauthorized_accounts: usize,
-    pub payment_required_accounts: usize,
-    pub total_requests_today: u64,
-    pub total_tokens_used: u64,
     pub strategy: PoolStrategy,
     #[serde(default)]
     pub selected_account_id: Option<String>, // Single 策略时选中的账号 ID

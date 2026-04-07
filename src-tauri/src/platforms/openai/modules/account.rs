@@ -1,6 +1,17 @@
 use crate::platforms::openai::models::{Account, AccountType, QuotaData, TokenData};
 use crate::platforms::openai::modules::{oauth, quota};
 
+/// 从错误消息中提取 rt_invalid 原因
+fn extract_rt_invalid_reason(err: &str) -> Option<String> {
+    if err.contains("refresh_token_reused") {
+        Some("refresh_token_reused".to_string())
+    } else if err.contains("invalid_grant") {
+        Some("invalid_grant".to_string())
+    } else {
+        None
+    }
+}
+
 /// 带有重试机制的配额查询
 pub async fn fetch_quota_with_retry(account: &mut Account) -> Result<QuotaData, String> {
     println!("=== OpenAI fetch_quota_with_retry ===");
@@ -55,12 +66,14 @@ pub async fn fetch_quota_with_retry(account: &mut Account) -> Result<QuotaData, 
                     if let Err(ref e) = retry {
                         if e.contains("401") || e.contains("unauthorized") {
                             account.rt_invalid = true;
+                            account.rt_invalid_reason = Some("unauthorized".to_string());
                         }
                     }
                     return retry;
                 }
                 Ok(false) => {
                     account.rt_invalid = true;
+                    account.rt_invalid_reason = Some("unauthorized".to_string());
                 }
                 Err(e) => {
                     return Err(format!("Token refresh failed: {}", e));
@@ -126,6 +139,7 @@ pub async fn refresh_token_if_needed(
             Err(e) => {
                 if e.contains("refresh_token_reused") || e.contains("invalid_grant") {
                     account.rt_invalid = true;
+                    account.rt_invalid_reason = extract_rt_invalid_reason(&e);
                 }
                 return Err(e);
             }
@@ -136,6 +150,7 @@ pub async fn refresh_token_if_needed(
             Err(e) => {
                 if e.contains("refresh_token_reused") || e.contains("invalid_grant") {
                     account.rt_invalid = true;
+                    account.rt_invalid_reason = extract_rt_invalid_reason(&e);
                 }
                 return Err(e);
             }
@@ -153,6 +168,7 @@ pub async fn refresh_token_if_needed(
     account.token = Some(new_token);
     account.updated_at = chrono::Utc::now().timestamp();
     account.rt_invalid = false;
+    account.rt_invalid_reason = None;
 
     Ok(true)
 }

@@ -80,6 +80,9 @@ pub struct Account {
     /// Refresh Token 是否已失效
     #[serde(default)]
     pub rt_invalid: bool,
+    /// RT 失效原因: "refresh_token_reused" | "invalid_grant" | "unauthorized"
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rt_invalid_reason: Option<String>,
 }
 
 impl SyncableAccount for Account {
@@ -162,6 +165,7 @@ impl Account {
             version: 0,
             deleted: false,
             rt_invalid: false,
+            rt_invalid_reason: None,
         }
     }
 
@@ -188,6 +192,7 @@ impl Account {
             version: 0,
             deleted: false,
             rt_invalid: false,
+            rt_invalid_reason: None,
         }
     }
 

@@ -81,7 +81,7 @@
         </template>
         <!-- OAuth 账号显示订阅到期时间 -->
         <template v-else>
-          <span v-if="authInfo?.chatgpt_subscription_active_until" :class="['text-xs', subscriptionExpiryClass]" v-tooltip="$t('platform.openai.subscriptionExpires')">
+          <span v-if="authInfo?.chatgpt_subscription_active_until" :class="['text-xs', subscriptionExpiryClass]" v-tooltip="atExpiryTooltip || $t('platform.openai.subscriptionExpires')">
             {{ formatISODate(authInfo.chatgpt_subscription_active_until) }}
             <span v-if="subscriptionDaysLeftText" class="text-[11px] opacity-80">({{ subscriptionDaysLeftText }})</span>
           </span>
@@ -116,7 +116,7 @@
         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
           <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
         </svg>
-        <span>{{ $t('platform.openai.rtInvalid') }}</span>
+        <span>{{ account.rt_invalid_reason === 'refresh_token_reused' ? $t('platform.openai.rtInvalidReused') : $t('platform.openai.rtInvalid') }}</span>
       </div>
       <!-- OAuth 账号显示配额信息 -->
       <div v-else-if="account.quota && hasQuotaData" class="flex flex-col gap-1">
@@ -486,6 +486,11 @@ const getPlanBadgeClass = (type) => {
 }
 
 // 订阅到期剩余天数
+const atExpiryTooltip = computed(() => {
+  if (!props.account.token?.expires_at) return ''
+  return `${$t('platform.openai.tokenExpiresAt')}：${formatDate(props.account.token.expires_at)}`
+})
+
 const subscriptionDaysLeft = computed(() => {
   if (!authInfo.value?.chatgpt_subscription_active_until) return null
   const now = new Date()

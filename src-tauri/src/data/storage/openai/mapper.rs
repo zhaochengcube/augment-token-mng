@@ -89,6 +89,7 @@ impl AccountDbMapper<Account> for OpenAIAccountMapper {
         };
 
         let rt_invalid: bool = row.try_get(35).unwrap_or(false);
+        let rt_invalid_reason: Option<String> = row.try_get(36).ok().flatten();
 
         Ok(Account {
             id: row.get(0),
@@ -109,6 +110,7 @@ impl AccountDbMapper<Account> for OpenAIAccountMapper {
             deleted: row.get(14),
             version: row.get(15),
             rt_invalid,
+            rt_invalid_reason,
         })
     }
 
@@ -120,7 +122,7 @@ impl AccountDbMapper<Account> for OpenAIAccountMapper {
          codex_7d_used_percent, codex_7d_reset_after_seconds, codex_7d_window_minutes, \
          codex_primary_over_secondary_percent, codex_usage_updated_at, \
          account_type, model_provider, model, model_reasoning_effort, wire_api, base_url, api_key, \
-         openai_auth_json, is_forbidden, rt_invalid"
+         openai_auth_json, is_forbidden, rt_invalid, rt_invalid_reason"
     }
 
     fn insert_sql() -> &'static str {
@@ -131,8 +133,8 @@ impl AccountDbMapper<Account> for OpenAIAccountMapper {
              version, deleted, tag, tag_color, codex_5h_used_percent, codex_5h_reset_after_seconds, codex_5h_window_minutes,
              codex_7d_used_percent, codex_7d_reset_after_seconds, codex_7d_window_minutes,
              codex_primary_over_secondary_percent, codex_usage_updated_at, account_type,
-             model_provider, model, model_reasoning_effort, wire_api, base_url, api_key, openai_auth_json, is_forbidden, rt_invalid)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36)
+             model_provider, model, model_reasoning_effort, wire_api, base_url, api_key, openai_auth_json, is_forbidden, rt_invalid, rt_invalid_reason)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37)
         ON CONFLICT (id) DO UPDATE SET
             email = EXCLUDED.email,
             access_token = EXCLUDED.access_token,
@@ -167,7 +169,8 @@ impl AccountDbMapper<Account> for OpenAIAccountMapper {
             api_key = EXCLUDED.api_key,
             openai_auth_json = EXCLUDED.openai_auth_json,
             is_forbidden = EXCLUDED.is_forbidden,
-            rt_invalid = EXCLUDED.rt_invalid
+            rt_invalid = EXCLUDED.rt_invalid,
+            rt_invalid_reason = EXCLUDED.rt_invalid_reason
         "#
     }
 
@@ -285,6 +288,7 @@ impl AccountDbMapper<Account> for OpenAIAccountMapper {
             Box::new(account.openai_auth_json.clone()),
             Box::new(is_forbidden),
             Box::new(account.rt_invalid),
+            Box::new(account.rt_invalid_reason.clone()),
         ]
     }
 }

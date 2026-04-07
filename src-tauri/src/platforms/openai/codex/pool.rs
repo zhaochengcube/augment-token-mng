@@ -5,6 +5,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use rand::Rng;
 
 use super::models::{CodexPoolAccount, PoolStatus, PoolStrategy};
 
@@ -100,24 +101,21 @@ impl CodexPool {
     /// 轮询选择
     async fn select_round_robin(&self, pool: &[CodexPoolAccount]) -> Option<CodexPoolAccount> {
         let mut index = self.current_index.write().await;
+        let len = pool.len();
 
-        // 过滤出可用账号
-        let active_accounts: Vec<_> = pool.iter().filter(|a| a.is_available()).collect();
-
-        if active_accounts.is_empty() {
-            return None;
-        }
-
-        // 找到当前索引对应的账号
+        // 最多遍历一轮，避免全部不可用时死循环
+        let mut tried = 0;
         let account = loop {
-            let acc = pool.get(*index)?;
+            if tried >= len {
+                return None;
+            }
+            let acc = &pool[*index % len];
+            *index = (*index + 1) % len;
+            tried += 1;
             if acc.is_available() {
                 break acc;
             }
-            *index = (*index + 1) % pool.len();
         };
-
-        *index = (*index + 1) % pool.len();
 
         // 增加请求计数
         let mut counter = self.request_counter.write().await;
@@ -148,7 +146,7 @@ impl CodexPool {
         account
     }
 
-    /// 智能选号：按打分从高到低选择，同分随机打破平衡
+    /// 智能选号：加权随机选择，分数越高被选中概率越大
     async fn select_smart(&self, pool: &[CodexPoolAccount]) -> Option<CodexPoolAccount> {
         let available: Vec<&CodexPoolAccount> = pool.iter().filter(|a| a.is_available()).collect();
 
@@ -156,27 +154,34 @@ impl CodexPool {
             return None;
         }
 
-        // 计算每个账号的分数
-        let mut scored: Vec<(f64, usize)> = available
+        // 只有一个可用时直接返回
+        if available.len() == 1 {
+            let mut counter = self.request_counter.write().await;
+            *counter += 1;
+            return Some(available[0].clone());
+        }
+
+        // 计算每个账号的分数，下限 1.0 确保所有账号都有被选中的概率
+        let weights: Vec<f64> = available
             .iter()
-            .enumerate()
-            .map(|(i, a)| (a.compute_score(), i))
+            .map(|a| a.compute_score().max(1.0))
             .collect();
+        let total_weight: f64 = weights.iter().sum();
 
-        // 按分数降序排列
-        scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
-
-        // 取最高分的一批（分差在 1 分以内的视为同档），从中轮询选一个避免全打到同一个号
-        let top_score = scored[0].0;
-        let top_tier: Vec<usize> = scored
-            .iter()
-            .filter(|(s, _)| top_score - s < 1.0)
-            .map(|(_, i)| *i)
-            .collect();
-
-        let mut index = self.current_index.write().await;
-        let pick = top_tier[*index % top_tier.len()];
-        *index = index.wrapping_add(1);
+        // 加权随机选择（rng 必须在 await 之前 drop，因为 ThreadRng 不是 Send）
+        let pick = {
+            let mut rng = rand::thread_rng();
+            let mut roll = rng.gen_range(0.0..total_weight);
+            let mut idx = available.len() - 1;
+            for (i, w) in weights.iter().enumerate() {
+                roll -= w;
+                if roll <= 0.0 {
+                    idx = i;
+                    break;
+                }
+            }
+            idx
+        };
 
         let mut counter = self.request_counter.write().await;
         *counter += 1;
@@ -257,35 +262,8 @@ impl CodexPool {
     /// 获取状态
     pub async fn status(&self) -> PoolStatus {
         let pool = self.accounts.read().await;
-        let counter = self.request_counter.read().await;
         let strategy = *self.strategy.read().await;
         let selected_id = self.selected_account_id.read().await.clone();
-
-        let total = pool.len();
-        let expired = pool.iter().filter(|a| a.is_expired()).count();
-        let cooling = pool
-            .iter()
-            .filter(|a| !a.is_expired() && a.is_in_cooldown())
-            .count();
-        let unauthorized = pool
-            .iter()
-            .filter(|a| {
-                !a.is_expired()
-                    && a.is_in_cooldown()
-                    && a.unavailable_reason.as_deref() == Some("unauthorized")
-            })
-            .count();
-        let payment_required = pool
-            .iter()
-            .filter(|a| {
-                !a.is_expired()
-                    && a.is_in_cooldown()
-                    && a.unavailable_reason.as_deref() == Some("payment_required")
-            })
-            .count();
-        let active = total.saturating_sub(expired + cooling);
-
-        let total_tokens: i64 = pool.iter().map(|a| a.total_tokens_used).sum();
 
         let selected_account_id = if matches!(strategy, PoolStrategy::Single) {
             selected_id.clone()
@@ -293,7 +271,6 @@ impl CodexPool {
             None
         };
 
-        // 获取选中账号的邮箱
         let selected_account_email = if matches!(strategy, PoolStrategy::Single) {
             if let Some(id) = &selected_id {
                 pool.iter().find(|a| &a.id == id).map(|a| a.email.clone())
@@ -305,14 +282,7 @@ impl CodexPool {
         };
 
         PoolStatus {
-            total_accounts: total,
-            active_accounts: active,
-            expired_accounts: expired,
-            cooling_accounts: cooling,
-            unauthorized_accounts: unauthorized,
-            payment_required_accounts: payment_required,
-            total_requests_today: *counter,
-            total_tokens_used: total_tokens as u64,
+            total_accounts: pool.len(),
             strategy,
             selected_account_id,
             selected_account_email,

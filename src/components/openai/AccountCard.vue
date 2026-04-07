@@ -169,7 +169,8 @@
       </div>
 
       <!-- 订阅到期时间 -->
-      <div v-if="authInfo?.chatgpt_subscription_active_until" class="flex items-center gap-1 min-h-6">
+      <div v-if="authInfo?.chatgpt_subscription_active_until" class="flex items-center gap-1 min-h-6"
+           v-tooltip="atExpiryTooltip">
         <div class="flex items-center gap-1.5 w-[90px] shrink-0 text-text-muted text-xs">
           <svg class="w-3.5 h-3.5 shrink-0 opacity-70" viewBox="0 0 24 24" fill="currentColor">
             <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM9 10H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2z"/>
@@ -197,7 +198,7 @@
         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
           <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
         </svg>
-        <span>{{ $t('platform.openai.rtInvalid') }}</span>
+        <span>{{ account.rt_invalid_reason === 'refresh_token_reused' ? $t('platform.openai.rtInvalidReused') : $t('platform.openai.rtInvalid') }}</span>
       </div>
 
       <!-- 5h 配额 (仅 OAuth 账号) -->
@@ -511,6 +512,11 @@ const formatISODate = (isoString) => {
 }
 
 // 订阅到期剩余天数
+const atExpiryTooltip = computed(() => {
+  if (!props.account.token?.expires_at) return ''
+  return `${$t('platform.openai.tokenExpiresAt')}\uFF1A${formatDate(props.account.token.expires_at)}`
+})
+
 const subscriptionDaysLeft = computed(() => {
   if (!authInfo.value?.chatgpt_subscription_active_until) return null
   const now = new Date()

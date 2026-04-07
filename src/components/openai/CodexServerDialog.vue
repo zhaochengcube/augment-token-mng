@@ -131,12 +131,13 @@
                     <button
                       v-for="strategy in strategyOptions"
                       :key="strategy.value"
-                      class="dropdown-item flex items-center gap-2 px-3 py-1.5 text-[13px]"
+                      class="dropdown-item flex flex-col items-start gap-0.5 px-3 py-1.5"
                       :class="{ 'bg-primary/10': strategy.value === poolStrategy }"
                       :disabled="isChangingStrategy"
                       @click="selectStrategy(strategy.value, close)"
                     >
-                      <span>{{ strategy.label }}</span>
+                      <span class="text-[13px]">{{ strategy.label }}</span>
+                      <span class="text-[11px] text-text-muted">{{ strategy.desc }}</span>
                     </button>
                   </div>
                 </template>
@@ -158,15 +159,38 @@
                 </template>
                 <template #default="{ close }">
                   <div class="py-1">
-                    <button
-                      v-for="account in availableAccounts"
-                      :key="account.id"
-                      class="dropdown-item flex items-center gap-2 px-3 py-1.5 text-[13px]"
-                      :class="{ 'bg-primary/10': account.id === selectedAccountId }"
-                      @click="selectAccount(account.id, close)"
-                    >
-                      <span class="truncate">{{ account.email }}</span>
-                    </button>
+                    <div class="px-2 pb-1" @click.stop>
+                      <div class="relative flex items-center">
+                        <input
+                          v-model="accountSearch"
+                          class="input h-7 w-full text-[12px] pr-6"
+                          :placeholder="$t('common.search')"
+                        />
+                        <button
+                          v-if="accountSearch"
+                          class="absolute right-1.5 text-text-muted hover:text-text p-0.5"
+                          @click="accountSearch = ''"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                            <path d="M18 6L6 18M6 6l12 12"/>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                    <div class="max-h-[200px] overflow-y-auto">
+                      <button
+                        v-for="account in filteredAccounts"
+                        :key="account.id"
+                        class="dropdown-item flex items-center gap-2 px-3 py-1.5 text-[13px]"
+                        :class="{ 'bg-primary/10': account.id === selectedAccountId }"
+                        @click="selectAccount(account.id, close)"
+                      >
+                        <span class="truncate">{{ account.email }}</span>
+                      </button>
+                      <div v-if="filteredAccounts.length === 0" class="px-3 py-2 text-[12px] text-text-muted text-center">
+                        {{ $t('platform.openai.codexDialog.noMatchingAccounts') }}
+                      </div>
+                    </div>
                   </div>
                 </template>
               </FloatingDropdown>
@@ -386,7 +410,7 @@
 </template>
 
 <script setup>
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from 'vue-i18n'
 import BaseModal from '@/components/common/BaseModal.vue'
@@ -413,15 +437,9 @@ const accessConfig = ref({
 })
 const poolStatus = ref({
   totalAccounts: 0,
-  activeAccounts: 0,
-  expiredAccounts: 0,
-  coolingAccounts: 0,
-  unauthorizedAccounts: 0,
-  paymentRequiredAccounts: 0,
-  totalRequestsToday: 0,
-  totalTokensUsed: 0,
   strategy: 'round-robin',
-  selectedAccountId: ''
+  selectedAccountId: '',
+  selectedAccountEmail: ''
 })
 const periodStats = ref({ todayRequests: 0, todayTokens: 0, weekRequests: 0, weekTokens: 0, monthRequests: 0, monthTokens: 0 })
 const allTimeStats = ref({ requests: 0, tokens: 0 })
@@ -431,6 +449,12 @@ const poolStrategy = ref('round-robin')
 const selectedAccountId = ref('')
 const isChangingStrategy = ref(false)
 const availableAccounts = ref([])
+const accountSearch = ref('')
+const filteredAccounts = computed(() => {
+  const q = accountSearch.value.trim().toLowerCase()
+  if (!q) return availableAccounts.value
+  return availableAccounts.value.filter(a => a.email.toLowerCase().includes(q))
+})
 
 const applyPoolStatus = (rawStatus) => {
   poolStatus.value = toCamel(rawStatus)
@@ -448,9 +472,9 @@ const applyPoolStatus = (rawStatus) => {
 
 // 策略选项
 const strategyOptions = [
-  { value: 'round-robin', label: $t('platform.openai.codexDialog.strategyRoundRobin') },
-  { value: 'single', label: $t('platform.openai.codexDialog.strategySingle') },
-  { value: 'smart', label: $t('platform.openai.codexDialog.strategySmart') }
+  { value: 'round-robin', label: $t('platform.openai.codexDialog.strategyRoundRobin'), desc: $t('platform.openai.codexDialog.strategyRoundRobinDesc') },
+  { value: 'single', label: $t('platform.openai.codexDialog.strategySingle'), desc: $t('platform.openai.codexDialog.strategySingleDesc') },
+  { value: 'smart', label: $t('platform.openai.codexDialog.strategySmart'), desc: $t('platform.openai.codexDialog.strategySmartDesc') }
 ]
 
 // 日志时间范围选项
@@ -665,6 +689,7 @@ const selectStrategy = async (value, close) => {
 
 const selectAccount = async (accountId, close) => {
   selectedAccountId.value = accountId
+  accountSearch.value = ''
   try {
     await invoke('set_codex_selected_account', { accountId })
     await loadPoolStatus()
@@ -811,7 +836,7 @@ onMounted(async () => {
   pollTimer = window.setInterval(() => {
     // 轮询时同步重建号池，否则主界面增删账号后此处仍显示旧池状态
     refreshAllData({ refreshPool: true, silent: true })
-  }, 1000)
+  }, 5000)
 })
 
 onBeforeUnmount(() => {
