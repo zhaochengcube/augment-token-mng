@@ -127,10 +127,7 @@ const toggleExpand = () => {
 
 const openGitHubRelease = async () => {
   try {
-    await invoke('open_internal_browser', {
-      url: props.updateInfo.download_url,
-      title: 'GitHub Release'
-    })
+    await invoke('open_url', { url: props.updateInfo.download_url })
   } catch (error) {
     console.error('Failed to open GitHub release:', error)
     window.$notify.error(`${t('update.checkFailed')}: ${error}`)
