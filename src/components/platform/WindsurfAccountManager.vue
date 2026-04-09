@@ -982,16 +982,14 @@ const handleBatchTagSave = async ({ tagName, tagColor }) => {
       account.tag = tagName
       account.tag_color = tagColor
       account.updated_at = Math.floor(Date.now() / 1000)
-      updatedCount++
-      markItemUpsert(account)
+      try {
+        await invoke('windsurf_update_account', { account })
+        updatedCount++
+        markItemUpsert(account)
+      } catch (error) {
+        console.error('Failed to update account tag:', error)
+      }
     }
-  }
-
-  // 保存更改到本地
-  try {
-    await invoke('windsurf_save_accounts', { accounts: accounts.value })
-  } catch (error) {
-    console.error('Failed to save accounts:', error)
   }
 
   clearSelection()
@@ -1011,16 +1009,14 @@ const handleBatchTagClear = async () => {
       account.tag = ''
       account.tag_color = ''
       account.updated_at = Math.floor(Date.now() / 1000)
-      clearedCount++
-      markItemUpsert(account)
+      try {
+        await invoke('windsurf_update_account', { account })
+        clearedCount++
+        markItemUpsert(account)
+      } catch (error) {
+        console.error('Failed to clear account tag:', error)
+      }
     }
-  }
-
-  // 保存更改到本地
-  try {
-    await invoke('windsurf_save_accounts', { accounts: accounts.value })
-  } catch (error) {
-    console.error('Failed to save accounts:', error)
   }
 
   clearSelection()

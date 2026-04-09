@@ -642,26 +642,20 @@ pub async fn openai_update_api_account(
 /// 保存多个账号
 #[tauri::command]
 pub async fn openai_save_accounts(app: AppHandle, accounts: Vec<Account>) -> Result<(), String> {
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
+    // 通过统一存储层写入，确保 schema/version/deletions 一致
+    let existing_accounts = storage::list_accounts(&app).await?;
+    let incoming_ids: std::collections::HashSet<String> =
+        accounts.iter().map(|a| a.id.clone()).collect();
 
-    let storage_path = app_data_dir.join("openai_accounts.json");
+    for account in &accounts {
+        storage::save_account(&app, account).await?;
+    }
 
-    // 获取 current_account_id
-    let current_id = storage::get_current_account_id(&app).await?;
-
-    let data = serde_json::json!({
-        "accounts": accounts,
-        "current_account_id": current_id
-    });
-
-    let content = serde_json::to_string_pretty(&data)
-        .map_err(|e| format!("Failed to serialize accounts: {}", e))?;
-
-    fs::write(&storage_path, content)
-        .map_err(|e| format!("Failed to write accounts file: {}", e))?;
+    for existing in existing_accounts {
+        if !incoming_ids.contains(&existing.id) {
+            let _ = storage::delete_account(&app, &existing.id).await?;
+        }
+    }
 
     Ok(())
 }

@@ -22,9 +22,11 @@ struct DeletedRecord {
 struct AccountStore<T> {
     #[serde(default = "default_schema_version")]
     schema_version: i32,
+    #[serde(default)]
     version: i64,
     current_account_id: Option<String>,
     accounts: Vec<T>,
+    #[serde(default)]
     deletions: Vec<DeletedRecord>,
 }
 
