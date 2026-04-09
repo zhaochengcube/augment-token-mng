@@ -607,7 +607,6 @@ pub fn run() {
             openai::openai_update_api_account,
             openai::openai_save_accounts,
             openai::openai_update_account,
-            openai::openai_refresh_account,
             openai::openai_start_oauth_login,
             openai::openai_cancel_oauth_login,
             openai::openai_switch_account,

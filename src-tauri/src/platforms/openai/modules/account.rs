@@ -22,8 +22,8 @@ pub async fn fetch_quota_with_retry(account: &mut Account) -> Result<QuotaData, 
         return Err("API accounts do not support quota fetching".to_string());
     }
 
-    // 1. 尝试刷新 Token（提前 5 天刷新），失败则 fallback 用现有 token
-    match refresh_token_if_needed(account, 432000, false).await {
+    // 1. 刷新配额时总是先尝试刷新 Token，失败则 fallback 用现有 token
+    match refresh_token_if_needed(account, 0, true).await {
         Ok(refreshed) => {
             if refreshed {
                 println!("Token refreshed, updating account");

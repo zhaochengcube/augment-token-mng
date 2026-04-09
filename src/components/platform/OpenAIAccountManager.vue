@@ -119,7 +119,6 @@
             :show-real-email="showRealEmail"
             :all-accounts="accounts"
             @switch="handleSwitch"
-            @refresh="handleRefreshToken"
             @refresh-quota="handleRefreshQuota"
             @delete="handleDelete"
             @select="toggleAccountSelection"
@@ -165,7 +164,6 @@
                 :selection-mode="isSelectionMode"
                 :show-real-email="showRealEmail"
                 @switch="handleSwitch"
-                @refresh="handleRefreshToken"
                 @refresh-quota="handleRefreshQuota"
                 @delete="handleDelete"
                 @select="toggleAccountSelection"
@@ -313,6 +311,16 @@
             >
               <span>{{ $t('platform.openai.filter.expired') }}</span>
               <span class="ml-1 opacity-70">({{ statusStatistics.expired }})</span>
+            </button>
+            <button
+              :class="[
+                'btn btn--sm',
+                selectedStatusFilter === 'invalid' ? 'btn--primary' : 'btn--secondary'
+              ]"
+              @click="selectStatusFilter('invalid')"
+            >
+              <span>{{ $t('platform.openai.filter.invalid') }}</span>
+              <span class="ml-1 opacity-70">({{ statusStatistics.invalid }})</span>
             </button>
             <button
               :class="[
@@ -486,18 +494,6 @@
       @clear="clearSelection"
     >
       <template #actions>
-        <!-- 批量刷新 Token -->
-        <button
-          @click="batchRefreshTokensSelected"
-          class="btn btn--icon btn--ghost"
-          :disabled="isBatchRefreshing"
-          v-tooltip="$t('platform.openai.batchRefreshToken')"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-          </svg>
-        </button>
-
         <!-- 批量刷新配额 -->
         <button
           @click="batchRefreshSelected"
@@ -596,8 +592,9 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 
 import { useI18n } from 'vue-i18n'
 import AccountCard from '../openai/AccountCard.vue'
@@ -617,6 +614,9 @@ import TagEditorModal from '../token/TagEditorModal.vue'
 import { useStorageSync } from '@/composables/useStorageSync'
 
 const { t: $t } = useI18n()
+let unlistenOpenAIAccountsUpdated = null
+let reloadAccountsTimer = null
+const pendingSyncIdsFromEvents = new Set()
 
 // Props
 const props = defineProps({
@@ -790,16 +790,23 @@ const isAccountForbidden = (account) => {
   return account.quota?.is_forbidden === true
 }
 
+const isAccountInvalid = (account) => {
+  return account.rt_invalid === true
+}
+
 const statusStatistics = computed(() => {
   const stats = {
     total: accounts.value.length,
     active: 0,
     expired: 0,
-    forbidden: 0
+    forbidden: 0,
+    invalid: 0
   }
 
   accounts.value.forEach(account => {
-    if (isAccountForbidden(account)) {
+    if (isAccountInvalid(account)) {
+      stats.invalid++
+    } else if (isAccountForbidden(account)) {
       stats.forbidden++
     } else if (isAccountExpired(account)) {
       stats.expired++
@@ -883,11 +890,13 @@ const filteredAccounts = computed(() => {
   if (selectedStatusFilter.value) {
     result = result.filter(account => {
       if (selectedStatusFilter.value === 'active') {
-        return !isAccountForbidden(account) && !isAccountExpired(account)
+        return !isAccountInvalid(account) && !isAccountForbidden(account) && !isAccountExpired(account)
       } else if (selectedStatusFilter.value === 'expired') {
         return isAccountExpired(account)
       } else if (selectedStatusFilter.value === 'forbidden') {
         return isAccountForbidden(account)
+      } else if (selectedStatusFilter.value === 'invalid') {
+        return isAccountInvalid(account)
       }
       return true
     })
@@ -997,21 +1006,6 @@ const loadAccounts = async () => {
   }
 }
 
-const handleRefresh = async (accountId) => {
-  refreshingIds.value.add(accountId)
-  try {
-    await invoke('openai_refresh_account', { accountId })
-    await loadAccounts()
-    markItemUpsertById(accountId)
-    window.$notify?.success($t('platform.openai.messages.refreshSuccess'))
-  } catch (error) {
-    console.error('Failed to refresh account:', error)
-    window.$notify?.error($t('platform.openai.messages.refreshFailed', { error: error?.message || error }))
-  } finally {
-    refreshingIds.value.delete(accountId)
-  }
-}
-
 // 刷新配额
 const handleRefreshQuota = async (accountId) => {
   refreshingIds.value.add(accountId)
@@ -1052,32 +1046,6 @@ const handleRefreshCurrentPageQuota = async () => {
     )
   } finally {
     isRefreshingAll.value = false
-  }
-}
-
-// 刷新 Token
-const handleRefreshToken = async (accountId) => {
-  refreshingIds.value.add(accountId)
-  try {
-    const updatedAccount = await invoke('openai_refresh_account', { accountId })
-    const index = accounts.value.findIndex(a => a.id === accountId)
-    if (index !== -1) {
-      accounts.value[index] = updatedAccount
-    }
-    markItemUpsertById(accountId)
-    window.$notify?.success($t('platform.openai.messages.refreshSuccess'))
-  } catch (error) {
-    console.error('Failed to refresh account:', error)
-    try {
-      const reloaded = await invoke('openai_load_account', { accountId })
-      const index = accounts.value.findIndex(a => a.id === accountId)
-      if (index !== -1) {
-        accounts.value[index] = reloaded
-      }
-    } catch {}
-    window.$notify?.error($t('platform.openai.messages.refreshFailed', { error: error?.message || error }))
-  } finally {
-    refreshingIds.value.delete(accountId)
   }
 }
 
@@ -1358,29 +1326,6 @@ const batchRefreshSelected = async () => {
   }
 }
 
-const batchRefreshTokensSelected = async () => {
-  isBatchRefreshing.value = true
-  try {
-    // 过滤掉 API 账号，只刷新 OAuth 账号的 Token
-    const oauthAccountIds = [...selectedAccountIds.value].filter(accountId => {
-      const account = accounts.value.find(a => a.id === accountId)
-      return account && account.account_type !== 'api'
-    })
-
-    if (oauthAccountIds.length === 0) {
-      window.$notify?.warning($t('platform.openai.noOAuthAccountsSelected'))
-      return
-    }
-
-    for (const accountId of oauthAccountIds) {
-      await handleRefreshToken(accountId)
-    }
-    window.$notify?.success($t('platform.openai.batchRefreshSuccess', { count: oauthAccountIds.length }))
-  } finally {
-    isBatchRefreshing.value = false
-  }
-}
-
 const showBatchDeleteSelectedConfirm = () => {
   handleBatchDeleteSelected()
 }
@@ -1488,9 +1433,47 @@ watch([searchQuery, selectedStatusFilter, selectedTypeFilter, selectedPlanFilter
   currentPage.value = 1
 })
 
+const scheduleReloadAccounts = () => {
+  if (reloadAccountsTimer) {
+    clearTimeout(reloadAccountsTimer)
+  }
+  reloadAccountsTimer = setTimeout(async () => {
+    await loadAccounts()
+    for (const id of Array.from(pendingSyncIdsFromEvents)) {
+      const exists = accounts.value.some(a => a.id === id)
+      if (!exists) continue
+      markItemUpsertById(id)
+      pendingSyncIdsFromEvents.delete(id)
+    }
+    reloadAccountsTimer = null
+  }, 800)
+}
+
 onMounted(async () => {
   // 并行执行：数据加载不等待同步初始化完成
   loadAccounts()
   initSync()
+
+  unlistenOpenAIAccountsUpdated = await listen('openai-accounts-updated', (event) => {
+    const ids = Array.isArray(event?.payload?.account_ids) ? event.payload.account_ids : []
+    ids.forEach((id) => {
+      if (typeof id === 'string' && id.trim()) {
+        pendingSyncIdsFromEvents.add(id)
+      }
+    })
+    scheduleReloadAccounts()
+  })
+})
+
+onUnmounted(() => {
+  if (unlistenOpenAIAccountsUpdated) {
+    unlistenOpenAIAccountsUpdated()
+    unlistenOpenAIAccountsUpdated = null
+  }
+  if (reloadAccountsTimer) {
+    clearTimeout(reloadAccountsTimer)
+    reloadAccountsTimer = null
+  }
+  pendingSyncIdsFromEvents.clear()
 })
 </script>

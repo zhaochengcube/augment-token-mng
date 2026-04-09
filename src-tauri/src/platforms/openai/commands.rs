@@ -672,47 +672,6 @@ pub async fn openai_update_account(app: AppHandle, account: Account) -> Result<(
     storage::save_account(&app, &account).await
 }
 
-/// 刷新账号（刷新 token）
-#[tauri::command]
-pub async fn openai_refresh_account(app: AppHandle, account_id: String) -> Result<Account, String> {
-    let mut acc = storage::load_account(&app, &account_id).await?;
-
-    // API 账号不支持刷新 token
-    if acc.account_type == crate::platforms::openai::models::account::AccountType::API {
-        return Err("API accounts do not support token refresh".to_string());
-    }
-
-    println!("=== OpenAI Refresh Account ===");
-    println!("Email: {}", acc.email);
-    println!("ChatGPT Account ID: {:?}", acc.chatgpt_account_id);
-
-    // 刷新 token（强制刷新，窗口 0）
-    match account_module::refresh_token_if_needed(&mut acc, 0, true).await {
-        Ok(true) => {
-            if let Some(id_token) = &acc.token.as_ref().and_then(|t| t.id_token.as_ref()) {
-                if let Some(user_info) = oauth::parse_id_token(id_token) {
-                    println!(
-                        "New ChatGPT Account ID from refresh: {:?}",
-                        user_info.chatgpt_account_id
-                    );
-                    if let Some(new_chatgpt_id) = user_info.chatgpt_account_id {
-                        acc.chatgpt_account_id = Some(new_chatgpt_id);
-                    }
-                }
-            }
-            account_module::backfill_openai_auth_json_if_missing(&mut acc);
-            storage::save_account(&app, &acc).await?;
-        }
-        Ok(false) => {}
-        Err(e) => {
-            let _ = storage::save_account(&app, &acc).await;
-            return Err(e);
-        }
-    }
-
-    Ok(acc)
-}
-
 /// 启动 OAuth 授权流程（使用本地服务器自动处理回调）
 #[tauri::command]
 pub async fn openai_start_oauth_login(app: AppHandle) -> Result<Account, String> {

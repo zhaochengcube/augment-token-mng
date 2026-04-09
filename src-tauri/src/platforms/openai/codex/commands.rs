@@ -5,7 +5,7 @@ use std::fs;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
-use tauri::{Manager, State};
+use tauri::{Emitter, Manager, State};
 use tokio::sync::Mutex as TokioMutex;
 
 use super::logger::RequestLogger;
@@ -823,6 +823,7 @@ async fn start_periodic_quota_refresh(
             };
 
             let mut refreshed = 0;
+            let mut changed_account_ids = std::collections::BTreeSet::new();
             for mut account in accounts {
                 if account.account_type == crate::platforms::openai::models::account::AccountType::API
                 {
@@ -853,6 +854,7 @@ async fn start_periodic_quota_refresh(
                             eprintln!("[Codex] Failed to save account {}: {}", account.email, e);
                         } else {
                             refreshed += 1;
+                            changed_account_ids.insert(account.id.clone());
                         }
                     }
                     Err(e) => {
@@ -864,6 +866,7 @@ async fn start_periodic_quota_refresh(
                         .await
                         {
                             Ok(()) if account.rt_invalid => {
+                                changed_account_ids.insert(account.id.clone());
                                 if let Ok(accs) =
                                     crate::platforms::openai::modules::storage::list_accounts(&app)
                                         .await
@@ -891,6 +894,16 @@ async fn start_periodic_quota_refresh(
             println!(
                 "[Codex] Periodic quota refresh completed: {} accounts refreshed",
                 refreshed
+            );
+
+            let _ = app.emit(
+                "openai-accounts-updated",
+                serde_json::json!({
+                    "source": "codex-periodic-quota-refresh",
+                    "refreshed": refreshed,
+                    "account_ids": changed_account_ids.into_iter().collect::<Vec<_>>(),
+                    "timestamp": chrono::Utc::now().timestamp()
+                }),
             );
         }
     });

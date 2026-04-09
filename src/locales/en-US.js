@@ -1594,9 +1594,6 @@ export default {
       sync: 'Sync',
       searchPlaceholder: 'Search email...',
       batchRefresh: 'Batch refresh',
-      batchRefreshToken: 'Batch refresh tokens',
-      batchRefreshSuccess: 'Refreshed tokens for {count} accounts',
-      noOAuthAccountsSelected: 'No OAuth accounts selected',
       allAccountsMarkedForSync: 'All {count} accounts marked for sync',
       export: 'Export Accounts',
       exportSuccess: 'Accounts exported successfully',
@@ -1606,7 +1603,8 @@ export default {
         all: 'All',
         active: 'Active',
         expired: 'Expired',
-        forbidden: 'Forbidden'
+        forbidden: 'Forbidden',
+        invalid: 'Invalid'
       },
       status: {
         current: 'Current',
@@ -2055,4 +2053,3 @@ export default {
     syncResult: 'Fetched {total}, created {created}, updated {updated}, skipped {skipped}'
   }
 }
-

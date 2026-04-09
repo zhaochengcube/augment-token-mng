@@ -1587,9 +1587,6 @@ export default {
       sync: '同步',
       searchPlaceholder: '搜索邮箱...',
       batchRefresh: '批量刷新',
-      batchRefreshToken: '批量刷新 Token',
-      batchRefreshSuccess: '已刷新 {count} 个账号的 Token',
-      noOAuthAccountsSelected: '选中的账号中没有 OAuth 账号',
       allAccountsMarkedForSync: '已将 {count} 个账号标记为待同步',
       export: '导出账号',
       exportSuccess: '账号导出成功',
@@ -1599,7 +1596,8 @@ export default {
         all: '全部',
         active: '可用',
         expired: '已过期',
-        forbidden: '已禁用'
+        forbidden: '已禁用',
+        invalid: '已失效'
       },
       status: {
         current: '当前',

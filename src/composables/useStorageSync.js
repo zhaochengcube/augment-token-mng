@@ -255,10 +255,25 @@ export function useStorageSync(options) {
     try {
       window.$notify?.info($t('messages.syncingData'))
 
+      // 快照本次待发送内容，避免同步期间新增变更被误清空
+      const upsertsSnapshot = Array.from(pendingUpserts.value.entries())
+      const deletionsSnapshot = Array.from(pendingDeletions.value.entries())
+      const upsertSignatures = new Map(
+        upsertsSnapshot.map(([id, item]) => {
+          let signature = null
+          try {
+            signature = JSON.stringify(item)
+          } catch {
+            signature = null
+          }
+          return [id, signature]
+        })
+      )
+
       const req = {
         last_version: lastVersion.value,
-        upserts: Array.from(pendingUpserts.value.values()).map(item => ({ [itemKey]: item })),
-        deletions: Array.from(pendingDeletions.value.values()).map(item => ({ id: item.id })),
+        upserts: upsertsSnapshot.map(([, item]) => ({ [itemKey]: item })),
+        deletions: deletionsSnapshot.map(([, item]) => ({ id: item.id })),
       }
 
       const res = await invoke(syncCommand, { reqJson: JSON.stringify(req) })
@@ -294,8 +309,25 @@ export function useStorageSync(options) {
       lastVersion.value = res.new_version
       saveLastVersion(res.new_version)
 
-      pendingUpserts.value.clear()
-      pendingDeletions.value.clear()
+      // 仅清理“本次发送快照”对应条目；同步期间新增或变更的条目保留
+      for (const [id] of upsertsSnapshot) {
+        const current = pendingUpserts.value.get(id)
+        if (!current) continue
+        let currentSignature = null
+        try {
+          currentSignature = JSON.stringify(current)
+        } catch {
+          currentSignature = null
+        }
+        if (currentSignature === upsertSignatures.get(id)) {
+          pendingUpserts.value.delete(id)
+        }
+      }
+      for (const [id] of deletionsSnapshot) {
+        if (pendingDeletions.value.has(id)) {
+          pendingDeletions.value.delete(id)
+        }
+      }
       savePendingChanges()
 
       // 调用同步完成回调（如保存本地文件）
