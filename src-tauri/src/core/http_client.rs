@@ -3,6 +3,7 @@ use crate::proxy_helper::ProxyClient;
 use reqwest;
 use serde_json;
 use std::sync::Arc;
+use std::time::Duration;
 
 /// 尝试从配置文件加载代理配置
 /// 路径与 Tauri 的 app_data_dir() 保持一致
@@ -92,6 +93,57 @@ pub fn create_proxy_client() -> Result<ProxyClient, String> {
     };
 
     Ok(ProxyClient::new(client, edge_function_url))
+}
+
+/// 创建用于长流式请求的代理客户端（如 Codex SSE）。
+///
+/// 与 `create_proxy_client` 的区别：
+/// - 不设置全局请求超时，避免长流式响应在固定时长后被中断
+/// - 保留连接超时和代理/自定义 URL 处理逻辑
+pub fn create_proxy_client_for_streaming() -> Result<ProxyClient, String> {
+    let proxy_config = try_load_proxy_config();
+
+    let client = if let Some(config) = &proxy_config {
+        create_streaming_client(config)?
+    } else {
+        create_streaming_client(&ProxyConfig::default())?
+    };
+
+    let edge_function_url = if let Some(config) = proxy_config {
+        if config.enabled && config.proxy_type == ProxyType::CustomUrl {
+            config.custom_url
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    Ok(ProxyClient::new(client, edge_function_url))
+}
+
+fn create_streaming_client(config: &ProxyConfig) -> Result<reqwest::Client, String> {
+    let mut builder = reqwest::Client::builder().connect_timeout(Duration::from_secs(15));
+
+    if config.enabled {
+        match config.proxy_type {
+            ProxyType::CustomUrl => {
+                // CustomUrl 不是传统代理，直连 Edge URL，避免系统代理干扰。
+                builder = builder.no_proxy();
+            }
+            _ => {
+                if let Some(proxy_url) = config.build_proxy_url() {
+                    let proxy = reqwest::Proxy::all(&proxy_url)
+                        .map_err(|e| format!("Failed to create proxy: {}", e))?;
+                    builder = builder.proxy(proxy);
+                }
+            }
+        }
+    }
+
+    builder
+        .build()
+        .map_err(|e| format!("Failed to build streaming HTTP client: {}", e))
 }
 
 /// 创建标准的 HTTP 客户端，自动加载代理配置

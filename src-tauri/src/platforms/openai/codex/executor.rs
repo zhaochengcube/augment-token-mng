@@ -11,7 +11,7 @@ use reqwest::{Method, RequestBuilder, StatusCode};
 use warp::http::HeaderMap;
 
 use super::pool::CodexPool;
-use crate::http_client::create_proxy_client;
+use crate::http_client::create_proxy_client_for_streaming;
 use crate::platforms::openai::codex::models::{CodexError, CodexPoolAccount};
 use crate::proxy_helper::ProxyClient;
 
@@ -46,7 +46,7 @@ pub struct CodexExecutor {
 
 impl CodexExecutor {
     pub fn new(pool: Arc<CodexPool>) -> Result<Self, String> {
-        let client = create_proxy_client()?;
+        let client = create_proxy_client_for_streaming()?;
 
         Ok(Self {
             pool,

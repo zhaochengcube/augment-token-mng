@@ -639,9 +639,12 @@ fn build_streaming_response_with_metrics(
 
         extractor.finish();
         let usage = extractor.usage;
-        if status.is_success() && usage.total_tokens > 0 {
+        let stream_ok = extractor.error_message.is_none();
+        if status.is_success() && stream_ok && usage.total_tokens > 0 {
             pool.record_usage(&meta.account_id, usage.total_tokens)
                 .await;
+        } else if !stream_ok {
+            pool.record_failure(&meta.account_id, None).await;
         }
 
         let log_model = if request_model == "unknown" {
@@ -649,7 +652,8 @@ fn build_streaming_response_with_metrics(
         } else {
             request_model
         };
-        let error_message = if status.is_success() {
+        let is_success = status.is_success() && stream_ok;
+        let error_message = if is_success {
             None
         } else {
             extractor.error_message
@@ -657,7 +661,7 @@ fn build_streaming_response_with_metrics(
         let log = build_request_log(
             &meta,
             log_model,
-            if status.is_success() {
+            if is_success {
                 "success"
             } else {
                 "error"
