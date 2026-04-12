@@ -2,6 +2,10 @@ use super::{QuotaData, TokenData};
 use crate::data::storage::common::SyncableAccount;
 use serde::{Deserialize, Serialize};
 
+fn default_reverse_proxy_enabled() -> bool {
+    true
+}
+
 /// 账号类型
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -44,6 +48,8 @@ pub struct ApiConfig {
 pub struct Account {
     pub id: String,
     pub email: String,
+    #[serde(default = "default_reverse_proxy_enabled")]
+    pub reverse_proxy_enabled: bool,
     /// 账号类型
     #[serde(default)]
     pub account_type: AccountType,
@@ -149,6 +155,7 @@ impl Account {
         Self {
             id,
             email,
+            reverse_proxy_enabled: true,
             account_type: AccountType::OAuth,
             token: Some(token),
             api_config: None,
@@ -176,6 +183,7 @@ impl Account {
         Self {
             id,
             email,
+            reverse_proxy_enabled: true,
             account_type: AccountType::API,
             token: None,
             api_config: Some(api_config),
@@ -250,5 +258,54 @@ impl Account {
     pub fn update_quota(&mut self, quota: QuotaData) {
         self.quota = Some(quota);
         self.updated_at = chrono::Utc::now().timestamp();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn sample_token() -> TokenData {
+        TokenData {
+            access_token: "access".to_string(),
+            refresh_token: Some("refresh".to_string()),
+            id_token: None,
+            expires_in: 3600,
+            expires_at: chrono::Utc::now().timestamp() + 3600,
+            token_type: Some("Bearer".to_string()),
+        }
+    }
+
+    #[test]
+    fn reverse_proxy_defaults_to_true_for_legacy_account_json() {
+        let legacy = json!({
+            "id": "oauth-1",
+            "email": "user@example.com",
+            "account_type": "oauth",
+            "token": sample_token(),
+            "created_at": 1,
+            "last_used": 1,
+            "updated_at": 1,
+            "version": 0,
+            "deleted": false,
+            "rt_invalid": false
+        });
+
+        let account: Account = serde_json::from_value(legacy).unwrap();
+        assert!(account.reverse_proxy_enabled);
+    }
+
+    #[test]
+    fn new_oauth_account_enables_reverse_proxy_by_default() {
+        let account = Account::new_oauth(
+            "user@example.com".to_string(),
+            sample_token(),
+            Some("acct".to_string()),
+            None,
+            None,
+        );
+
+        assert!(account.reverse_proxy_enabled);
     }
 }

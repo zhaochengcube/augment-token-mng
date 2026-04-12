@@ -128,14 +128,13 @@ impl CodexPool {
     async fn select_single(&self, pool: &[CodexPoolAccount]) -> Option<CodexPoolAccount> {
         let selected_id = self.selected_account_id.read().await.clone();
 
-        let account = if let Some(id) = selected_id {
-            pool.iter()
-                .find(|a| a.id == id && a.is_available())
-                .cloned()
-        } else {
-            // 没有选中账号时，使用第一个可用账号
-            pool.iter().find(|a| a.is_available()).cloned()
-        };
+        let account = selected_id
+            .as_ref()
+            .and_then(|id| pool.iter().find(|a| a.id == *id && a.is_available()).cloned())
+            .or_else(|| {
+                // 选中账号不可用时，回退到第一个可用账号，避免服务被无声卡死。
+                pool.iter().find(|a| a.is_available()).cloned()
+            });
 
         if account.is_some() {
             // 增加请求计数
@@ -357,6 +356,55 @@ impl CodexPool {
 impl Default for CodexPool {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{CodexPool, PoolStrategy};
+    use crate::platforms::openai::codex::models::CodexPoolAccount;
+
+    fn sample_pool_account(id: &str) -> CodexPoolAccount {
+        let now = chrono::Utc::now().timestamp();
+        CodexPoolAccount {
+            id: id.to_string(),
+            email: format!("{id}@example.com"),
+            access_token: "access".to_string(),
+            refresh_token: Some("refresh".to_string()),
+            id_token: None,
+            expires_at: now + 3600,
+            chatgpt_account_id: id.to_string(),
+            chatgpt_user_id: None,
+            organization_id: None,
+            is_active: true,
+            is_forbidden: false,
+            last_used: Some(now),
+            last_refresh: None,
+            cooldown_until: None,
+            unavailable_reason: None,
+            last_error_status: None,
+            daily_quota: None,
+            used_quota: 0,
+            total_tokens_used: 0,
+            codex_5h_used_percent: None,
+            codex_7d_used_percent: None,
+            plan_type: None,
+            subscription_expires_at: None,
+            tag: None,
+            tag_color: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn select_single_falls_back_to_first_available_account() {
+        let pool = CodexPool::new();
+        pool.add_account(sample_pool_account("primary")).await;
+        pool.add_account(sample_pool_account("fallback")).await;
+        pool.set_strategy(PoolStrategy::Single).await;
+        pool.set_selected_account_id("missing-in-pool".to_string()).await;
+
+        let selected = pool.next_account().await.unwrap();
+        assert_eq!(selected.id, "primary");
     }
 }
 

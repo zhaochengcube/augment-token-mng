@@ -204,6 +204,15 @@
               </svg>
               <span>{{ $t('accountCard.copyAccessToken') }}</span>
             </button>
+            <button v-if="reverseProxyAction" @click="handleCopyMenuClick('toggleReverseProxy', close)" class="dropdown-item">
+              <svg v-if="reverseProxyAction === 'enable'" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M7 7h10a4 4 0 1 1 0 8H7a4 4 0 1 1 0-8zm0 2a2 2 0 0 0 0 4h10a2 2 0 0 0 0-4H7zm9 1.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/>
+              </svg>
+              <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M7 7h10a4 4 0 1 1 0 8H7a4 4 0 1 1 0-8zm0 2a2 2 0 0 0 0 4h10a2 2 0 0 0 0-4H7zm1 1.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/>
+              </svg>
+              <span>{{ reverseProxyActionLabel }}</span>
+            </button>
             <button v-if="isApiAccount && account.api_config?.key" @click="handleCopyMenuClick('copyApiKey', close)" class="dropdown-item">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
@@ -243,6 +252,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import FloatingDropdown from '../common/FloatingDropdown.vue'
 import TagEditorModal from '../token/TagEditorModal.vue'
+import { getReverseProxyAction, toggleReverseProxyForAccount } from '@/utils/openaiReverseProxy'
 
 const { t: $t } = useI18n()
 
@@ -361,6 +371,31 @@ const handleTagClear = () => {
   window.$notify?.success($t('messages.tagCleared'))
 }
 
+const reverseProxyAction = computed(() => getReverseProxyAction(props.account))
+
+const reverseProxyActionLabel = computed(() => {
+  if (reverseProxyAction.value === 'disable') {
+    return $t('platform.openai.disableReverseProxy')
+  }
+  if (reverseProxyAction.value === 'enable') {
+    return $t('platform.openai.enableReverseProxy')
+  }
+  return ''
+})
+
+const handleReverseProxyToggle = () => {
+  const action = reverseProxyAction.value
+  const updated = toggleReverseProxyForAccount(props.account)
+  if (!updated) return
+
+  emit('account-updated', props.account)
+  window.$notify?.success(
+    action === 'disable'
+      ? $t('platform.openai.reverseProxyDisabledSuccess')
+      : $t('platform.openai.reverseProxyEnabledSuccess')
+  )
+}
+
 // 复制菜单操作
 const handleCopyMenuClick = async (type, close) => {
   close?.()
@@ -377,6 +412,9 @@ const handleCopyMenuClick = async (type, close) => {
       break
     case 'copyBaseUrl':
       await copyBaseUrl()
+      break
+    case 'toggleReverseProxy':
+      handleReverseProxyToggle()
       break
     case 'delete':
       emit('delete', props.account.id)
