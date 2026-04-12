@@ -1592,6 +1592,18 @@ export default {
       reverseProxyDisabled: 'Reverse proxy disabled',
       reverseProxyEnabledSuccess: 'Reverse proxy enabled',
       reverseProxyDisabledSuccess: 'Reverse proxy disabled',
+      thirdPartyCredentials: {
+        openMenu: 'Copy third-party credentials',
+        title: 'Copy third-party credentials',
+        account: 'Account',
+        template: 'Template',
+        hint: 'Templates are built in. Select one and copy the generated content directly.',
+        preview: 'Preview',
+        copy: 'Copy content',
+        empty: 'No available third-party credential templates for this account',
+        copySuccess: '{name} credentials copied',
+        copyFailed: 'Failed to copy third-party credentials'
+      },
       viewSyncQueueTooltip: 'Click to view pending sync queue',
       syncQueueTitle: 'Sync Queue',
       syncQueueUpsertsTitle: 'Pending Updates',

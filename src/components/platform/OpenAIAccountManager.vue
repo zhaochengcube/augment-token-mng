@@ -124,6 +124,7 @@
             @select="toggleAccountSelection"
             @account-updated="handleAccountUpdated"
             @edit="handleEdit"
+            @copy-third-party-credentials="openThirdPartyCredentialModal"
           />
         </div>
 
@@ -168,6 +169,7 @@
                 @delete="handleDelete"
                 @select="toggleAccountSelection"
                 @account-updated="handleAccountUpdated"
+                @copy-third-party-credentials="openThirdPartyCredentialModal"
               />
             </tbody>
           </table>
@@ -584,6 +586,12 @@
       @saved="handleEditSaved"
     />
 
+    <OpenAIThirdPartyCredentialModal
+      v-if="thirdPartyCredentialAccount"
+      :account="thirdPartyCredentialAccount"
+      @close="thirdPartyCredentialAccount = null"
+    />
+
     <CodexServerDialog v-if="showCodexDialog" @close="showCodexDialog = false" />
     <CodexRuntimeSettingsModal
       v-if="showCodexSettingsModal"
@@ -622,6 +630,7 @@ import AccountTableRow from '../openai/AccountTableRow.vue'
 import AddAccountDialog from '../openai/AddAccountDialog.vue'
 import OpenAIImportAccountsDialog from '../openai/OpenAIImportAccountsDialog.vue'
 import EditApiAccountDialog from '../openai/EditApiAccountDialog.vue'
+import OpenAIThirdPartyCredentialModal from '../openai/OpenAIThirdPartyCredentialModal.vue'
 import CodexServerDialog from '../openai/CodexServerDialog.vue'
 import CodexRuntimeSettingsModal from '../openai/CodexRuntimeSettingsModal.vue'
 import SyncQueueModal from '../common/SyncQueueModal.vue'
@@ -655,6 +664,7 @@ const showImportDialog = ref(false)
 const showCodexDialog = ref(false)
 const showCodexSettingsModal = ref(false)
 const editingAccount = ref(null)
+const thirdPartyCredentialAccount = ref(null)
 const isLoading = ref(false)
 const refreshingIds = ref(new Set())
 const deletingIds = ref(new Set())
@@ -1152,6 +1162,10 @@ const handleEditSaved = async (updatedAccount) => {
   }
   markItemUpsertById(updatedAccount.id)
   window.$notify?.success($t('platform.openai.messages.updateSuccess'))
+}
+
+const openThirdPartyCredentialModal = (account) => {
+  thirdPartyCredentialAccount.value = account
 }
 
 const handleDelete = async (accountId) => {

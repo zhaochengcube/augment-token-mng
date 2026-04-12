@@ -204,6 +204,12 @@
               </svg>
               <span>{{ $t('accountCard.copyAccessToken') }}</span>
             </button>
+            <button v-if="hasThirdPartyCredentialTemplates" @click="handleCopyMenuClick('copyThirdPartyCredentials', close)" class="dropdown-item">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+              </svg>
+              <span>{{ $t('platform.openai.thirdPartyCredentials.openMenu') }}</span>
+            </button>
             <button v-if="reverseProxyAction" @click="handleCopyMenuClick('toggleReverseProxy', close)" class="dropdown-item">
               <svg v-if="reverseProxyAction === 'enable'" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M7 7h10a4 4 0 1 1 0 8H7a4 4 0 1 1 0-8zm0 2a2 2 0 0 0 0 4h10a2 2 0 0 0 0-4H7zm9 1.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/>
@@ -253,6 +259,7 @@ import { useI18n } from 'vue-i18n'
 import FloatingDropdown from '../common/FloatingDropdown.vue'
 import TagEditorModal from '../token/TagEditorModal.vue'
 import { getReverseProxyAction, toggleReverseProxyForAccount } from '@/utils/openaiReverseProxy'
+import { getAvailableOpenAIThirdPartyCredentialTemplates } from '@/utils/openaiThirdPartyCredentials'
 
 const { t: $t } = useI18n()
 
@@ -297,7 +304,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['refresh', 'refresh-quota', 'delete', 'select', 'switch', 'account-updated'])
+const emit = defineEmits(['refresh', 'refresh-quota', 'delete', 'select', 'switch', 'account-updated', 'copy-third-party-credentials'])
 
 // 复制菜单状态
 const copyMenuRef = ref(null)
@@ -383,6 +390,10 @@ const reverseProxyActionLabel = computed(() => {
   return ''
 })
 
+const hasThirdPartyCredentialTemplates = computed(() => {
+  return getAvailableOpenAIThirdPartyCredentialTemplates(props.account).length > 0
+})
+
 const handleReverseProxyToggle = () => {
   const action = reverseProxyAction.value
   const updated = toggleReverseProxyForAccount(props.account)
@@ -415,6 +426,9 @@ const handleCopyMenuClick = async (type, close) => {
       break
     case 'toggleReverseProxy':
       handleReverseProxyToggle()
+      break
+    case 'copyThirdPartyCredentials':
+      emit('copy-third-party-credentials', props.account)
       break
     case 'delete':
       emit('delete', props.account.id)

@@ -1585,6 +1585,18 @@ export default {
       reverseProxyDisabled: '已关闭反代',
       reverseProxyEnabledSuccess: '已启用反代',
       reverseProxyDisabledSuccess: '已关闭反代',
+      thirdPartyCredentials: {
+        openMenu: '复制第三方凭证',
+        title: '复制第三方凭证',
+        account: '当前账号',
+        template: '凭证模板',
+        hint: '模板为内置格式，选择后可直接复制对应内容。',
+        preview: '内容预览',
+        copy: '复制内容',
+        empty: '当前账号没有可用的第三方凭证模板',
+        copySuccess: '{name} 凭证已复制',
+        copyFailed: '复制第三方凭证失败'
+      },
       viewSyncQueueTooltip: '点击查看待同步队列',
       syncQueueTitle: '同步队列',
       syncQueueUpsertsTitle: '待更新',
