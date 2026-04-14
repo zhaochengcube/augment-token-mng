@@ -1,6 +1,7 @@
 import ccSwitchCredential from './templates/ccSwitchCredential.js'
+import cpaCredential from './templates/cpaCredential.js'
 
-const templates = [ccSwitchCredential]
+const templates = [ccSwitchCredential, cpaCredential]
 
 export const getAvailableOpenAIThirdPartyCredentialTemplates = (account) => {
   return templates.filter((template) => template.supports(account))

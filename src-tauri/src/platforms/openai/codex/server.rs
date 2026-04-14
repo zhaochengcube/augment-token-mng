@@ -477,6 +477,14 @@ async fn destream_responses_sse(
             Err(err) => {
                 let err_text = format!("Failed to read upstream stream: {}", err);
                 pool.record_failure(&meta.account_id, None).await;
+                add_failed_log(
+                    logger,
+                    storage,
+                    &request_model,
+                    &meta.format,
+                    err_text.clone(),
+                )
+                .await;
                 return Err(err_text);
             }
         }
@@ -610,28 +618,38 @@ fn build_streaming_response_with_metrics(
     }
 
     let mut upstream_stream = response.bytes_stream();
-    let (mut tx, rx) = futures::channel::mpsc::channel::<Result<Bytes, std::io::Error>>(16);
+    let (tx, rx) = futures::channel::mpsc::channel::<Result<Bytes, std::io::Error>>(16);
 
     tokio::spawn(async move {
         let mut extractor = SseMetricsExtractor::default();
+        // Wrap sender in Option so we can drop it on client disconnect
+        // while continuing to drain upstream for usage metrics.
+        let mut maybe_tx: Option<futures::channel::mpsc::Sender<Result<Bytes, std::io::Error>>> =
+            Some(tx);
 
         while let Some(chunk) = upstream_stream.next().await {
             match chunk {
                 Ok(bytes) => {
                     extractor.ingest_chunk(&bytes);
-                    if tx.send(Ok(bytes)).await.is_err() {
-                        break;
+                    if let Some(ref mut sender) = maybe_tx {
+                        if sender.send(Ok(bytes)).await.is_err() {
+                            // Client disconnected — drop sender but keep draining
+                            // upstream so we capture the response.completed usage data.
+                            maybe_tx = None;
+                        }
                     }
                 }
                 Err(err) => {
                     let err_text = format!("Failed to read upstream stream chunk: {}", err);
                     extractor.error_message.get_or_insert(err_text.clone());
-                    let _ = tx
-                        .send(Err(std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            err_text,
-                        )))
-                        .await;
+                    if let Some(ref mut sender) = maybe_tx {
+                        let _ = sender
+                            .send(Err(std::io::Error::new(
+                                std::io::ErrorKind::Other,
+                                err_text,
+                            )))
+                            .await;
+                    }
                     break;
                 }
             }

@@ -5,7 +5,7 @@
     :show-close="true"
     :close-on-overlay="true"
     :close-on-esc="true"
-    :body-scroll="false"
+    :body-scroll="true"
     modal-class="max-w-[720px]"
     @close="emit('close')"
   >
@@ -17,15 +17,34 @@
 
       <div class="form-group mb-0">
         <label class="label">{{ $t('platform.openai.thirdPartyCredentials.template') }}</label>
-        <select v-model="selectedTemplateId" class="input">
-          <option
-            v-for="template in availableTemplates"
-            :key="template.id"
-            :value="template.id"
-          >
-            {{ template.label }}
-          </option>
-        </select>
+        <FloatingDropdown placement="bottom-start" :close-on-select="true" width="medium">
+          <template #trigger="{ isOpen }">
+            <button
+              type="button"
+              class="input flex items-center justify-between w-full text-left"
+            >
+              <span>{{ selectedTemplateLabel }}</span>
+              <svg
+                class="h-4 w-4 text-text-muted transition-transform"
+                :class="{ 'rotate-180': isOpen }"
+                viewBox="0 0 24 24" fill="currentColor"
+              >
+                <path d="M7 10l5 5 5-5z" />
+              </svg>
+            </button>
+          </template>
+          <template #default="{ close }">
+            <button
+              v-for="tpl in availableTemplates"
+              :key="tpl.id"
+              class="dropdown-item w-full text-left"
+              :class="{ 'dropdown-item--active': tpl.id === selectedTemplateId }"
+              @click="selectedTemplateId = tpl.id; close()"
+            >
+              {{ tpl.label }}
+            </button>
+          </template>
+        </FloatingDropdown>
         <p class="mt-1.5 text-xs text-text-muted">
           {{ $t('platform.openai.thirdPartyCredentials.hint') }}
         </p>
@@ -39,7 +58,7 @@
         <textarea
           :value="previewContent"
           readonly
-          class="input min-h-[320px] resize-none font-mono text-[12px] leading-5"
+          class="input min-h-[200px] max-h-[320px] resize-none font-mono text-[12px] leading-5"
         ></textarea>
       </div>
     </div>
@@ -59,6 +78,7 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseModal from '@/components/common/BaseModal.vue'
+import FloatingDropdown from '@/components/common/FloatingDropdown.vue'
 import {
   buildOpenAIThirdPartyCredentialPreview,
   getAvailableOpenAIThirdPartyCredentialTemplates

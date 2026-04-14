@@ -342,6 +342,11 @@ impl CodexPool {
                         next.cooldown_until = None;
                         next.unavailable_reason = None;
                     }
+                    // 保留运行时标记的 forbidden 状态（executor 重试时遇到 402/403 仅更新内存，
+                    // 未写数据库；若丢弃此标记，冷却过期后该账号会再次参与请求并重复 403）。
+                    if prev.is_forbidden {
+                        next.is_forbidden = true;
+                    }
                     next.last_error_status = prev.last_error_status;
                     if prev.last_used.unwrap_or_default() > next.last_used.unwrap_or_default() {
                         next.last_used = prev.last_used;
