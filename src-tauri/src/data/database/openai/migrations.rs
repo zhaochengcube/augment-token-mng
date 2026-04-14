@@ -40,6 +40,7 @@ pub async fn create_tables(
         CREATE TABLE IF NOT EXISTS openai_accounts (
             id VARCHAR(255) PRIMARY KEY,
             email TEXT NOT NULL,
+            reverse_proxy_enabled BOOLEAN NOT NULL DEFAULT TRUE,
             access_token TEXT NOT NULL,
             refresh_token TEXT,
             id_token TEXT,
@@ -257,6 +258,29 @@ pub async fn add_new_fields_if_not_exist(
             )
             .await?;
         println!("Added column rt_invalid_reason to openai_accounts");
+    }
+
+    let check_reverse_proxy_enabled = client
+        .query_one(
+            "SELECT EXISTS (
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_name = 'openai_accounts'
+                AND column_name = 'reverse_proxy_enabled'
+            )",
+            &[],
+        )
+        .await?;
+
+    let reverse_proxy_enabled_exists: bool = check_reverse_proxy_enabled.get(0);
+    if !reverse_proxy_enabled_exists {
+        client
+            .execute(
+                "ALTER TABLE openai_accounts ADD COLUMN reverse_proxy_enabled BOOLEAN NOT NULL DEFAULT TRUE",
+                &[],
+            )
+            .await?;
+        println!("Added column reverse_proxy_enabled to openai_accounts");
     }
 
     // 添加 API 账号字段

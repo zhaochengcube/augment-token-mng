@@ -1578,6 +1578,25 @@ export default {
       planType: '订阅计划',
       subscriptionExpires: '订阅到期',
       reasoningEffort: '推理强度',
+      reverseProxy: '反代',
+      enableReverseProxy: '启用反代',
+      disableReverseProxy: '关闭反代',
+      reverseProxyEnabled: '已启用反代',
+      reverseProxyDisabled: '已关闭反代',
+      reverseProxyEnabledSuccess: '已启用反代',
+      reverseProxyDisabledSuccess: '已关闭反代',
+      thirdPartyCredentials: {
+        openMenu: '复制第三方凭证',
+        title: '复制第三方凭证',
+        account: '当前账号',
+        template: '凭证模板',
+        hint: '模板为内置格式，选择后可直接复制对应内容。',
+        preview: '内容预览',
+        copy: '复制内容',
+        empty: '当前账号没有可用的第三方凭证模板',
+        copySuccess: '{name} 凭证已复制',
+        copyFailed: '复制第三方凭证失败'
+      },
       viewSyncQueueTooltip: '点击查看待同步队列',
       syncQueueTitle: '同步队列',
       syncQueueUpsertsTitle: '待更新',
@@ -1587,6 +1606,8 @@ export default {
       sync: '同步',
       searchPlaceholder: '搜索邮箱...',
       batchRefresh: '批量刷新',
+      batchEnableReverseProxy: '批量启用反代',
+      batchDisableReverseProxy: '批量关闭反代',
       allAccountsMarkedForSync: '已将 {count} 个账号标记为待同步',
       export: '导出账号',
       exportSuccess: '账号导出成功',
@@ -1797,7 +1818,10 @@ export default {
         deleteFailed: '删除失败: {error}',
         batchDeleteConfirm: '确定要删除选中的 {count} 个账号吗？',
         noSelection: '请先选择要操作的账号',
-        importSuccess: '成功导入 {count} 个账号'
+        importSuccess: '成功导入 {count} 个账号',
+        noReverseProxySelection: '选中的账号中没有可操作的 OAuth 账号',
+        batchEnableReverseProxySuccess: '已为 {count} 个账号启用反代',
+        batchDisableReverseProxySuccess: '已为 {count} 个账号关闭反代'
       }
     },
     claude: {

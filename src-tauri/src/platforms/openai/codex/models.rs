@@ -78,6 +78,10 @@ impl CodexPoolAccount {
     pub fn from_openai_account(
         account: &crate::platforms::openai::models::Account,
     ) -> Option<Self> {
+        if !account.reverse_proxy_enabled {
+            return None;
+        }
+
         let token = account.token.as_ref()?;
 
         // 跳过被禁用的账号
@@ -321,6 +325,38 @@ pub struct DailyStats {
     pub date: String,
     pub requests: u64,
     pub tokens: u64,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::CodexPoolAccount;
+    use crate::platforms::openai::models::{Account, TokenData};
+
+    fn sample_token() -> TokenData {
+        TokenData {
+            access_token: "access".to_string(),
+            refresh_token: Some("refresh".to_string()),
+            id_token: None,
+            expires_in: 3600,
+            expires_at: chrono::Utc::now().timestamp() + 3600,
+            token_type: Some("Bearer".to_string()),
+        }
+    }
+
+    #[test]
+    fn from_openai_account_skips_accounts_with_reverse_proxy_disabled() {
+        let mut account = Account::new_oauth(
+            "user@example.com".to_string(),
+            sample_token(),
+            Some("acct".to_string()),
+            None,
+            None,
+        );
+        account.reverse_proxy_enabled = false;
+
+        let pooled = CodexPoolAccount::from_openai_account(&account);
+        assert!(pooled.is_none());
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

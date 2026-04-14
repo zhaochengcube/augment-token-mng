@@ -1585,6 +1585,25 @@ export default {
       planType: 'Plan',
       subscriptionExpires: 'Subscription expires',
       reasoningEffort: 'Reasoning',
+      reverseProxy: 'Proxy',
+      enableReverseProxy: 'Enable reverse proxy',
+      disableReverseProxy: 'Disable reverse proxy',
+      reverseProxyEnabled: 'Reverse proxy enabled',
+      reverseProxyDisabled: 'Reverse proxy disabled',
+      reverseProxyEnabledSuccess: 'Reverse proxy enabled',
+      reverseProxyDisabledSuccess: 'Reverse proxy disabled',
+      thirdPartyCredentials: {
+        openMenu: 'Copy third-party credentials',
+        title: 'Copy third-party credentials',
+        account: 'Account',
+        template: 'Template',
+        hint: 'Templates are built in. Select one and copy the generated content directly.',
+        preview: 'Preview',
+        copy: 'Copy content',
+        empty: 'No available third-party credential templates for this account',
+        copySuccess: '{name} credentials copied',
+        copyFailed: 'Failed to copy third-party credentials'
+      },
       viewSyncQueueTooltip: 'Click to view pending sync queue',
       syncQueueTitle: 'Sync Queue',
       syncQueueUpsertsTitle: 'Pending Updates',
@@ -1594,6 +1613,8 @@ export default {
       sync: 'Sync',
       searchPlaceholder: 'Search email...',
       batchRefresh: 'Batch refresh',
+      batchEnableReverseProxy: 'Batch enable reverse proxy',
+      batchDisableReverseProxy: 'Batch disable reverse proxy',
       allAccountsMarkedForSync: 'All {count} accounts marked for sync',
       export: 'Export Accounts',
       exportSuccess: 'Accounts exported successfully',
@@ -1804,7 +1825,10 @@ export default {
         deleteFailed: 'Delete failed: {error}',
         batchDeleteConfirm: 'Are you sure you want to delete {count} selected accounts?',
         noSelection: 'Please select accounts to operate',
-        importSuccess: 'Successfully imported {count} accounts'
+        importSuccess: 'Successfully imported {count} accounts',
+        noReverseProxySelection: 'No eligible OAuth accounts in the current selection',
+        batchEnableReverseProxySuccess: 'Enabled reverse proxy for {count} accounts',
+        batchDisableReverseProxySuccess: 'Disabled reverse proxy for {count} accounts'
       }
     },
     claude: {

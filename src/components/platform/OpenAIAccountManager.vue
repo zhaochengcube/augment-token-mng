@@ -124,6 +124,7 @@
             @select="toggleAccountSelection"
             @account-updated="handleAccountUpdated"
             @edit="handleEdit"
+            @copy-third-party-credentials="openThirdPartyCredentialModal"
           />
         </div>
 
@@ -168,6 +169,7 @@
                 @delete="handleDelete"
                 @select="toggleAccountSelection"
                 @account-updated="handleAccountUpdated"
+                @copy-third-party-credentials="openThirdPartyCredentialModal"
               />
             </tbody>
           </table>
@@ -506,6 +508,26 @@
           </svg>
         </button>
 
+        <button
+          @click="handleBatchReverseProxy(true)"
+          class="btn btn--icon btn--ghost"
+          v-tooltip="$t('platform.openai.batchEnableReverseProxy')"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2l3 6 6 .9-4.5 4.4 1 6.2L12 17l-5.5 2.5 1-6.2L3 8.9 9 8z" />
+          </svg>
+        </button>
+
+        <button
+          @click="handleBatchReverseProxy(false)"
+          class="btn btn--icon btn--ghost"
+          v-tooltip="$t('platform.openai.batchDisableReverseProxy')"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 6.4L17.6 5 12 10.6 6.4 5 5 6.4l5.6 5.6L5 17.6 6.4 19l5.6-5.6 5.6 5.6 1.4-1.4-5.6-5.6z" />
+          </svg>
+        </button>
+
         <!-- 批量导出 -->
         <button
           @click="handleBatchExport"
@@ -564,6 +586,12 @@
       @saved="handleEditSaved"
     />
 
+    <OpenAIThirdPartyCredentialModal
+      v-if="thirdPartyCredentialAccount"
+      :account="thirdPartyCredentialAccount"
+      @close="thirdPartyCredentialAccount = null"
+    />
+
     <CodexServerDialog v-if="showCodexDialog" @close="showCodexDialog = false" />
     <CodexRuntimeSettingsModal
       v-if="showCodexSettingsModal"
@@ -602,6 +630,7 @@ import AccountTableRow from '../openai/AccountTableRow.vue'
 import AddAccountDialog from '../openai/AddAccountDialog.vue'
 import OpenAIImportAccountsDialog from '../openai/OpenAIImportAccountsDialog.vue'
 import EditApiAccountDialog from '../openai/EditApiAccountDialog.vue'
+import OpenAIThirdPartyCredentialModal from '../openai/OpenAIThirdPartyCredentialModal.vue'
 import CodexServerDialog from '../openai/CodexServerDialog.vue'
 import CodexRuntimeSettingsModal from '../openai/CodexRuntimeSettingsModal.vue'
 import SyncQueueModal from '../common/SyncQueueModal.vue'
@@ -612,6 +641,7 @@ import FixedPaginationLayout from '../common/FixedPaginationLayout.vue'
 import AccountManagerHeader from '../common/AccountManagerHeader.vue'
 import TagEditorModal from '../token/TagEditorModal.vue'
 import { useStorageSync } from '@/composables/useStorageSync'
+import { applyReverseProxyToSelection } from '@/utils/openaiReverseProxy'
 
 const { t: $t } = useI18n()
 let unlistenOpenAIAccountsUpdated = null
@@ -634,6 +664,7 @@ const showImportDialog = ref(false)
 const showCodexDialog = ref(false)
 const showCodexSettingsModal = ref(false)
 const editingAccount = ref(null)
+const thirdPartyCredentialAccount = ref(null)
 const isLoading = ref(false)
 const refreshingIds = ref(new Set())
 const deletingIds = ref(new Set())
@@ -1133,6 +1164,10 @@ const handleEditSaved = async (updatedAccount) => {
   window.$notify?.success($t('platform.openai.messages.updateSuccess'))
 }
 
+const openThirdPartyCredentialModal = (account) => {
+  thirdPartyCredentialAccount.value = account
+}
+
 const handleDelete = async (accountId) => {
   const account = accounts.value.find(a => a.id === accountId)
   deletingIds.value.add(accountId)
@@ -1326,6 +1361,41 @@ const batchRefreshSelected = async () => {
   }
 }
 
+const handleBatchReverseProxy = async (enabled) => {
+  if (selectedAccountIds.value.size === 0) return
+
+  const updatedCount = applyReverseProxyToSelection(
+    accounts.value,
+    selectedAccountIds.value,
+    enabled
+  )
+
+  if (updatedCount === 0) {
+    window.$notify?.error($t('platform.openai.messages.noReverseProxySelection'))
+    return
+  }
+
+  for (const account of accounts.value) {
+    if (selectedAccountIds.value.has(account.id) && account.account_type !== 'api') {
+      markItemUpsert(account)
+    }
+  }
+
+  try {
+    await invoke('openai_save_accounts', { accounts: accounts.value })
+    clearSelection()
+    refreshCodexPoolQuietly()
+    window.$notify?.success(
+      enabled
+        ? $t('platform.openai.messages.batchEnableReverseProxySuccess', { count: updatedCount })
+        : $t('platform.openai.messages.batchDisableReverseProxySuccess', { count: updatedCount })
+    )
+  } catch (error) {
+    console.error('Failed to batch update reverse proxy:', error)
+    window.$notify?.error($t('platform.openai.messages.updateFailed', { error: error?.message || error }))
+  }
+}
+
 const showBatchDeleteSelectedConfirm = () => {
   handleBatchDeleteSelected()
 }
@@ -1422,6 +1492,7 @@ const handleAccountUpdated = async (updatedAccount) => {
     }
     await invoke('openai_update_account', { account: updatedAccount })
     markItemUpsert(updatedAccount)
+    refreshCodexPoolQuietly()
   } catch (error) {
     console.error('Failed to update account:', error)
     window.$notify?.error($t('messages.updateFailed'))
