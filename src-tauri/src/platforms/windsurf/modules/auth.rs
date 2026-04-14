@@ -5,6 +5,31 @@ use crate::windsurf::models::token::{FirebaseTokenResponse, FirebaseUserInfo};
 const FIREBASE_API_KEY: &str = "AIzaSyDsOl-1XpT5err0Tcnx8FFod1H8gVGIycY";
 const FIREBASE_AUTH_URL: &str = "https://identitytoolkit.googleapis.com/v1/accounts";
 const FIREBASE_TOKEN_URL: &str = "https://securetoken.googleapis.com/v1/token";
+const FIREBASE_ORIGIN: &str = "https://www.windsurf.com";
+const FIREBASE_REFERER: &str = "https://www.windsurf.com/";
+const FIREBASE_CLIENT_VERSION: &str = "Chrome/JsCore/11.0.0/FirebaseCore-web";
+const FIREBASE_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
+
+fn with_firebase_headers(builder: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+    builder
+        .header("Origin", FIREBASE_ORIGIN)
+        .header("Referer", FIREBASE_REFERER)
+        .header("x-client-version", FIREBASE_CLIENT_VERSION)
+        .header("User-Agent", FIREBASE_USER_AGENT)
+}
+
+fn is_referrer_blocked_error(error_text: &str) -> bool {
+    error_text.contains("API_KEY_HTTP_REFERRER_BLOCKED")
+}
+
+fn referrer_blocked_error(action: &str) -> String {
+    format!(
+        "{} failed: Firebase API key is blocked by HTTP referrer restrictions (API_KEY_HTTP_REFERRER_BLOCKED). \
+If this still persists, update the key restrictions in GCP: either allow the referer `https://www.windsurf.com/*` \
+or remove HTTP referrer restrictions for securetoken/identitytoolkit usage in desktop clients.",
+        action
+    )
+}
 
 /// 使用邮箱密码登录 Firebase
 pub async fn login_with_email_password(
@@ -24,8 +49,7 @@ pub async fn login_with_email_password(
         "returnSecureToken": true
     });
 
-    let response = client
-        .post(&url)
+    let response = with_firebase_headers(client.post(&url))
         .json(&body)
         .send()
         .await
@@ -49,6 +73,8 @@ pub async fn login_with_email_password(
             Err("Account has been disabled".to_string())
         } else if error_text.contains("TOO_MANY_ATTEMPTS") {
             Err("Too many failed attempts. Please try again later".to_string())
+        } else if is_referrer_blocked_error(&error_text) {
+            Err(referrer_blocked_error("Login"))
         } else {
             Err(format!("Login failed: {}", error_text))
         }
@@ -66,8 +92,7 @@ pub async fn refresh_access_token(refresh_token: &str) -> Result<FirebaseTokenRe
         ("refresh_token", refresh_token),
     ];
 
-    let response = client
-        .post(&url)
+    let response = with_firebase_headers(client.post(&url))
         .form(&params)
         .send()
         .await
@@ -97,7 +122,10 @@ pub async fn refresh_access_token(refresh_token: &str) -> Result<FirebaseTokenRe
         })
     } else {
         let error_text = response.text().await.unwrap_or_default();
-        if error_text.contains("TOKEN_EXPIRED") || error_text.contains("INVALID_REFRESH_TOKEN") {
+        if is_referrer_blocked_error(&error_text) {
+            Err(referrer_blocked_error("Refresh"))
+        } else if error_text.contains("TOKEN_EXPIRED") || error_text.contains("INVALID_REFRESH_TOKEN")
+        {
             Err("Refresh token expired or invalid".to_string())
         } else {
             Err(format!("Refresh failed: {}", error_text))
@@ -115,8 +143,7 @@ pub async fn get_user_info(id_token: &str) -> Result<FirebaseUserInfo, String> {
         "idToken": id_token
     });
 
-    let response = client
-        .post(&url)
+    let response = with_firebase_headers(client.post(&url))
         .json(&body)
         .send()
         .await
@@ -139,7 +166,11 @@ pub async fn get_user_info(id_token: &str) -> Result<FirebaseUserInfo, String> {
             .ok_or_else(|| "No user info returned".to_string())
     } else {
         let error_text = response.text().await.unwrap_or_default();
-        Err(format!("Get user info failed: {}", error_text))
+        if is_referrer_blocked_error(&error_text) {
+            Err(referrer_blocked_error("Get user info"))
+        } else {
+            Err(format!("Get user info failed: {}", error_text))
+        }
     }
 }
 
