@@ -169,11 +169,49 @@ pub fn get_main_js_path(custom_exe_path: Option<&str>) -> Result<PathBuf, String
     use super::process::get_cursor_executable_path;
 
     // 获取可执行文件路径：优先使用自定义路径，否则使用默认路径
+    #[cfg(target_os = "macos")]
+    let mut exe_path = if let Some(path) = custom_exe_path {
+        PathBuf::from(path)
+    } else {
+        get_cursor_executable_path()?
+    };
+
+    #[cfg(not(target_os = "macos"))]
     let exe_path = if let Some(path) = custom_exe_path {
         PathBuf::from(path)
     } else {
         get_cursor_executable_path()?
     };
+
+    #[cfg(target_os = "macos")]
+    if let Some(path) = custom_exe_path {
+        let custom_path = PathBuf::from(path);
+        let is_app_bundle = custom_path
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext.eq_ignore_ascii_case("app"))
+            .unwrap_or(false);
+
+        if is_app_bundle {
+            let bundled_main_js = custom_path
+                .join("Contents")
+                .join("Resources")
+                .join("app")
+                .join("out")
+                .join("main.js");
+            if bundled_main_js.exists() {
+                return Ok(bundled_main_js);
+            }
+
+            let bundled_exe = custom_path
+                .join("Contents")
+                .join("MacOS")
+                .join("Cursor");
+            if bundled_exe.exists() {
+                exe_path = bundled_exe;
+            }
+        }
+    }
 
     // 从可执行文件路径推断 main.js 路径
     if let Some(parent) = exe_path.parent() {
