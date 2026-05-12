@@ -65,43 +65,74 @@ pub fn remove_protobuf_field(data: &[u8], field_number: u8) -> Result<Vec<u8>, S
 
 /// 创建 OAuth Field (Field 6)
 pub fn create_oauth_field(access_token: &str, refresh_token: &str, expiry: i64) -> Vec<u8> {
-    let mut field = Vec::new();
+    encode_length_delimited_field(
+        6,
+        &create_oauth_token_info(access_token, refresh_token, expiry),
+    )
+}
 
-    // Field 6, wire type 2 (length-delimited)
-    field.push((6 << 3) | 2);
-
-    // 构建内部数据
-    let mut inner = Vec::new();
-
+/// 创建 OAuth TokenInfo 数据
+pub fn create_oauth_token_info(access_token: &str, refresh_token: &str, expiry: i64) -> Vec<u8> {
+    let mut token_info = Vec::new();
     // Field 1: access_token (string)
-    inner.push((1 << 3) | 2);
-    inner.extend(encode_varint(access_token.len() as u64));
-    inner.extend_from_slice(access_token.as_bytes());
+    token_info.extend(encode_length_delimited_field(1, access_token.as_bytes()));
 
     // Field 2: token_type (string)
     let token_type = "Bearer";
-    inner.push((2 << 3) | 2);
-    inner.extend(encode_varint(token_type.len() as u64));
-    inner.extend_from_slice(token_type.as_bytes());
+    token_info.extend(encode_length_delimited_field(2, token_type.as_bytes()));
 
     // Field 3: refresh_token (string)
-    inner.push((3 << 3) | 2);
-    inner.extend(encode_varint(refresh_token.len() as u64));
-    inner.extend_from_slice(refresh_token.as_bytes());
+    token_info.extend(encode_length_delimited_field(3, refresh_token.as_bytes()));
 
     // Field 4: expiry (google.protobuf.Timestamp)
     let expiry_seconds = if expiry < 0 { 0 } else { expiry as u64 };
     let mut expiry_inner = Vec::new();
     expiry_inner.push((1 << 3) | 0);
     expiry_inner.extend(encode_varint(expiry_seconds));
-    inner.push((4 << 3) | 2);
-    inner.extend(encode_varint(expiry_inner.len() as u64));
-    inner.extend(expiry_inner);
+    token_info.extend(encode_length_delimited_field(4, &expiry_inner));
 
-    // 写入长度
-    field.extend(encode_varint(inner.len() as u64));
-    field.extend(inner);
+    token_info
+}
 
+/// 创建 Antigravity unified state 中的 OAuth 主题数据
+pub fn create_unified_oauth_state(access_token: &str, refresh_token: &str, expiry: i64) -> Vec<u8> {
+    use base64::Engine as _;
+
+    let auth_state = r#"{"state":"signedIn","context":{"project":"","showProjectError":false,"errorMessage":"","ineligibleMessage":"","verificationUrl":"","isGcpTos":false,"browserOpenFailed":false,"appealUrl":"","appealLinkText":""}}"#;
+    let token_info = base64::engine::general_purpose::STANDARD.encode(create_oauth_token_info(
+        access_token,
+        refresh_token,
+        expiry,
+    ));
+
+    let mut state = Vec::new();
+    state.extend(create_unified_state_entry(
+        "authStateWithContextSentinelKey",
+        auth_state,
+    ));
+    state.extend(create_unified_state_entry(
+        "oauthTokenInfoSentinelKey",
+        &token_info,
+    ));
+    state
+}
+
+fn create_unified_state_entry(key: &str, value: &str) -> Vec<u8> {
+    let mut value_wrapper = Vec::new();
+    value_wrapper.extend(encode_length_delimited_field(1, value.as_bytes()));
+
+    let mut entry = Vec::new();
+    entry.extend(encode_length_delimited_field(1, key.as_bytes()));
+    entry.extend(encode_length_delimited_field(2, &value_wrapper));
+
+    encode_length_delimited_field(1, &entry)
+}
+
+fn encode_length_delimited_field(field_number: u8, value: &[u8]) -> Vec<u8> {
+    let mut field = Vec::new();
+    field.push((field_number << 3) | 2);
+    field.extend(encode_varint(value.len() as u64));
+    field.extend_from_slice(value);
     field
 }
 
