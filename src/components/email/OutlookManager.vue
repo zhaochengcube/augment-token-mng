@@ -109,7 +109,21 @@
                   </span>
                 </div>
               </div>
-              <div class="flex gap-2.5" @click.stop>
+              <div class="flex flex-wrap justify-end gap-2.5" @click.stop>
+                <button
+                  @click="copyAccountEmail(account.email)"
+                  class="btn btn--secondary btn--sm"
+                >
+                  复制邮箱
+                </button>
+                <button
+                  @click="fetchVerificationCode(account.email)"
+                  :disabled="fetchingCodeEmail === account.email"
+                  class="btn btn--primary btn--sm"
+                >
+                  <span v-if="fetchingCodeEmail === account.email" class="btn-spinner btn-spinner--xs" aria-hidden="true"></span>
+                  {{ fetchingCodeEmail === account.email ? '获取中...' : '获取验证码' }}
+                </button>
                 <button
                   @click="checkStatus(account.email)"
                   :disabled="isCheckingStatus"
@@ -416,6 +430,7 @@ const isCheckingStatus = ref(false)
 const statusCheckProgress = ref(0)
 const isRefreshingAll = ref(false)
 const refreshResults = ref(null)
+const fetchingCodeEmail = ref('')
 const showAddModal = ref(false)
 const showEmailViewer = ref(false)
 const selectedEmail = ref('')
@@ -524,29 +539,52 @@ const addAccount = async () => {
 
     for (const line of lines) {
       try {
-        // 格式: 邮箱----密码----Refresh Token----Client ID (密码可选)
+        // 支持的格式（兼容 Client ID 与 Refresh Token 顺序互换）：
+        //   邮箱----密码----Refresh Token----Client ID
+        //   邮箱----密码----Client ID----Refresh Token
+        //   邮箱----Refresh Token----Client ID
+        //   邮箱----Client ID----Refresh Token
         const parts = line.trim().split('----').map(p => p.trim())
-        let email, refreshToken, clientId
+        let email, refreshToken, clientId, a, b
 
         if (parts.length === 4) {
-          // 四字段: 邮箱----密码----refreshToken----clientId
           email = parts[0]
-          refreshToken = parts[2]
-          clientId = parts[3]
+          a = parts[2]
+          b = parts[3]
         } else if (parts.length === 3) {
-          // 三字段: 邮箱----refreshToken----clientId
           email = parts[0]
-          refreshToken = parts[1]
-          clientId = parts[2]
+          a = parts[1]
+          b = parts[2]
         } else {
           failCount++
           errors.push(`格式错误: ${line.substring(0, 30)}...`)
           continue
         }
 
+        // 通过 UUID 格式自动识别 Client ID 和 Refresh Token 的位置
+        const aIsUuid = UUID_RE.test(a)
+        const bIsUuid = UUID_RE.test(b)
+        if (bIsUuid && !aIsUuid) {
+          refreshToken = a
+          clientId = b
+        } else if (aIsUuid && !bIsUuid) {
+          clientId = a
+          refreshToken = b
+        } else {
+          // 两者都是或都不是 UUID：按默认顺序 (refreshToken 在前, clientId 在后)
+          refreshToken = a
+          clientId = b
+        }
+
         if (!email || !refreshToken || !clientId) {
           failCount++
           errors.push(`字段不完整: ${email || '(空)'}`)
+          continue
+        }
+
+        if (!UUID_RE.test(clientId)) {
+          failCount++
+          errors.push(`Client ID 格式无效: ${email}`)
           continue
         }
 
@@ -614,6 +652,80 @@ const checkStatus = async (email) => {
 const viewEmails = (email) => {
   selectedEmail.value = email
   showEmailViewer.value = true
+}
+
+const VERIFICATION_CODE_RE = /\b(\d{6})\b/
+
+const stripHtml = (html) => {
+  if (!html) return ''
+  return String(html)
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+const extractVerificationCode = (text) => {
+  if (!text) return ''
+  const cleaned = String(text).replace(/[\u200B-\u200D\uFEFF]/g, '')
+  const match = cleaned.match(VERIFICATION_CODE_RE)
+  return match ? match[1] : ''
+}
+
+const copyAccountEmail = async (email) => {
+  try {
+    await navigator.clipboard.writeText(email)
+    showStatus('邮箱已复制', 'success')
+  } catch (error) {
+    console.error('Copy Outlook email failed:', error)
+    showStatus('邮箱复制失败', 'error')
+  }
+}
+
+const fetchVerificationCode = async (email) => {
+  fetchingCodeEmail.value = email
+  try {
+    const response = await invoke('outlook_get_emails', {
+      email,
+      folder: 'inbox',
+      page: 1,
+      pageSize: 1
+    })
+    const latest = Array.isArray(response?.emails) ? response.emails[0] : null
+    if (!latest) {
+      showStatus('未拉取到最新邮件，请稍后重试', 'warning')
+      return
+    }
+
+    let code = extractVerificationCode(latest.subject || '')
+    if (!code) {
+      const detail = await invoke('outlook_get_email_details', {
+        email,
+        messageId: latest.message_id,
+        method: null
+      })
+      const bodyText = detail?.body_plain || stripHtml(detail?.body_html || '')
+      code = extractVerificationCode(bodyText)
+    }
+
+    if (!code) {
+      showStatus('未在最新邮件中识别到 6 位验证码', 'warning')
+      return
+    }
+
+    await navigator.clipboard.writeText(code)
+    showStatus(`验证码 ${code} 已复制`, 'success')
+  } catch (error) {
+    console.error('Fetch Outlook verification code failed:', error)
+    showStatus(`获取验证码失败: ${error?.message || error}`, 'error')
+  } finally {
+    fetchingCodeEmail.value = ''
+  }
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i

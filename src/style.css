@@ -580,6 +580,14 @@
     @apply bg-danger-hover;
   }
 
+  .dropdown-item--active {
+    @apply bg-accent/15 font-medium text-accent;
+  }
+
+  .dropdown-item--active:hover {
+    @apply bg-accent/25;
+  }
+
   /* 表格行：展开下拉菜单时提升层级 */
   tr:has(.dropdown-menu) {
     position: relative;

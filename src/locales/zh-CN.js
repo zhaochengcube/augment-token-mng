@@ -195,7 +195,7 @@ export default {
     sessionNotice: '账户信息仅在当前会话中有效，关闭应用后需要重新添加',
     accountInfo: '账户信息',
     placeholder: '邮箱地址----密码----Refresh Token----Client ID',
-    inputHint: '请按格式输入：邮箱地址----密码----Refresh Token----Client ID',
+    inputHint: '支持格式：邮箱----密码----Refresh Token----Client ID（Client ID 与 Refresh Token 顺序可互换，自动识别）',
     addAccountBtn: '添加账户',
     checkStatus: '检查状态',
     viewEmails: '查看邮件',
@@ -1653,7 +1653,7 @@ export default {
         apiMethod: 'API 方式',
         oauthInfo: '点击下方按钮将打开 OpenAI 授权页面，授权完成后自动添加账号',
         openaiLogin: '使用 OpenAI 账号登录',
-        oauthManualTitle: '手动流程（可复制链接）',
+        oauthManualTitle: '手动流程',
         generateAuthLink: '生成授权链接',
         copyAuthLink: '复制授权链接',
         callbackLabel: '回调链接或授权码',
@@ -1687,7 +1687,24 @@ export default {
         baseUrlPlaceholder: 'https://api.openai.com/v1',
         apiKey: 'API 密钥',
         apiKeyPlaceholder: 'sk-...',
-        addApiAccount: '添加 API 账号'
+        addApiAccount: '添加 API 账号',
+        mailHelper: {
+          title: '从 Outlook 邮箱获取验证码',
+          noAccounts: '尚未添加 Outlook 邮箱，请先到「Outlook 管理」添加',
+          selectAccount: '选择邮箱',
+          copyEmail: '复制邮箱',
+          emailCopied: '邮箱已复制',
+          copyEmailFailed: '邮箱复制失败',
+          searchPlaceholder: '搜索邮箱…',
+          matchCount: '{count} / {total} 个匹配',
+          noMatch: '没有匹配的邮箱',
+          getCode: '获取验证码',
+          fetching: '拉取中...',
+          codeCopied: '验证码 {code} 已复制',
+          noCodeFound: '未在最新邮件中识别到验证码，请稍后重试',
+          copyFailed: '验证码复制失败',
+          fetchFailed: '拉取邮件失败'
+        }
       },
       editApiAccountDialog: {
         title: '编辑 API 账号'

@@ -3,9 +3,8 @@
     :visible="true"
     :title="$t('platform.openai.addAccountDialog.title')"
     :show-close="true"
-    :close-on-overlay="!isLoading"
-    :close-on-esc="!isLoading"
-    :body-scroll="false"
+    :close-on-overlay="false"
+    :close-on-esc="false"
     modal-class="max-w-[500px]"
     @close="handleClose"
   >
@@ -57,14 +56,6 @@
 
     <!-- OAuth 授权方式 -->
     <div v-if="addMethod === 'oauth'" class="animate-fade-in">
-      <!-- OAuth Info -->
-      <div class="mb-5 flex items-start gap-3 rounded-lg border border-accent/20 bg-accent/10 p-4">
-        <svg class="mt-0.5 h-5 w-5 shrink-0 text-accent" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
-        </svg>
-        <p class="text-[13px] leading-relaxed text-text-secondary">{{ $t('platform.openai.addAccountDialog.oauthInfo') }}</p>
-      </div>
-
       <!-- OpenAI OAuth Button -->
       <button
         @click="handleOAuthLogin"
@@ -80,59 +71,203 @@
         {{ isLoading ? $t('platform.openai.addAccountDialog.adding') : $t('platform.openai.addAccountDialog.openaiLogin') }}
       </button>
 
-      <!-- Manual OAuth Section -->
-      <div class="mt-5 rounded-lg bg-muted p-4">
-        <div class="mb-3 text-[13px] font-semibold text-text">{{ $t('platform.openai.addAccountDialog.oauthManualTitle') }}</div>
-
-        <div class="mb-3 flex gap-2.5">
-          <button class="btn btn--primary" @click="generateAuthUrl" :disabled="isLoading || isManualLoading">
-            {{ $t('platform.openai.addAccountDialog.generateAuthLink') }}
-          </button>
-        </div>
-
-        <div v-if="oauthAuthUrl" class="mb-3 flex items-center gap-2">
-          <input type="text" :value="oauthAuthUrl" readonly class="input flex-1" />
-          <button
-            class="btn btn--secondary btn--icon shrink-0"
-            @click="copyAuthUrl"
-            :disabled="isLoading || isManualLoading"
-            v-tooltip="$t('platform.openai.addAccountDialog.copyAuthLink')"
-          >
-            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+      <!-- Outlook 验证码助手（默认折叠，按需展开） -->
+      <div class="mt-5 rounded-lg border border-border bg-muted/40">
+        <button
+          type="button"
+          class="flex w-full items-center justify-between px-4 py-3 text-left text-[13px] font-semibold text-text transition-colors hover:bg-muted"
+          @click="mailHelperOpen = !mailHelperOpen"
+        >
+          <span class="inline-flex items-center gap-2">
+            <svg class="h-4 w-4 text-accent" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
             </svg>
-          </button>
-        </div>
+            {{ $t('platform.openai.addAccountDialog.mailHelper.title') }}
+          </span>
+          <svg
+            class="h-4 w-4 text-text-muted transition-transform"
+            :class="{ 'rotate-180': mailHelperOpen }"
+            viewBox="0 0 24 24" fill="currentColor"
+          >
+            <path d="M7 10l5 5 5-5z"/>
+          </svg>
+        </button>
 
-        <div class="form-group mb-3">
-          <label class="label">{{ $t('platform.openai.addAccountDialog.callbackLabel') }}</label>
-          <div class="relative flex items-center">
-            <input
-              v-model="oauthCallbackInput"
-              type="text"
-              :placeholder="$t('platform.openai.addAccountDialog.callbackPlaceholder')"
-              class="input w-full pr-9"
-              :disabled="isLoading || isManualLoading"
-            />
+        <div v-if="mailHelperOpen" class="flex flex-col gap-3 border-t border-border p-4 max-h-[min(48vh,420px)]">
+          <!-- 无 Outlook 账号 -->
+          <div
+            v-if="!isLoadingOutlookAccounts && outlookAccounts.length === 0"
+            class="shrink-0 rounded-md border border-warning/30 bg-warning/10 p-3 text-[13px] text-text-secondary"
+          >
+            {{ $t('platform.openai.addAccountDialog.mailHelper.noAccounts') }}
+          </div>
+
+          <template v-else>
+            <!-- 邮箱选择 + 获取验证码 -->
+            <div class="flex shrink-0 items-center gap-2">
+              <FloatingDropdown
+                placement="bottom-start"
+                :close-on-select="false"
+                :disabled="isLoadingOutlookAccounts || isLoadingMail"
+                class="!flex flex-1 min-w-0"
+                @open="handleMailDropdownOpen"
+                @close="mailSearchQuery = ''"
+              >
+                <template #trigger="{ isOpen }">
+                  <button
+                    type="button"
+                    class="input flex w-full min-w-0 items-center justify-between text-left"
+                    :disabled="isLoadingOutlookAccounts || isLoadingMail"
+                  >
+                    <span class="truncate">{{ selectedOutlookEmail || $t('platform.openai.addAccountDialog.mailHelper.selectAccount') }}</span>
+                    <svg class="ml-2 h-4 w-4 shrink-0 transition-transform" :class="{ 'rotate-180': isOpen }" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M7 10l5 5 5-5z"/>
+                    </svg>
+                  </button>
+                </template>
+                <template #default="{ close }">
+                  <div class="flex max-h-[min(70vh,420px)] w-[280px] flex-col">
+                    <div class="sticky top-0 z-10 border-b border-border bg-surface p-2">
+                      <input
+                        ref="mailSearchInputRef"
+                        v-model="mailSearchQuery"
+                        type="text"
+                        :placeholder="$t('platform.openai.addAccountDialog.mailHelper.searchPlaceholder')"
+                        class="input w-full text-sm"
+                        @keydown.enter.prevent="onSearchEnter(close)"
+                        @keydown.escape.prevent="close"
+                      />
+                      <div v-if="mailSearchQuery" class="mt-1 px-1 text-[11px] text-text-muted">
+                        {{ $t('platform.openai.addAccountDialog.mailHelper.matchCount', { count: filteredOutlookAccounts.length, total: outlookAccounts.length }) }}
+                      </div>
+                    </div>
+                    <div class="flex-1 overflow-y-auto py-1">
+                      <button
+                        v-for="acc in filteredOutlookAccounts"
+                        :key="acc.email"
+                        type="button"
+                        class="dropdown-item"
+                        :class="{ 'dropdown-item--active': acc.email === selectedOutlookEmail }"
+                        @click="selectOutlookEmail(acc.email, close)"
+                      >
+                        <svg
+                          class="h-3.5 w-3.5 shrink-0"
+                          :class="acc.email === selectedOutlookEmail ? 'text-accent' : 'text-transparent'"
+                          viewBox="0 0 24 24" fill="currentColor"
+                        >
+                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                        </svg>
+                        <span class="truncate">{{ acc.email }}</span>
+                      </button>
+                      <div v-if="filteredOutlookAccounts.length === 0" class="px-3 py-3 text-center text-[12px] text-text-muted">
+                        {{ $t('platform.openai.addAccountDialog.mailHelper.noMatch') }}
+                      </div>
+                    </div>
+                  </div>
+                </template>
+              </FloatingDropdown>
+              <button
+                type="button"
+                class="btn btn--secondary btn--icon shrink-0"
+                @click="copySelectedOutlookEmail"
+                :disabled="!selectedOutlookEmail || isLoadingMail"
+                v-tooltip="$t('platform.openai.addAccountDialog.mailHelper.copyEmail')"
+              >
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                </svg>
+              </button>
+              <button
+                type="button"
+                class="btn btn--primary btn--sm whitespace-nowrap"
+                @click="fetchVerificationCode"
+                :disabled="!selectedOutlookEmail || isLoadingMail"
+              >
+                <span v-if="isLoadingMail" class="btn-spinner btn-spinner--xs" aria-hidden="true"></span>
+                {{ isLoadingMail ? $t('platform.openai.addAccountDialog.mailHelper.fetching') : $t('platform.openai.addAccountDialog.mailHelper.getCode') }}
+              </button>
+            </div>
+
+            <p v-if="hasFetchedMail && !isLoadingMail && !extractedCode" class="shrink-0 text-[12px] text-text-muted">
+              {{ $t('platform.openai.addAccountDialog.mailHelper.noCodeFound') }}
+            </p>
+          </template>
+        </div>
+      </div>
+
+      <!-- 折叠的手动 OAuth Section（默认收起，给自动登录失败时使用） -->
+      <div class="mt-5 rounded-lg border border-border bg-muted/40">
+        <button
+          type="button"
+          class="flex w-full items-center justify-between px-4 py-3 text-left text-[13px] font-semibold text-text transition-colors hover:bg-muted"
+          @click="manualOAuthOpen = !manualOAuthOpen"
+        >
+          <span class="inline-flex items-center gap-2">
+            <svg class="h-4 w-4 text-text-muted" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 6V4l-4 4 4 4V10c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 19.03 20 17.57 20 16c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 9.74C4.46 10.97 4 12.43 4 14c0 4.42 3.58 8 8 8v2l4-4-4-4v2z"/>
+            </svg>
+            {{ $t('platform.openai.addAccountDialog.oauthManualTitle') }}
+          </span>
+          <svg
+            class="h-4 w-4 text-text-muted transition-transform"
+            :class="{ 'rotate-180': manualOAuthOpen }"
+            viewBox="0 0 24 24" fill="currentColor"
+          >
+            <path d="M7 10l5 5 5-5z"/>
+          </svg>
+        </button>
+
+        <div v-if="manualOAuthOpen" class="border-t border-border p-4">
+          <div class="mb-3 flex gap-2.5">
+            <button class="btn btn--primary" @click="generateAuthUrl" :disabled="isLoading || isManualLoading">
+              {{ $t('platform.openai.addAccountDialog.generateAuthLink') }}
+            </button>
+          </div>
+
+          <div v-if="oauthAuthUrl" class="mb-3 flex items-center gap-2">
+            <input type="text" :value="oauthAuthUrl" readonly class="input flex-1" />
             <button
-              v-if="oauthCallbackInput"
-              class="absolute right-1.5 flex h-7 w-7 items-center justify-center rounded text-text-muted transition-colors hover:bg-hover hover:text-text"
-              type="button"
-              @click="oauthCallbackInput = ''"
+              class="btn btn--secondary btn--icon shrink-0"
+              @click="copyAuthUrl"
+              :disabled="isLoading || isManualLoading"
+              v-tooltip="$t('platform.openai.addAccountDialog.copyAuthLink')"
             >
-              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
               </svg>
             </button>
           </div>
-          <p class="mt-1.5 text-xs text-text-muted">
-            {{ $t('platform.openai.addAccountDialog.callbackHint') }}
-          </p>
-        </div>
 
-        <button class="btn btn--primary" @click="handleOAuthExchange" :disabled="!canExchange || isLoading || isManualLoading">
-          {{ $t('platform.openai.addAccountDialog.exchangeCode') }}
-        </button>
+          <div class="form-group mb-3">
+            <label class="label">{{ $t('platform.openai.addAccountDialog.callbackLabel') }}</label>
+            <div class="relative flex items-center">
+              <input
+                v-model="oauthCallbackInput"
+                type="text"
+                :placeholder="$t('platform.openai.addAccountDialog.callbackPlaceholder')"
+                class="input w-full pr-9"
+                :disabled="isLoading || isManualLoading"
+              />
+              <button
+                v-if="oauthCallbackInput"
+                class="absolute right-1.5 flex h-7 w-7 items-center justify-center rounded text-text-muted transition-colors hover:bg-hover hover:text-text"
+                type="button"
+                @click="oauthCallbackInput = ''"
+              >
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                </svg>
+              </button>
+            </div>
+            <p class="mt-1.5 text-xs text-text-muted">
+              {{ $t('platform.openai.addAccountDialog.callbackHint') }}
+            </p>
+          </div>
+
+          <button class="btn btn--primary" @click="handleOAuthExchange" :disabled="!canExchange || isLoading || isManualLoading">
+            {{ $t('platform.openai.addAccountDialog.exchangeCode') }}
+          </button>
+        </div>
       </div>
     </div>
 
@@ -283,7 +418,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
@@ -307,6 +442,173 @@ const oauthAuthUrl = ref('')
 const oauthRedirectUri = ref('')
 const oauthSessionId = ref('')
 const oauthCallbackInput = ref('')
+
+// Outlook 验证码助手（默认折叠）+ 折叠的手动 OAuth
+const mailHelperOpen = ref(false)
+const manualOAuthOpen = ref(false)
+const outlookAccounts = ref([])
+const isLoadingOutlookAccounts = ref(false)
+const selectedOutlookEmail = ref('')
+const hasFetchedMail = ref(false)
+const isLoadingMail = ref(false)
+const extractedCode = ref('')
+const mailSearchQuery = ref('')
+const mailSearchInputRef = ref(null)
+
+const filteredOutlookAccounts = computed(() => {
+  const q = mailSearchQuery.value.trim().toLowerCase()
+  if (!q) return outlookAccounts.value
+  return outlookAccounts.value.filter(a => a.email.toLowerCase().includes(q))
+})
+
+// OpenAI 验证码为 6 位数字；避免把年份等 4 位数字误识别为验证码
+const CODE_RE_STRICT = /\b(\d{6})\b/
+
+const extractCode = (text) => {
+  if (!text) return ''
+  const cleaned = String(text).replace(/[\u200B-\u200D\uFEFF]/g, '')
+  const m6 = cleaned.match(CODE_RE_STRICT)
+  return m6 ? m6[1] : ''
+}
+
+const stripHtml = (html) => {
+  if (!html) return ''
+  return String(html)
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+const loadOutlookAccounts = async () => {
+  isLoadingOutlookAccounts.value = true
+  try {
+    const list = await invoke('outlook_get_all_accounts_info')
+    outlookAccounts.value = Array.isArray(list) ? list : []
+    if (!selectedOutlookEmail.value && outlookAccounts.value.length > 0) {
+      selectedOutlookEmail.value = outlookAccounts.value[0].email
+    }
+  } catch (err) {
+    console.error('Load outlook accounts failed:', err)
+    outlookAccounts.value = []
+  } finally {
+    isLoadingOutlookAccounts.value = false
+  }
+}
+
+const copyCodeToClipboard = async (code) => {
+  await navigator.clipboard.writeText(code)
+}
+
+const fetchVerificationCode = async () => {
+  if (!selectedOutlookEmail.value) return
+  isLoadingMail.value = true
+  hasFetchedMail.value = true
+  extractedCode.value = ''
+  try {
+    const resp = await invoke('outlook_get_emails', {
+      email: selectedOutlookEmail.value,
+      folder: 'inbox',
+      page: 1,
+      pageSize: 1
+    })
+    const emails = Array.isArray(resp?.emails) ? resp.emails : []
+
+    // 先用主题做轻量匹配
+    let foundCode = ''
+    for (const item of emails) {
+      const code = extractCode(item.subject || '')
+      if (code) {
+        foundCode = code
+        break
+      }
+    }
+
+    // 主题里没有就按最新顺序扫描正文，找到即停止
+    if (!foundCode) {
+      for (const item of emails) {
+        try {
+          const detail = await invoke('outlook_get_email_details', {
+            email: selectedOutlookEmail.value,
+            messageId: item.message_id,
+            method: null
+          })
+          const bodyText = detail?.body_plain || stripHtml(detail?.body_html || '')
+          const code = extractCode(bodyText)
+          if (code) {
+            foundCode = code
+            break
+          }
+        } catch (err) {
+          console.warn('Fetch email body failed:', err)
+        }
+      }
+    }
+
+    if (foundCode) {
+      try {
+        await copyCodeToClipboard(foundCode)
+        extractedCode.value = foundCode
+        window.$notify?.success($t('platform.openai.addAccountDialog.mailHelper.codeCopied', { code: foundCode }))
+      } catch (err) {
+        console.error('Copy code failed:', err)
+        window.$notify?.error($t('platform.openai.addAccountDialog.mailHelper.copyFailed'))
+      }
+    } else {
+      window.$notify?.warning($t('platform.openai.addAccountDialog.mailHelper.noCodeFound'))
+    }
+  } catch (err) {
+    console.error('Fetch outlook emails failed:', err)
+    window.$notify?.error(err?.message || err || $t('platform.openai.addAccountDialog.mailHelper.fetchFailed'))
+    hasFetchedMail.value = false
+    extractedCode.value = ''
+  } finally {
+    isLoadingMail.value = false
+  }
+}
+
+const selectOutlookEmail = (email, close) => {
+  selectedOutlookEmail.value = email
+  close?.()
+}
+
+const copySelectedOutlookEmail = async () => {
+  if (!selectedOutlookEmail.value) return
+  try {
+    await navigator.clipboard.writeText(selectedOutlookEmail.value)
+    window.$notify?.success($t('platform.openai.addAccountDialog.mailHelper.emailCopied'))
+  } catch (err) {
+    console.error('Copy outlook email failed:', err)
+    window.$notify?.error($t('platform.openai.addAccountDialog.mailHelper.copyEmailFailed'))
+  }
+}
+
+const handleMailDropdownOpen = () => {
+  mailSearchQuery.value = ''
+  // 等待 DOM 渲染，自动聚焦搜索框
+  setTimeout(() => {
+    mailSearchInputRef.value?.focus()
+  }, 50)
+}
+
+const onSearchEnter = (close) => {
+  const first = filteredOutlookAccounts.value[0]
+  if (first) {
+    selectOutlookEmail(first.email, close)
+  }
+}
+
+watch(mailHelperOpen, (open) => {
+  if (open && outlookAccounts.value.length === 0 && !isLoadingOutlookAccounts.value) {
+    loadOutlookAccounts()
+  }
+})
+
 
 // API 表单数据
 const apiForm = ref({

@@ -195,7 +195,7 @@ export default {
     sessionNotice: 'Account information is only valid for the current session and needs to be re-added after closing the app',
     accountInfo: 'Account Information',
     placeholder: 'Email----Password----Refresh Token----Client ID',
-    inputHint: 'Please enter in format: Email----Password----Refresh Token----Client ID',
+    inputHint: 'Format: Email----Password----Refresh Token----Client ID (Client ID and Refresh Token can be in either order, auto-detected)',
     addAccountBtn: 'Add Account',
     checkStatus: 'Check Status',
     viewEmails: 'View Emails',
@@ -1660,7 +1660,7 @@ export default {
         apiMethod: 'API Method',
         oauthInfo: 'Click the button below to open OpenAI authorization page, account will be added automatically after authorization',
         openaiLogin: 'Sign in with OpenAI',
-        oauthManualTitle: 'Manual flow (copy the link)',
+        oauthManualTitle: 'Manual flow',
         generateAuthLink: 'Generate auth link',
         copyAuthLink: 'Copy auth link',
         callbackLabel: 'Callback URL or authorization code',
@@ -1694,7 +1694,24 @@ export default {
         baseUrlPlaceholder: 'https://api.openai.com/v1',
         apiKey: 'API Key',
         apiKeyPlaceholder: 'sk-...',
-        addApiAccount: 'Add API Account'
+        addApiAccount: 'Add API Account',
+        mailHelper: {
+          title: 'Fetch verification code from Outlook',
+          noAccounts: 'No Outlook account added yet. Please add one in "Outlook Manager" first.',
+          selectAccount: 'Select email',
+          copyEmail: 'Copy email',
+          emailCopied: 'Email copied',
+          copyEmailFailed: 'Failed to copy email',
+          searchPlaceholder: 'Search email…',
+          matchCount: '{count} / {total} matched',
+          noMatch: 'No matching email',
+          getCode: 'Get code',
+          fetching: 'Fetching...',
+          codeCopied: 'Code {code} copied',
+          noCodeFound: 'No verification code found in the latest emails. Please retry later.',
+          copyFailed: 'Failed to copy code',
+          fetchFailed: 'Failed to fetch mail'
+        }
       },
       editApiAccountDialog: {
         title: 'Edit API Account'
