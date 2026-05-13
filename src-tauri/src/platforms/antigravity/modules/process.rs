@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, System};
 
@@ -243,6 +243,63 @@ pub fn get_antigravity_executable_path() -> Result<PathBuf, String> {
     }
 }
 
+fn get_args_from_main_process() -> Option<Vec<String>> {
+    let mut sys = System::new();
+    sys.refresh_processes_specifics(ProcessesToUpdate::All, true, ProcessRefreshKind::new());
+
+    for process in sys.processes().values() {
+        if !is_antigravity_process(process) {
+            continue;
+        }
+
+        let name = process.name().to_string_lossy();
+        let args = process
+            .cmd()
+            .iter()
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect::<Vec<String>>();
+        let args_str = args.join(" ");
+
+        if !is_helper_process(&name, &args_str) {
+            return Some(args);
+        }
+    }
+
+    None
+}
+
+fn parse_user_data_dir(args: &[String]) -> Option<PathBuf> {
+    for (idx, arg) in args.iter().enumerate() {
+        if arg == "--user-data-dir" {
+            let next = args.get(idx + 1)?;
+            let path = next.trim().trim_matches('"').trim_matches('\'');
+            if !path.is_empty() {
+                return Some(PathBuf::from(path));
+            }
+        } else if let Some(value) = arg.strip_prefix("--user-data-dir=") {
+            let path = value.trim().trim_matches('"').trim_matches('\'');
+            if !path.is_empty() {
+                return Some(PathBuf::from(path));
+            }
+        }
+    }
+
+    None
+}
+
+/// 从运行中的 Antigravity 主进程参数里提取 `--user-data-dir`。
+pub fn get_user_data_dir_from_process() -> Option<PathBuf> {
+    get_args_from_main_process()
+        .and_then(|args| parse_user_data_dir(&args))
+        .filter(|path| path.exists())
+}
+
+fn append_user_data_dir_args(command: &mut Command, user_data_dir: Option<&Path>) {
+    if let Some(path) = user_data_dir {
+        command.arg("--user-data-dir").arg(path);
+    }
+}
+
 /// 启动 Antigravity
 pub fn launch_antigravity() -> Result<(), String> {
     #[cfg(target_os = "macos")]
@@ -277,8 +334,11 @@ pub fn launch_antigravity() -> Result<(), String> {
     Ok(())
 }
 
-/// 使用自定义路径启动 Antigravity
-pub fn launch_antigravity_with_path(custom_path: Option<&str>) -> Result<(), String> {
+/// 使用自定义路径启动 Antigravity，可选保留原来的 `--user-data-dir`。
+pub fn launch_antigravity_with_path(
+    custom_path: Option<&str>,
+    user_data_dir: Option<&Path>,
+) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
         let app_path = if let Some(path) = custom_path {
@@ -291,9 +351,13 @@ pub fn launch_antigravity_with_path(custom_path: Option<&str>) -> Result<(), Str
             return Err(format!("Antigravity not found at {:?}", app_path));
         }
 
-        Command::new("open")
-            .arg("-a")
-            .arg(app_path)
+        let mut command = Command::new("open");
+        command.arg("-a").arg(app_path);
+        if user_data_dir.is_some() {
+            command.arg("--args");
+            append_user_data_dir_args(&mut command, user_data_dir);
+        }
+        command
             .spawn()
             .map_err(|e| format!("Failed to launch Antigravity: {}", e))?;
     }
@@ -310,7 +374,9 @@ pub fn launch_antigravity_with_path(custom_path: Option<&str>) -> Result<(), Str
             get_antigravity_executable_path()?
         };
 
-        Command::new(exe_path)
+        let mut command = Command::new(exe_path);
+        append_user_data_dir_args(&mut command, user_data_dir);
+        command
             .spawn()
             .map_err(|e| format!("Failed to launch Antigravity: {}", e))?;
     }
@@ -327,7 +393,9 @@ pub fn launch_antigravity_with_path(custom_path: Option<&str>) -> Result<(), Str
             get_antigravity_executable_path()?
         };
 
-        Command::new(exe_path)
+        let mut command = Command::new(exe_path);
+        append_user_data_dir_args(&mut command, user_data_dir);
+        command
             .spawn()
             .map_err(|e| format!("Failed to launch Antigravity: {}", e))?;
     }

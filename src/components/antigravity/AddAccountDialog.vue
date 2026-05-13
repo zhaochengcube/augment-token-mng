@@ -284,7 +284,7 @@ const generateAuthUrl = async () => {
     oauthRedirectUri.value = redirectUri
   } catch (err) {
     console.error('Generate auth url error:', err)
-    error.value = err?.message || err || '生成授权链接失败'
+    error.value = formatOAuthError(err)
   } finally {
     isManualLoading.value = false
   }
@@ -306,6 +306,12 @@ const formatOAuthError = (err) => {
   const message = err?.message || err || ''
   if (message.includes('ANTIGRAVITY_EMAIL_EXISTS')) {
     return $t('platform.antigravity.addAccountDialog.emailExists')
+  }
+  if (message.includes('ANTIGRAVITY_OAUTH_CLIENT_ID_NOT_CONFIGURED')) {
+    return '未配置 ATM_ANTIGRAVITY_CLIENT_ID'
+  }
+  if (message.includes('ANTIGRAVITY_OAUTH_CLIENT_SECRET_NOT_CONFIGURED')) {
+    return '未配置 ATM_ANTIGRAVITY_CLIENT_SECRET'
   }
   return message || $t('platform.antigravity.addAccountDialog.oauthExchangeFailed')
 }

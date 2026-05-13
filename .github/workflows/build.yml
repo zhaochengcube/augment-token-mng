@@ -160,6 +160,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ATM_OUTLOOK_CLIENT_ID: ${{ secrets.ATM_OUTLOOK_CLIENT_ID }}
+          ATM_ANTIGRAVITY_CLIENT_ID: ${{ secrets.ATM_ANTIGRAVITY_CLIENT_ID }}
+          ATM_ANTIGRAVITY_CLIENT_SECRET: ${{ secrets.ATM_ANTIGRAVITY_CLIENT_SECRET }}
         with:
           args: --verbose --target ${{ matrix.target }}
 

@@ -1,15 +1,31 @@
 use crate::antigravity::models::token::{TokenResponse, UserInfo};
 use crate::http_client::create_proxy_client;
 
-// 使用 Antigravity Manager 的 OAuth 配置
-const CLIENT_ID: &str = "1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com";
-const CLIENT_SECRET: &str = "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";
+// 使用构建时注入的 OAuth 配置，避免把凭证写进仓库。
+const CLIENT_ID: Option<&str> = option_env!("ATM_ANTIGRAVITY_CLIENT_ID");
+const CLIENT_SECRET: Option<&str> = option_env!("ATM_ANTIGRAVITY_CLIENT_SECRET");
 const AUTH_URL: &str = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
 const USER_INFO_URL: &str = "https://www.googleapis.com/oauth2/v2/userinfo";
 
+fn resolve_client_id() -> Result<&'static str, String> {
+    CLIENT_ID
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| "ANTIGRAVITY_OAUTH_CLIENT_ID_NOT_CONFIGURED".to_string())
+}
+
+fn resolve_client_secret() -> Result<&'static str, String> {
+    CLIENT_SECRET
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| "ANTIGRAVITY_OAUTH_CLIENT_SECRET_NOT_CONFIGURED".to_string())
+}
+
 /// 生成 OAuth 授权 URL
-pub fn get_auth_url(redirect_uri: &str) -> String {
+pub fn get_auth_url(redirect_uri: &str) -> Result<String, String> {
+    let client_id = resolve_client_id()?;
+
     // 使用 Antigravity 需要的完整 scopes
     let scopes = vec![
         "https://www.googleapis.com/auth/cloud-platform",
@@ -21,7 +37,7 @@ pub fn get_auth_url(redirect_uri: &str) -> String {
     .join(" ");
 
     let params = vec![
-        ("client_id", CLIENT_ID),
+        ("client_id", client_id),
         ("redirect_uri", redirect_uri),
         ("response_type", "code"),
         ("scope", &scopes),
@@ -31,16 +47,18 @@ pub fn get_auth_url(redirect_uri: &str) -> String {
     ];
 
     let url = url::Url::parse_with_params(AUTH_URL, &params).expect("Invalid Auth URL");
-    url.to_string()
+    Ok(url.to_string())
 }
 
 /// 使用 Authorization Code 交换 Token
 pub async fn exchange_code(code: &str, redirect_uri: &str) -> Result<TokenResponse, String> {
     let client = create_proxy_client()?;
+    let client_id = resolve_client_id()?;
+    let client_secret = resolve_client_secret()?;
 
     let params = [
-        ("client_id", CLIENT_ID),
-        ("client_secret", CLIENT_SECRET),
+        ("client_id", client_id),
+        ("client_secret", client_secret),
         ("code", code),
         ("redirect_uri", redirect_uri),
         ("grant_type", "authorization_code"),
@@ -67,10 +85,12 @@ pub async fn exchange_code(code: &str, redirect_uri: &str) -> Result<TokenRespon
 /// 使用 refresh_token 刷新 access_token
 pub async fn refresh_access_token(refresh_token: &str) -> Result<TokenResponse, String> {
     let client = create_proxy_client()?;
+    let client_id = resolve_client_id()?;
+    let client_secret = resolve_client_secret()?;
 
     let params = [
-        ("client_id", CLIENT_ID),
-        ("client_secret", CLIENT_SECRET),
+        ("client_id", client_id),
+        ("client_secret", client_secret),
         ("refresh_token", refresh_token),
         ("grant_type", "refresh_token"),
     ];
@@ -138,7 +158,7 @@ pub async fn ensure_fresh_token(
     let response = refresh_access_token(&current_token.refresh_token).await?;
 
     // 构造新 TokenData
-    Ok(crate::antigravity::models::TokenData::new(
+    let mut token = crate::antigravity::models::TokenData::new(
         response.access_token,
         response
             .refresh_token
@@ -147,5 +167,11 @@ pub async fn ensure_fresh_token(
         current_token.email.clone(),
         current_token.project_id.clone(),
         None,
-    ))
+    );
+    token.oauth_client_key = current_token.oauth_client_key.clone();
+    token.session_id = current_token.session_id.clone();
+    token.is_gcp_tos = current_token.is_gcp_tos;
+    token.id_token = current_token.id_token.clone();
+
+    Ok(token)
 }

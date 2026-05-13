@@ -1,5 +1,9 @@
 use serde::{Deserialize, Serialize};
 
+fn default_is_gcp_tos() -> bool {
+    false
+}
+
 /// Google OAuth Token 数据
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenData {
@@ -12,8 +16,15 @@ pub struct TokenData {
     /// Google Cloud 项目ID，用于 API 请求标识
     #[serde(skip_serializing_if = "Option::is_none")]
     pub project_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    /// 获取/刷新该 token 使用的 OAuth client 标识。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub oauth_client_key: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>, // Antigravity sessionId
+    #[serde(default = "default_is_gcp_tos")]
+    pub is_gcp_tos: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id_token: Option<String>,
 }
 
 impl TokenData {
@@ -34,7 +45,10 @@ impl TokenData {
             token_type: "Bearer".to_string(),
             email,
             project_id,
+            oauth_client_key: None,
             session_id,
+            is_gcp_tos: false,
+            id_token: None,
         }
     }
 }

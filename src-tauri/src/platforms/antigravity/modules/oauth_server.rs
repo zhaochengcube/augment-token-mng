@@ -57,7 +57,7 @@ pub async fn start_oauth_flow(app_handle: tauri::AppHandle) -> Result<TokenRespo
     let redirect_uri = format!("http://localhost:{}/oauth-callback", port);
 
     // 2. 获取授权 URL
-    let auth_url = oauth::get_auth_url(&redirect_uri);
+    let auth_url = oauth::get_auth_url(&redirect_uri)?;
 
     // 发送事件给前端 (用于复制链接功能)
     let _ = app_handle.emit("oauth-url-generated", &auth_url);

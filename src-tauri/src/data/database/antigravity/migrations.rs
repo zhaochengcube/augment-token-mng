@@ -47,7 +47,11 @@ pub async fn create_tables(
             expiry_timestamp BIGINT NOT NULL,
             token_type TEXT,
             project_id TEXT,
+            oauth_client_key TEXT,
             session_id TEXT,
+            is_gcp_tos BOOLEAN NOT NULL DEFAULT FALSE,
+            id_token TEXT,
+            device_profile JSONB,
             quota JSONB,
             tag TEXT,
             tag_color TEXT,
@@ -115,6 +119,30 @@ pub async fn add_new_fields_if_not_exist(
     _client
         .execute(
             "ALTER TABLE antigravity_accounts ADD COLUMN IF NOT EXISTS tag_color TEXT",
+            &[],
+        )
+        .await?;
+    _client
+        .execute(
+            "ALTER TABLE antigravity_accounts ADD COLUMN IF NOT EXISTS oauth_client_key TEXT",
+            &[],
+        )
+        .await?;
+    _client
+        .execute(
+            "ALTER TABLE antigravity_accounts ADD COLUMN IF NOT EXISTS is_gcp_tos BOOLEAN NOT NULL DEFAULT FALSE",
+            &[],
+        )
+        .await?;
+    _client
+        .execute(
+            "ALTER TABLE antigravity_accounts ADD COLUMN IF NOT EXISTS id_token TEXT",
+            &[],
+        )
+        .await?;
+    _client
+        .execute(
+            "ALTER TABLE antigravity_accounts ADD COLUMN IF NOT EXISTS device_profile JSONB",
             &[],
         )
         .await?;

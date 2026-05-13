@@ -1,5 +1,5 @@
 use crate::antigravity::models::{Account, QuotaData, TokenData};
-use crate::antigravity::modules::{account, db, oauth, oauth_server, process, storage};
+use crate::antigravity::modules::{account, db, device, oauth, oauth_server, process, storage};
 use tauri::{AppHandle, Manager};
 
 async fn internal_refresh_account_quota(
@@ -151,6 +151,8 @@ pub async fn antigravity_switch_account(
     app: AppHandle,
     account_id: String,
 ) -> Result<String, String> {
+    use crate::core::path_manager::{ANTIGRAVITY_CONFIG, read_custom_path_from_config};
+
     // 1. 加载账号
     let mut acc = storage::load_account(&app, &account_id).await?;
 
@@ -161,6 +163,17 @@ pub async fn antigravity_switch_account(
         storage::save_account(&app, &acc).await?;
     }
 
+    // 2.1 确保账号有独立设备指纹，切换时同步到 Antigravity telemetry。
+    if acc.device_profile.is_none() {
+        acc.device_profile = Some(device::generate_profile());
+        storage::save_account(&app, &acc).await?;
+    }
+
+    let custom_path = read_custom_path_from_config(&app, &ANTIGRAVITY_CONFIG);
+    let user_data_dir = process::get_user_data_dir_from_process();
+    let storage_path = device::get_storage_path(custom_path.as_deref())?;
+    let db_path = db::get_db_path_for_storage(&storage_path);
+
     // 3. 检查 Antigravity 是否运行
     let was_running = process::is_antigravity_running();
 
@@ -169,8 +182,11 @@ pub async fn antigravity_switch_account(
         process::close_antigravity(20)?;
     }
 
-    // 5. 注入 Token（先备份数据库）
-    let db_path = db::get_db_path()?;
+    // 5. 写入设备指纹并注入 Token（先备份数据库）
+    if let Some(profile) = acc.device_profile.as_ref() {
+        device::write_profile(&storage_path, profile)?;
+    }
+
     if db_path.exists() {
         let backup_path = db_path.with_extension("vscdb.backup");
         if let Err(e) = tokio::fs::copy(&db_path, &backup_path).await {
@@ -182,7 +198,16 @@ pub async fn antigravity_switch_account(
         &acc.token.access_token,
         &acc.token.refresh_token,
         acc.token.expiry_timestamp,
+        &acc.email,
+        acc.token.is_gcp_tos,
+        acc.token.project_id.as_deref(),
+        acc.token.id_token.as_deref(),
+        acc.token.oauth_client_key.as_deref(),
+        custom_path.as_deref(),
     )?;
+    if let Some(profile) = acc.device_profile.as_ref() {
+        db::write_service_machine_id(&db_path, &profile.mac_machine_id)?;
+    }
 
     // 6. 更新当前账号
     storage::set_current_account_id(&app, Some(account_id.clone())).await?;
@@ -191,12 +216,10 @@ pub async fn antigravity_switch_account(
     acc.update_last_used();
     storage::save_account(&app, &acc).await?;
 
-    // 8. 获取自定义路径并启动 Antigravity
+    // 8. 启动 Antigravity
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-    use crate::core::path_manager::{ANTIGRAVITY_CONFIG, read_custom_path_from_config};
-    let custom_path = read_custom_path_from_config(&app, &ANTIGRAVITY_CONFIG);
 
-    process::launch_antigravity_with_path(custom_path.as_deref())?;
+    process::launch_antigravity_with_path(custom_path.as_deref(), user_data_dir.as_deref())?;
     Ok(format!(
         "Account switched and Antigravity started: {}",
         acc.email
@@ -224,7 +247,7 @@ pub async fn antigravity_launch() -> Result<(), String> {
 /// 获取 OAuth 授权 URL
 #[tauri::command]
 pub async fn antigravity_get_auth_url(redirect_uri: String) -> Result<String, String> {
-    Ok(oauth::get_auth_url(&redirect_uri))
+    oauth::get_auth_url(&redirect_uri)
 }
 
 /// 使用授权码交换 Token
