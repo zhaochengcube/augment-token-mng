@@ -132,7 +132,7 @@ jobs:
               throw new Error('Could not find atm package entry in Cargo.lock');
             }
             fs.writeFileSync(path, next);
-NODE
+          NODE
           echo "✅ Updated src-tauri/Cargo.lock package version to $NEW_VERSION"
 
       - name: Commit version changes
