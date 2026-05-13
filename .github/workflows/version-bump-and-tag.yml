@@ -118,19 +118,21 @@ jobs:
       - name: Update Cargo.lock package version
         run: |
           NEW_VERSION="${{ steps.new_version.outputs.version }}"
-          node -e "
+          export NEW_VERSION
+          node <<'NODE'
             const fs = require('fs');
             const path = 'src-tauri/Cargo.lock';
+            const newVersion = process.env.NEW_VERSION;
             let lock = fs.readFileSync(path, 'utf8');
             const next = lock.replace(
               /(\[\[package\]\]\nname = \"atm\"\nversion = \")[^\"]+(\")/,
-              '$1' + '$NEW_VERSION' + '$2'
+              (_, prefix, suffix) => prefix + newVersion + suffix
             );
             if (next === lock) {
               throw new Error('Could not find atm package entry in Cargo.lock');
             }
             fs.writeFileSync(path, next);
-          "
+NODE
           echo "✅ Updated src-tauri/Cargo.lock package version to $NEW_VERSION"
 
       - name: Commit version changes
