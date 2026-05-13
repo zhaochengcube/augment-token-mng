@@ -115,12 +115,23 @@ jobs:
           "
           echo "✅ Updated src-tauri/tauri.conf.json to $NEW_VERSION"
 
-      - name: Update Cargo.lock
+      - name: Update Cargo.lock package version
         run: |
-          cd src-tauri
-          # Update Cargo.lock to reflect the new version
-          cargo update --workspace --offline 2>/dev/null || cargo generate-lockfile
-          echo "✅ Updated src-tauri/Cargo.lock"
+          NEW_VERSION="${{ steps.new_version.outputs.version }}"
+          node -e "
+            const fs = require('fs');
+            const path = 'src-tauri/Cargo.lock';
+            let lock = fs.readFileSync(path, 'utf8');
+            const next = lock.replace(
+              /(\[\[package\]\]\nname = \"atm\"\nversion = \")[^\"]+(\")/,
+              '$1' + '$NEW_VERSION' + '$2'
+            );
+            if (next === lock) {
+              throw new Error('Could not find atm package entry in Cargo.lock');
+            }
+            fs.writeFileSync(path, next);
+          "
+          echo "✅ Updated src-tauri/Cargo.lock package version to $NEW_VERSION"
 
       - name: Commit version changes
         run: |
