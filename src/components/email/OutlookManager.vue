@@ -718,7 +718,12 @@ const fetchVerificationCode = async (email) => {
       return
     }
 
-    await navigator.clipboard.writeText(code)
+    try {
+      await invoke('copy_to_clipboard', { text: code })
+    } catch (nativeErr) {
+      console.warn('Native clipboard failed, falling back to browser clipboard:', nativeErr)
+      await navigator.clipboard.writeText(code)
+    }
     showStatus(`验证码 ${code} 已复制`, 'success')
   } catch (error) {
     console.error('Fetch Outlook verification code failed:', error)

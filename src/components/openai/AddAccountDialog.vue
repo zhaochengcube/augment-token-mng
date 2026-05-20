@@ -502,7 +502,12 @@ const loadOutlookAccounts = async () => {
 }
 
 const copyCodeToClipboard = async (code) => {
-  await navigator.clipboard.writeText(code)
+  try {
+    await invoke('copy_to_clipboard', { text: code })
+  } catch (nativeErr) {
+    console.warn('Native clipboard failed, falling back to browser clipboard:', nativeErr)
+    await navigator.clipboard.writeText(code)
+  }
 }
 
 const fetchVerificationCode = async () => {
