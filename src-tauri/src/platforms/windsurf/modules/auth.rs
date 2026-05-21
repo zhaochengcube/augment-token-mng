@@ -102,6 +102,7 @@ pub async fn refresh_access_token(refresh_token: &str) -> Result<FirebaseTokenRe
         // Firebase refresh endpoint 返回不同的字段名
         #[derive(serde::Deserialize)]
         struct RefreshResponse {
+            access_token: String,
             id_token: String,
             refresh_token: String,
             expires_in: String,
@@ -114,6 +115,7 @@ pub async fn refresh_access_token(refresh_token: &str) -> Result<FirebaseTokenRe
             .map_err(|e| format!("Failed to parse refresh response: {}", e))?;
 
         Ok(FirebaseTokenResponse {
+            google_access_token: Some(refresh_resp.access_token),
             id_token: refresh_resp.id_token,
             refresh_token: refresh_resp.refresh_token,
             expires_in: refresh_resp.expires_in,

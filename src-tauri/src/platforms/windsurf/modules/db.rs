@@ -97,14 +97,31 @@ pub fn inject_token(
 
 /// 清除 Windsurf 登录状态
 pub fn clear_auth_state(db_path: &PathBuf) -> Result<(), String> {
-    let conn = Connection::open(db_path).map_err(|e| format!("Failed to open database: {}", e))?;
+    let mut conn =
+        Connection::open(db_path).map_err(|e| format!("Failed to open database: {}", e))?;
+    let tx = conn
+        .transaction()
+        .map_err(|e| format!("Failed to start transaction: {}", e))?;
 
     // 删除 Firebase 认证数据
-    conn.execute(
-        "DELETE FROM ItemTable WHERE key LIKE 'firebase:authUser:%'",
+    tx.execute("DELETE FROM ItemTable WHERE key LIKE 'firebase:authUser:%'", [])
+        .map_err(|e| format!("Failed to clear firebase auth state: {}", e))?;
+    tx.execute("DELETE FROM ItemTable WHERE key LIKE 'windsurf_auth-%'", [])
+        .map_err(|e| format!("Failed to clear windsurf_auth entries: {}", e))?;
+    tx.execute("DELETE FROM ItemTable WHERE key LIKE 'secret://%'", [])
+        .map_err(|e| format!("Failed to clear secret entries: {}", e))?;
+    tx.execute("DELETE FROM ItemTable WHERE key = 'windsurfAuthStatus'", [])
+        .map_err(|e| format!("Failed to clear windsurfAuthStatus: {}", e))?;
+    tx.execute("DELETE FROM ItemTable WHERE key = 'codeium.windsurf'", [])
+        .map_err(|e| format!("Failed to clear codeium.windsurf: {}", e))?;
+    tx.execute(
+        "DELETE FROM ItemTable WHERE key = 'codeium.windsurf-windsurf_auth'",
         [],
     )
-    .map_err(|e| format!("Failed to clear auth state: {}", e))?;
+    .map_err(|e| format!("Failed to clear codeium.windsurf-windsurf_auth: {}", e))?;
+
+    tx.commit()
+        .map_err(|e| format!("Failed to commit auth state cleanup: {}", e))?;
 
     Ok(())
 }

@@ -98,6 +98,18 @@
             </svg>
             <span>{{ $t('accountCard.copyRefreshToken') }}</span>
           </button>
+          <button v-if="hasAuth1Token" @click="handleMenuClick('copyAuth1Token', close)" class="dropdown-item">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+            </svg>
+            <span>复制 Auth1 Token</span>
+          </button>
+          <button v-if="hasSessionToken" @click="handleMenuClick('copySessionToken', close)" class="dropdown-item">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+            </svg>
+            <span>复制 Session Token</span>
+          </button>
           <button @click="handleMenuClick('delete', close)" class="dropdown-item text-danger hover:bg-danger/10">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
               <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
@@ -129,9 +141,37 @@
           <svg class="w-3.5 h-3.5 shrink-0 opacity-70" viewBox="0 0 24 24" fill="currentColor">
             <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 12h2v5H7zm4-3h2v8h-2zm4-3h2v11h-2z"/>
           </svg>
-          <span>{{ $t('platform.windsurf.quota.credits') }}</span>
+          <span>{{ isQuotaMode ? '配额' : $t('platform.windsurf.quota.credits') }}</span>
         </div>
-        <div class="flex-1 flex items-center gap-2">
+        <div v-if="isQuotaMode" class="flex-1 flex flex-col gap-1.5">
+          <div class="flex items-center gap-2">
+            <span class="w-10 shrink-0 text-[11px] text-text-muted">日配额</span>
+            <div class="flex-1 h-1.5 bg-muted rounded overflow-hidden">
+              <div
+                class="h-full rounded transition-all"
+                :class="getQuotaBarClass(dailyQuotaPercent)"
+                :style="{ width: dailyQuotaPercent + '%' }"
+              ></div>
+            </div>
+            <span class="w-10 text-right text-[11px] font-medium tabular-nums text-text-muted">{{ dailyQuotaPercent }}%</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="w-10 shrink-0 text-[11px] text-text-muted">周配额</span>
+            <div class="flex-1 h-1.5 bg-muted rounded overflow-hidden">
+              <div
+                class="h-full rounded transition-all"
+                :class="getQuotaBarClass(weeklyQuotaPercent)"
+                :style="{ width: weeklyQuotaPercent + '%' }"
+              ></div>
+            </div>
+            <span class="w-10 text-right text-[11px] font-medium tabular-nums text-text-muted">{{ weeklyQuotaPercent }}%</span>
+          </div>
+          <div v-if="hasOverageBalance" class="flex items-center justify-end gap-1 text-[11px] text-text-muted">
+            <span>超额余额</span>
+            <span class="font-medium tabular-nums text-text">{{ overageBalanceText }}</span>
+          </div>
+        </div>
+        <div v-else class="flex-1 flex items-center gap-2">
           <div class="flex-1 h-1.5 bg-muted rounded overflow-hidden">
             <div
               class="h-full rounded transition-all"
@@ -143,6 +183,16 @@
             {{ remainingCredits }}/{{ totalCredits }}
           </span>
         </div>
+      </div>
+
+      <div v-if="!isQuotaMode && hasOverageBalance" class="flex items-center gap-1 min-h-6">
+        <div class="flex items-center gap-1.5 w-[90px] shrink-0 text-text-muted text-xs">
+          <svg class="w-3.5 h-3.5 shrink-0 opacity-70" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 18.93C8.17 18.69 5 14.31 5 11V6.3l7-3.11 7 3.11V11c0 3.31-3.17 7.69-7 8.93z"/>
+          </svg>
+          <span>超额余额</span>
+        </div>
+        <div class="flex-1 text-[13px] text-text-muted tabular-nums">{{ overageBalanceText }}</div>
       </div>
 
       <!-- 过期时间 -->
@@ -229,6 +279,8 @@ const maskedEmail = computed(() => {
   if (!email || !email.includes('@')) return email
   return 'hello@windsurf.com'
 })
+const hasAuth1Token = computed(() => Boolean(props.account.devin_auth1_token))
+const hasSessionToken = computed(() => props.account.auth_provider === 'devin' && Boolean(props.account.token?.access_token))
 
 const planLabel = computed(() => props.account.quota?.plan_name || 'Free')
 
@@ -253,6 +305,25 @@ const remainingPercentage = computed(() => {
   return Math.round((remainingCredits.value / totalCredits.value) * 100)
 })
 
+const isQuotaMode = computed(() => props.account.quota?.billing_strategy !== 1)
+const dailyQuotaPercent = computed(() => Math.max(0, props.account.quota?.daily_quota_remaining_percent ?? 0))
+const weeklyQuotaPercent = computed(() => Math.max(0, props.account.quota?.weekly_quota_remaining_percent ?? 0))
+const effectiveRemainingPercentage = computed(() => {
+  if (!isQuotaMode.value) return remainingPercentage.value
+  return Math.min(dailyQuotaPercent.value, weeklyQuotaPercent.value)
+})
+
+const overageBalanceMicros = computed(() => props.account.quota?.overage_balance_micros)
+const hasOverageBalance = computed(() => {
+  const value = overageBalanceMicros.value
+  return value !== undefined && value !== null && Number.isFinite(Number(value))
+})
+const overageBalanceText = computed(() => {
+  if (!hasOverageBalance.value) return ''
+  const dollars = Number(overageBalanceMicros.value) / 1_000_000
+  return `$${dollars.toFixed(2)}`
+})
+
 const getQuotaBarClass = (percent) => {
   if (percent < 10) return 'bg-danger'
   if (percent < 30) return 'bg-warning'
@@ -270,13 +341,13 @@ const expiresText = computed(() => {
   }
 })
 
-const isAvailable = computed(() => remainingPercentage.value >= 20)
+const isAvailable = computed(() => effectiveRemainingPercentage.value >= 20)
 
 const statusClass = computed(() => {
   if (props.isCurrent) return 'current'
   if (props.account.disabled) return 'disabled'
   if (isAvailable.value) return 'available'
-  if (remainingPercentage.value > 0) return 'low'
+  if (effectiveRemainingPercentage.value > 0) return 'low'
   return 'expired'
 })
 
@@ -321,6 +392,12 @@ const handleMenuClick = async (type, close) => {
     case 'copyRefreshToken':
       await copyRefreshToken()
       break
+    case 'copyAuth1Token':
+      await copyAuth1Token()
+      break
+    case 'copySessionToken':
+      await copySessionToken()
+      break
     case 'delete':
       emit('delete', props.account.id)
       break
@@ -336,6 +413,34 @@ const copyRefreshToken = async () => {
     }
     await navigator.clipboard.writeText(refreshToken)
     window.$notify?.success($t('messages.refreshTokenCopied'))
+  } catch (err) {
+    window.$notify?.error($t('messages.copyFailed'))
+  }
+}
+
+const copyAuth1Token = async () => {
+  try {
+    const auth1Token = props.account.devin_auth1_token
+    if (!auth1Token) {
+      window.$notify?.error('没有 Auth1 Token')
+      return
+    }
+    await navigator.clipboard.writeText(auth1Token)
+    window.$notify?.success('Auth1 Token 已复制')
+  } catch (err) {
+    window.$notify?.error($t('messages.copyFailed'))
+  }
+}
+
+const copySessionToken = async () => {
+  try {
+    const sessionToken = props.account.token?.access_token
+    if (!sessionToken) {
+      window.$notify?.error('没有 Session Token')
+      return
+    }
+    await navigator.clipboard.writeText(sessionToken)
+    window.$notify?.success('Session Token 已复制')
   } catch (err) {
     window.$notify?.error($t('messages.copyFailed'))
   }

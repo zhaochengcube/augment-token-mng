@@ -362,6 +362,19 @@
           <span>{{ $t('customPath.customPathButton') }}</span>
           <span v-if="customWindsurfPath" class="text-xs text-accent">•</span>
         </button>
+
+        <button
+          class="btn btn--ghost btn--sm inline-flex items-center gap-2"
+          @click="handleApplySeamlessPatch"
+          :disabled="isApplyingSeamlessPatch"
+          v-tooltip="seamlessPatchTooltip"
+        >
+          <span v-if="isApplyingSeamlessPatch" class="btn-spinner btn-spinner--xs text-accent" aria-hidden="true"></span>
+          <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2L4 5v6c0 5.05 3.41 9.76 8 11 4.59-1.24 8-5.95 8-11V5l-8-3zm-1 14.5l-4-4 1.41-1.41L11 13.67l5.59-5.59L18 9.5l-7 7z"/>
+          </svg>
+          <span>{{ seamlessPatchStatus?.applied ? '无感切号已启用' : '启用无感切号' }}</span>
+        </button>
       </div>
     </ActionToolbar>
 
@@ -453,12 +466,66 @@
       @sync="handleSync"
       @mark-all-for-sync="handleMarkAllForSync"
     />
+
+    <!-- Windsurf 无感切号进度 -->
+    <div v-if="switchProgress.visible" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+      <div class="w-full max-w-[460px] rounded-xl border border-border bg-surface p-5 shadow-xl">
+        <div class="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <h3 class="m-0 text-base font-semibold text-text">切换到 {{ switchProgress.accountName }}</h3>
+            <p class="mt-1 text-sm text-text-muted">{{ switchProgress.label || '等待后端开始...' }}</p>
+          </div>
+          <button
+            v-if="switchProgress.phase !== 'running'"
+            class="btn btn--icon-sm btn--ghost shrink-0"
+            @click="closeSwitchProgress"
+          >
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="h-2 overflow-hidden rounded-full bg-muted">
+          <div
+            class="h-full rounded-full transition-all duration-300"
+            :class="switchProgress.phase === 'error' ? 'bg-danger' : 'bg-accent'"
+            :style="{ width: `${switchProgress.percent}%` }"
+          ></div>
+        </div>
+
+        <div class="mt-4 flex flex-col gap-2 rounded-lg border border-border/70 bg-muted/20 p-3">
+          <div
+            v-for="(step, index) in SWITCH_STEP_DEFS"
+            :key="step.key"
+            class="flex items-center gap-2 text-sm"
+            :class="{
+              'text-success': getSwitchStepStatus(index) === 'done',
+              'text-accent font-medium': getSwitchStepStatus(index) === 'running',
+              'text-danger font-medium': getSwitchStepStatus(index) === 'error',
+              'text-text-muted': getSwitchStepStatus(index) === 'pending'
+            }"
+          >
+            <span v-if="getSwitchStepStatus(index) === 'running'" class="btn-spinner btn-spinner--xs text-accent" aria-hidden="true"></span>
+            <span v-else class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-current text-[10px]">
+              {{ getSwitchStepStatus(index) === 'done' ? '✓' : getSwitchStepStatus(index) === 'error' ? '!' : '' }}
+            </span>
+            <span>{{ step.label }}</span>
+          </div>
+        </div>
+
+        <div v-if="switchProgress.phase !== 'running'" class="mt-4 flex justify-end">
+          <button class="btn btn--primary btn--sm" @click="closeSwitchProgress">关闭</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 import { useI18n } from 'vue-i18n'
 import AccountCard from '../windsurf/AccountCard.vue'
 import AccountTableRow from '../windsurf/AccountTableRow.vue'
@@ -491,6 +558,30 @@ const isLoading = ref(false)
 const isRefreshing = ref(false)
 const switchingAccountId = ref(null)
 const refreshingIds = ref(new Set())
+
+const SWITCH_STEP_DEFS = [
+  { key: 'preparing', label: '准备账号信息' },
+  { key: 'fetch_access', label: '确保 token 可用' },
+  { key: 'fetch_auth', label: '获取 one-time auth_token' },
+  { key: 'auto_patch', label: '检查无感补丁' },
+  { key: 'reset_mid', label: '重置机器 ID' },
+  { key: 'cleanup', label: '清理旧登录状态' },
+  { key: 'launch', label: '启动客户端' },
+  { key: 'callback', label: '触发客户端登录' },
+  { key: 'fallback', label: '回退到重启切号' },
+  { key: 'finalize', label: '保存账号状态' }
+]
+
+const switchProgress = ref({
+  visible: false,
+  step: '',
+  label: '',
+  percent: 0,
+  phase: 'idle',
+  accountName: ''
+})
+
+let switchProgressUnlisten = null
 
 // 使用存储同步 composable
 const {
@@ -529,6 +620,8 @@ const {
 const showCustomPathDialog = ref(false)
 const customWindsurfPath = ref(null)
 const defaultWindsurfPath = ref('')
+const seamlessPatchStatus = ref(null)
+const isApplyingSeamlessPatch = ref(false)
 
 // 搜索和筛选
 const searchQuery = ref('')
@@ -703,11 +796,42 @@ const isPartialSelected = computed(() => {
 
 const showEmptyState = computed(() => !isLoading.value && filteredAccounts.value.length === 0)
 const shouldShowPagination = computed(() => !isLoading.value && accounts.value.length > 0 && filteredAccounts.value.length > 0)
+const currentSwitchStepIndex = computed(() => {
+  if (switchProgress.value.step === 'done') return SWITCH_STEP_DEFS.length
+  return SWITCH_STEP_DEFS.findIndex(step => step.key === switchProgress.value.step)
+})
 
 // 搜索/筛选/排序活跃状态
 const isSearchActive = computed(() => searchQuery.value.trim() !== '')
 const isFilterActive = computed(() => selectedStatusFilter.value !== null || selectedTags.value.size > 0)
 const isSortNonDefault = computed(() => sortType.value !== 'time' || sortOrder.value !== 'desc')
+const seamlessPatchTooltip = computed(() => {
+  if (seamlessPatchStatus.value?.applied) return '无感切号补丁已启用'
+  if (seamlessPatchStatus.value?.error) return seamlessPatchStatus.value.error
+  return '手动检查并启用无感切号补丁'
+})
+
+const getSwitchStepStatus = (index) => {
+  const current = currentSwitchStepIndex.value
+  if (current === -1) return 'pending'
+  if (index < current) return 'done'
+  if (index === current) {
+    if (switchProgress.value.phase === 'error') return 'error'
+    if (switchProgress.value.phase === 'success') return 'done'
+    return 'running'
+  }
+  return 'pending'
+}
+
+const closeSwitchProgress = () => {
+  if (switchProgress.value.phase === 'running') return
+  switchProgress.value.visible = false
+  switchProgress.value.phase = 'idle'
+  if (switchProgressUnlisten) {
+    switchProgressUnlisten()
+    switchProgressUnlisten = null
+  }
+}
 
 const clearAllFilters = () => {
   searchQuery.value = ''
@@ -735,14 +859,52 @@ const loadAccounts = async () => {
 }
 
 const handleSwitch = async (accountId) => {
+  const account = accounts.value.find(a => a.id === accountId)
+  const accountName = account?.email || accountId
+  const confirmed = window.confirm(`确定要无感切换到账号 ${accountName} 吗？\n\n首次使用会自动尝试 patch Windsurf 插件；如果无感切号失败，会回退到重启切号。`)
+  if (!confirmed) return
+
   switchingAccountId.value = accountId
+  switchProgress.value = {
+    visible: true,
+    step: '',
+    label: '等待后端开始...',
+    percent: 0,
+    phase: 'running',
+    accountName
+  }
+
+  if (switchProgressUnlisten) {
+    switchProgressUnlisten()
+    switchProgressUnlisten = null
+  }
+  switchProgressUnlisten = await listen('windsurf-switch-progress', (event) => {
+    const payload = event.payload || {}
+    switchProgress.value.step = payload.step || switchProgress.value.step
+    switchProgress.value.label = payload.label || switchProgress.value.label
+    switchProgress.value.percent = typeof payload.percent === 'number' ? payload.percent : switchProgress.value.percent
+    switchProgress.value.phase = payload.phase || switchProgress.value.phase
+  })
+
   try {
-    await invoke('windsurf_switch_account', { accountId })
+    const result = await invoke('windsurf_switch_account_seamless', { accountId })
+    if (switchProgress.value.phase !== 'error') {
+      switchProgress.value.step = 'done'
+      switchProgress.value.percent = 100
+      switchProgress.value.phase = 'success'
+      switchProgress.value.label = result?.message || '切号完成'
+    }
     await loadAccounts()
     markItemUpsertById(accountId)
-    window.$notify?.success($t('platform.windsurf.messages.switchSuccess'))
+    window.$notify?.success(result?.message || $t('platform.windsurf.messages.switchSuccess'))
+    setTimeout(() => {
+      if (switchProgress.value.phase === 'success') closeSwitchProgress()
+    }, 1200)
   } catch (error) {
     console.error('Failed to switch account:', error)
+    switchProgress.value.phase = 'error'
+    switchProgress.value.label = error?.message || String(error)
+    switchProgress.value.percent = Math.max(switchProgress.value.percent, 5)
     window.$notify?.error(error?.message || error)
   } finally {
     switchingAccountId.value = null
@@ -1039,15 +1201,52 @@ const loadCustomPath = async () => {
   } catch (error) {
     console.error('Failed to load custom path:', error)
   }
+  await loadSeamlessPatchStatus()
 }
 
 const handleCustomPathSaved = (newPath) => {
   customWindsurfPath.value = newPath
+  loadSeamlessPatchStatus()
+}
+
+const loadSeamlessPatchStatus = async () => {
+  try {
+    seamlessPatchStatus.value = await invoke('windsurf_get_seamless_patch_status')
+  } catch (error) {
+    console.error('Failed to load seamless patch status:', error)
+    seamlessPatchStatus.value = { applied: false, error: error?.message || String(error) }
+  }
+}
+
+const handleApplySeamlessPatch = async () => {
+  if (isApplyingSeamlessPatch.value) return
+  const confirmed = window.confirm('确定要检查并启用 Windsurf 无感切号补丁吗？\n\n如果 Windsurf 正在运行，首次应用补丁可能会重启客户端。')
+  if (!confirmed) return
+
+  isApplyingSeamlessPatch.value = true
+  try {
+    const result = await invoke('windsurf_apply_seamless_patch')
+    await loadSeamlessPatchStatus()
+    window.$notify?.success(result?.message || '无感切号补丁已启用')
+  } catch (error) {
+    console.error('Failed to apply seamless patch:', error)
+    await loadSeamlessPatchStatus()
+    window.$notify?.error(error?.message || error)
+  } finally {
+    isApplyingSeamlessPatch.value = false
+  }
 }
 
 onMounted(async () => {
   await initSync()
   await loadAccounts()
   await loadCustomPath()
+})
+
+onBeforeUnmount(() => {
+  if (switchProgressUnlisten) {
+    switchProgressUnlisten()
+    switchProgressUnlisten = null
+  }
 })
 </script>

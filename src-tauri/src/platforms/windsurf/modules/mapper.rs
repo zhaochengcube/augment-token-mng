@@ -40,13 +40,18 @@ impl AccountDbMapper<Account> for WindsurfAccountMapper {
             updated_at: row.get(17),
             version: row.get(18),
             deleted: false,
+            auth_provider: row.get(19),
+            devin_auth1_token: row.get(20),
+            devin_account_id: row.get(21),
+            devin_primary_org_id: row.get(22),
         })
     }
 
     fn select_columns() -> &'static str {
         "id, email, name, access_token, refresh_token, expiry_timestamp, user_id, \
          api_key, api_server_url, disabled, disabled_reason, disabled_at, \
-         created_at, last_used, quota, tag, tag_color, updated_at, version"
+         created_at, last_used, quota, tag, tag_color, updated_at, version, \
+         auth_provider, devin_auth1_token, devin_account_id, devin_primary_org_id"
     }
 
     fn insert_sql() -> &'static str {
@@ -54,8 +59,8 @@ impl AccountDbMapper<Account> for WindsurfAccountMapper {
         INSERT INTO windsurf_accounts
             (id, email, name, access_token, refresh_token, expiry_timestamp, user_id,
              api_key, api_server_url, quota, tag, tag_color, disabled, disabled_reason, disabled_at, created_at,
-             last_used, updated_at, version, deleted)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+             last_used, updated_at, version, deleted, auth_provider, devin_auth1_token, devin_account_id, devin_primary_org_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
         ON CONFLICT (id) DO UPDATE SET
             email = EXCLUDED.email,
             name = EXCLUDED.name,
@@ -74,7 +79,11 @@ impl AccountDbMapper<Account> for WindsurfAccountMapper {
             last_used = EXCLUDED.last_used,
             updated_at = EXCLUDED.updated_at,
             version = EXCLUDED.version,
-            deleted = EXCLUDED.deleted
+            deleted = EXCLUDED.deleted,
+            auth_provider = EXCLUDED.auth_provider,
+            devin_auth1_token = EXCLUDED.devin_auth1_token,
+            devin_account_id = EXCLUDED.devin_account_id,
+            devin_primary_org_id = EXCLUDED.devin_primary_org_id
         "#
     }
 
@@ -109,6 +118,10 @@ impl AccountDbMapper<Account> for WindsurfAccountMapper {
             Box::new(account.updated_at),
             Box::new(version),
             Box::new(account.deleted),
+            Box::new(account.auth_provider.clone()),
+            Box::new(account.devin_auth1_token.clone()),
+            Box::new(account.devin_account_id.clone()),
+            Box::new(account.devin_primary_org_id.clone()),
         ]
     }
 }

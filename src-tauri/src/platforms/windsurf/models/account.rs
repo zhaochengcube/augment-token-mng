@@ -19,6 +19,18 @@ pub struct QuotaData {
     /// 套餐开始时间
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub plan_start: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub billing_strategy: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub daily_quota_remaining_percent: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub weekly_quota_remaining_percent: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub daily_quota_reset_at_unix: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub weekly_quota_reset_at_unix: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub overage_balance_micros: Option<i64>,
     /// 最后更新时间
     pub last_updated: i64,
 }
@@ -63,6 +75,14 @@ pub struct Account {
     pub version: i64,
     #[serde(default)]
     pub deleted: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auth_provider: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub devin_auth1_token: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub devin_account_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub devin_primary_org_id: Option<String>,
 }
 
 impl SyncableAccount for Account {
@@ -120,12 +140,20 @@ impl Account {
             updated_at: now,
             version: 0,
             deleted: false,
+            auth_provider: None,
+            devin_auth1_token: None,
+            devin_account_id: None,
+            devin_primary_org_id: None,
         }
     }
 
     pub fn update_last_used(&mut self) {
         self.last_used = chrono::Utc::now().timestamp();
         self.updated_at = self.last_used;
+    }
+
+    pub fn is_devin_account(&self) -> bool {
+        matches!(self.auth_provider.as_deref(), Some("devin"))
     }
 }
 

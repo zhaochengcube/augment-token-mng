@@ -57,6 +57,10 @@ pub async fn create_tables(
             tag_color TEXT,
             updated_at BIGINT NOT NULL,
             deleted BOOLEAN NOT NULL DEFAULT FALSE,
+            auth_provider TEXT,
+            devin_auth1_token TEXT,
+            devin_account_id TEXT,
+            devin_primary_org_id TEXT,
             version BIGINT NOT NULL DEFAULT nextval('windsurf_account_version_seq')
         )
         "#,
@@ -73,8 +77,40 @@ pub async fn create_tables(
 }
 
 pub async fn add_new_fields_if_not_exist(
-    _client: &Client,
+    client: &Client,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let fields = [
+        ("auth_provider", "TEXT"),
+        ("devin_auth1_token", "TEXT"),
+        ("devin_account_id", "TEXT"),
+        ("devin_primary_org_id", "TEXT"),
+    ];
+
+    for (field, ty) in fields {
+        let rows = client
+            .query(
+                r#"
+                SELECT EXISTS (
+                    SELECT FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                    AND table_name = 'windsurf_accounts'
+                    AND column_name = $1
+                )
+                "#,
+                &[&field],
+            )
+            .await?;
+        let exists: bool = rows.first().map(|row| row.get(0)).unwrap_or(false);
+        if !exists {
+            client
+                .execute(
+                    &format!("ALTER TABLE windsurf_accounts ADD COLUMN {} {}", field, ty),
+                    &[],
+                )
+                .await?;
+        }
+    }
+
     Ok(())
 }
 

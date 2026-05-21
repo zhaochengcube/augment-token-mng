@@ -10,7 +10,7 @@
     @close="handleClose"
   >
     <!-- 添加方式选择 Tab -->
-    <div class="mb-6 flex gap-2 rounded-lg bg-muted p-1">
+    <div class="mb-6 grid grid-cols-2 gap-2 rounded-lg bg-muted p-1">
       <button
         :class="[
           'flex flex-1 items-center justify-center gap-1.5 rounded-md px-4 py-2.5 text-sm font-medium transition-all',
@@ -38,6 +38,28 @@
           <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
         </svg>
         {{ $t('platform.windsurf.addByToken') }}
+      </button>
+      <button
+        :class="[
+          'flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2.5 text-sm font-medium transition-all',
+          addMethod === 'auth1'
+            ? 'bg-surface text-accent shadow-sm'
+            : 'text-text-secondary hover:bg-hover hover:text-text'
+        ]"
+        @click="addMethod = 'auth1'"
+      >
+        Auth1 Token
+      </button>
+      <button
+        :class="[
+          'flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2.5 text-sm font-medium transition-all',
+          addMethod === 'session'
+            ? 'bg-surface text-accent shadow-sm'
+            : 'text-text-secondary hover:bg-hover hover:text-text'
+        ]"
+        @click="addMethod = 'session'"
+      >
+        Session Token
       </button>
     </div>
 
@@ -67,7 +89,7 @@
     </div>
 
     <!-- Token 添加方式 -->
-    <div v-else class="animate-fade-in">
+    <div v-else-if="addMethod === 'token'" class="animate-fade-in">
       <div class="form-group mb-0">
         <label class="label">Refresh Token</label>
         <textarea
@@ -80,6 +102,42 @@
         <p class="mt-1.5 text-xs text-text-muted">
           {{ $t('platform.windsurf.tokenHint') }}
         </p>
+      </div>
+    </div>
+
+    <div v-else-if="addMethod === 'auth1'" class="animate-fade-in">
+      <div class="form-group">
+        <label class="label">Devin Auth1 Token</label>
+        <textarea
+          v-model="auth1Token"
+          placeholder="auth1_..."
+          class="input resize-none"
+          rows="4"
+          :disabled="isLoading"
+        ></textarea>
+      </div>
+      <div class="form-group mb-0">
+        <label class="label">Organization ID (optional)</label>
+        <input
+          v-model="orgId"
+          type="text"
+          placeholder="org_xxx"
+          class="input"
+          :disabled="isLoading"
+        />
+      </div>
+    </div>
+
+    <div v-else class="animate-fade-in">
+      <div class="form-group mb-0">
+        <label class="label">Devin Session Token</label>
+        <textarea
+          v-model="sessionToken"
+          placeholder="Paste Devin/Windsurf session token"
+          class="input resize-none"
+          rows="4"
+          :disabled="isLoading"
+        ></textarea>
       </div>
     </div>
 
@@ -120,10 +178,13 @@ import BaseModal from '@/components/common/BaseModal.vue'
 const { t: $t } = useI18n()
 const emit = defineEmits(['close', 'added'])
 
-const addMethod = ref('login') // 'login' or 'token'
+const addMethod = ref('login')
 const email = ref('')
 const password = ref('')
 const refreshToken = ref('')
+const auth1Token = ref('')
+const sessionToken = ref('')
+const orgId = ref('')
 const isLoading = ref(false)
 const error = ref('')
 
@@ -131,7 +192,13 @@ const canSubmit = computed(() => {
   if (addMethod.value === 'login') {
     return email.value.trim() && password.value.trim()
   }
-  return refreshToken.value.trim()
+  if (addMethod.value === 'token') {
+    return refreshToken.value.trim()
+  }
+  if (addMethod.value === 'auth1') {
+    return auth1Token.value.trim()
+  }
+  return sessionToken.value.trim()
 })
 
 const handleClose = () => {
@@ -152,9 +219,18 @@ const handleSubmit = async () => {
         email: email.value.trim(),
         password: password.value
       })
-    } else {
+    } else if (addMethod.value === 'token') {
       account = await invoke('windsurf_add_account', {
         refreshToken: refreshToken.value.trim()
+      })
+    } else if (addMethod.value === 'auth1') {
+      account = await invoke('windsurf_add_account_by_devin_auth1', {
+        auth1Token: auth1Token.value.trim(),
+        orgId: orgId.value.trim() || null
+      })
+    } else {
+      account = await invoke('windsurf_add_account_by_devin_session', {
+        sessionToken: sessionToken.value.trim()
       })
     }
     emit('added', account)

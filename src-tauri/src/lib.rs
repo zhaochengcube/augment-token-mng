@@ -19,9 +19,9 @@ pub mod core {
     pub mod path_manager;
     pub mod proxy_config;
     pub mod proxy_helper;
+    pub mod spotlight;
     pub mod subscription_monitor;
     pub mod telegram;
-    pub mod spotlight;
     pub mod tray;
 }
 
@@ -43,7 +43,10 @@ pub use platforms::{antigravity, augment, claude, cursor, openai, windsurf};
 use crate::core::tray::TrayState;
 use crate::data::bookmark::BookmarkDualStorage;
 use crate::data::subscription::SubscriptionDualStorage;
-use crate::features::mail::{gptmail, gptmail_storage::GptMailStorage, hme, hme_storage::HmeStorage, outlook, outlook_storage::OutlookStorage};
+use crate::features::mail::{
+    gptmail, gptmail_storage::GptMailStorage, hme, hme_storage::HmeStorage, outlook,
+    outlook_storage::OutlookStorage,
+};
 use crate::platforms::augment::models::AugmentOAuthState;
 use crate::platforms::openai::codex::logger::RequestLogger;
 use crate::platforms::openai::codex::pool::CodexServerConfig;
@@ -639,12 +642,18 @@ pub fn run() {
             // Windsurf 管理命令
             windsurf::windsurf_login,
             windsurf::windsurf_add_account,
+            windsurf::windsurf_add_account_by_devin_auth1,
+            windsurf::windsurf_add_account_by_devin_session,
             windsurf::windsurf_list_accounts,
             windsurf::windsurf_update_account,
             windsurf::windsurf_delete_account,
             windsurf::windsurf_switch_account,
+            windsurf::windsurf_switch_account_seamless,
             windsurf::windsurf_fetch_quota,
             windsurf::windsurf_fetch_all_quotas,
+            windsurf::windsurf_get_seamless_patch_status,
+            windsurf::windsurf_apply_seamless_patch,
+            windsurf::windsurf_restore_seamless_patch,
             windsurf::windsurf_get_custom_path,
             windsurf::windsurf_set_custom_path,
             windsurf::windsurf_validate_path,

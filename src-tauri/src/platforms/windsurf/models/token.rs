@@ -45,6 +45,8 @@ impl TokenData {
 /// Firebase Token 响应结构
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FirebaseTokenResponse {
+    #[serde(default, rename = "accessToken", alias = "access_token")]
+    pub google_access_token: Option<String>,
     #[serde(rename = "idToken")]
     pub id_token: String,
     #[serde(rename = "refreshToken")]
