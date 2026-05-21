@@ -384,7 +384,7 @@
     </div>
 
     <template #footer>
-      <button @click="handleClose" class="btn btn--secondary" :disabled="isLoading">
+      <button @click="handleClose" class="btn btn--secondary" :disabled="isLoading && !isOAuthLoginActive">
         {{ $t('common.cancel') }}
       </button>
       <button
@@ -428,7 +428,12 @@ import FloatingDropdown from '@/components/common/FloatingDropdown.vue'
 const { t: $t } = useI18n()
 const emit = defineEmits(['close', 'add', 'added'])
 
-const handleClose = () => {
+const handleClose = async () => {
+  if (isOAuthLoginActive.value) {
+    await cancelOAuthLogin()
+    emit('close')
+    return
+  }
   if (isLoading.value) return
   emit('close')
 }
@@ -436,6 +441,7 @@ const handleClose = () => {
 const addMethod = ref('oauth') // 'oauth', 'manual', or 'api'
 const refreshToken = ref('')
 const isLoading = ref(false)
+const isOAuthLoginActive = ref(false)
 const isManualLoading = ref(false)
 const error = ref('')
 const oauthAuthUrl = ref('')
@@ -656,6 +662,7 @@ const switchToOAuth = () => {
 }
 
 let unlistenOAuthUrl = null
+let isOAuthCancelRequested = false
 
 onMounted(async () => {
   unlistenOAuthUrl = await listen('oauth-url-generated', event => {
@@ -679,11 +686,28 @@ onUnmounted(() => {
     unlistenOAuthUrl()
     unlistenOAuthUrl = null
   }
+  if (isOAuthLoginActive.value) {
+    cancelOAuthLogin()
+  }
 })
+
+const cancelOAuthLogin = async () => {
+  if (!isOAuthLoginActive.value) return
+  isOAuthCancelRequested = true
+  isOAuthLoginActive.value = false
+  isLoading.value = false
+  try {
+    await invoke('openai_cancel_oauth_login')
+  } catch (err) {
+    console.error('Cancel OAuth login error:', err)
+  }
+}
 
 const handleOAuthLogin = async () => {
   error.value = ''
   isLoading.value = true
+  isOAuthLoginActive.value = true
+  isOAuthCancelRequested = false
   resetOAuthState()
 
   try {
@@ -692,7 +716,12 @@ const handleOAuthLogin = async () => {
     emit('added', account)
   } catch (err) {
     console.error('OAuth login error:', err)
-    error.value = formatOAuthError(err)
+    if (!isOAuthCancelRequested) {
+      error.value = formatOAuthError(err)
+    }
+  } finally {
+    isOAuthLoginActive.value = false
+    isOAuthCancelRequested = false
     isLoading.value = false
   }
 }

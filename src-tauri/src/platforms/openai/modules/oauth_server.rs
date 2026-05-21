@@ -1,6 +1,7 @@
 use crate::platforms::openai::models::{Account, TokenData};
 use crate::platforms::openai::modules::oauth;
 use std::sync::{Mutex, OnceLock};
+use std::time::Duration;
 use tauri::{Emitter, Url};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
@@ -16,6 +17,7 @@ struct OAuthData {
 }
 
 static OAUTH_DATA: OnceLock<Mutex<Option<OAuthData>>> = OnceLock::new();
+const OAUTH_CALLBACK_TIMEOUT_SECS: u64 = 300;
 
 /// 获取取消 Token 的 Mutex
 fn get_cancellation_token() -> &'static Mutex<Option<oneshot::Sender<()>>> {
@@ -48,6 +50,17 @@ fn take_oauth_data() -> Option<(String, String)> {
     }
 }
 
+fn clear_cancellation_token() {
+    let mutex = get_cancellation_token();
+    if let Ok(mut lock) = mutex.lock() {
+        *lock = None;
+    }
+}
+
+fn clear_oauth_data() {
+    let _ = take_oauth_data();
+}
+
 /// 取消当前的 OAuth 流程
 pub fn cancel_oauth_flow() {
     let mutex = get_cancellation_token();
@@ -57,6 +70,7 @@ pub fn cancel_oauth_flow() {
             println!("已发送 OpenAI OAuth 取消信号");
         }
     }
+    clear_oauth_data();
 }
 
 /// 启动 OAuth 流程
@@ -78,7 +92,11 @@ pub async fn start_oauth_flow(app_handle: tauri::AppHandle) -> Result<Account, S
 
     // 1. 生成 PKCE 参数
     let code_verifier = oauth::generate_code_verifier();
-    let code_challenge = oauth::generate_code_challenge(&code_verifier)?;
+    let code_challenge = oauth::generate_code_challenge(&code_verifier).map_err(|e| {
+        clear_oauth_data();
+        clear_cancellation_token();
+        e
+    })?;
     let state = oauth::generate_state();
 
     // 存储 OAuth 数据
@@ -87,11 +105,21 @@ pub async fn start_oauth_flow(app_handle: tauri::AppHandle) -> Result<Account, S
     // 2. 启动本地监听器 (使用固定端口 1455)
     let listener = TcpListener::bind("127.0.0.1:1455")
         .await
-        .map_err(|e| format!("无法绑定本地端口 1455: {}", e))?;
+        .map_err(|e| {
+            clear_oauth_data();
+            clear_cancellation_token();
+            format!("无法绑定本地端口 1455: {}", e)
+        })?;
     let redirect_uri = "http://localhost:1455/auth/callback".to_string();
 
     // 3. 构建授权 URL
-    let auth_url = oauth::build_authorization_url(&state, &code_challenge, &redirect_uri)?;
+    let auth_url = oauth::build_authorization_url(&state, &code_challenge, &redirect_uri).map_err(
+        |e| {
+            clear_oauth_data();
+            clear_cancellation_token();
+            e
+        },
+    )?;
 
     // 发送事件给前端
     let _ = app_handle.emit("oauth-url-generated", &auth_url);
@@ -101,36 +129,50 @@ pub async fn start_oauth_flow(app_handle: tauri::AppHandle) -> Result<Account, S
     app_handle
         .opener()
         .open_url(&auth_url, None::<String>)
-        .map_err(|e| format!("无法打开浏览器: {}", e))?;
+        .map_err(|e| {
+            clear_oauth_data();
+            clear_cancellation_token();
+            format!("无法打开浏览器: {}", e)
+        })?;
 
     println!("已打开浏览器进行 OpenAI OAuth 授权");
     println!("回调地址: {}", redirect_uri);
 
     // 5. 等待回调
+    let timeout = tokio::time::sleep(Duration::from_secs(OAUTH_CALLBACK_TIMEOUT_SECS));
+    tokio::pin!(timeout);
     let (mut stream, _) = tokio::select! {
         res = listener.accept() => {
-             res.map_err(|e| format!("接受连接失败: {}", e))?
+             res.map_err(|e| {
+                 clear_oauth_data();
+                 clear_cancellation_token();
+                 format!("接受连接失败: {}", e)
+             })?
         }
         _ = rx => {
             // 清除 OAuth 数据
-            take_oauth_data();
+            clear_oauth_data();
+            clear_cancellation_token();
             return Err("用户取消了授权".to_string());
+        }
+        _ = &mut timeout => {
+            clear_oauth_data();
+            clear_cancellation_token();
+            return Err("授权等待超时，请重新发起登录".to_string());
         }
     };
 
     // 清除取消 token
-    {
-        let mutex = get_cancellation_token();
-        if let Ok(mut lock) = mutex.lock() {
-            *lock = None;
-        }
-    }
+    clear_cancellation_token();
 
     let mut buffer = [0; 2048];
     let n = stream
         .read(&mut buffer)
         .await
-        .map_err(|e| format!("读取请求失败: {}", e))?;
+        .map_err(|e| {
+            clear_oauth_data();
+            format!("读取请求失败: {}", e)
+        })?;
 
     let request = String::from_utf8_lossy(&buffer[..n]);
     println!("收到回调请求: {}", request.lines().next().unwrap_or(""));
