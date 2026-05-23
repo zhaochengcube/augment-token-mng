@@ -1641,6 +1641,7 @@ export default {
       rtInvalidReused: 'RefreshToken已失效(需重新添加)',
       actions: {
         switch: '切换账号',
+        switchDisabledAccessTokenOnly: '仅通过 Access Token 导入的账号无法切换，请重新导入包含 Refresh Token 的账号',
         refresh: '刷新账号',
         refreshQuota: '刷新配额',
         refreshToken: '刷新 Token',

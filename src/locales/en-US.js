@@ -1648,6 +1648,7 @@ export default {
       rtInvalidReused: 'RefreshToken expired (re-add required)',
       actions: {
         switch: 'Switch account',
+        switchDisabledAccessTokenOnly: 'Accounts imported with only an Access Token cannot be switched. Re-import with a Refresh Token to enable switching.',
         refresh: 'Refresh account',
         refreshQuota: 'Refresh Quota',
         refreshToken: 'Refresh Token',
