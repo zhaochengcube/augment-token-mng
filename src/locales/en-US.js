@@ -1676,7 +1676,11 @@ export default {
         emailPlaceholder: "your-email{'@'}example.com",
         refreshToken: 'Refresh Token',
         refreshTokenPlaceholder: 'Paste your Refresh Token here...',
-        refreshTokenHint: 'Get refresh_token from OpenAI database or network requests',
+        refreshTokenHint: 'Use Refresh Token to add the account. Access Token can be refreshed automatically. Recommended.',
+        accessToken: 'Access Token / Session JSON',
+        accessTokenPlaceholder: 'Paste an Access Token, or the JSON returned by chatgpt.com/api/auth/session...',
+        accessTokenHint: '',
+        accessTokenWarning: 'Note: if no Refresh Token is included, only the current Access Token is saved. Re-import after it expires.',
         adding: 'Adding...',
         add: 'Add Account',
         // API account related

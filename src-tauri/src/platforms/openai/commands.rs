@@ -458,6 +458,63 @@ pub async fn openai_add_account(app: AppHandle, refresh_token: String) -> Result
     Ok(account)
 }
 
+/// 添加账号（仅使用 access_token，账号信息从原始 AT 或 session JSON 本地解析）
+#[tauri::command]
+pub async fn openai_add_account_with_access_token(
+    app: AppHandle,
+    access_token: String,
+) -> Result<Account, String> {
+    let mut import = oauth::parse_access_token_import_input(&access_token)?;
+    oauth::enrich_access_token_import_with_account_check(&mut import).await;
+    let chatgpt_account_id = import.chatgpt_account_id.clone();
+    let email = import
+        .email
+        .as_ref()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .or_else(|| chatgpt_account_id.clone())
+        .ok_or_else(|| "Failed to get account identity from access token".to_string())?;
+
+    let existing_accounts = storage::list_accounts(&app).await.unwrap_or_default();
+
+    println!("=== OpenAI Add Account With Access Token ===");
+    println!("Email: {}", email);
+    println!("ChatGPT Account ID: {:?}", chatgpt_account_id);
+
+    if Account::is_duplicate(&email, &chatgpt_account_id, &existing_accounts) {
+        return Err("该账号已存在".to_string());
+    }
+
+    let unique_email =
+        Account::generate_unique_email(&email, &chatgpt_account_id, &existing_accounts);
+
+    let now = chrono::Utc::now().timestamp();
+    let expires_at = import.expires_at.unwrap_or(now + 864000);
+    let expires_in = (expires_at - now).max(0);
+
+    let token = TokenData::new(
+        import.access_token,
+        None,
+        None,
+        expires_in,
+        expires_at,
+        Some("Bearer".to_string()),
+    );
+
+    let mut account = Account::new_oauth(
+        unique_email,
+        token,
+        chatgpt_account_id,
+        import.chatgpt_user_id,
+        import.organization_id,
+    );
+    account.openai_auth_json = import.openai_auth_json;
+
+    storage::save_account(&app, &account).await?;
+
+    Ok(account)
+}
+
 /// 从 JWT 的 payload 中解析 exp 字段
 fn parse_jwt_exp(jwt: &str) -> Option<i64> {
     let payload = jwt.split('.').nth(1)?;

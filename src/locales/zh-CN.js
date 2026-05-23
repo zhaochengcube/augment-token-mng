@@ -1669,7 +1669,11 @@ export default {
         emailPlaceholder: "your-email{'@'}example.com",
         refreshToken: 'Refresh Token',
         refreshTokenPlaceholder: '粘贴你的 Refresh Token...',
-        refreshTokenHint: '从 OpenAI 的数据库或网络请求中获取 refresh_token',
+        refreshTokenHint: '使用 Refresh Token 添加，可自动刷新 Access Token，推荐。',
+        accessToken: 'Access Token / Session JSON',
+        accessTokenPlaceholder: '粘贴 Access Token，或粘贴 chatgpt.com/api/auth/session 返回的 JSON...',
+        accessTokenHint: '',
+        accessTokenWarning: '注意：未包含 Refresh Token 时仅保存当前 Access Token，过期后无法自动刷新，需要重新导入。',
         adding: '添加中...',
         add: '添加账号',
         // API 账号相关
