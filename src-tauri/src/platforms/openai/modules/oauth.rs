@@ -1,6 +1,7 @@
 use base64::{Engine as _, engine::general_purpose};
 use chrono::Utc;
 use rand::Rng;
+use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
@@ -17,6 +18,8 @@ const DEFAULT_REDIRECT_URI: &str = "http://localhost:1455/auth/callback";
 const DEFAULT_SCOPES: &str = "openid profile email offline_access";
 const REFRESH_SCOPES: &str = "openid profile email";
 const SESSION_TTL_SECS: u64 = 30 * 60;
+const CHATGPT_ACCOUNTS_CHECK_URL: &str =
+    "https://chatgpt.com/backend-api/accounts/check/v4-2023-04-27";
 
 fn generate_random_bytes(length: usize) -> Vec<u8> {
     let mut rng = rand::thread_rng();
@@ -198,6 +201,376 @@ pub fn extract_openai_auth_json(id_token: &str) -> Option<String> {
     let claims: serde_json::Value = serde_json::from_slice(&decoded).ok()?;
     let auth_obj = claims.get("https://api.openai.com/auth")?.as_object()?;
     serde_json::to_string(auth_obj).ok()
+}
+
+fn decode_jwt_payload(jwt: &str) -> Option<Value> {
+    let payload = jwt.split('.').nth(1)?;
+    let decoded = general_purpose::URL_SAFE_NO_PAD
+        .decode(payload.as_bytes())
+        .or_else(|_| {
+            let mut padded = payload.to_string();
+            let remainder = padded.len() % 4;
+            if remainder != 0 {
+                padded.push_str(&"=".repeat(4 - remainder));
+            }
+            general_purpose::URL_SAFE.decode(padded.as_bytes())
+        })
+        .ok()?;
+    serde_json::from_slice(&decoded).ok()
+}
+
+fn organization_id_from_auth(auth: &Value) -> Option<String> {
+    if let Some(poid) = auth
+        .get("poid")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+    {
+        return Some(poid.to_string());
+    }
+
+    let orgs = auth.get("organizations")?.as_array()?;
+    let selected = orgs
+        .iter()
+        .find(|org| {
+            org.get("is_default")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+        })
+        .or_else(|| orgs.first())?;
+    selected.get("id")?.as_str().map(ToOwned::to_owned)
+}
+
+#[derive(Debug, Clone)]
+pub struct OpenAIAccessTokenImport {
+    pub access_token: String,
+    pub email: Option<String>,
+    pub chatgpt_account_id: Option<String>,
+    pub chatgpt_user_id: Option<String>,
+    pub organization_id: Option<String>,
+    pub openai_auth_json: Option<String>,
+    pub expires_at: Option<i64>,
+}
+
+fn trimmed_value_string(value: Option<&Value>) -> Option<String> {
+    value
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .map(ToOwned::to_owned)
+}
+
+fn set_auth_json_string(auth: &mut Map<String, Value>, key: &str, value: &Option<String>) {
+    if let Some(value) = value.as_ref().map(|v| v.trim()).filter(|v| !v.is_empty()) {
+        auth.insert(key.to_string(), Value::String(value.to_string()));
+    }
+}
+
+fn extract_auth_map_from_claims(claims: &Value) -> Map<String, Value> {
+    claims
+        .get("https://api.openai.com/auth")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default()
+}
+
+#[derive(Debug, Clone, Default)]
+struct AccountCheckEnrichment {
+    plan_type: Option<String>,
+    subscription_expires_at: Option<String>,
+}
+
+fn extract_account_plan_type(account: &Map<String, Value>) -> Option<String> {
+    account
+        .get("account")
+        .and_then(Value::as_object)
+        .and_then(|v| trimmed_value_string(v.get("plan_type")))
+        .or_else(|| {
+            account
+                .get("entitlement")
+                .and_then(Value::as_object)
+                .and_then(|v| trimmed_value_string(v.get("subscription_plan")))
+        })
+}
+
+fn extract_account_subscription_expires_at(account: &Map<String, Value>) -> Option<String> {
+    account
+        .get("entitlement")
+        .and_then(Value::as_object)
+        .and_then(|v| v.get("expires_at"))
+        .and_then(Value::as_str)
+        .map(ToOwned::to_owned)
+}
+
+fn build_account_check_enrichment(account: &Map<String, Value>) -> AccountCheckEnrichment {
+    AccountCheckEnrichment {
+        plan_type: extract_account_plan_type(account),
+        subscription_expires_at: extract_account_subscription_expires_at(account),
+    }
+}
+
+fn extract_account_check_enrichment(
+    value: &Value,
+    preferred_account_ids: &[Option<&str>],
+) -> AccountCheckEnrichment {
+    let Some(accounts) = value.get("accounts").and_then(Value::as_object) else {
+        return AccountCheckEnrichment::default();
+    };
+
+    for account_id in preferred_account_ids
+        .iter()
+        .filter_map(|v| v.map(str::trim))
+        .filter(|v| !v.is_empty())
+    {
+        if let Some(account) = accounts.get(account_id).and_then(Value::as_object) {
+            let enrichment = build_account_check_enrichment(account);
+            if enrichment.plan_type.is_some() {
+                return enrichment;
+            }
+        }
+    }
+
+    let mut default_candidate = AccountCheckEnrichment::default();
+    let mut paid_candidate = AccountCheckEnrichment::default();
+    let mut any_candidate = AccountCheckEnrichment::default();
+
+    for account in accounts.values().filter_map(Value::as_object) {
+        let enrichment = build_account_check_enrichment(account);
+        let Some(plan_type) = enrichment.plan_type.as_deref() else {
+            continue;
+        };
+
+        if any_candidate.plan_type.is_none() {
+            any_candidate = enrichment.clone();
+        }
+
+        let is_default = account
+            .get("account")
+            .and_then(Value::as_object)
+            .and_then(|v| v.get("is_default"))
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        if is_default {
+            default_candidate = enrichment.clone();
+        }
+
+        if !plan_type.eq_ignore_ascii_case("free") && paid_candidate.plan_type.is_none() {
+            paid_candidate = enrichment;
+        }
+    }
+
+    if default_candidate.plan_type.is_some() {
+        default_candidate
+    } else if paid_candidate.plan_type.is_some() {
+        paid_candidate
+    } else {
+        any_candidate
+    }
+}
+
+fn merge_account_check_enrichment_into_auth_json(
+    openai_auth_json: &mut Option<String>,
+    enrichment: AccountCheckEnrichment,
+) {
+    if enrichment.plan_type.is_none() && enrichment.subscription_expires_at.is_none() {
+        return;
+    }
+
+    let mut auth_json = openai_auth_json
+        .as_deref()
+        .and_then(|v| serde_json::from_str::<Value>(v).ok())
+        .and_then(|v| v.as_object().cloned())
+        .unwrap_or_default();
+
+    set_auth_json_string(&mut auth_json, "chatgpt_plan_type", &enrichment.plan_type);
+    set_auth_json_string(
+        &mut auth_json,
+        "chatgpt_subscription_active_until",
+        &enrichment.subscription_expires_at,
+    );
+
+    if !auth_json.is_empty() {
+        *openai_auth_json = serde_json::to_string(&auth_json).ok();
+    }
+}
+
+pub async fn enrich_openai_auth_json_with_account_check(
+    access_token: &str,
+    organization_id: Option<&str>,
+    chatgpt_account_id: Option<&str>,
+    openai_auth_json: &mut Option<String>,
+) {
+    let client = match create_proxy_client() {
+        Ok(client) => client,
+        Err(e) => {
+            println!("OpenAI accounts/check client creation failed: {}", e);
+            return;
+        }
+    };
+
+    let response = match client
+        .get(CHATGPT_ACCOUNTS_CHECK_URL)
+        .header("authorization", format!("Bearer {}", access_token))
+        .header("origin", "https://chatgpt.com")
+        .header("referer", "https://chatgpt.com/")
+        .header("accept", "application/json")
+        .send()
+        .await
+    {
+        Ok(response) => response,
+        Err(e) => {
+            println!("OpenAI accounts/check request failed: {}", e);
+            return;
+        }
+    };
+
+    let status = response.status();
+    if !status.is_success() {
+        let body = response.text().await.unwrap_or_default();
+        println!(
+            "OpenAI accounts/check failed: status={}, body={}",
+            status,
+            body.chars().take(200).collect::<String>()
+        );
+        return;
+    }
+
+    let value = match response.json::<Value>().await {
+        Ok(value) => value,
+        Err(e) => {
+            println!("OpenAI accounts/check response parse failed: {}", e);
+            return;
+        }
+    };
+
+    let preferred_account_ids = [organization_id, chatgpt_account_id];
+    let enrichment = extract_account_check_enrichment(&value, &preferred_account_ids);
+    merge_account_check_enrichment_into_auth_json(openai_auth_json, enrichment);
+}
+
+pub async fn enrich_access_token_import_with_account_check(import: &mut OpenAIAccessTokenImport) {
+    enrich_openai_auth_json_with_account_check(
+        &import.access_token,
+        import.organization_id.as_deref(),
+        import.chatgpt_account_id.as_deref(),
+        &mut import.openai_auth_json,
+    )
+    .await;
+}
+
+pub fn parse_access_token_import_input(input: &str) -> Result<OpenAIAccessTokenImport, String> {
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        return Err("Access Token cannot be empty".to_string());
+    }
+
+    let parsed_json = serde_json::from_str::<Value>(trimmed).ok();
+    let session_json = match parsed_json.as_ref() {
+        Some(Value::Object(_)) => parsed_json.as_ref(),
+        Some(_) => {
+            return Err("Only raw Access Token or /api/auth/session JSON is supported".to_string());
+        }
+        None => None,
+    };
+
+    let access_token = match session_json {
+        Some(value) => trimmed_value_string(value.get("accessToken"))
+            .ok_or_else(|| "Missing accessToken in /api/auth/session JSON".to_string())?,
+        None => trimmed.to_string(),
+    };
+
+    let claims = decode_jwt_payload(&access_token);
+    let auth_claims = claims
+        .as_ref()
+        .and_then(|v| v.get("https://api.openai.com/auth"));
+    let profile_claims = claims
+        .as_ref()
+        .and_then(|v| v.get("https://api.openai.com/profile"));
+
+    let mut email = session_json
+        .and_then(|value| value.get("user"))
+        .and_then(|user| trimmed_value_string(user.get("email")))
+        .or_else(|| {
+            profile_claims
+                .and_then(|v| trimmed_value_string(v.get("email")))
+                .or_else(|| {
+                    claims
+                        .as_ref()
+                        .and_then(|v| trimmed_value_string(v.get("email")))
+                })
+        });
+
+    let chatgpt_account_id = session_json
+        .and_then(|value| value.get("account"))
+        .and_then(|account| trimmed_value_string(account.get("id")))
+        .or_else(|| auth_claims.and_then(|v| trimmed_value_string(v.get("chatgpt_account_id"))));
+
+    let chatgpt_user_id = session_json
+        .and_then(|value| value.get("user"))
+        .and_then(|user| trimmed_value_string(user.get("id")))
+        .or_else(|| {
+            auth_claims
+                .and_then(|v| trimmed_value_string(v.get("chatgpt_user_id")))
+                .or_else(|| auth_claims.and_then(|v| trimmed_value_string(v.get("user_id"))))
+                .or_else(|| {
+                    claims
+                        .as_ref()
+                        .and_then(|v| trimmed_value_string(v.get("sub")))
+                })
+        });
+
+    let organization_id = auth_claims.and_then(organization_id_from_auth);
+
+    let plan_type = session_json
+        .and_then(|value| value.get("account"))
+        .and_then(|account| trimmed_value_string(account.get("planType")))
+        .or_else(|| auth_claims.and_then(|v| trimmed_value_string(v.get("chatgpt_plan_type"))));
+
+    let compute_residency = session_json
+        .and_then(|value| value.get("account"))
+        .and_then(|account| trimmed_value_string(account.get("computeResidency")))
+        .or_else(|| {
+            auth_claims.and_then(|v| trimmed_value_string(v.get("chatgpt_compute_residency")))
+        });
+
+    let expires_at = claims
+        .as_ref()
+        .and_then(|v| v.get("exp"))
+        .and_then(Value::as_i64);
+
+    let mut auth_json = claims
+        .as_ref()
+        .map(extract_auth_map_from_claims)
+        .unwrap_or_default();
+    set_auth_json_string(&mut auth_json, "chatgpt_account_id", &chatgpt_account_id);
+    set_auth_json_string(&mut auth_json, "chatgpt_user_id", &chatgpt_user_id);
+    set_auth_json_string(&mut auth_json, "user_id", &chatgpt_user_id);
+    set_auth_json_string(&mut auth_json, "chatgpt_plan_type", &plan_type);
+    set_auth_json_string(
+        &mut auth_json,
+        "chatgpt_compute_residency",
+        &compute_residency,
+    );
+
+    if email.is_none() {
+        email = chatgpt_user_id.clone();
+    }
+
+    let openai_auth_json = if auth_json.is_empty() {
+        None
+    } else {
+        serde_json::to_string(&auth_json).ok()
+    };
+
+    Ok(OpenAIAccessTokenImport {
+        access_token,
+        email,
+        chatgpt_account_id,
+        chatgpt_user_id,
+        organization_id,
+        openai_auth_json,
+        expires_at,
+    })
 }
 
 pub fn build_token_info(

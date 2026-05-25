@@ -47,17 +47,21 @@
       @click.stop
     >
       <!-- 切换按钮 -->
-      <button
-        @click="$emit('switch', account.id)"
-        class="w-7 h-7 rounded border-none bg-surface text-text-secondary cursor-pointer flex items-center justify-center shadow-sm hover:bg-hover hover:text-accent transition-colors"
-        :disabled="isSwitching"
-        v-tooltip="$t('platform.openai.switch')"
-      >
-        <svg v-if="!isSwitching" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/>
-        </svg>
-        <span v-else class="btn-spinner btn-spinner--sm text-accent"></span>
-      </button>
+      <span v-tooltip="switchTooltip" class="inline-flex">
+        <button
+          @click="$emit('switch', account.id)"
+          :class="[
+            'w-7 h-7 rounded border-none bg-surface text-text-secondary flex items-center justify-center shadow-sm transition-colors',
+            switchDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-hover hover:text-accent'
+          ]"
+          :disabled="switchDisabled"
+        >
+          <svg v-if="!isSwitching" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/>
+          </svg>
+          <span v-else class="btn-spinner btn-spinner--sm text-accent"></span>
+        </button>
+      </span>
 
       <!-- 刷新配额按钮 (仅 OAuth 账号) -->
       <button
@@ -411,6 +415,19 @@ const menuRef = ref(null)
 const showTagEditor = ref(false)
 const isMenuOpen = ref(false)
 const DEFAULT_TAG_COLOR = '#f97316'
+
+const isAccessTokenOnlyAccount = computed(() => {
+  const token = props.account?.token
+  return props.account?.account_type !== 'api' && Boolean(token?.access_token) && !token?.refresh_token
+})
+
+const switchDisabled = computed(() => props.isSwitching || isAccessTokenOnlyAccount.value)
+
+const switchTooltip = computed(() => (
+  isAccessTokenOnlyAccount.value
+    ? $t('platform.openai.actions.switchDisabledAccessTokenOnly')
+    : $t('platform.openai.switch')
+))
 
 // 状态相关
 const statusClass = computed(() => {

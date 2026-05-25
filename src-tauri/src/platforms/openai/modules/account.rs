@@ -91,7 +91,40 @@ pub async fn refresh_quota_and_backfill(account: &mut Account) -> Result<QuotaDa
     let quota = fetch_quota_with_retry(account).await?;
     account.update_quota(quota.clone());
     backfill_openai_auth_json_if_missing(account);
+
+    if missing_subscription_expiry(account) {
+        if let Some(access_token) = account
+            .token
+            .as_ref()
+            .map(|token| token.access_token.clone())
+        {
+            oauth::enrich_openai_auth_json_with_account_check(
+                &access_token,
+                account.organization_id.as_deref(),
+                account.chatgpt_account_id.as_deref(),
+                &mut account.openai_auth_json,
+            )
+            .await;
+        }
+    }
+
     Ok(quota)
+}
+
+fn missing_subscription_expiry(account: &Account) -> bool {
+    account
+        .openai_auth_json
+        .as_deref()
+        .and_then(|json| serde_json::from_str::<serde_json::Value>(json).ok())
+        .and_then(|value| {
+            value
+                .get("chatgpt_subscription_active_until")
+                .and_then(serde_json::Value::as_str)
+                .map(str::trim)
+                .map(|value| !value.is_empty())
+        })
+        .map(|has_value| !has_value)
+        .unwrap_or(true)
 }
 
 pub async fn refresh_token_if_needed(

@@ -156,17 +156,18 @@
     <td class="px-2.5 py-3.5 border-b border-border/50 align-middle whitespace-nowrap text-[13px] text-text">
       <div class="flex items-center gap-1.5 justify-end">
         <!-- 切换按钮 -->
-        <button
-          @click.stop="$emit('switch', account.id)"
-          class="btn btn--ghost btn--icon-sm"
-          :disabled="isSwitching"
-          v-tooltip="$t('platform.openai.actions.switch')"
-        >
-          <svg v-if="!isSwitching" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z" />
-          </svg>
-          <span v-else class="btn-spinner btn-spinner--xs text-accent" aria-hidden="true"></span>
-        </button>
+        <span v-tooltip="switchTooltip" class="inline-flex">
+          <button
+            @click.stop="$emit('switch', account.id)"
+            class="btn btn--ghost btn--icon-sm"
+            :disabled="switchDisabled"
+          >
+            <svg v-if="!isSwitching" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z" />
+            </svg>
+            <span v-else class="btn-spinner btn-spinner--xs text-accent" aria-hidden="true"></span>
+          </button>
+        </span>
 
         <!-- 刷新配额按钮（仅 OAuth 账号） -->
         <button
@@ -305,6 +306,19 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['refresh', 'refresh-quota', 'delete', 'select', 'switch', 'account-updated', 'copy-third-party-credentials'])
+
+const isAccessTokenOnlyAccount = computed(() => {
+  const token = props.account?.token
+  return props.account?.account_type !== 'api' && Boolean(token?.access_token) && !token?.refresh_token
+})
+
+const switchDisabled = computed(() => props.isSwitching || isAccessTokenOnlyAccount.value)
+
+const switchTooltip = computed(() => (
+  isAccessTokenOnlyAccount.value
+    ? $t('platform.openai.actions.switchDisabledAccessTokenOnly')
+    : $t('platform.openai.actions.switch')
+))
 
 // 复制菜单状态
 const copyMenuRef = ref(null)

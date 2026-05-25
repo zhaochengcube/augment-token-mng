@@ -26,9 +26,7 @@ const hasRequiredTokens = (account) => {
   const token = account?.token
   return Boolean(
     account?.account_type !== 'api' &&
-      token?.access_token &&
-      token?.refresh_token &&
-      token?.id_token
+      token?.access_token
   )
 }
 
@@ -50,8 +48,8 @@ export default {
         tokens: {
           access_token: account.token.access_token,
           account_id: resolveAccountId(account),
-          id_token: account.token.id_token,
-          refresh_token: account.token.refresh_token
+          id_token: account.token.id_token || '',
+          refresh_token: account.token.refresh_token || ''
         }
       },
       null,

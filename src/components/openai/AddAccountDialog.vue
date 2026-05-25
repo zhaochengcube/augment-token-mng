@@ -273,7 +273,34 @@
 
     <!-- 手动添加方式 -->
     <div v-else-if="addMethod === 'manual'" class="animate-fade-in">
-      <div class="form-group mb-0">
+      <div class="mb-4 flex gap-2 rounded-lg bg-muted p-1">
+        <button
+          type="button"
+          :class="[
+            'flex flex-1 items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition-all',
+            manualTokenType === 'refresh_token'
+              ? 'bg-surface text-accent shadow-sm'
+              : 'text-text-secondary hover:bg-hover hover:text-text'
+          ]"
+          @click="manualTokenType = 'refresh_token'"
+        >
+          Refresh Token
+        </button>
+        <button
+          type="button"
+          :class="[
+            'flex flex-1 items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition-all',
+            manualTokenType === 'access_token'
+              ? 'bg-surface text-accent shadow-sm'
+              : 'text-text-secondary hover:bg-hover hover:text-text'
+          ]"
+          @click="manualTokenType = 'access_token'"
+        >
+          Access Token / Session JSON
+        </button>
+      </div>
+
+      <div v-if="manualTokenType === 'refresh_token'" class="form-group mb-0">
         <label class="label">{{ $t('platform.openai.addAccountDialog.refreshToken') }}</label>
         <textarea
           v-model="refreshToken"
@@ -285,6 +312,23 @@
         <p class="mt-1.5 text-xs text-text-muted">
           {{ $t('platform.openai.addAccountDialog.refreshTokenHint') }}
         </p>
+      </div>
+
+      <div v-else class="form-group mb-0">
+        <label class="label">{{ $t('platform.openai.addAccountDialog.accessToken') }}</label>
+        <textarea
+          v-model="accessToken"
+          :placeholder="$t('platform.openai.addAccountDialog.accessTokenPlaceholder')"
+          class="input resize-none"
+          rows="8"
+          :disabled="isLoading"
+        ></textarea>
+        <p v-if="$t('platform.openai.addAccountDialog.accessTokenHint')" class="mt-1.5 text-xs text-text-muted">
+          {{ $t('platform.openai.addAccountDialog.accessTokenHint') }}
+        </p>
+        <div class="mt-3 rounded-lg border border-warning/30 bg-warning/10 p-3 text-xs text-text-secondary">
+          {{ $t('platform.openai.addAccountDialog.accessTokenWarning') }}
+        </div>
       </div>
     </div>
 
@@ -439,7 +483,9 @@ const handleClose = async () => {
 }
 
 const addMethod = ref('oauth') // 'oauth', 'manual', or 'api'
+const manualTokenType = ref('refresh_token') // 'refresh_token' or 'access_token'
 const refreshToken = ref('')
+const accessToken = ref('')
 const isLoading = ref(false)
 const isOAuthLoginActive = ref(false)
 const isManualLoading = ref(false)
@@ -632,7 +678,8 @@ const selectedReasoningEffort = ref('medium')
 const selectedWireApi = ref('responses')
 
 const canSubmit = computed(() => {
-  if (addMethod.value === 'oauth') return true
+  if (addMethod.value !== 'manual') return false
+  if (manualTokenType.value === 'access_token') return accessToken.value.trim()
   return refreshToken.value.trim()
 })
 
@@ -801,9 +848,13 @@ const handleAdd = async () => {
   isLoading.value = true
 
   try {
-    const account = await invoke('openai_add_account', {
-      refreshToken: refreshToken.value.trim()
-    })
+    const account = manualTokenType.value === 'access_token'
+      ? await invoke('openai_add_account_with_access_token', {
+          accessToken: accessToken.value.trim()
+        })
+      : await invoke('openai_add_account', {
+          refreshToken: refreshToken.value.trim()
+        })
     emit('added', account)
   } catch (err) {
     console.error('Add account error:', err)
