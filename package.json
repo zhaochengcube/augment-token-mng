@@ -1,7 +1,7 @@
 {
   "name": "ATM",
   "private": true,
-  "version": "1.9.21",
+  "version": "1.9.22",
   "type": "module",
   "scripts": {
     "dev": "vite",
