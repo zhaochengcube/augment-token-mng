@@ -27,8 +27,105 @@
                   class="absolute right-1.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text text-sm leading-none cursor-pointer"
                 >✕</button>
               </div>
+              <FloatingDropdown
+                v-if="accounts.length > 0"
+                placement="bottom-start"
+              >
+                <template #trigger="{ isOpen }">
+                  <button
+                    type="button"
+                    class="btn btn--secondary btn--sm min-w-28 justify-between"
+                    :class="{ 'btn--primary': selectedStatusFilter !== 'all' }"
+                  >
+                    <span>{{ selectedStatusFilterLabel }}</span>
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                      class="transition-transform"
+                      :class="{ 'rotate-180': isOpen }"
+                    >
+                      <path d="M7 10l5 5 5-5H7z"/>
+                    </svg>
+                  </button>
+                </template>
+                <template #default="{ close }">
+                  <button
+                    v-for="option in statusFilterOptions"
+                    :key="option.value"
+                    class="dropdown-item"
+                    :class="{ active: selectedStatusFilter === option.value }"
+                    @click="selectStatusFilter(option.value); close()"
+                  >
+                    <span>{{ option.label }}</span>
+                    <span class="ml-3 text-xs text-text-muted">{{ option.count }}</span>
+                  </button>
+                </template>
+              </FloatingDropdown>
+              <FloatingDropdown
+                v-if="accounts.length > 0"
+                placement="bottom-start"
+                width="medium"
+              >
+                <template #trigger="{ isOpen }">
+                  <button
+                    type="button"
+                    class="btn btn--secondary btn--sm min-w-30 justify-between"
+                    :class="{ 'btn--primary': selectedTagFilter !== 'all' }"
+                  >
+                    <span class="truncate">{{ selectedTagFilterLabel }}</span>
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                      class="transition-transform"
+                      :class="{ 'rotate-180': isOpen }"
+                    >
+                      <path d="M7 10l5 5 5-5H7z"/>
+                    </svg>
+                  </button>
+                </template>
+                <template #default="{ close }">
+                  <button
+                    class="dropdown-item"
+                    :class="{ active: selectedTagFilter === 'all' }"
+                    @click="selectTagFilter('all'); close()"
+                  >
+                    <span>全部标签</span>
+                    <span class="ml-3 text-xs text-text-muted">{{ accounts.length }}</span>
+                  </button>
+                  <button
+                    class="dropdown-item"
+                    :class="{ active: selectedTagFilter === '__no_tag__' }"
+                    @click="selectTagFilter('__no_tag__'); close()"
+                  >
+                    <span>无标签</span>
+                    <span class="ml-3 text-xs text-text-muted">{{ noTagCount }}</span>
+                  </button>
+                  <button
+                    v-for="tag in allTags"
+                    :key="tag"
+                    class="dropdown-item"
+                    :class="{ active: selectedTagFilter === tag }"
+                    @click="selectTagFilter(tag); close()"
+                  >
+                    <span class="truncate">{{ tag }}</span>
+                    <span class="ml-3 text-xs text-text-muted">{{ tagCounts[tag] || 0 }}</span>
+                  </button>
+                </template>
+              </FloatingDropdown>
             </div>
             <div class="flex gap-2.5">
+              <button
+                @click="deleteInvalidAccounts"
+                :disabled="isDeletingInvalidAccounts || invalidAccounts.length === 0"
+                class="btn btn-tech-danger btn--sm"
+              >
+                <span v-if="isDeletingInvalidAccounts" class="btn-spinner btn-spinner--xs" aria-hidden="true"></span>
+                批量删除失效 ({{ invalidAccounts.length }})
+              </button>
               <button
                 @click="refreshAllTokens"
                 :disabled="isRefreshingAll || accounts.length === 0"
@@ -86,9 +183,19 @@
           </div>
 
 
-          <div v-if="accounts.length === 0 && !isLoading" class="text-center py-10 text-text-muted">
+          <div v-else-if="accounts.length === 0" class="text-center py-10 text-text-muted">
             <p>{{ $t('outlookManager.emptyState') }}</p>
             <p class="text-xs mt-2 opacity-70">{{ $t('outlookManager.emptyDescription') }}</p>
+          </div>
+
+          <div v-else-if="filteredAccounts.length === 0" class="text-center py-10 text-text-muted">
+            <p>没有符合筛选条件的邮箱</p>
+            <button
+              @click="clearAccountFilters"
+              class="btn btn--secondary btn--sm mt-3"
+            >
+              清除筛选
+            </button>
           </div>
 
           <div v-else class="flex flex-col gap-3.5">
@@ -99,7 +206,29 @@
               @click="viewEmails(account.email)"
             >
               <div class="flex-1">
-                <div class="font-semibold text-text mb-2">{{ account.email }}</div>
+                <div class="flex items-center gap-2 mb-2 flex-wrap">
+                  <div class="font-semibold text-text">{{ account.email }}</div>
+                  <span
+                    v-if="account.tag?.trim()"
+                    class="badge editable badge--sm max-w-[120px]"
+                    :style="{ '--tag-color': account.tag_color || DEFAULT_TAG_COLOR }"
+                    v-tooltip="$t('tokenList.clickToEditTag')"
+                    @click.stop="openTagEditor(account)"
+                  >
+                    {{ account.tag }}
+                  </span>
+                  <span
+                    v-else
+                    class="inline-flex items-center gap-1 px-1.5 py-0.5 border border-dashed border-border rounded text-text-muted text-xs cursor-pointer hover:border-accent hover:text-accent transition-colors"
+                    v-tooltip="$t('tokenList.clickToAddTag')"
+                    @click.stop="openTagEditor(account)"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                    </svg>
+                    {{ $t('tokenList.clickToAddTag') }}
+                  </span>
+                </div>
                 <div class="flex items-center gap-3.5 flex-wrap">
                   <span :class="getStatusClass(account.email)">
                     {{ getStatusText(account.email) }}
@@ -347,6 +476,14 @@
     @close="showEmailViewer = false"
   />
 
+  <TagEditorModal
+    v-model:visible="showTagEditor"
+    :token="editingTagToken"
+    :all-tokens="allAccountsAsTokens"
+    @save="handleTagSave"
+    @clear="handleTagClear"
+  />
+
   <!-- Client ID 获取帮助弹窗 -->
   <BaseModal
     :visible="showClientIdHelp"
@@ -408,6 +545,8 @@ import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from 'vue-i18n'
 import EmailViewer from './EmailViewer.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
+import TagEditorModal from '@/components/token/TagEditorModal.vue'
+import FloatingDropdown from '@/components/common/FloatingDropdown.vue'
 
 const props = defineProps({
   isPageMode: {
@@ -434,12 +573,19 @@ const fetchingCodeEmail = ref('')
 const showAddModal = ref(false)
 const showEmailViewer = ref(false)
 const selectedEmail = ref('')
+const showTagEditor = ref(false)
+const editingTagAccount = ref(null)
+const DEFAULT_TAG_COLOR = '#f97316'
 
 const accountInput = ref('')
 const addTab = ref('manual')
 const searchQuery = ref('')
+const selectedStatusFilter = ref('all')
+const selectedTagFilter = ref('all')
 const accountPage = ref(1)
 const accountPageSize = 20
+const isDeletingInvalidAccounts = ref(false)
+const INVALID_ACCOUNT_STATUSES = new Set(['inactive', 'banned', 'error'])
 
 // OAuth 状态
 const oauthAvailable = ref(false)
@@ -456,9 +602,37 @@ const isOAuthLoading = ref(false)
 
 // 计算属性
 const filteredAccounts = computed(() => {
-  if (!searchQuery.value.trim()) return accounts.value
-  const q = searchQuery.value.trim().toLowerCase()
-  return accounts.value.filter(a => a.email.toLowerCase().includes(q))
+  let result = accounts.value
+
+  if (searchQuery.value.trim()) {
+    const q = searchQuery.value.trim().toLowerCase()
+    result = result.filter(a => a.email.toLowerCase().includes(q))
+  }
+
+  if (selectedStatusFilter.value !== 'all') {
+    result = result.filter(a => {
+      const status = getAccountStatusKey(a.email)
+      if (selectedStatusFilter.value === 'active') {
+        return status === 'active'
+      }
+      if (selectedStatusFilter.value === 'invalid') {
+        return INVALID_ACCOUNT_STATUSES.has(status)
+      }
+      return true
+    })
+  }
+
+  if (selectedTagFilter.value !== 'all') {
+    result = result.filter(a => {
+      const tag = a.tag?.trim() || ''
+      if (selectedTagFilter.value === '__no_tag__') {
+        return !tag
+      }
+      return tag === selectedTagFilter.value
+    })
+  }
+
+  return result
 })
 
 const accountTotalPages = computed(() => Math.ceil(filteredAccounts.value.length / accountPageSize) || 1)
@@ -468,7 +642,67 @@ const paginatedAccounts = computed(() => {
   return filteredAccounts.value.slice(start, start + accountPageSize)
 })
 
-watch(searchQuery, () => { accountPage.value = 1 })
+const editingTagToken = computed(() => ({
+  tag_name: editingTagAccount.value?.tag || '',
+  tag_color: editingTagAccount.value?.tag_color || ''
+}))
+
+const allAccountsAsTokens = computed(() =>
+  accounts.value.map(acc => ({
+    tag_name: acc.tag || '',
+    tag_color: acc.tag_color || ''
+  }))
+)
+
+const allTags = computed(() => {
+  const tags = new Set()
+  accounts.value.forEach(account => {
+    const tag = account.tag?.trim()
+    if (tag) {
+      tags.add(tag)
+    }
+  })
+  return Array.from(tags).sort((a, b) => a.localeCompare(b, 'zh-CN'))
+})
+
+const tagCounts = computed(() => {
+  const counts = {}
+  accounts.value.forEach(account => {
+    const tag = account.tag?.trim()
+    if (tag) {
+      counts[tag] = (counts[tag] || 0) + 1
+    }
+  })
+  return counts
+})
+
+const noTagCount = computed(() => accounts.value.filter(account => !account.tag?.trim()).length)
+
+const invalidAccounts = computed(() =>
+  accounts.value.filter(account => INVALID_ACCOUNT_STATUSES.has(getAccountStatusKey(account.email)))
+)
+
+const activeAccountCount = computed(() =>
+  accounts.value.filter(account => getAccountStatusKey(account.email) === 'active').length
+)
+
+const statusFilterOptions = computed(() => [
+  { value: 'all', label: '全部状态', count: accounts.value.length },
+  { value: 'active', label: '正常', count: activeAccountCount.value },
+  { value: 'invalid', label: '失效', count: invalidAccounts.value.length }
+])
+
+const selectedStatusFilterLabel = computed(() => {
+  return statusFilterOptions.value.find(option => option.value === selectedStatusFilter.value)?.label || '全部状态'
+})
+
+const selectedTagFilterLabel = computed(() => {
+  if (selectedTagFilter.value === 'all') return '全部标签'
+  if (selectedTagFilter.value === '__no_tag__') return '无标签'
+  return selectedTagFilter.value
+})
+
+watch([searchQuery, selectedStatusFilter, selectedTagFilter], () => { accountPage.value = 1 })
 
 const canAddAccount = computed(() => {
   const lines = accountInput.value.trim().split('\n').filter(l => l.trim())
@@ -632,6 +866,64 @@ const deleteAccount = async (email) => {
     }
   } catch (error) {
     showStatus(`删除失败: ${error}`, 'error')
+  }
+}
+
+const clearAccountFilters = () => {
+  searchQuery.value = ''
+  selectedStatusFilter.value = 'all'
+  selectedTagFilter.value = 'all'
+}
+
+const selectStatusFilter = (filter) => {
+  selectedStatusFilter.value = filter
+}
+
+const selectTagFilter = (filter) => {
+  selectedTagFilter.value = filter
+}
+
+const deleteInvalidAccounts = async () => {
+  const targets = invalidAccounts.value
+  if (targets.length === 0) {
+    showStatus('当前没有可删除的失效账号', 'info')
+    return
+  }
+
+  if (!confirm(`确定要删除 ${targets.length} 个失效账号吗？仅会删除离线、封禁或错误状态的账号。`)) {
+    return
+  }
+
+  isDeletingInvalidAccounts.value = true
+  let successCount = 0
+  let failedCount = 0
+
+  try {
+    for (const account of targets) {
+      try {
+        const deleted = await invoke('outlook_delete_account', { email: account.email })
+        if (deleted) {
+          successCount++
+          delete accountStatuses.value[account.email]
+        } else {
+          failedCount++
+        }
+      } catch (error) {
+        console.error('Failed to delete invalid Outlook account:', account.email, error)
+        failedCount++
+      }
+    }
+
+    await refreshAccounts()
+    accountPage.value = 1
+
+    if (failedCount === 0) {
+      showStatus(`已删除 ${successCount} 个失效账号`, 'success')
+    } else {
+      showStatus(`已删除 ${successCount} 个，${failedCount} 个失败`, 'warning')
+    }
+  } finally {
+    isDeletingInvalidAccounts.value = false
   }
 }
 
@@ -841,6 +1133,43 @@ const copyToClipboard = async (text) => {
   }
 }
 
+const openTagEditor = (account) => {
+  editingTagAccount.value = account
+  showTagEditor.value = true
+}
+
+const handleTagSave = async ({ tagName, tagColor }) => {
+  if (!editingTagAccount.value) return
+  try {
+    await invoke('outlook_update_tag', {
+      email: editingTagAccount.value.email,
+      tag: tagName || null,
+      tagColor: tagColor || null
+    })
+    editingTagAccount.value.tag = tagName || null
+    editingTagAccount.value.tag_color = tagColor || null
+    showStatus(t('messages.tagUpdated'), 'success')
+  } catch (error) {
+    showStatus(`${t('messages.updateFailed')}: ${error}`, 'error')
+  }
+}
+
+const handleTagClear = async () => {
+  if (!editingTagAccount.value) return
+  try {
+    await invoke('outlook_update_tag', {
+      email: editingTagAccount.value.email,
+      tag: null,
+      tagColor: null
+    })
+    editingTagAccount.value.tag = null
+    editingTagAccount.value.tag_color = null
+    showStatus(t('messages.tagCleared'), 'success')
+  } catch (error) {
+    showStatus(`${t('messages.updateFailed')}: ${error}`, 'error')
+  }
+}
+
 const refreshAllTokens = async () => {
   isRefreshingAll.value = true
   refreshResults.value = null
@@ -906,8 +1235,10 @@ const retryFailedTokens = async () => {
   }
 }
 
+const getAccountStatusKey = (email) => accountStatuses.value[email] || 'unchecked'
+
 const getStatusClass = (email) => {
-  const status = accountStatuses.value[email]
+  const status = getAccountStatusKey(email)
   switch (status) {
     case 'active': return 'badge badge--sm badge--success-tech'
     case 'inactive': return 'badge badge--sm badge--danger-tech'
@@ -919,7 +1250,7 @@ const getStatusClass = (email) => {
 }
 
 const getStatusText = (email) => {
-  const status = accountStatuses.value[email]
+  const status = getAccountStatusKey(email)
   switch (status) {
     case 'active': return t('outlookManager.status.online')
     case 'inactive': return t('outlookManager.status.offline')

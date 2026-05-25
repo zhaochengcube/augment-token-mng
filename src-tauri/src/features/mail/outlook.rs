@@ -36,6 +36,8 @@ pub struct OutlookCredentials {
     pub refresh_token: String,
     pub client_id: String,
     pub created_at: chrono::DateTime<chrono::Utc>,
+    pub tag: Option<String>,
+    pub tag_color: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -83,6 +85,8 @@ pub struct AccountStatus {
 pub struct AccountInfo {
     pub email: String,
     pub created_at: chrono::DateTime<chrono::Utc>,
+    pub tag: Option<String>,
+    pub tag_color: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -306,6 +310,8 @@ pub async fn outlook_save_credentials(
         refresh_token,
         client_id,
         created_at: chrono::Utc::now(),
+        tag: None,
+        tag_color: None,
     };
 
     let mut manager = state.outlook_manager.lock().unwrap();
@@ -319,6 +325,47 @@ pub async fn outlook_get_all_accounts_info(
     ensure_loaded(&state);
     let manager = state.outlook_manager.lock().unwrap();
     manager.get_all_accounts_info()
+}
+
+#[tauri::command]
+pub async fn outlook_update_tag(
+    email: String,
+    tag: Option<String>,
+    tag_color: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let normalized_tag = tag.and_then(|value| {
+        let trimmed = value.trim().to_string();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed)
+        }
+    });
+    let normalized_tag_color = tag_color.and_then(|value| {
+        let trimmed = value.trim().to_string();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed)
+        }
+    });
+
+    let storage = get_outlook_storage(&state)?;
+    storage.update_tag(
+        &email,
+        normalized_tag.as_deref(),
+        normalized_tag_color.as_deref(),
+    )?;
+
+    ensure_loaded(&state);
+    let mut manager = state.outlook_manager.lock().unwrap();
+    if let Some(credentials) = manager.credentials.get_mut(&email) {
+        credentials.tag = normalized_tag;
+        credentials.tag_color = normalized_tag_color;
+    }
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -836,6 +883,8 @@ impl OutlookManager {
                 refresh_token: record.refresh_token,
                 client_id: record.client_id,
                 created_at,
+                tag: record.tag,
+                tag_color: record.tag_color,
             };
             self.credentials.insert(record.email, credentials);
         }
@@ -867,6 +916,8 @@ impl OutlookManager {
             .map(|(email, creds)| AccountInfo {
                 email: email.clone(),
                 created_at: creds.created_at,
+                tag: creds.tag.clone(),
+                tag_color: creds.tag_color.clone(),
             })
             .collect())
     }

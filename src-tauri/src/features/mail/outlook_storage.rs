@@ -63,7 +63,9 @@ impl OutlookStorage {
         )
         .map_err(|e| format!("Failed to create Outlook table: {}", e))?;
 
-        // 迁移: 为旧表添加 status 列
+        // 迁移: 为旧表补齐新增列
+        let _ = conn.execute_batch("ALTER TABLE outlook_credentials ADD COLUMN tag TEXT DEFAULT NULL;");
+        let _ = conn.execute_batch("ALTER TABLE outlook_credentials ADD COLUMN tag_color TEXT DEFAULT NULL;");
         let _ = conn.execute_batch("ALTER TABLE outlook_credentials ADD COLUMN status TEXT DEFAULT NULL;");
 
         Ok(())

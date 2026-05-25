@@ -774,6 +774,7 @@ pub fn run() {
             outlook::outlook_save_credentials,
             outlook::outlook_get_all_accounts_info,
             outlook::outlook_get_account_statuses,
+            outlook::outlook_update_tag,
             outlook::outlook_delete_account,
             outlook::outlook_check_account_status,
             outlook::outlook_get_emails,
